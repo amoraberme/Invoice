@@ -22,3 +22,12 @@ export function formatCurrency(amount: number, currency: string): string {
     currency: currency || 'USD',
   }).format(amount)
 }
+
+export function chunkItems<T>(items: T[], size: number): T[][] {
+  if (items.length === 0) return [[]]
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
