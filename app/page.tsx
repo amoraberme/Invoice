@@ -319,7 +319,25 @@ export default function Home() {
                   placeholder="0"
                 />
               </Field>
+              <Field label="Subject">
+                <Input
+                  value={invoice.subject || ''}
+                  onChange={(e) => update('subject', e.target.value)}
+                  placeholder="Supply & Deliver Safety Hats"
+                />
+              </Field>
             </div>
+          </section>
+
+          {/* SALUTATION */}
+          <section className="space-y-3">
+            <SectionHeader>Salutation / Intro</SectionHeader>
+            <Textarea
+              value={invoice.salutation || ''}
+              onChange={(e) => update('salutation', e.target.value)}
+              placeholder="Dear Madam/Sir, We are pleased to submit..."
+              rows={3}
+            />
           </section>
 
           {/* LINE ITEMS */}
@@ -389,14 +407,25 @@ export default function Home() {
             </div>
           </section>
 
-          {/* NOTES renamed to Terms & Condition */}
+          {/* TERMS & CONDITION (renamed from Note) */}
           <section className="space-y-3">
             <SectionHeader>Terms & Condition</SectionHeader>
             <Textarea
               value={invoice.note}
               onChange={(e) => update('note', e.target.value)}
               placeholder="Payment terms, conditions, or any additional details…"
-              rows={3}
+              rows={4}
+            />
+          </section>
+
+          {/* CLOSING */}
+          <section className="space-y-3">
+            <SectionHeader>Closing / Footer</SectionHeader>
+            <Textarea
+              value={invoice.closing || ''}
+              onChange={(e) => update('closing', e.target.value)}
+              placeholder="We are looking forward to building..."
+              rows={2}
             />
           </section>
         </div>

@@ -27,8 +27,10 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
   const total = subtotal + vat
 
   const itemChunks = chunkItems(invoice.lineItems, 15)
-  const needsExtraPage = itemChunks[itemChunks.length - 1].length === 15
-  const totalPages = itemChunks.length + (needsExtraPage ? 1 : 0)
+  // If last chunk is full, or total items > 0 and it's the last page, we decide if totals fit
+  // Simple heuristic: if 15 items, move totals to next page.
+  const needsExtraPage = itemChunks.length > 0 && itemChunks[itemChunks.length - 1].length === 15
+  const totalPages = Math.max(1, itemChunks.length + (needsExtraPage ? 1 : 0))
 
   return (
     <main
@@ -77,7 +79,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                 </div>
 
                 {/* Bill To + Dates */}
-                <div className="flex justify-between items-start mb-10">
+                <div className="flex justify-between items-start mb-6">
                   <div className="max-w-xs">
                     <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
                       Bill To
@@ -115,6 +117,23 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                     )}
                   </div>
                 </div>
+
+                {/* Subject Line */}
+                {invoice.subject && (
+                  <div className="mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2">
+                    <span className="text-[12px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
+                    <span className="text-[12px] font-bold text-[#111111]">{invoice.subject}</span>
+                  </div>
+                )}
+
+                {/* Salutation / Intro */}
+                {invoice.salutation && (
+                  <div className="mb-6">
+                    <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                      {invoice.salutation}
+                    </p>
+                  </div>
+                )}
 
                 {/* Line items table */}
                 <div className="mb-8">
@@ -156,11 +175,11 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                   ))}
                 </div>
 
-                {/* Totals, Bank Details, Note, Terms, Salesperson (Only on isLastPage) */}
+                {/* Totals, Bank Details, Note, Salesperson, Closing (Only on isLastPage) */}
                 {isLastPage && (
                   <>
                     {/* Totals */}
-                    <div className="flex flex-col items-end gap-2 mb-12">
+                    <div className="flex flex-col items-end gap-2 mb-8">
                       <div className="flex gap-8 items-center">
                         <span className="text-[12px] text-[#888888]">Subtotal</span>
                         <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
@@ -186,7 +205,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Bank details */}
                     {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                      <div className="border-t border-[#E5E5E5] pt-6 flex flex-col gap-1.5">
+                      <div className="border-t border-[#E5E5E5] pt-4 flex flex-col gap-1.5">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                           Payment Details
                         </p>
@@ -225,17 +244,17 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Terms & Condition (renamed from Note) */}
                     {invoice.note && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6">
+                      <div className="border-t border-[#E5E5E5] pt-4 mt-4">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
                           Terms & Condition
                         </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap">{invoice.note}</p>
+                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">{invoice.note}</p>
                       </div>
                     )}
 
                     {/* Salesperson info */}
                     {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className="mt-8 pt-6 border-t border-[#E5E5E5] flex flex-col gap-0.5">
+                      <div className="mt-6 pt-4 border-t border-[#E5E5E5] flex flex-col gap-0.5">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                           Sales Quotation By
                         </p>
@@ -248,6 +267,15 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                         {invoice.salesCompany && (
                           <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
                         )}
+                      </div>
+                    )}
+
+                    {/* Closing Section */}
+                    {invoice.closing && (
+                      <div className="mt-6 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid">
+                        <p className="text-[12px] text-[#555555] italic text-center font-medium">
+                          {invoice.closing}
+                        </p>
                       </div>
                     )}
                   </>
