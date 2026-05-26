@@ -243,7 +243,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       <img
                         src="/mg.png"
                         alt="INVOICE"
-                        className="h-10 w-auto object-contain mb-1"
+                        className="h-[140px] w-auto object-contain mb-1"
                       />
                       {invoice.invoiceNumber && (
                         <p className="text-[12px] text-[#888888] mt-1">{invoice.invoiceNumber}</p>
@@ -353,83 +353,36 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                   </div>
                 )}
 
-                {/* Totals (directly below items) */}
+                {/* Totals + Bank Details (directly below items) */}
                 {page.showTotals && (
-                  <div className="flex flex-col items-end gap-2 mb-8 mt-4 print:break-inside-avoid">
-                    <div className="flex gap-8 items-center">
-                      <span className="text-[12px] text-[#888888]">Subtotal</span>
-                      <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
-                        {formatCurrency(subtotal, invoice.currency)}
-                      </span>
-                    </div>
-                    {invoice.vatRate > 0 && (
+                  <>
+                    <div className="flex flex-col items-end gap-2 mb-8 mt-4 print:break-inside-avoid">
                       <div className="flex gap-8 items-center">
-                        <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate}%</span>
+                        <span className="text-[12px] text-[#888888]">Subtotal</span>
                         <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
-                          {formatCurrency(vat, invoice.currency)}
+                          {formatCurrency(subtotal, invoice.currency)}
                         </span>
                       </div>
-                    )}
-                    <div className="w-48 h-px bg-[#E5E5E5]" />
-                    <div className="flex gap-8 items-center">
-                      <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
-                      <span className="text-[20px] font-bold text-[#111111] tracking-tight w-32 text-right">
-                        {formatCurrency(total, invoice.currency)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Footer block: Note, Terms, Bank, Sales, Closing */}
-                {page.showBottom && (
-                  <>
-                    {/* Note */}
-                    {invoice.note && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Note
-                        </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
-                          {invoice.note}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Sales Quotation By (below Note, far left) */}
-                    {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
-                        <div className="flex flex-col gap-0.5">
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                            Sales Quotation By
-                          </p>
-                          <p className="text-[13px] font-bold text-[#111111]">
-                            {invoice.salesName}
-                          </p>
-                          {invoice.salesPosition && (
-                            <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
-                          )}
-                          {invoice.salesCompany && (
-                            <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
-                          )}
+                      {invoice.vatRate > 0 && (
+                        <div className="flex gap-8 items-center">
+                          <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate}%</span>
+                          <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                            {formatCurrency(vat, invoice.currency)}
+                          </span>
                         </div>
+                      )}
+                      <div className="w-48 h-px bg-[#E5E5E5]" />
+                      <div className="flex gap-8 items-center">
+                        <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
+                        <span className="text-[20px] font-bold text-[#111111] tracking-tight w-32 text-right">
+                          {formatCurrency(total, invoice.currency)}
+                        </span>
                       </div>
-                    )}
-
-                    {/* Terms & Conditions */}
-                    {invoice.terms && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Terms & Conditions
-                        </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
-                          {invoice.terms}
-                        </p>
-                      </div>
-                    )}
+                    </div>
 
                     {/* Bank / Payment Details */}
                     {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-2 mb-6 print:break-inside-avoid">
                         <div className="flex flex-col gap-1.5">
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Payment Details
@@ -467,6 +420,59 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                         </div>
                       </div>
                     )}
+                  </>
+                )}
+
+                {/* Footer block: Note, Terms, Bank, Sales, Closing */}
+                {page.showBottom && (
+                  <>
+                    {/* Note */}
+                    {invoice.note && (
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                          Note
+                        </p>
+                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                          {invoice.note}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Sales Contact (below Note, far left — no heading label) */}
+                    {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[13px] font-bold text-[#111111]">
+                            {invoice.salesName}
+                          </p>
+                          {invoice.salesPosition && (
+                            <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
+                          )}
+                          {invoice.salesCompany && (
+                            <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
+                          )}
+                          {invoice.salesContact && (
+                            <p className="text-[11px] text-[#888888] mt-1">{invoice.salesContact}</p>
+                          )}
+                          {invoice.salesEmail && (
+                            <p className="text-[11px] text-[#888888]">{invoice.salesEmail}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Terms & Conditions */}
+                    {invoice.terms && (
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                          Terms & Conditions
+                        </p>
+                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                          {invoice.terms}
+                        </p>
+                      </div>
+                    )}
+
 
                     {/* Closing Section */}
                     {invoice.closing && (

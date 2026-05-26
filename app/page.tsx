@@ -50,11 +50,13 @@ function Field({
   )
 }
 
+const MG_COMPANY = 'M&G Non-Specialized Wholesale Trading'
+
 const SALESPEOPLE = [
-  { id: 'custom', name: 'Custom / None', position: '', company: '' },
-  { id: 'john', name: 'John Doe', position: 'Senior Sales Executive', company: 'MG Office Solutions' },
-  { id: 'jane', name: 'Jane Smith', position: 'Account Manager', company: 'MG Office Solutions' },
-  { id: 'robert', name: 'Robert Johnson', position: 'Sales Director', company: 'MG Office Solutions' },
+  { id: 'custom', name: 'Custom / None', position: '', company: '', contact: '', email: '' },
+  { id: 'charlotte', name: 'Charlotte C. Santos', position: 'Senior Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 928 1655 179', email: 'charlotte.mgtrading@gmail.com' },
+  { id: 'famella', name: 'Famella D. Ylanan', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 927 9487 013', email: 'sales.mgtradingph@gmail.com' },
+  { id: 'jeramae', name: 'Jeramae E. Broqueza', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 981 2206 849', email: 'jeramaemgtrading6@gmail.com' },
 ]
 
 export default function Home() {
@@ -95,6 +97,8 @@ export default function Home() {
         update('salesName', person.name)
         update('salesPosition', person.position)
         update('salesCompany', person.company)
+        update('salesContact', person.contact)
+        update('salesEmail', person.email)
       }
     }
   }
@@ -110,9 +114,9 @@ export default function Home() {
 
         {/* Scrollable form */}
         <div className="md:flex-1 md:overflow-y-auto px-6 py-6 space-y-7 md:min-h-0">
-          {/* SALES QUOTATION BY */}
+          {/* SALES CONTACT */}
           <section className="space-y-3">
-            <SectionHeader>Sales Quotation By</SectionHeader>
+            <SectionHeader>Sales Contact</SectionHeader>
             <div className="space-y-2">
               <Field label="Salesperson">
                 <Select value={invoice.salesPerson || 'custom'} onValueChange={handleSalesPersonChange}>
@@ -143,7 +147,7 @@ export default function Home() {
                     update('salesPosition', e.target.value)
                     if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
                   }}
-                  placeholder="Sales Executive"
+                  placeholder="Sales & Marketing Executive"
                 />
               </Field>
               <Field label="Company Name">
@@ -153,7 +157,29 @@ export default function Home() {
                     update('salesCompany', e.target.value)
                     if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
                   }}
-                  placeholder="Company Name"
+                  placeholder="M&G Non-Specialized Wholesale Trading"
+                />
+              </Field>
+              <Field label="Contact Number">
+                <Input
+                  type="tel"
+                  value={invoice.salesContact || ''}
+                  onChange={(e) => {
+                    update('salesContact', e.target.value)
+                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                  }}
+                  placeholder="+(63) 9XX XXXX XXX"
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={invoice.salesEmail || ''}
+                  onChange={(e) => {
+                    update('salesEmail', e.target.value)
+                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                  }}
+                  placeholder="email@mgtrading.com"
                 />
               </Field>
             </div>

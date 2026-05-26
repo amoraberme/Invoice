@@ -30,6 +30,8 @@ export interface Invoice {
   salesName: string
   salesPosition: string
   salesCompany: string
+  salesContact: string
+  salesEmail: string
   terms: string
   subject: string
   salutation: string
@@ -66,10 +68,12 @@ export const defaultInvoice: Invoice = {
   bankAccount: '1234-5678-9012',
   bankSwift: 'BDOUPHMM',
   note: 'All items are subject to availability.\nAny additional requests or changes may affect pricing and timeline.',
-  salesPerson: 'john',
-  salesName: 'John Doe',
-  salesPosition: 'Senior Sales Executive',
-  salesCompany: 'M&G Solutions',
+  salesPerson: 'charlotte',
+  salesName: 'Charlotte C. Santos',
+  salesPosition: 'Senior Sales & Marketing Executive',
+  salesCompany: 'M&G Non-Specialized Wholesale Trading',
+  salesContact: '+(63) 928 1655 179',
+  salesEmail: 'charlotte.mgtrading@gmail.com',
   subject: 'Supply & Deliver Safety Hats',
   salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the following item based on your requirement.',
   closing: 'We are looking forward to building a long-term relationship as your reliable supplier.',
