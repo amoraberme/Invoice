@@ -3,6 +3,7 @@ export interface LineItem {
   description: string
   quantity: number
   rate: number
+  unit: string
 }
 
 export interface Invoice {
@@ -25,11 +26,16 @@ export interface Invoice {
   bankAccount: string
   bankSwift: string
   note: string
+  salesPerson: string
+  salesName: string
+  salesPosition: string
+  salesCompany: string
+  terms: string
 }
 
 export function newLineItem(): LineItem {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-  return { id, description: '', quantity: 1, rate: 0 }
+  return { id, description: '', quantity: 1, rate: 0, unit: '' }
 }
 
 export const defaultInvoice: Invoice = {
@@ -52,4 +58,9 @@ export const defaultInvoice: Invoice = {
   bankAccount: '',
   bankSwift: '',
   note: '',
+  salesPerson: '',
+  salesName: '',
+  salesPosition: '',
+  salesCompany: '',
+  terms: '1. All payments should be made to the designated bank account.\n2. Payment is due within 30 days of the invoice date.\n3. Goods remain company property until fully paid.',
 }

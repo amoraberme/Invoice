@@ -50,6 +50,13 @@ function Field({
   )
 }
 
+const SALESPEOPLE = [
+  { id: 'custom', name: 'Custom / None', position: '', company: '' },
+  { id: 'john', name: 'John Doe', position: 'Senior Sales Executive', company: 'MG Office Solutions' },
+  { id: 'jane', name: 'Jane Smith', position: 'Account Manager', company: 'MG Office Solutions' },
+  { id: 'robert', name: 'Robert Johnson', position: 'Sales Director', company: 'MG Office Solutions' },
+]
+
 export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem } = useMGInvoice()
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
@@ -67,7 +74,7 @@ export default function Home() {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [loaded, invoice.fromName, invoice.invoiceNumber])
+  }, [loaded])
 
   const handleDownload = () => {
     const original = document.title
@@ -77,6 +84,18 @@ export default function Home() {
     window.onafterprint = () => {
       document.title = original
       window.onafterprint = null
+    }
+  }
+
+  const handleSalesPersonChange = (val: string) => {
+    const person = SALESPEOPLE.find((p) => p.id === val)
+    if (person) {
+      update('salesPerson', val)
+      if (val !== 'custom') {
+        update('salesName', person.name)
+        update('salesPosition', person.position)
+        update('salesCompany', person.company)
+      }
     }
   }
 
@@ -91,6 +110,55 @@ export default function Home() {
 
         {/* Scrollable form */}
         <div className="md:flex-1 md:overflow-y-auto px-6 py-6 space-y-7 md:min-h-0">
+          {/* SALES QUOTATION BY */}
+          <section className="space-y-3">
+            <SectionHeader>Sales Quotation By</SectionHeader>
+            <div className="space-y-2">
+              <Field label="Salesperson">
+                <Select value={invoice.salesPerson || 'custom'} onValueChange={handleSalesPersonChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Salesperson" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SALESPEOPLE.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Sales Name">
+                <Input
+                  value={invoice.salesName || ''}
+                  onChange={(e) => {
+                    update('salesName', e.target.value)
+                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                  }}
+                  placeholder="Salesperson Name"
+                />
+              </Field>
+              <Field label="Position">
+                <Input
+                  value={invoice.salesPosition || ''}
+                  onChange={(e) => {
+                    update('salesPosition', e.target.value)
+                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                  }}
+                  placeholder="Sales Executive"
+                />
+              </Field>
+              <Field label="Company Name">
+                <Input
+                  value={invoice.salesCompany || ''}
+                  onChange={(e) => {
+                    update('salesCompany', e.target.value)
+                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                  }}
+                  placeholder="Company Name"
+                />
+              </Field>
+            </div>
+          </section>
+
           {/* FROM */}
           <section className="space-y-3">
             <SectionHeader>From</SectionHeader>
@@ -261,6 +329,7 @@ export default function Home() {
               {/* Column headers */}
               <div className="flex gap-2 px-1">
                 <span className="flex-1 text-[11px] font-medium text-[#888888]">Description</span>
+                <span className="w-12 text-[11px] font-medium text-[#888888] text-center">Unit</span>
                 <span className="w-10 text-[11px] font-medium text-[#888888] text-center">Qty</span>
                 <span className="w-[72px] text-[11px] font-medium text-[#888888] text-right">Rate</span>
                 <span className="w-5" />
@@ -274,6 +343,12 @@ export default function Home() {
                     value={item.description}
                     onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                     placeholder="Item description"
+                  />
+                  <Input
+                    className="w-12 px-1 text-center"
+                    value={item.unit || ''}
+                    onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                    placeholder="pcs"
                   />
                   <Input
                     className="w-10 px-0 text-center"
@@ -322,6 +397,17 @@ export default function Home() {
               onChange={(e) => update('note', e.target.value)}
               placeholder="Payment terms, thank you note, or any additional details…"
               rows={3}
+            />
+          </section>
+
+          {/* TERMS */}
+          <section className="space-y-3">
+            <SectionHeader>Terms</SectionHeader>
+            <Textarea
+              value={invoice.terms}
+              onChange={(e) => update('terms', e.target.value)}
+              placeholder="Structured terms and conditions..."
+              rows={4}
             />
           </section>
         </div>
