@@ -30,7 +30,6 @@ export interface Invoice {
   salesName: string
   salesPosition: string
   salesCompany: string
-  terms: string
 }
 
 export function newLineItem(): LineItem {
@@ -62,5 +61,4 @@ export const defaultInvoice: Invoice = {
   salesName: '',
   salesPosition: '',
   salesCompany: '',
-  terms: '1. All payments should be made to the designated bank account.\n2. Payment is due within 30 days of the invoice date.\n3. Goods remain company property until fully paid.',
 }

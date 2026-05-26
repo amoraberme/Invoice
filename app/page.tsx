@@ -389,25 +389,14 @@ export default function Home() {
             </div>
           </section>
 
-          {/* NOTES */}
+          {/* NOTES renamed to Terms & Condition */}
           <section className="space-y-3">
-            <SectionHeader>Note</SectionHeader>
+            <SectionHeader>Terms & Condition</SectionHeader>
             <Textarea
               value={invoice.note}
               onChange={(e) => update('note', e.target.value)}
-              placeholder="Payment terms, thank you note, or any additional details…"
+              placeholder="Payment terms, conditions, or any additional details…"
               rows={3}
-            />
-          </section>
-
-          {/* TERMS */}
-          <section className="space-y-3">
-            <SectionHeader>Terms</SectionHeader>
-            <Textarea
-              value={invoice.terms}
-              onChange={(e) => update('terms', e.target.value)}
-              placeholder="Structured terms and conditions..."
-              rows={4}
             />
           </section>
         </div>
