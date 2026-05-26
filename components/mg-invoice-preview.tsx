@@ -8,6 +8,7 @@ import { formatDate, formatCurrency, cn } from '@/lib/utils'
 interface PageData {
   items: LineItem[]
   showTop: boolean
+  showTotals: boolean
   showBottom: boolean
 }
 
@@ -60,11 +61,12 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 45
     
-    // 2. Estimate height of bottom block (Totals, Note, Bank details, Terms, Signature, Closing)
+    // 2. Totals height (always directly below items)
     let totalsLines = 2 // Subtotal + Total
     if (inv.vatRate > 0) totalsLines++
-    const totalsHeight = totalsLines * 24 + 32
+    const totalsHeight = totalsLines * 24 + 40
     
+    // 3. Footer block height (Note, Terms, Bank/Sales grid, Closing)
     let bankFields = 0
     if (inv.bankBeneficiary) bankFields++
     if (inv.bankName) bankFields++
@@ -73,11 +75,9 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     if (inv.bankSwift) bankFields++
     const bankHeight = bankFields > 0 ? (bankFields * 20 + 30) : 0
     
-    // Note is full-width (charsPerLine = 80)
     const noteLines = getWrappedLines(inv.note, 80)
     const noteHeight = inv.note ? (noteLines * 18 + 36) : 0
     
-    // Terms is full-width (charsPerLine = 80)
     const termsLines = getWrappedLines(inv.terms, 80)
     const termsHeight = inv.terms ? (termsLines * 18 + 36) : 0
     
@@ -87,8 +87,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const closingLines = getWrappedLines(inv.closing, 80)
     const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
     
-    // Dynamic height of the entire totals + details + terms panel + closing
-    const bottomBlockHeight = totalsHeight + noteHeight + termsHeight + gridSectionHeight + closingHeight + 40
+    const footerBlockHeight = noteHeight + termsHeight + gridSectionHeight + closingHeight + 20
 
     // Available content height inside A4 borders (1123px A4 height minus 112px padding)
     const PAGE_MAX_H = 1011
@@ -97,58 +96,106 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     let currentPageHeight = topSectionHeight + tableHeaderHeight
     let isFirstPage = true
     
-    const itemsToPlace = [...inv.lineItems]
-    
-    while (itemsToPlace.length > 0) {
-      const item = itemsToPlace[0]
+    const getItemHeight = (item: LineItem): number => {
       const desc = item.description || ''
       const lines = desc.split('\n')
       let itemLines = 0
       for (const line of lines) {
-        itemLines += Math.max(1, Math.ceil(line.length / 38))
+        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 35))
       }
-      const itemHeight = 28 + itemLines * 18
+      return 28 + itemLines * 18
+    }
+    
+    const itemsToPlace = [...inv.lineItems]
+    
+    while (itemsToPlace.length > 0) {
+      const item = itemsToPlace[0]
+      const itemHeight = getItemHeight(item)
       
-      if (currentPageHeight + itemHeight <= PAGE_MAX_H) {
+      // If page is empty (just header/tableHeader), always accept the item
+      const isPageEmpty = currentItems.length === 0
+      
+      if (isPageEmpty || currentPageHeight + itemHeight <= PAGE_MAX_H) {
         currentItems.push(item)
         currentPageHeight += itemHeight
-        itemsToPlace.shift() // Item fits, remove from queue
+        itemsToPlace.shift()
       } else {
-        // Page is full! Save it
+        // Page is full — save it and start a new page
         pages.push({
           items: currentItems,
           showTop: isFirstPage,
+          showTotals: false,
           showBottom: false,
         })
-        
-        // Reset for subsequent page
         currentItems = []
         currentPageHeight = tableHeaderHeight
         isFirstPage = false
       }
     }
     
-    // All items placed! Check if bottom block fits on current page
-    if (currentPageHeight + bottomBlockHeight <= PAGE_MAX_H) {
-      pages.push({
-        items: currentItems,
-        showTop: isFirstPage,
-        showBottom: true,
-      })
+    // All items placed. Now decide where totals + footer go.
+    // Totals MUST appear directly after items on the same page.
+    // If totals don't fit, push last item(s) to the next page.
+    
+    // Check if totals fit on the current page
+    if (currentPageHeight + totalsHeight <= PAGE_MAX_H) {
+      // Totals fit. Check if footer also fits.
+      if (currentPageHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
+        // Everything fits on one page
+        pages.push({
+          items: currentItems,
+          showTop: isFirstPage,
+          showTotals: true,
+          showBottom: true,
+        })
+      } else {
+        // Totals fit but footer doesn't — put totals with items, footer on next page
+        pages.push({
+          items: currentItems,
+          showTop: isFirstPage,
+          showTotals: true,
+          showBottom: false,
+        })
+        pages.push({
+          items: [],
+          showTop: false,
+          showTotals: false,
+          showBottom: true,
+        })
+      }
     } else {
-      // Bottom block doesn't fit on this page!
-      // Save current items on this page (if any) and push bottom block to a new page
-      pages.push({
-        items: currentItems,
-        showTop: isFirstPage,
-        showBottom: false,
-      })
-      
-      pages.push({
-        items: [],
-        showTop: false,
-        showBottom: true,
-      })
+      // Totals don't fit on current page. Save current items page, 
+      // then put totals (with no items) + footer on the next page.
+      if (currentItems.length > 0) {
+        pages.push({
+          items: currentItems,
+          showTop: isFirstPage,
+          showTotals: false,
+          showBottom: false,
+        })
+      }
+      // Totals + footer on a new page
+      if (totalsHeight + footerBlockHeight + tableHeaderHeight <= PAGE_MAX_H) {
+        pages.push({
+          items: [],
+          showTop: false,
+          showTotals: true,
+          showBottom: true,
+        })
+      } else {
+        pages.push({
+          items: [],
+          showTop: false,
+          showTotals: true,
+          showBottom: false,
+        })
+        pages.push({
+          items: [],
+          showTop: false,
+          showTotals: false,
+          showBottom: true,
+        })
+      }
     }
     
     return pages
@@ -306,39 +353,41 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                   </div>
                 )}
 
-                {/* Totals, Bank Details, Note, Terms, Salesperson, Closing (Last Page Only) */}
+                {/* Totals (directly below items) */}
+                {page.showTotals && (
+                  <div className="flex flex-col items-end gap-2 mb-8 mt-4 print:break-inside-avoid">
+                    <div className="flex gap-8 items-center">
+                      <span className="text-[12px] text-[#888888]">Subtotal</span>
+                      <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                        {formatCurrency(subtotal, invoice.currency)}
+                      </span>
+                    </div>
+                    {invoice.vatRate > 0 && (
+                      <div className="flex gap-8 items-center">
+                        <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate}%</span>
+                        <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                          {formatCurrency(vat, invoice.currency)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="w-48 h-px bg-[#E5E5E5]" />
+                    <div className="flex gap-8 items-center">
+                      <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
+                      <span className="text-[20px] font-bold text-[#111111] tracking-tight w-32 text-right">
+                        {formatCurrency(total, invoice.currency)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer block: Note, Terms, Bank, Sales, Closing */}
                 {page.showBottom && (
                   <>
-                    {/* Totals */}
-                    <div className="flex flex-col items-end gap-2 mb-8 print:break-inside-avoid">
-                      <div className="flex gap-8 items-center">
-                        <span className="text-[12px] text-[#888888]">Subtotal</span>
-                        <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
-                          {formatCurrency(subtotal, invoice.currency)}
-                        </span>
-                      </div>
-                      {invoice.vatRate > 0 && (
-                        <div className="flex gap-8 items-center">
-                          <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate}%</span>
-                          <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
-                            {formatCurrency(vat, invoice.currency)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="w-48 h-px bg-[#E5E5E5]" />
-                      <div className="flex gap-8 items-center">
-                        <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
-                        <span className="text-[20px] font-bold text-[#111111] tracking-tight w-32 text-right">
-                          {formatCurrency(total, invoice.currency)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Full Width Note / Terms */}
+                    {/* Note */}
                     {invoice.note && (
                       <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Note / Terms & Conditions
+                          Note
                         </p>
                         <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
                           {invoice.note}
@@ -346,7 +395,27 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       </div>
                     )}
 
-                    {/* Full Width Optional Terms */}
+                    {/* Sales Quotation By (below Note, far left) */}
+                    {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                            Sales Quotation By
+                          </p>
+                          <p className="text-[13px] font-bold text-[#111111]">
+                            {invoice.salesName}
+                          </p>
+                          {invoice.salesPosition && (
+                            <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
+                          )}
+                          {invoice.salesCompany && (
+                            <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Terms & Conditions */}
                     {invoice.terms && (
                       <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
@@ -358,66 +427,41 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       </div>
                     )}
 
-                    {/* Two-Column Grid for Payment details & Sales signature */}
-                    {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift || invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className="grid grid-cols-2 gap-8 border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
-                        {/* Left Column: Bank details */}
-                        <div>
-                          {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                            <div className="flex flex-col gap-1.5">
-                              <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                                Payment Details
-                              </p>
-                              {invoice.bankBeneficiary && (
-                                <div className="flex gap-2">
-                                  <span className="text-[12px] text-[#888888] w-24 shrink-0">Beneficiary</span>
-                                  <span className="text-[12px] text-[#111111]">{invoice.bankBeneficiary}</span>
-                                </div>
-                              )}
-                              {invoice.bankName && (
-                                <div className="flex gap-2">
-                                  <span className="text-[12px] text-[#888888] w-24 shrink-0">Bank</span>
-                                  <span className="text-[12px] text-[#111111]">{invoice.bankName}</span>
-                                </div>
-                              )}
-                              {invoice.bankSortCode && (
-                                <div className="flex gap-2">
-                                  <span className="text-[12px] text-[#888888] w-24 shrink-0">Sort / Route</span>
-                                  <span className="text-[12px] text-[#111111]">{invoice.bankSortCode}</span>
-                                </div>
-                              )}
-                              {invoice.bankAccount && (
-                                <div className="flex gap-2">
-                                  <span className="text-[12px] text-[#888888] w-24 shrink-0">Account</span>
-                                  <span className="text-[12px] text-[#111111]">{invoice.bankAccount}</span>
-                                </div>
-                              )}
-                              {invoice.bankSwift && (
-                                <div className="flex gap-2">
-                                  <span className="text-[12px] text-[#888888] w-24 shrink-0">SWIFT / BIC</span>
-                                  <span className="text-[12px] text-[#111111]">{invoice.bankSwift}</span>
-                                </div>
-                              )}
+                    {/* Bank / Payment Details */}
+                    {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
+                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                        <div className="flex flex-col gap-1.5">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                            Payment Details
+                          </p>
+                          {invoice.bankBeneficiary && (
+                            <div className="flex gap-2">
+                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Beneficiary</span>
+                              <span className="text-[12px] text-[#111111]">{invoice.bankBeneficiary}</span>
                             </div>
                           )}
-                        </div>
-
-                        {/* Right Column: Salesperson signature */}
-                        <div>
-                          {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                            <div className="flex flex-col gap-0.5">
-                              <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                                Sales Quotation By
-                              </p>
-                              <p className="text-[13px] font-bold text-[#111111]">
-                                {invoice.salesName}
-                              </p>
-                              {invoice.salesPosition && (
-                                <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
-                              )}
-                              {invoice.salesCompany && (
-                                <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
-                              )}
+                          {invoice.bankName && (
+                            <div className="flex gap-2">
+                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Bank</span>
+                              <span className="text-[12px] text-[#111111]">{invoice.bankName}</span>
+                            </div>
+                          )}
+                          {invoice.bankSortCode && (
+                            <div className="flex gap-2">
+                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Sort / Route</span>
+                              <span className="text-[12px] text-[#111111]">{invoice.bankSortCode}</span>
+                            </div>
+                          )}
+                          {invoice.bankAccount && (
+                            <div className="flex gap-2">
+                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Account</span>
+                              <span className="text-[12px] text-[#111111]">{invoice.bankAccount}</span>
+                            </div>
+                          )}
+                          {invoice.bankSwift && (
+                            <div className="flex gap-2">
+                              <span className="text-[12px] text-[#888888] w-24 shrink-0">SWIFT / BIC</span>
+                              <span className="text-[12px] text-[#111111]">{invoice.bankSwift}</span>
                             </div>
                           )}
                         </div>
