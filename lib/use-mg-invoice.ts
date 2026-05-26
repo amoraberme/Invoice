@@ -16,13 +16,17 @@ export function useMGInvoice() {
         for (const key of Object.keys(defaultInvoice) as (keyof Invoice)[]) {
           if (key === 'lineItems') {
             const rawItems = Array.isArray(saved.lineItems) ? saved.lineItems : defaultInvoice.lineItems
-            sanitized.lineItems = rawItems.map((item: any, idx) => ({
-              id: item?.id || `item-${idx}-${Date.now()}`,
-              description: item?.description && item.description !== 'undefined' ? String(item.description) : '',
-              unit: item?.unit && item.unit !== 'undefined' ? String(item.unit) : '',
-              quantity: typeof item?.quantity === 'number' && !isNaN(item.quantity) ? item.quantity : 1,
-              rate: typeof item?.rate === 'number' && !isNaN(item.rate) ? item.rate : 0,
-            }))
+            sanitized.lineItems = rawItems.map((item: any, idx) => {
+              const qty = item?.quantity !== undefined && item?.quantity !== null ? parseFloat(item.quantity) : 1
+              const rt = item?.rate !== undefined && item?.rate !== null ? parseFloat(item.rate) : 0
+              return {
+                id: item?.id || `item-${idx}-${Date.now()}`,
+                description: item?.description && item.description !== 'undefined' ? String(item.description) : '',
+                unit: item?.unit && item.unit !== 'undefined' ? String(item.unit) : '',
+                quantity: !isNaN(qty) ? qty : 1,
+                rate: !isNaN(rt) ? rt : 0,
+              }
+            })
             continue
           }
           
@@ -30,9 +34,10 @@ export function useMGInvoice() {
           const defaultVal = defaultInvoice[key]
           
           if (typeof defaultVal === 'number') {
-            (sanitized as any)[key] = typeof savedVal === 'number' && !isNaN(savedVal) ? savedVal : defaultVal
+            const parsed = parseFloat(savedVal as any)
+            ;(sanitized as any)[key] = !isNaN(parsed) ? parsed : defaultVal
           } else {
-            (sanitized as any)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+            ;(sanitized as any)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
           }
         }
         
