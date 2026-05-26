@@ -31,7 +31,9 @@ export function useMGInvoice() {
       }
     }
     if (Object.keys(overrides).length > 0) {
-      setInvoice((prev) => ({ ...prev, ...overrides }))
+      setTimeout(() => {
+        setInvoice((prev) => ({ ...prev, ...overrides }))
+      }, 0)
     }
   }, [loaded])
 

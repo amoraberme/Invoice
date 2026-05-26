@@ -67,7 +67,7 @@ export default function Home() {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [loaded])
+  }, [loaded, invoice.fromName, invoice.invoiceNumber])
 
   const handleDownload = () => {
     const original = document.title
