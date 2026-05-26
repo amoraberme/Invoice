@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { Twitter, Github } from 'lucide-react'
 import { type Invoice } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { formatDate, formatCurrency, chunkItems } from '@/lib/utils'
