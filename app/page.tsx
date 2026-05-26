@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
+import { sample5Items, sample20Items } from '@/lib/samples'
 import {
   Dialog,
   DialogContent,
@@ -60,7 +61,7 @@ const SALESPEOPLE = [
 ]
 
 export default function Home() {
-  const { invoice, loaded, update, updateItem, addItem, removeItem } = useMGInvoice()
+  const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
 
@@ -108,8 +109,12 @@ export default function Home() {
       {/* ── SIDEBAR ── */}
       <aside className="w-full md:w-[380px] md:h-screen bg-white border-b md:border-b-0 md:border-r border-[#E5E5E5] flex flex-col shrink-0 print:hidden">
         {/* Logo */}
-        <div className="flex items-center px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
+        <div className="flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
           <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+          <div className="flex gap-1.5">
+            <Button variant="outline" size="xs" onClick={() => setInvoice(sample5Items)}>5 Items</Button>
+            <Button variant="outline" size="xs" onClick={() => setInvoice(sample20Items)}>20 Items</Button>
+          </div>
         </div>
 
         {/* Scrollable form */}

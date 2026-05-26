@@ -129,5 +129,5 @@ export function useMGInvoice() {
     }))
   }, [])
 
-  return { invoice, loaded, update, updateItem, addItem, removeItem }
+  return { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice }
 }
