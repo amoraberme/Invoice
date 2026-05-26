@@ -111,28 +111,28 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
               <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
                 Description
               </span>
-              <span className="w-14 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+              <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
                 Qty
               </span>
-              <span className="w-32 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+              <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
                 Rate
               </span>
-              <span className="w-32 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+              <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
                 Amount
               </span>
             </div>
             {invoice.lineItems.map((item) => (
-              <div key={item.id} className="flex py-3.5 border-b border-[#E5E5E5] items-center">
-                <span className="flex-1 text-[13px] text-[#111111]">
+              <div key={item.id} className="flex py-3.5 border-b border-[#E5E5E5] items-start">
+                <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
                   {item.description || '—'}
                 </span>
-                <span className="w-14 text-[13px] text-[#888888] text-center">
+                <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
                   {item.quantity}
                 </span>
-                <span className="w-32 text-[13px] text-[#888888] text-right">
+                <span className="w-32 shrink-0 text-[13px] text-[#888888] text-right">
                   {formatCurrency(item.rate, invoice.currency)}
                 </span>
-                <span className="w-32 text-[13px] font-medium text-[#111111] text-right">
+                <span className="w-32 shrink-0 text-[13px] font-medium text-[#111111] text-right">
                   {formatCurrency(item.quantity * item.rate, invoice.currency)}
                 </span>
               </div>
