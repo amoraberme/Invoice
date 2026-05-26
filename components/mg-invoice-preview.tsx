@@ -1,9 +1,15 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { type Invoice } from '@/lib/types'
+import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, chunkItems } from '@/lib/utils'
+import { formatDate, formatCurrency } from '@/lib/utils'
+
+interface PageData {
+  items: LineItem[]
+  showTop: boolean
+  showBottom: boolean
+}
 
 export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoice; onOpenCheatsheet?: () => void }) {
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -26,108 +32,209 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
   const vat = subtotal * (invoice.vatRate / 100)
   const total = subtotal + vat
 
-  const itemChunks = chunkItems(invoice.lineItems, 15)
-  // Determine if totals fit on the last page. Simple logic: if 15 items, move to extra page.
-  const lastChunk = itemChunks[itemChunks.length - 1]
-  const needsExtraPage = itemChunks.length > 0 && lastChunk.length === 15
-  const totalPages = Math.max(1, itemChunks.length + (needsExtraPage ? 1 : 0))
+  // Dynamic Pagination Algorithm
+  const paginateInvoice = (inv: Invoice): PageData[] => {
+    const pages: PageData[] = []
+    
+    // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
+    const headerHeight = 110
+    const billToHeight = 100
+    const subjectHeight = inv.subject ? 40 : 0
+    
+    let salutationLines = 0
+    if (inv.salutation) {
+      salutationLines = inv.salutation.split('\n').length
+    }
+    const salutationHeight = inv.salutation ? Math.max(40, salutationLines * 18 + 10) : 0
+    
+    const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
+    const tableHeaderHeight = 45
+    
+    // 2. Estimate height of bottom block (Totals, Note, Bank details, Terms, Signature, Closing)
+    const totalsHeight = 80
+    
+    let bankFields = 0
+    if (inv.bankBeneficiary) bankFields++
+    if (inv.bankName) bankFields++
+    if (inv.bankSortCode) bankFields++
+    if (inv.bankAccount) bankFields++
+    if (inv.bankSwift) bankFields++
+    const bankHeight = bankFields > 0 ? (bankFields * 20 + 30) : 0
+    
+    const noteLines = inv.note ? inv.note.split('\n').length : 0
+    const noteHeight = inv.note ? (noteLines * 18 + 30) : 0
+    const leftBottomHeight = bankHeight + noteHeight
+    
+    const termsLines = inv.terms ? inv.terms.split('\n').length : 0
+    const termsHeight = inv.terms ? (termsLines * 18 + 30) : 0
+    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany) ? 80 : 0
+    const rightBottomHeight = termsHeight + salesHeight
+    
+    const closingHeight = inv.closing ? 50 : 0
+    
+    // Dynamic height of the entire totals + details + terms panel + closing
+    const bottomBlockHeight = totalsHeight + Math.max(leftBottomHeight, rightBottomHeight) + closingHeight + 50
+
+    // Available content height inside A4 borders (1123px A4 height minus 112px padding)
+    const PAGE_MAX_H = 1011
+    
+    let currentItems: LineItem[] = []
+    let currentPageHeight = topSectionHeight + tableHeaderHeight
+    let isFirstPage = true
+    
+    const itemsToPlace = [...inv.lineItems]
+    
+    while (itemsToPlace.length > 0) {
+      const item = itemsToPlace[0]
+      const descLength = (item.description || '').length
+      const itemLines = Math.max(1, Math.ceil(descLength / 45))
+      const itemHeight = 26 + itemLines * 18
+      
+      if (currentPageHeight + itemHeight <= PAGE_MAX_H) {
+        currentItems.push(item)
+        currentPageHeight += itemHeight
+        itemsToPlace.shift() // Item fits, remove from queue
+      } else {
+        // Page is full! Save it
+        pages.push({
+          items: currentItems,
+          showTop: isFirstPage,
+          showBottom: false,
+        })
+        
+        // Reset for subsequent page
+        currentItems = []
+        currentPageHeight = tableHeaderHeight
+        isFirstPage = false
+      }
+    }
+    
+    // All items placed! Check if bottom block fits on current page
+    if (currentPageHeight + bottomBlockHeight <= PAGE_MAX_H) {
+      pages.push({
+        items: currentItems,
+        showTop: isFirstPage,
+        showBottom: true,
+      })
+    } else {
+      // Bottom block doesn't fit on this page!
+      // Save current items on this page (if any) and push bottom block to a new page
+      pages.push({
+        items: currentItems,
+        showTop: isFirstPage,
+        showBottom: false,
+      })
+      
+      pages.push({
+        items: [],
+        showTop: false,
+        showBottom: true,
+      })
+    }
+    
+    return pages
+  }
+
+  const virtualPages = paginateInvoice(invoice)
+  const totalPages = virtualPages.length
 
   return (
     <main
       ref={canvasRef}
       className="md:flex-1 bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
-      {Array.from({ length: totalPages }).map((_, pageIndex) => {
-        const isLastPage = pageIndex === totalPages - 1
-        const currentPageItems = itemChunks[pageIndex] || []
-
+      {virtualPages.map((page, pageIndex) => {
         return (
           <div key={pageIndex} className="mb-8 last:mb-0 print:mb-0 print:break-after-page">
             {/* Scale wrapper — occupies the visual space of the scaled paper */}
             <div style={{ width: PAPER_W * scale, height: PAPER_H * scale }} className="print:!w-full print:!h-auto">
-              {/* Invoice paper — fixed natural size, scaled via transform */}
+              {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print:!transform-none print:shadow-none print:rounded-none print:!w-full print:!h-auto print:m-0"
+                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print:!transform-none print:shadow-none print:rounded-none print:!w-full print:!h-auto print:m-0 print:p-14"
               >
-                {/* Header */}
-                <div className="flex justify-between items-start mb-12">
-                  <div className="max-w-xs">
-                    <p className="font-bold text-[26px] text-[#111111] tracking-tight leading-none">
-                      {invoice.fromName || 'Your Company'}
-                    </p>
-                    {invoice.fromEmail && (
-                      <p className="text-[12px] text-[#888888] mt-2">{invoice.fromEmail}</p>
-                    )}
-                    {invoice.fromPhone && (
-                      <p className="text-[12px] text-[#888888]">{invoice.fromPhone}</p>
-                    )}
-                    {invoice.fromAddress && (
-                      <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
-                    )}
+                {/* Header (First Page Only) */}
+                {page.showTop && (
+                  <div className="flex justify-between items-start mb-12">
+                    <div className="max-w-xs">
+                      <p className="font-bold text-[26px] text-[#111111] tracking-tight leading-none">
+                        {invoice.fromName || 'Your Company'}
+                      </p>
+                      {invoice.fromEmail && (
+                        <p className="text-[12px] text-[#888888] mt-2">{invoice.fromEmail}</p>
+                      )}
+                      {invoice.fromPhone && (
+                        <p className="text-[12px] text-[#888888]">{invoice.fromPhone}</p>
+                      )}
+                      {invoice.fromAddress && (
+                        <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
+                      )}
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <img
+                        src="/mg.png"
+                        alt="INVOICE"
+                        className="h-10 w-auto object-contain mb-1"
+                      />
+                      {invoice.invoiceNumber && (
+                        <p className="text-[12px] text-[#888888] mt-1">{invoice.invoiceNumber}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right flex flex-col items-end">
-                    <img
-                      src="/mg.png"
-                      alt="INVOICE"
-                      className="h-10 w-auto object-contain mb-1"
-                    />
-                    {invoice.invoiceNumber && (
-                      <p className="text-[12px] text-[#888888] mt-1">{invoice.invoiceNumber}</p>
-                    )}
-                  </div>
-                </div>
+                )}
 
-                {/* Bill To + Dates */}
-                <div className="flex justify-between items-start mb-6">
-                  <div className="max-w-xs">
-                    <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
-                      Bill To
-                    </p>
-                    <p className="font-bold text-[15px] text-[#111111] tracking-tight">
-                      {invoice.toName || '—'}
-                    </p>
-                    {invoice.toEmail && (
-                      <p className="text-[12px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
-                    )}
-                    {invoice.toAddress && (
-                      <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
-                    )}
+                {/* Bill To + Dates (First Page Only) */}
+                {page.showTop && (
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="max-w-xs">
+                      <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
+                        Bill To
+                      </p>
+                      <p className="font-bold text-[15px] text-[#111111] tracking-tight">
+                        {invoice.toName || '—'}
+                      </p>
+                      {invoice.toEmail && (
+                        <p className="text-[12px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
+                      )}
+                      {invoice.toAddress && (
+                        <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-8">
+                      {invoice.issueDate && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                            Issue Date
+                          </p>
+                          <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
+                            {formatDate(invoice.issueDate)}
+                          </p>
+                        </div>
+                      )}
+                      {invoice.dueDate && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                            Due Date
+                          </p>
+                          <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
+                            {formatDate(invoice.dueDate)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-8">
-                    {invoice.issueDate && (
-                      <div className="text-right">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                          Issue Date
-                        </p>
-                        <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
-                          {formatDate(invoice.issueDate)}
-                        </p>
-                      </div>
-                    )}
-                    {invoice.dueDate && (
-                      <div className="text-right">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                          Due Date
-                        </p>
-                        <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
-                          {formatDate(invoice.dueDate)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
 
-                {/* Subject Line */}
-                {invoice.subject && (
+                {/* Subject Line (First Page Only) */}
+                {page.showTop && invoice.subject && (
                   <div className="mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2">
                     <span className="text-[12px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
                     <span className="text-[12px] font-bold text-[#111111]">{invoice.subject}</span>
                   </div>
                 )}
 
-                {/* Salutation / Intro */}
-                {invoice.salutation && (
+                {/* Salutation / Intro (First Page Only) */}
+                {page.showTop && invoice.salutation && (
                   <div className="mb-6">
                     <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
                       {invoice.salutation}
@@ -136,48 +243,50 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                 )}
 
                 {/* Line items table */}
-                <div className="mb-8">
-                  <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-                    <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                      Description
-                    </span>
-                    <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                      Unit
-                    </span>
-                    <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                      Qty
-                    </span>
-                    <span className="w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                      Rate
-                    </span>
-                    <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                      Amount
-                    </span>
-                  </div>
-                  {currentPageItems.map((item) => (
-                    <div key={item.id} className="flex py-3.5 border-b border-[#E5E5E5] items-start">
-                      <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                        {item.description || '—'}
+                {page.items.length > 0 && (
+                  <div className="mb-8">
+                    <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
+                      <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                        Description
                       </span>
-                      <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                        {item.unit || '—'}
+                      <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                        Unit
                       </span>
-                      <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                        {item.quantity}
+                      <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                        Qty
                       </span>
-                      <span className="w-24 shrink-0 text-[13px] text-[#888888] text-right">
-                        {formatCurrency(item.rate, invoice.currency)}
+                      <span className="w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                        Rate
                       </span>
-                      <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
-                        {formatCurrency(item.quantity * item.rate, invoice.currency)}
+                      <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                        Amount
                       </span>
                     </div>
-                  ))}
-                </div>
+                    {page.items.map((item) => (
+                      <div key={item.id} className="flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid">
+                        <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                          {item.description || '—'}
+                        </span>
+                        <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
+                          {item.unit || '—'}
+                        </span>
+                        <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
+                          {item.quantity}
+                        </span>
+                        <span className="w-24 shrink-0 text-[13px] text-[#888888] text-right">
+                          {formatCurrency(item.rate, invoice.currency)}
+                        </span>
+                        <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
+                          {formatCurrency(item.quantity * item.rate, invoice.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                {/* Bottom details block (Only on isLastPage) */}
-                {isLastPage && (
-                  <div className="print:break-inside-avoid">
+                {/* Totals, Bank Details, Note, Terms, Salesperson, Closing (Last Page Only) */}
+                {page.showBottom && (
+                  <>
                     {/* Totals */}
                     <div className="flex flex-col items-end gap-2 mb-8 print:break-inside-avoid">
                       <div className="flex gap-8 items-center">
@@ -203,82 +312,103 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       </div>
                     </div>
 
-                    {/* Bank details */}
-                    {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                      <div className="border-t border-[#E5E5E5] pt-4 flex flex-col gap-1.5">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                          Payment Details
-                        </p>
-                        {invoice.bankBeneficiary && (
-                          <div className="flex gap-2">
-                            <span className="text-[12px] text-[#888888] w-36 shrink-0">Beneficiary</span>
-                            <span className="text-[12px] text-[#111111]">{invoice.bankBeneficiary}</span>
+                    {/* Left & Right side information panels */}
+                    <div className="grid grid-cols-2 gap-8 border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                      {/* Left Column: Bank details & Notes */}
+                      <div className="space-y-6">
+                        {/* Bank details */}
+                        {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
+                          <div className="flex flex-col gap-1.5">
+                            <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                              Payment Details
+                            </p>
+                            {invoice.bankBeneficiary && (
+                              <div className="flex gap-2">
+                                <span className="text-[12px] text-[#888888] w-24 shrink-0">Beneficiary</span>
+                                <span className="text-[12px] text-[#111111]">{invoice.bankBeneficiary}</span>
+                              </div>
+                            )}
+                            {invoice.bankName && (
+                              <div className="flex gap-2">
+                                <span className="text-[12px] text-[#888888] w-24 shrink-0">Bank</span>
+                                <span className="text-[12px] text-[#111111]">{invoice.bankName}</span>
+                              </div>
+                            )}
+                            {invoice.bankSortCode && (
+                              <div className="flex gap-2">
+                                <span className="text-[12px] text-[#888888] w-24 shrink-0">Sort / Route</span>
+                                <span className="text-[12px] text-[#111111]">{invoice.bankSortCode}</span>
+                              </div>
+                            )}
+                            {invoice.bankAccount && (
+                              <div className="flex gap-2">
+                                <span className="text-[12px] text-[#888888] w-24 shrink-0">Account</span>
+                                <span className="text-[12px] text-[#111111]">{invoice.bankAccount}</span>
+                              </div>
+                            )}
+                            {invoice.bankSwift && (
+                              <div className="flex gap-2">
+                                <span className="text-[12px] text-[#888888] w-24 shrink-0">SWIFT / BIC</span>
+                                <span className="text-[12px] text-[#111111]">{invoice.bankSwift}</span>
+                              </div>
+                            )}
                           </div>
                         )}
-                        {invoice.bankName && (
-                          <div className="flex gap-2">
-                            <span className="text-[12px] text-[#888888] w-36 shrink-0">Bank</span>
-                            <span className="text-[12px] text-[#111111]">{invoice.bankName}</span>
-                          </div>
-                        )}
-                        {invoice.bankSortCode && (
-                          <div className="flex gap-2">
-                            <span className="text-[12px] text-[#888888] w-36 shrink-0">Sort Code / Routing</span>
-                            <span className="text-[12px] text-[#111111]">{invoice.bankSortCode}</span>
-                          </div>
-                        )}
-                        {invoice.bankAccount && (
-                          <div className="flex gap-2">
-                            <span className="text-[12px] text-[#888888] w-36 shrink-0">Account / IBAN</span>
-                            <span className="text-[12px] text-[#111111]">{invoice.bankAccount}</span>
-                          </div>
-                        )}
-                        {invoice.bankSwift && (
-                          <div className="flex gap-2">
-                            <span className="text-[12px] text-[#888888] w-36 shrink-0">SWIFT / BIC</span>
-                            <span className="text-[12px] text-[#111111]">{invoice.bankSwift}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Terms & Condition (using note field) */}
-                    {invoice.note && (
-                      <div className="border-t border-[#E5E5E5] pt-4 mt-4">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Terms & Condition
-                        </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">{invoice.note}</p>
+                        {/* Note */}
+                        {invoice.note && (
+                          <div className="border-t border-[#E5E5E5]/50 pt-4 first:border-0 first:pt-0">
+                            <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                              Note
+                            </p>
+                            <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">{invoice.note}</p>
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    {/* Salesperson info */}
-                    {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className="mt-6 pt-4 border-t border-[#E5E5E5] flex flex-col gap-0.5">
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                          Sales Quotation By
-                        </p>
-                        <p className="text-[13px] font-bold text-[#111111]">
-                          {invoice.salesName}
-                        </p>
-                        {invoice.salesPosition && (
-                          <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
+                      {/* Right Column: Terms & Salesperson signature */}
+                      <div className="space-y-6">
+                        {/* Terms */}
+                        {invoice.terms && (
+                          <div className="flex flex-col">
+                            <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                              Terms & Conditions
+                            </p>
+                            <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed max-h-[160px] overflow-y-auto pr-1 print:overflow-visible print:max-h-none print:pr-0 scrollable-terms">
+                              {invoice.terms}
+                            </p>
+                          </div>
                         )}
-                        {invoice.salesCompany && (
-                          <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
+
+                        {/* Salesperson info */}
+                        {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
+                          <div className="pt-4 border-t border-[#E5E5E5]/50 flex flex-col gap-0.5">
+                            <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                              Sales Quotation By
+                            </p>
+                            <p className="text-[13px] font-bold text-[#111111]">
+                              {invoice.salesName}
+                            </p>
+                            {invoice.salesPosition && (
+                              <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
+                            )}
+                            {invoice.salesCompany && (
+                              <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Closing Section */}
                     {invoice.closing && (
-                      <div className="mt-6 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid">
+                      <div className="mt-8 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid">
                         <p className="text-[12px] text-[#555555] italic text-center font-medium">
                           {invoice.closing}
                         </p>
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {/* Page Number Indicator */}

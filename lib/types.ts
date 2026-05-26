@@ -30,6 +30,7 @@ export interface Invoice {
   salesName: string
   salesPosition: string
   salesCompany: string
+  terms: string
   subject: string
   salutation: string
   closing: string
@@ -64,7 +65,7 @@ export const defaultInvoice: Invoice = {
   bankSortCode: '',
   bankAccount: '1234-5678-9012',
   bankSwift: 'BDOUPHMM',
-  note: 'Payment Terms:\n- A 50% down payment is required upon confirmation of order.\n- The remaining 50% shall be paid upon delivery / within 7 days after billing.\n- Payments can be made via Bank Transfer / GCash / Check / Cash.\n\nPrice Validity:\n- This quotation is valid for 15-30 days from the date issued.\n- Prices may change after the validity period without prior notice.',
+  note: 'All items are subject to availability.\nAny additional requests or changes may affect pricing and timeline.',
   salesPerson: 'john',
   salesName: 'John Doe',
   salesPosition: 'Senior Sales Executive',
@@ -72,4 +73,5 @@ export const defaultInvoice: Invoice = {
   subject: 'Supply & Deliver Safety Hats',
   salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the following item based on your requirement.',
   closing: 'We are looking forward to building a long-term relationship as your reliable supplier.',
+  terms: 'Payment Terms:\n- A 50% down payment is required upon confirmation of order.\n- The remaining 50% shall be paid upon delivery / within 7 days after billing.\n- Payments can be made via Bank Transfer / GCash / Check / Cash.\n\nPrice Validity:\n- This quotation is valid for 15-30 days from the date issued.\n- Prices may change after the validity period without prior notice.\n\nLate Payment Interest:\n- A penalty of 1/10% of the total contract will be charged on overdue balances.\n- Interest will be applied starting from the due date until full payment is received.\n\nDelivery Terms:\n- Delivery timeline: 2-3 working days after down payment\n- Delivery method: Pick-up | Delivery',
 }
