@@ -474,7 +474,7 @@ export default function Home() {
               ['bankSortCode', 'Sort Code / Routing'],
               ['bankAccount', 'Account / IBAN'],
               ['bankSwift', 'SWIFT / BIC'],
-              ['note', 'Note / additional details'],
+              ['note', 'Terms & Condition / additional details'],
               ['print', 'Set to true to auto-print'],
             ].map(([param, label]) => (
               <div key={param} className="flex gap-3 items-baseline">

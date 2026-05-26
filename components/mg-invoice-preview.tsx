@@ -27,9 +27,9 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
   const total = subtotal + vat
 
   const itemChunks = chunkItems(invoice.lineItems, 15)
-  // If last chunk is full, or total items > 0 and it's the last page, we decide if totals fit
-  // Simple heuristic: if 15 items, move totals to next page.
-  const needsExtraPage = itemChunks.length > 0 && itemChunks[itemChunks.length - 1].length === 15
+  // Determine if totals fit on the last page. Simple logic: if 15 items, move to extra page.
+  const lastChunk = itemChunks[itemChunks.length - 1]
+  const needsExtraPage = itemChunks.length > 0 && lastChunk.length === 15
   const totalPages = Math.max(1, itemChunks.length + (needsExtraPage ? 1 : 0))
 
   return (
@@ -175,11 +175,11 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                   ))}
                 </div>
 
-                {/* Totals, Bank Details, Note, Salesperson, Closing (Only on isLastPage) */}
+                {/* Bottom details block (Only on isLastPage) */}
                 {isLastPage && (
-                  <>
+                  <div className="print:break-inside-avoid">
                     {/* Totals */}
-                    <div className="flex flex-col items-end gap-2 mb-8">
+                    <div className="flex flex-col items-end gap-2 mb-8 print:break-inside-avoid">
                       <div className="flex gap-8 items-center">
                         <span className="text-[12px] text-[#888888]">Subtotal</span>
                         <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
@@ -242,7 +242,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       </div>
                     )}
 
-                    {/* Terms & Condition (renamed from Note) */}
+                    {/* Terms & Condition (using note field) */}
                     {invoice.note && (
                       <div className="border-t border-[#E5E5E5] pt-4 mt-4">
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
@@ -278,7 +278,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                         </p>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
 
                 {/* Page Number Indicator */}
@@ -293,23 +293,23 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
       {/* Footer */}
       <div style={{ width: PAPER_W * scale }} className="flex items-center justify-between px-1 mt-4 print:hidden">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-[#AAAAAA]">
-              © {new Date().getFullYear()} MG Invoice
-            </span>
-            {onOpenCheatsheet && (
-              <>
-                <span className="text-[11px] text-[#AAAAAA]">|</span>
-                <button
-                  onClick={onOpenCheatsheet}
-                  className="text-[11px] text-[#AAAAAA] hover:text-[#888888] hover:underline transition-colors cursor-pointer"
-                >
-                  API
-                </button>
-              </>
-            )}
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-[#AAAAAA]">
+            © {new Date().getFullYear()} MG Invoice
+          </span>
+          {onOpenCheatsheet && (
+            <>
+              <span className="text-[11px] text-[#AAAAAA]">|</span>
+              <button
+                onClick={onOpenCheatsheet}
+                className="text-[11px] text-[#AAAAAA] hover:text-[#888888] hover:underline transition-colors cursor-pointer"
+              >
+                API
+              </button>
+            </>
+          )}
         </div>
+      </div>
     </main>
   )
 }
