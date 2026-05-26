@@ -32,6 +32,17 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
   const vat = subtotal * (invoice.vatRate / 100)
   const total = subtotal + vat
 
+  // Helper to count wrapped lines in monospace font
+  const getWrappedLines = (text: string, charsPerLine: number): number => {
+    if (!text) return 0
+    const lines = text.split('\n')
+    let count = 0
+    for (const line of lines) {
+      count += Math.max(1, Math.ceil(line.length / charsPerLine))
+    }
+    return count
+  }
+
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice): PageData[] => {
     const pages: PageData[] = []
@@ -39,19 +50,20 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
     const headerHeight = 110
     const billToHeight = 100
-    const subjectHeight = inv.subject ? 40 : 0
     
-    let salutationLines = 0
-    if (inv.salutation) {
-      salutationLines = inv.salutation.split('\n').length
-    }
-    const salutationHeight = inv.salutation ? Math.max(40, salutationLines * 18 + 10) : 0
+    const subjectLines = getWrappedLines(inv.subject, 80)
+    const subjectHeight = inv.subject ? (24 + subjectLines * 18) : 0
+    
+    const salutationLines = getWrappedLines(inv.salutation, 80)
+    const salutationHeight = inv.salutation ? (24 + salutationLines * 18) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 45
     
     // 2. Estimate height of bottom block (Totals, Note, Bank details, Terms, Signature, Closing)
-    const totalsHeight = 80
+    let totalsLines = 2 // Subtotal + Total
+    if (inv.vatRate > 0) totalsLines++
+    const totalsHeight = totalsLines * 24 + 32
     
     let bankFields = 0
     if (inv.bankBeneficiary) bankFields++
@@ -61,19 +73,20 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     if (inv.bankSwift) bankFields++
     const bankHeight = bankFields > 0 ? (bankFields * 20 + 30) : 0
     
-    const noteLines = inv.note ? inv.note.split('\n').length : 0
+    const noteLines = getWrappedLines(inv.note, 40)
     const noteHeight = inv.note ? (noteLines * 18 + 30) : 0
     const leftBottomHeight = bankHeight + noteHeight
     
-    const termsLines = inv.terms ? inv.terms.split('\n').length : 0
+    const termsLines = getWrappedLines(inv.terms, 40)
     const termsHeight = inv.terms ? (termsLines * 18 + 30) : 0
-    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany) ? 80 : 0
+    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany) ? 90 : 0
     const rightBottomHeight = termsHeight + salesHeight
     
-    const closingHeight = inv.closing ? 50 : 0
+    const closingLines = getWrappedLines(inv.closing, 80)
+    const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
     
     // Dynamic height of the entire totals + details + terms panel + closing
-    const bottomBlockHeight = totalsHeight + Math.max(leftBottomHeight, rightBottomHeight) + closingHeight + 50
+    const bottomBlockHeight = totalsHeight + Math.max(leftBottomHeight, rightBottomHeight) + closingHeight + 40
 
     // Available content height inside A4 borders (1123px A4 height minus 112px padding)
     const PAGE_MAX_H = 1011
@@ -86,9 +99,13 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     
     while (itemsToPlace.length > 0) {
       const item = itemsToPlace[0]
-      const descLength = (item.description || '').length
-      const itemLines = Math.max(1, Math.ceil(descLength / 45))
-      const itemHeight = 26 + itemLines * 18
+      const desc = item.description || ''
+      const lines = desc.split('\n')
+      let itemLines = 0
+      for (const line of lines) {
+        itemLines += Math.max(1, Math.ceil(line.length / 38))
+      }
+      const itemHeight = 28 + itemLines * 18
       
       if (currentPageHeight + itemHeight <= PAGE_MAX_H) {
         currentItems.push(item)
@@ -147,11 +164,11 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
         return (
           <div key={pageIndex} className="mb-8 last:mb-0 print:mb-0 print:break-after-page">
             {/* Scale wrapper — occupies the visual space of the scaled paper */}
-            <div style={{ width: PAPER_W * scale, height: PAPER_H * scale }} className="print:!w-full print:!h-auto">
+            <div style={{ width: PAPER_W * scale, height: PAPER_H * scale }} className="print-wrapper">
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print:!transform-none print:shadow-none print:rounded-none print:!w-full print:!h-auto print:m-0 print:p-14"
+                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print-page print:!transform-none"
               >
                 {/* Header (First Page Only) */}
                 {page.showTop && (

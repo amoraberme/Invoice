@@ -11,14 +11,32 @@ export function useMGInvoice() {
   useEffect(() => {
     loadInvoice().then((saved) => {
       if (saved) {
-        setInvoice({
-          ...defaultInvoice,
-          ...saved,
-          lineItems: (saved.lineItems || []).map((item) => ({
-            ...item,
-            unit: item.unit || '',
-          })),
-        })
+        const sanitized: Invoice = { ...defaultInvoice }
+        
+        for (const key of Object.keys(defaultInvoice) as (keyof Invoice)[]) {
+          if (key === 'lineItems') {
+            const rawItems = Array.isArray(saved.lineItems) ? saved.lineItems : defaultInvoice.lineItems
+            sanitized.lineItems = rawItems.map((item: any, idx) => ({
+              id: item?.id || `item-${idx}-${Date.now()}`,
+              description: item?.description && item.description !== 'undefined' ? String(item.description) : '',
+              unit: item?.unit && item.unit !== 'undefined' ? String(item.unit) : '',
+              quantity: typeof item?.quantity === 'number' && !isNaN(item.quantity) ? item.quantity : 1,
+              rate: typeof item?.rate === 'number' && !isNaN(item.rate) ? item.rate : 0,
+            }))
+            continue
+          }
+          
+          const savedVal = saved[key]
+          const defaultVal = defaultInvoice[key]
+          
+          if (typeof defaultVal === 'number') {
+            (sanitized as any)[key] = typeof savedVal === 'number' && !isNaN(savedVal) ? savedVal : defaultVal
+          } else {
+            (sanitized as any)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+          }
+        }
+        
+        setInvoice(sanitized)
       }
       setLoaded(true)
     })
@@ -35,7 +53,9 @@ export function useMGInvoice() {
         if (field === 'vatRate') {
           overrides.vatRate = parseFloat(value) || 0
         } else if (field !== 'lineItems') {
-          (overrides as Record<string, string>)[field] = value
+          if (value !== 'undefined') {
+            (overrides as Record<string, string>)[field] = value
+          }
         }
       }
     }
@@ -60,7 +80,14 @@ export function useMGInvoice() {
       if (key === 'lineItems') continue
       const value = invoice[key]
       const def = defaultInvoice[key]
-      if (value !== def && value !== '' && value !== 0) {
+      if (
+        value !== def && 
+        value !== '' && 
+        value !== 0 && 
+        value !== undefined && 
+        value !== null && 
+        String(value) !== 'undefined'
+      ) {
         params.set(key, String(value))
       } else {
         params.delete(key)
