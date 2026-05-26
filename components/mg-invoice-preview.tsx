@@ -61,33 +61,34 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 45
     
-    // 2. Totals height (always directly below items)
+    // 2. Totals height + Bank Details (now directly below items)
     let totalsLines = 2 // Subtotal + Total
     if (inv.vatRate > 0) totalsLines++
-    const totalsHeight = totalsLines * 24 + 40
-    
-    // 3. Footer block height (Note, Terms, Bank/Sales grid, Closing)
+    let totalsHeight = totalsLines * 24 + 40
+
+    // Add bank details height to totalsHeight, since they are rendered inside showTotals now!
     let bankFields = 0
     if (inv.bankBeneficiary) bankFields++
     if (inv.bankName) bankFields++
     if (inv.bankSortCode) bankFields++
     if (inv.bankAccount) bankFields++
     if (inv.bankSwift) bankFields++
-    const bankHeight = bankFields > 0 ? (bankFields * 20 + 30) : 0
+    const bankHeight = bankFields > 0 ? (bankFields * 20 + 80) : 0 // include padding and header
+    totalsHeight += bankHeight
     
+    // 3. Footer block height (Note, Terms, Sales Contact, Closing)
     const noteLines = getWrappedLines(inv.note, 80)
     const noteHeight = inv.note ? (noteLines * 18 + 36) : 0
     
     const termsLines = getWrappedLines(inv.terms, 80)
     const termsHeight = inv.terms ? (termsLines * 18 + 36) : 0
     
-    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany) ? 90 : 0
-    const gridSectionHeight = Math.max(bankHeight, salesHeight) > 0 ? (Math.max(bankHeight, salesHeight) + 30) : 0
+    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 140 : 0
     
     const closingLines = getWrappedLines(inv.closing, 80)
     const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
     
-    const footerBlockHeight = noteHeight + termsHeight + gridSectionHeight + closingHeight + 20
+    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + 20
 
     // Available content height inside A4 borders (1123px A4 height minus 112px padding)
     const PAGE_MAX_H = 1011
