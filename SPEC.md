@@ -80,24 +80,7 @@ struct Invoice: Codable {
 Picker should include these currency codes in this order:
 
 ```
-// Major global
-USD, EUR, GBP, CHF, JPY, CNY
-// Anglosphere
-CAD, AUD, NZD, SGD, HKD
-// Europe
-SEK, NOK, DKK, PLN, CZK, HUF, RON, BGN, HRK
-// Eastern Europe / CIS
-UAH, GEL, AMD, AZN, KZT
-// Middle East
-AED, SAR, ILS, QAR, KWD, BHD, OMR
-// South & East Asia
-INR, IDR, PHP, THB, MYR, VND, BDT, PKR, KRW, TWD
-// Americas
-BRL, MXN, ARS, CLP, COP, PEN
-// Africa
-ZAR, NGN, KES, GHS
-// Other
-TRY
+USD, PHP
 ```
 
 ---

@@ -33,7 +33,7 @@ Generate a pre-filled invoi.xyz URL from the invoice details the user provides.
 | `invoiceNumber` | Invoice number (e.g. INV-0042) |
 | `issueDate` | Issue date in YYYY-MM-DD format |
 | `dueDate` | Due date in YYYY-MM-DD format |
-| `currency` | ISO 4217 currency code (e.g. USD, EUR, UAH) |
+| `currency` | ISO 4217 currency code (USD or PHP) |
 | `vatRate` | VAT percentage as a number (e.g. 20) |
 | `bankBeneficiary` | Account holder / beneficiary name |
 | `bankName` | Bank name |
@@ -47,7 +47,7 @@ Generate a pre-filled invoi.xyz URL from the invoice details the user provides.
 
 - Only include params for values the user actually provided — omit empty fields
 - Dates must be formatted as `YYYY-MM-DD`
-- Currency must be a valid ISO 4217 code — infer it from context if not explicitly given (e.g. "$" → USD, "€" → EUR, "£" → GBP)
+- Currency must be a valid ISO 4217 code (USD or PHP) — infer it from context if not explicitly given (e.g. "$" → USD)
 - `vatRate` must be a plain number (20, not "20%")
 - If the user says "ready to print" or "send to print", append `&print=true`
 - Line items cannot be encoded in the URL — mention this if the user provides them
@@ -57,7 +57,7 @@ Generate a pre-filled invoi.xyz URL from the invoice details the user provides.
 Present the result as:
 
 ```
-https://invoi.xyz?fromName=Acme+Studio&toName=Meridian+Group&currency=EUR&invoiceNumber=INV-0042
+https://invoi.xyz?fromName=Acme+Studio&toName=Meridian+Group&currency=PHP&invoiceNumber=INV-0042
 ```
 
 Then offer a short summary of what was included and what was left out (e.g. line items).

@@ -7,7 +7,7 @@ Free, open-source invoice generator. No account, no backend, no tracking beyond 
 - Live preview as you type
 - Download as PDF via browser print
 - Data persisted locally in IndexedDB — nothing leaves your device
-- 56 currencies supported
+- 2 currencies supported (USD, PHP)
 - VAT / tax rate field
 - Bank transfer & SEPA payment details (Beneficiary, IBAN, BIC)
 - Note field for custom text (payment terms, thank-you note, etc.)
@@ -54,7 +54,7 @@ lib/
 Any invoice field can be pre-filled via query params. Params stay in sync as you type.
 
 ```
-https://mg-invoice.vercel.app?fromName=Acme&currency=EUR&vatRate=20
+https://mg-invoice.vercel.app?fromName=Acme&currency=PHP&vatRate=20
 ```
 
 | Param | Field |

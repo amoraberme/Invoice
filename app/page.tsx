@@ -349,7 +349,7 @@ export default function Home() {
             Pre-fill any field by adding params to the URL. Params stay in sync as you type.
           </p>
           <div className="text-[12px] bg-[#F5F5F5] rounded-md px-3 py-2 text-[#111111] break-all">
-            mg-invoice.vercel.app?fromName=Acme&amp;currency=EUR
+            mg-invoice.vercel.app?fromName=Acme&amp;currency=PHP
           </div>
           <div className="flex flex-col gap-1 mt-1">
             {[
