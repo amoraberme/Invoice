@@ -10,7 +10,16 @@ export function useMGInvoice() {
 
   useEffect(() => {
     loadInvoice().then((saved) => {
-      if (saved) setInvoice(saved)
+      if (saved) {
+        setInvoice({
+          ...defaultInvoice,
+          ...saved,
+          lineItems: (saved.lineItems || []).map((item) => ({
+            ...item,
+            unit: item.unit || '',
+          })),
+        })
+      }
       setLoaded(true)
     })
   }, [])
