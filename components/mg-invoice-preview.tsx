@@ -73,7 +73,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     if (inv.bankSortCode) bankFields++
     if (inv.bankAccount) bankFields++
     if (inv.bankSwift) bankFields++
-    const bankHeight = bankFields > 0 ? (bankFields * 20 + 80) : 0 // include padding and header
+    const bankHeight = bankFields > 0 ? (bankFields * 24 + 90) : 0 // include padding, margins, gaps and header
     totalsHeight += bankHeight
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing)
@@ -90,8 +90,8 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     
     const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + 20
 
-    // Available content height inside A4 borders (1123px A4 height minus 112px padding)
-    const PAGE_MAX_H = 1011
+    // Available content height inside A4 borders with a safety buffer to prevent browser clipping
+    const PAGE_MAX_H = 960
     
     let currentItems: LineItem[] = []
     let currentPageHeight = topSectionHeight + tableHeaderHeight
