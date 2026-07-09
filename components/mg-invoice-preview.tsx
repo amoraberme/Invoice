@@ -49,8 +49,8 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const pages: PageData[] = []
     
     // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
-    const headerHeight = 110
-    const billToHeight = 100
+    const headerHeight = 188
+    const billToHeight = 95
     
     const subjectLines = getWrappedLines(inv.subject, 80)
     const subjectHeight = inv.subject ? (24 + subjectLines * 18) : 0
@@ -59,7 +59,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const salutationHeight = inv.salutation ? (24 + salutationLines * 18) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
-    const tableHeaderHeight = 45
+    const tableHeaderHeight = 35
     
     // 2. Totals height + Bank Details (now directly below items)
     let totalsLines = 2 // Subtotal + Total
@@ -104,7 +104,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
       for (const line of lines) {
         itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 35))
       }
-      return 28 + itemLines * 18
+      return 30 + itemLines * 19
     }
     
     const itemsToPlace = [...inv.lineItems]
@@ -116,7 +116,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
       // If page is empty (just header/tableHeader), always accept the item
       const isPageEmpty = currentItems.length === 0
       
-      if (isPageEmpty || currentPageHeight + itemHeight <= PAGE_MAX_H) {
+      if (isPageEmpty || (currentPageHeight + itemHeight <= PAGE_MAX_H && currentItems.length < 12)) {
         currentItems.push(item)
         currentPageHeight += itemHeight
         itemsToPlace.shift()
