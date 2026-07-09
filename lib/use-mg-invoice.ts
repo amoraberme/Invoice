@@ -52,7 +52,7 @@ export function useMGInvoice() {
         sanitized.issueDate = todayStr
         setInvoice(sanitized)
       } else {
-        const freshId = generateDocumentId('MG-INV')
+        const freshId = generateDocumentId('MG-QT')
         setInvoice(prev => ({ ...prev, invoiceNumber: freshId, issueDate: todayStr }))
       }
       setLoaded(true)

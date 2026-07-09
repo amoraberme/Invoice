@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
-import { sample5Items, sample20Items } from '@/lib/samples'
 import {
   Dialog,
   DialogContent,
@@ -427,10 +426,6 @@ export default function Home() {
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
           <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="xs" onClick={() => setInvoice(sample5Items)}>5 Items</Button>
-            <Button variant="outline" size="xs" onClick={() => setInvoice(sample20Items)}>20 Items</Button>
-          </div>
         </div>
 
         {/* Scrollable form */}
