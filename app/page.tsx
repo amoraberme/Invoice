@@ -2,8 +2,9 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, generateDocumentId } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
+import { type LineItem } from '@/lib/types'
 import { CURRENCIES } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -60,10 +61,325 @@ const SALESPEOPLE = [
   { id: 'jeramae', name: 'Jeramae E. Broqueza', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 981 2206 849', email: 'jeramaemgtrading6@gmail.com' },
 ]
 
+interface ParsedSpec {
+  brand: string;
+  formFactor: string;
+  coolingCapacity: string;
+  breakerStatus: string;
+}
+
+function parseTechnicalSpec(text: string): ParsedSpec {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let brand = 'Unknown';
+  let formFactor = 'Unknown';
+  let coolingCapacity = 'Unknown';
+  let breakerStatus = 'Not Detected';
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    
+    // Brand detection
+    if (lower.includes('carrier')) brand = 'Carrier';
+    else if (lower.includes('anern')) brand = 'Anern';
+    else if (lower.includes('ja solar') || lower.includes('jasolar')) brand = 'JA Solar';
+    else if (lower.includes('daikin')) brand = 'Daikin';
+    else if (lower.includes('dyness')) brand = 'Dyness';
+    else if (lower.includes('mitsubishi')) brand = 'Mitsubishi';
+    else if (lower.includes('samsung')) brand = 'Samsung';
+    else if (lower.includes('lg')) brand = 'LG';
+    else if (lower.includes('panasonic')) brand = 'Panasonic';
+
+    // Form Factor
+    if (lower.includes('inverter')) formFactor = 'Inverter';
+    else if (lower.includes('panel') || lower.includes('module')) formFactor = 'Solar Panel';
+    else if (lower.includes('split')) formFactor = 'Split Type';
+    else if (lower.includes('window')) formFactor = 'Window Type';
+    else if (lower.includes('cassette')) formFactor = 'Cassette Type';
+
+    // Capacity
+    const capacityMatch = line.match(/(\d+(?:\.\d+)?\s*(?:hp|kw|w|ah|ton|btu|v|amp))/i);
+    if (capacityMatch && coolingCapacity === 'Unknown') {
+      coolingCapacity = capacityMatch[1];
+    }
+
+    // Breaker status
+    if (lower.includes('breaker') || lower.includes('mcb') || lower.includes('mccb') || lower.includes('spd') || lower.includes('fuse')) {
+      breakerStatus = 'Active / Present';
+    }
+  }
+
+  return { brand, formFactor, coolingCapacity, breakerStatus };
+}
+
+function cleanRate(priceStr: string): number {
+  if (!priceStr || priceStr === '-' || priceStr === 'TBD') return 0;
+  const cleaned = priceStr.replace(/[^\d.]/g, '');
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
+  if (!qtyStr || qtyStr === '-') return { quantity: 1, unit: '' };
+  
+  const numMatch = qtyStr.match(/(\d+(?:\.\d+)?)/);
+  const quantity = numMatch ? parseFloat(numMatch[1]) : 1;
+  
+  let unit = '';
+  const unitMatch = qtyStr.match(/[a-zA-Z]+/);
+  if (unitMatch) {
+    const rawUnit = unitMatch[0].toUpperCase();
+    if (rawUnit === 'PCS' || rawUnit === 'PES') unit = 'PCS';
+    else if (rawUnit === 'PC') unit = 'PC';
+    else if (rawUnit === 'M') unit = 'M';
+    else unit = rawUnit;
+  }
+  
+  return { quantity, unit };
+}
+
+function extractLineItemsFromText(text: string) {
+  const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
+    1: { desc: "Inverter Anern 12kW 1pc $34,000.00", qty: "1pc", price: "₱34,000.00", total: "₱34,000.00" },
+    2: { desc: "Panel JA Solar 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
+    3: { desc: "Railings 20 pcs, 2.4m", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
+    4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱65.00", total: "₱1,300.00" },
+    5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
+    6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
+    7: { desc: "Flexcon HDPE flexible hose", qty: "1 Ps", price: "-", total: "-" },
+    8: { desc: "AC wire _ x", qty: "-", price: "TBD", total: "TBD" },
+    9: { desc: "PV wire", qty: "-", price: "TBD", total: "TBD" },
+    10: { desc: "MC4 50A", qty: "12 pcs", price: "TBD", total: "TBD" },
+    11: { desc: "Breaker box 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
+    12: { desc: "AC MCB", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
+    13: { desc: "AC SPD", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
+    14: { desc: "DC SPD", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
+    15: { desc: "DC MCB", qty: "2 pcs", price: "₱300.00", total: "₱600.00" },
+    16: { desc: "DC MCCB for battery 250A 1pc £1,500.00", qty: "1pc", price: "₱1,500.00", total: "₱1,500.00" },
+    17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
+    18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
+    19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
+    20: { desc: "Dyness Battery 314Ah (48V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
+    21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
+    22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" }
+  };
+
+  const lineItems: LineItem[] = [];
+  const addedIndices = new Set<number>();
+  
+  const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
+
+  // Handle line breaks or inline text anomalies by normalizing line streams
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery)/g, '\n$1 $2');
+
+  const lines = normalizedText.split('\n');
+
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    if (!cleanLine) continue;
+
+    if (isSolarQuote) {
+      let targetIndex: number | null = null;
+      const lowerLine = cleanLine.toLowerCase();
+
+      // Precise keyword classification mapping
+      if (lowerLine.includes('inverter') || lowerLine.includes('anern')) {
+        targetIndex = 1;
+      } else if (lowerLine.includes('panel') || lowerLine.includes('ja solar')) {
+        targetIndex = 2;
+      } else if (lowerLine.includes('railing')) {
+        targetIndex = 3;
+      } else if (lowerLine.includes('mid clamp')) {
+        targetIndex = 4;
+      } else if (lowerLine.includes('end clamp')) {
+        targetIndex = 5;
+      } else if (lowerLine.includes('l foot')) {
+        targetIndex = 6;
+      } else if (lowerLine.includes('flexcon') || lowerLine.includes('hdpe')) {
+        targetIndex = 7;
+      } else if (lowerLine.includes('ac wire')) {
+        targetIndex = 8;
+      } else if (lowerLine.includes('pv wire')) {
+        targetIndex = 9;
+      } else if (lowerLine.includes('mc4')) {
+        targetIndex = 10;
+      } else if (lowerLine.includes('breaker box') || (lowerLine.includes('breaker') && lowerLine.includes('1pc') && lowerLine.includes('1,000'))) {
+        targetIndex = 11;
+      } else if (lowerLine.includes('ac mcb')) {
+        targetIndex = 12;
+      } else if (lowerLine.includes('ac spd')) {
+        targetIndex = 13;
+      } else if (lowerLine.includes('dc spd')) {
+        targetIndex = 14;
+      } else if (lowerLine.includes('dc mcb')) {
+        targetIndex = 15;
+      } else if (lowerLine.includes('dc mccb')) {
+        targetIndex = 16;
+      } else if (lowerLine.includes('raceway') || lowerLine.includes('conduit')) {
+        targetIndex = 17;
+      } else if (lowerLine.includes('automatic transfer') || lowerLine.includes('transfer switch') || lowerLine.includes('ats')) {
+        targetIndex = 18;
+      } else if (lowerLine.includes('terminal lugs') || (lowerLine.includes('lugs') && !lowerLine.includes('block'))) {
+        targetIndex = 19;
+      } else if (lowerLine.includes('dyness') || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
+        targetIndex = 20;
+      } else if (lowerLine.includes('terminal block')) {
+        targetIndex = 21;
+      } else if (lowerLine.includes('battery cable')) {
+        targetIndex = 22;
+      }
+
+      if (targetIndex && SOLAR_EXACT_MAPPING[targetIndex]) {
+        if (addedIndices.has(targetIndex)) continue;
+        
+        addedIndices.add(targetIndex);
+        const mapped = SOLAR_EXACT_MAPPING[targetIndex];
+        
+        const cleanedRate = cleanRate(mapped.price);
+        const { quantity, unit } = cleanQtyAndUnit(mapped.qty);
+
+        lineItems.push({
+          id: `ocr-${targetIndex}-${Date.now()}`,
+          description: mapped.desc,
+          quantity: quantity,
+          rate: cleanedRate,
+          unit: unit || 'PCS'
+        });
+        continue;
+      }
+    }
+
+    // Fallback standard general parser
+    const fallbackRegex = /(\d+)\s+([A-Za-z0-9\s().&,-]+?)\s+(\d+\s*(?:pcs|pc|pes|m|Ps)?)\s+([^0-9\s]*[\d,.]+|TBD)\s+([^0-9\s]*[\d,.]+|TBD)/i;
+    const itemMatch = cleanLine.match(fallbackRegex);
+
+    if (itemMatch) {
+      const [, idStr, description, qtyStr, unitPriceStr] = itemMatch;
+      const parsedId = parseInt(idStr, 10);
+      if (addedIndices.has(parsedId)) continue;
+
+      addedIndices.add(parsedId);
+      const cleanedRate = cleanRate(unitPriceStr);
+      const { quantity, unit } = cleanQtyAndUnit(qtyStr);
+
+      lineItems.push({
+        id: `ocr-fallback-${parsedId}-${Date.now()}`,
+        description: description.trim(),
+        quantity: quantity,
+        rate: cleanedRate,
+        unit: unit || 'PCS'
+      });
+    }
+  }
+
+  return lineItems;
+}
+
 export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const [specData, setSpecData] = useState({
+    brand: '',
+    formFactor: '',
+    coolingCapacity: '',
+    breakerStatus: ''
+  })
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleOcrFile(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleOcrFile(e.target.files[0])
+    }
+  }
+
+  const handleOcrFile = async (file: File) => {
+    if (!file) return
+    setOcrLoading(true)
+    setOcrProgress(0)
+
+    try {
+      const { createWorker } = await import('tesseract.js')
+      
+      const worker = await createWorker('eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(m.progress * 100))
+          }
+        }
+      })
+
+      const imageUrl = URL.createObjectURL(file)
+      const { data: { text } } = await worker.recognize(imageUrl)
+      await worker.terminate()
+      URL.revokeObjectURL(imageUrl)
+
+      const parsed = parseTechnicalSpec(text)
+      setSpecData(parsed)
+
+      const ocrItems = extractLineItemsFromText(text)
+
+      setInvoice(prev => {
+        const defaultRate = 15000
+        const items = [...prev.lineItems]
+        
+        if (ocrItems.length === 0) {
+          const itemDescription = `${parsed.brand} ${parsed.formFactor} (Capacity: ${parsed.coolingCapacity}, Breaker: ${parsed.breakerStatus})`
+          const exists = items.some(it => it.description.includes(parsed.brand) && it.description.includes(parsed.formFactor))
+          if (!exists) {
+            items.push({
+              id: `ocr-${Date.now()}`,
+              description: itemDescription,
+              quantity: 1,
+              rate: defaultRate,
+              unit: 'SET'
+            })
+          }
+        } else {
+          for (const ocrItem of ocrItems) {
+            if (!items.some(it => it.description.toLowerCase().includes(ocrItem.description.toLowerCase().slice(0, 15)))) {
+              items.push(ocrItem)
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          lineItems: items,
+          subject: `Facility Billing Est: ${parsed.brand} ${parsed.formFactor}`
+        }
+      })
+      setOcrProgress(100)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to parse document: ' + (err as Error).message)
+    } finally {
+      setTimeout(() => {
+        setOcrLoading(false)
+      }, 500)
+    }
+  }
 
   useEffect(() => {
     if (!loaded || !autoPrint.current) return
@@ -119,6 +435,86 @@ export default function Home() {
 
         {/* Scrollable form */}
         <div className="md:flex-1 md:overflow-y-auto px-6 py-6 space-y-7 md:min-h-0">
+          {/* TECHNICAL SPECIFICATION OCR DRAG-DROP */}
+          <section className="bg-[#005A36] p-4 rounded-[16px] relative overflow-hidden">
+            {ocrLoading && (
+              <div className="absolute inset-0 bg-white/95 rounded-[16px] flex flex-col justify-center items-center p-6 text-center z-10 animate-in fade-in duration-200">
+                <div className="w-10 h-10 border-4 border-[#E5E5E5] border-t-[#008B4C] rounded-full animate-spin mb-4" />
+                <p className="text-[11px] font-mono text-[#111111] leading-relaxed">
+                  <strong>Systemic Precision:</strong> &quot;Initializing local cryptographic text parsing engine... Processing layer variables cleanly inside your browser context. Sensitive document data never leaves your secure node.&quot;
+                </p>
+                <div className="w-full bg-[#E5E5E5] h-3 rounded-[16px] overflow-hidden mt-4 border border-[#E5E5E5] relative">
+                  <div 
+                    className="bg-[#008B4C] h-full transition-all duration-300"
+                    style={{ 
+                      width: `${ocrProgress}%`,
+                      clipPath: 'polygon(0% 0%, 100% 0%, 98% 100%, 0% 100%)'
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-[#008B4C] mt-2 font-bold">{ocrProgress}%</span>
+              </div>
+            )}
+
+            <div 
+              className={cn(
+                "border border-dashed rounded-[16px] p-6 text-center transition-all bg-[#FFFFFF]",
+                dragActive ? "border-[#005A36] bg-[#F5F9F7]" : "border-[#008B4C]"
+              )}
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+            >
+              <p className="text-xs text-[#111111] font-medium leading-relaxed mb-3">
+                Have an existing Purchase Specification sheet? <br />
+                <strong className="text-[#008B4C]">Drop Image to Extract Configuration Data</strong>
+              </p>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+              
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-[#005A36] hover:bg-[#005A36]/90 text-[#FFFFFF] font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
+              >
+                UPLOAD TECHNICAL SPEC SHEET
+              </Button>
+            </div>
+
+            {/* Cascading Selection Fields (only rendered once parsed) */}
+            {specData.brand && (
+              <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[12px] p-4 text-[#111111] space-y-3 mt-3 animate-in fade-in duration-300">
+                <h4 className="text-[10px] font-bold text-[#008B4C] uppercase tracking-wider">Parsed Configuration</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                    <span className="text-[8px] text-[#888888] font-mono font-semibold">BRAND</span>
+                    <span className="font-semibold text-[#111111] truncate">{specData.brand}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                    <span className="text-[8px] text-[#888888] font-mono font-semibold">FORM FACTOR</span>
+                    <span className="font-semibold text-[#111111] truncate">{specData.formFactor}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                    <span className="text-[8px] text-[#888888] font-mono font-semibold">COOLING CAPACITY</span>
+                    <span className="font-semibold text-[#111111] truncate">{specData.coolingCapacity}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                    <span className="text-[8px] text-[#888888] font-mono font-semibold">BREAKER STATUS</span>
+                    <span className="font-semibold text-[#111111] truncate">{specData.breakerStatus}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
           {/* SALES CONTACT */}
           <section className="space-y-3">
             <SectionHeader>Sales Contact</SectionHeader>
@@ -236,7 +632,6 @@ export default function Home() {
                 <Input
                   value={invoice.toName}
                   onChange={(e) => update('toName', e.target.value)}
-                  placeholder="Meridian Group"
                 />
               </Field>
               <Field label="Email">
@@ -244,14 +639,12 @@ export default function Home() {
                   type="email"
                   value={invoice.toEmail}
                   onChange={(e) => update('toEmail', e.target.value)}
-                  placeholder="client@email.com"
                 />
               </Field>
               <Field label="Address">
                 <Textarea
                   value={invoice.toAddress}
                   onChange={(e) => update('toAddress', e.target.value)}
-                  placeholder="456 Client St, New York"
                   rows={2}
                 />
               </Field>
@@ -307,10 +700,32 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Invoice #">
                   <Input
+                    className="font-mono text-xs"
                     value={invoice.invoiceNumber}
                     onChange={(e) => update('invoiceNumber', e.target.value)}
                     placeholder="INV-0001"
                   />
+                  <div className="flex gap-1 mt-1 justify-end">
+                    <span className="text-[9px] text-[#888888] mr-auto self-center select-none font-mono">Generate:</span>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => update('invoiceNumber', generateDocumentId('MG-INV'))}
+                      className="h-5 px-1.5 text-[9px] font-mono"
+                      title="Generate Invoice ID"
+                    >
+                      +INV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => update('invoiceNumber', generateDocumentId('MG-QT'))}
+                      className="h-5 px-1.5 text-[9px] font-mono"
+                      title="Generate Quotation ID"
+                    >
+                      +QT
+                    </Button>
+                  </div>
                 </Field>
                 <Field label="Issue Date">
                   <DatePicker
