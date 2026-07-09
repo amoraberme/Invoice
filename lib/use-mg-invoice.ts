@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { type Invoice, type LineItem, newLineItem, defaultInvoice } from './types'
 import { loadInvoice, saveInvoice } from './store'
+import { generateDocumentId } from './utils'
 
 export function useMGInvoice() {
   const [invoice, setInvoice] = useState<Invoice>(defaultInvoice)
@@ -10,17 +11,24 @@ export function useMGInvoice() {
 
   useEffect(() => {
     loadInvoice().then((saved) => {
+      const date = new Date()
+      const yyyy = date.getFullYear()
+      const mm = String(date.getMonth() + 1).padStart(2, '0')
+      const dd = String(date.getDate()).padStart(2, '0')
+      const todayStr = `${yyyy}-${mm}-${dd}`
+
       if (saved) {
         const sanitized: Invoice = { ...defaultInvoice }
+        const savedObj = saved as unknown as Record<string, unknown>
         
         for (const key of Object.keys(defaultInvoice) as (keyof Invoice)[]) {
           if (key === 'lineItems') {
-            const rawItems = Array.isArray(saved.lineItems) ? saved.lineItems : defaultInvoice.lineItems
-            sanitized.lineItems = rawItems.map((item: any, idx) => {
-              const qty = item?.quantity !== undefined && item?.quantity !== null ? parseFloat(item.quantity) : 1
-              const rt = item?.rate !== undefined && item?.rate !== null ? parseFloat(item.rate) : 0
+            const rawItems = Array.isArray(savedObj.lineItems) ? savedObj.lineItems : defaultInvoice.lineItems
+            sanitized.lineItems = (rawItems as Record<string, unknown>[]).map((item, idx) => {
+              const qty = item?.quantity !== undefined && item?.quantity !== null ? parseFloat(String(item.quantity)) : 1
+              const rt = item?.rate !== undefined && item?.rate !== null ? parseFloat(String(item.rate)) : 0
               return {
-                id: item?.id || `item-${idx}-${Date.now()}`,
+                id: typeof item?.id === 'string' ? item.id : `item-${idx}-${Date.now()}`,
                 description: item?.description && item.description !== 'undefined' ? String(item.description) : '',
                 unit: item?.unit && item.unit !== 'undefined' ? String(item.unit) : '',
                 quantity: !isNaN(qty) ? qty : 1,
@@ -30,18 +38,22 @@ export function useMGInvoice() {
             continue
           }
           
-          const savedVal = saved[key]
+          const savedVal = savedObj[key]
           const defaultVal = defaultInvoice[key]
           
           if (typeof defaultVal === 'number') {
-            const parsed = parseFloat(savedVal as any)
-            ;(sanitized as any)[key] = !isNaN(parsed) ? parsed : defaultVal
+            const parsed = parseFloat(String(savedVal))
+            ;(sanitized as unknown as Record<string, unknown>)[key] = !isNaN(parsed) ? parsed : defaultVal
           } else {
-            ;(sanitized as any)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+            ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
           }
         }
         
+        sanitized.issueDate = todayStr
         setInvoice(sanitized)
+      } else {
+        const freshId = generateDocumentId('MG-INV')
+        setInvoice(prev => ({ ...prev, invoiceNumber: freshId, issueDate: todayStr }))
       }
       setLoaded(true)
     })
@@ -103,7 +115,19 @@ export function useMGInvoice() {
   }, [invoice, loaded])
 
   const update = useCallback(<K extends keyof Invoice>(field: K, value: Invoice[K]) => {
-    setInvoice((prev) => ({ ...prev, [field]: value }))
+    setInvoice((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === 'salesEmail') {
+        next.fromEmail = value as string
+      } else if (field === 'fromEmail') {
+        next.salesEmail = value as string
+      } else if (field === 'salesContact') {
+        next.fromPhone = value as string
+      } else if (field === 'fromPhone') {
+        next.salesContact = value as string
+      }
+      return next
+    })
   }, [])
 
   const updateItem = useCallback(
@@ -129,5 +153,15 @@ export function useMGInvoice() {
     }))
   }, [])
 
-  return { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice }
+  const setInvoiceWrapped = useCallback((val: Invoice | ((prev: Invoice) => Invoice)) => {
+    setInvoice((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val
+      const nextSync = { ...next }
+      nextSync.fromEmail = nextSync.salesEmail
+      nextSync.fromPhone = nextSync.salesContact
+      return nextSync
+    })
+  }, [])
+
+  return { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice: setInvoiceWrapped }
 }
