@@ -1,10 +1,10 @@
-import { type Invoice, newLineItem } from './types'
+import { type Invoice } from './types'
 
 const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
-  fromName: 'M&G Solutions',
-  fromEmail: 'sales@mgsolutions.com',
-  fromPhone: '+63 2 123 4567',
-  fromAddress: 'M&G Building, Pasig City, Metro Manila',
+  fromName: 'MG SOLAR',
+  fromEmail: 'charlotte.mgtrading@gmail.com',
+  fromPhone: '+(63) 928 1655 179',
+  fromAddress: 'Mintcor Townhomes, 55 Main Dr, Muntinlupa, 1770 Metro Manila',
   toName: 'Johan Corporation',
   toEmail: 'procurement@johan.com',
   toAddress: 'Marikina City',
