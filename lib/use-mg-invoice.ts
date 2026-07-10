@@ -67,8 +67,8 @@ export function useMGInvoice() {
     for (const [key, value] of params.entries()) {
       if (key in defaultInvoice) {
         const field = key as keyof Invoice
-        if (field === 'vatRate') {
-          overrides.vatRate = parseFloat(value) || 0
+        if (typeof defaultInvoice[field] === 'number') {
+          (overrides as unknown as Record<string, number>)[field] = parseFloat(value) || 0
         } else if (field !== 'lineItems') {
           if (value !== 'undefined') {
             (overrides as Record<string, string>)[field] = value

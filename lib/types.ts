@@ -19,6 +19,7 @@ export interface Invoice {
   dueDate: string
   currency: string
   vatRate: number
+  rateMarkup: number
   lineItems: LineItem[]
   bankBeneficiary: string
   bankName: string
@@ -56,6 +57,7 @@ export const defaultInvoice: Invoice = {
   dueDate: '',
   currency: 'PHP',
   vatRate: 0,
+  rateMarkup: 0,
   lineItems: [],
   bankBeneficiary: '',
   bankName: '',

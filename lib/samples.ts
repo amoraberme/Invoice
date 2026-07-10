@@ -12,6 +12,7 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   dueDate: '',
   currency: 'PHP',
   vatRate: 0,
+  rateMarkup: 0,
   bankBeneficiary: 'M&G Solutions Inc.',
   bankName: 'BDO Unibank',
   bankSortCode: '',
