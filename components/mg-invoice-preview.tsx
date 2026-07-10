@@ -12,9 +12,29 @@ interface PageData {
   showBottom: boolean
 }
 
-export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoice; onOpenCheatsheet?: () => void }) {
+export function MGInvoicePreview({ 
+  invoice, 
+  hoveredField,
+  onOpenCheatsheet 
+}: { 
+  invoice: Invoice; 
+  hoveredField?: string | null;
+  onOpenCheatsheet?: () => void 
+}) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+
+  const getHighlightClass = (field: string) => {
+    const isHovered = hoveredField === field || 
+      (field === 'sender' && ['fromName', 'fromEmail', 'fromPhone', 'fromAddress'].includes(hoveredField || '')) ||
+      (field === 'client' && ['toName', 'toEmail', 'toAddress'].includes(hoveredField || '')) ||
+      (field === 'sales' && ['salesName', 'salesPosition', 'salesCompany', 'salesContact', 'salesEmail'].includes(hoveredField || '')) ||
+      (field === 'bankDetails' && ['bankBeneficiary', 'bankName', 'bankSortCode', 'bankAccount', 'bankSwift'].includes(hoveredField || ''))
+
+    return isHovered 
+      ? 'outline outline-[1.5px] outline-[#008B4C] outline-offset-2 bg-[#008B4C]/5 rounded-sm transition-all duration-200' 
+      : 'transition-all duration-200'
+  }
 
   useEffect(() => {
     const el = canvasRef.current
@@ -29,7 +49,11 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     return () => ro.disconnect()
   }, [])
 
-  const subtotal = invoice.lineItems.reduce((sum, item) => sum + item.quantity * item.rate, 0)
+  const rateMarkup = invoice.rateMarkup || 0
+  const subtotal = invoice.lineItems.reduce((sum, item) => {
+    const adjustedRate = item.rate * (1 + rateMarkup / 100)
+    return sum + item.quantity * adjustedRate
+  }, 0)
   const vat = subtotal * (invoice.vatRate / 100)
   const total = subtotal + vat
 
@@ -62,8 +86,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
     const tableHeaderHeight = 35
     
     // 2. Totals height + Bank Details (now directly below items)
-    let totalsLines = 2 // Subtotal + Total
-    if (inv.vatRate > 0) totalsLines++
+    let totalsLines = 3 // Subtotal + VAT + Total
     let totalsHeight = totalsLines * 24 + 40
 
     // Add bank details height to totalsHeight, since they are rendered inside showTotals now!
@@ -226,7 +249,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                 {/* Header (First Page Only) */}
                 {page.showTop && (
                   <div className="flex justify-between items-start mb-12">
-                    <div className="max-w-xs">
+                    <div className={cn("max-w-xs p-1", getHighlightClass('sender'))}>
                       <p className="font-bold text-[26px] text-[#111111] tracking-tight leading-none">
                         {invoice.fromName || 'Your Company'}
                       </p>
@@ -240,7 +263,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                         <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
                       )}
                     </div>
-                    <div className="text-right flex flex-col items-end">
+                    <div className={cn("text-right flex flex-col items-end p-1", getHighlightClass('invoiceNumber'))}>
                       <img
                         src="/mg.png"
                         alt="INVOICE"
@@ -256,7 +279,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                 {/* Bill To + Dates (First Page Only) */}
                 {page.showTop && (
                   <div className="flex justify-between items-start mb-6">
-                    <div className="max-w-xs">
+                    <div className={cn("max-w-xs p-1", getHighlightClass('client'))}>
                       <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
                         Bill To
                       </p>
@@ -272,7 +295,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                     </div>
                     <div className="flex gap-8">
                       {invoice.issueDate && (
-                        <div className="text-right">
+                        <div className={cn("text-right p-1", getHighlightClass('issueDate'))}>
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Issue Date
                           </p>
@@ -282,7 +305,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                         </div>
                       )}
                       {invoice.dueDate && (
-                        <div className="text-right">
+                        <div className={cn("text-right p-1", getHighlightClass('dueDate'))}>
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Due Date
                           </p>
@@ -297,7 +320,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                 {/* Subject Line (First Page Only) */}
                 {page.showTop && invoice.subject && (
-                  <div className="mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2">
+                  <div className={cn("mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2 p-1", getHighlightClass('subject'))}>
                     <span className="text-[12px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
                     <span className="text-[12px] font-bold text-[#111111]">{invoice.subject}</span>
                   </div>
@@ -305,7 +328,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                 {/* Salutation / Intro (First Page Only) */}
                 {page.showTop && invoice.salutation && (
-                  <div className="mb-6">
+                  <div className={cn("mb-6 p-1.5", getHighlightClass('salutation'))}>
                     <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
                       {invoice.salutation}
                     </p>
@@ -325,32 +348,35 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                       <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
                         Qty
                       </span>
-                      <span className="w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                      <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
                         Rate
                       </span>
                       <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
                         Amount
                       </span>
                     </div>
-                    {page.items.map((item) => (
-                      <div key={item.id} className="flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid">
-                        <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                          {item.description || '—'}
-                        </span>
-                        <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                          {item.unit || '—'}
-                        </span>
-                        <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                          {item.quantity}
-                        </span>
-                        <span className="w-24 shrink-0 text-[13px] text-[#888888] text-right">
-                          {formatCurrency(item.rate, invoice.currency)}
-                        </span>
-                        <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
-                          {formatCurrency(item.quantity * item.rate, invoice.currency)}
-                        </span>
-                      </div>
-                    ))}
+                    {page.items.map((item) => {
+                      const adjustedRate = item.rate * (1 + rateMarkup / 100)
+                      return (
+                        <div key={item.id} className={cn("flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                          <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                            {item.description || '—'}
+                          </span>
+                          <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
+                            {item.unit || '—'}
+                          </span>
+                          <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
+                            {item.quantity}
+                          </span>
+                          <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
+                            {formatCurrency(adjustedRate, invoice.currency)}
+                          </span>
+                          <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
+                            {formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
@@ -364,14 +390,12 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                           {formatCurrency(subtotal, invoice.currency)}
                         </span>
                       </div>
-                      {invoice.vatRate > 0 && (
-                        <div className="flex gap-8 items-center">
-                          <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate}%</span>
-                          <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
-                            {formatCurrency(vat, invoice.currency)}
-                          </span>
-                        </div>
-                      )}
+                      <div className={cn("flex gap-8 items-center p-1", getHighlightClass('vatRate'))}>
+                        <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate || 0}%</span>
+                        <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                          {formatCurrency(vat, invoice.currency)}
+                        </span>
+                      </div>
                       <div className="w-48 h-px bg-[#E5E5E5]" />
                       <div className="flex gap-8 items-center">
                         <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
@@ -383,7 +407,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Bank / Payment Details */}
                     {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-2 mb-6 print:break-inside-avoid">
+                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-2 mb-6 print:break-inside-avoid p-1", getHighlightClass('bankDetails'))}>
                         <div className="flex flex-col gap-1.5">
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Payment Details
@@ -429,7 +453,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
                   <>
                     {/* Note */}
                     {invoice.note && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('note'))}>
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
                           Note
                         </p>
@@ -441,7 +465,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Sales Contact (below Note, far left — no heading label) */}
                     {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('sales'))}>
                         <div className="flex flex-col gap-0.5">
                           <p className="text-[13px] font-bold text-[#111111]">
                             {invoice.salesName}
@@ -464,7 +488,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Terms & Conditions */}
                     {invoice.terms && (
-                      <div className="border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid">
+                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('terms'))}>
                         <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
                           Terms & Conditions
                         </p>
@@ -477,7 +501,7 @@ export function MGInvoicePreview({ invoice, onOpenCheatsheet }: { invoice: Invoi
 
                     {/* Closing Section */}
                     {invoice.closing && (
-                      <div className="mt-8 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid">
+                      <div className={cn("mt-8 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1", getHighlightClass('closing'))}>
                         <p className="text-[12px] text-[#555555] italic text-center font-medium">
                           {invoice.closing}
                         </p>
