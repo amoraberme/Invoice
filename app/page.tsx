@@ -283,6 +283,8 @@ export default function Home() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [hoveredField, setHoveredField] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('ocr')
+  const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit')
+  const [totalPages, setTotalPages] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [ocrLoading, setOcrLoading] = useState(false)
@@ -389,7 +391,9 @@ export default function Home() {
   useEffect(() => {
     if (!loaded || !autoPrint.current) return
     const timer = setTimeout(() => {
-      const parts = [invoice.invoiceNumber, invoice.fromName].filter(Boolean)
+      const client = invoice.toName ? invoice.toName.trim() : 'Client'
+      const date = invoice.issueDate || new Date().toISOString().split('T')[0]
+      const parts = [client, invoice.invoiceNumber, date].filter(Boolean)
       document.title = parts.length > 0 ? parts.join(' - ') : 'invoice'
       window.print()
       window.onafterprint = () => {
@@ -398,11 +402,13 @@ export default function Home() {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [loaded, invoice.fromName, invoice.invoiceNumber])
+  }, [loaded, invoice.toName, invoice.invoiceNumber, invoice.issueDate])
 
   const handleDownload = () => {
     const original = document.title
-    const parts = [invoice.invoiceNumber, invoice.fromName].filter(Boolean)
+    const client = invoice.toName ? invoice.toName.trim() : 'Client'
+    const date = invoice.issueDate || new Date().toISOString().split('T')[0]
+    const parts = [client, invoice.invoiceNumber, date].filter(Boolean)
     document.title = parts.length > 0 ? parts.join(' - ') : 'invoice'
     window.print()
     window.onafterprint = () => {
@@ -426,48 +432,81 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#F5F5F5] print:bg-white">
-      {/* ── SIDEBAR ── */}
-      <aside className="w-full md:w-[450px] md:h-screen bg-white border-b md:border-b-0 md:border-r border-[#E5E5E5] flex shrink-0 print:hidden">
-        {/* Left vertical tab strip */}
-        <div className="w-[76px] bg-[#F5F5F5] border-r border-[#E5E5E5] flex flex-col items-center py-6 gap-5 shrink-0">
-          {[
-            { id: 'ocr', label: 'OCR', icon: Sparkles, title: 'Upload & Spec OCR' },
-            { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
-            { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
-            { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details' },
-            { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
-            { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
-            { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
-          ].map((tab) => {
-            const Icon = tab.icon
-            const active = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "relative w-14 h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none",
-                  active
-                    ? "bg-white text-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-[#E5E5E5]/80 font-semibold"
-                    : "text-[#888888] hover:text-[#555555] hover:bg-[#EBEBEB]"
-                )}
-                title={tab.title}
-              >
-                <Icon size={16} />
-                <span className="text-[9px] leading-none tracking-tight">{tab.label}</span>
-                {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#111111] rounded-r-[3px]" />
-                )}
-              </button>
-            )
-          })}
-        </div>
+    <div className="flex flex-col h-screen overflow-hidden bg-[#F5F5F5] print:bg-white print:block print:h-auto print:overflow-visible">
+      {/* Mobile Header */}
+      <div className="flex lg:hidden items-center justify-between px-6 py-4 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden">
+        <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+      </div>
 
-        {/* Right form layout */}
-        <div className="flex-1 flex flex-col h-full min-w-0">
-          {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
+      {/* Mobile Toggle */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-white/85 backdrop-blur-md border border-[#E5E5E5] px-2 py-1.5 rounded-full shadow-lg flex gap-1 items-center print:hidden">
+        <button
+          onClick={() => setActiveView('edit')}
+          className={cn(
+            "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
+            activeView === 'edit'
+              ? "bg-[#111111] text-white shadow-sm"
+              : "text-[#555555] hover:text-[#111111]"
+          )}
+        >
+          Edit Details
+        </button>
+        <button
+          onClick={() => setActiveView('preview')}
+          className={cn(
+            "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
+            activeView === 'preview'
+              ? "bg-[#111111] text-white shadow-sm"
+              : "text-[#555555] hover:text-[#111111]"
+          )}
+        >
+          Live Preview ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
+        </button>
+      </div>
+
+      {/* Main Workspace Container */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+        {/* ── SIDEBAR ── */}
+        <aside className={cn("w-full h-full lg:w-[450px] bg-white border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+          {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
+          <div className="w-full lg:w-[76px] h-auto lg:h-full bg-[#F5F5F5] border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
+            {[
+              { id: 'ocr', label: 'OCR', icon: Sparkles, title: 'Upload & Spec OCR' },
+              { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
+              { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
+              { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details' },
+              { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
+              { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
+              { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
+            ].map((tab) => {
+              const Icon = tab.icon
+              const active = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "relative w-12 h-12 lg:w-14 lg:h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none shrink-0",
+                    active
+                      ? "bg-white text-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-[#E5E5E5]/80 font-semibold"
+                      : "text-[#888888] hover:text-[#555555] hover:bg-[#EBEBEB]"
+                  )}
+                  title={tab.title}
+                >
+                  <Icon size={15} className="lg:w-4 lg:h-4" />
+                  <span className="text-[8px] lg:text-[9px] leading-none tracking-tight">{tab.label}</span>
+                  {active && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 lg:bottom-auto lg:left-0 lg:top-1/2 lg:-translate-y-1/2 w-6 lg:w-[3px] h-[3px] lg:h-6 bg-[#111111] rounded-t-[3px] lg:rounded-t-none lg:rounded-r-[3px]" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Right form layout */}
+          <div className="flex-1 flex flex-col h-full min-w-0">
+            {/* Logo (Desktop only, since Mobile has top bar) */}
+            <div className="hidden lg:flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
             <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
           </div>
 
@@ -782,11 +821,11 @@ export default function Home() {
                       </Field>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <Field label="Due Date" onMouseEnter={() => setHoveredField('dueDate')} onMouseLeave={() => setHoveredField(null)}>
+                      <Field label="Validity" onMouseEnter={() => setHoveredField('dueDate')} onMouseLeave={() => setHoveredField(null)}>
                         <DatePicker
                           value={invoice.dueDate}
                           onChange={(v) => update('dueDate', v)}
-                          placeholder="No due date"
+                          placeholder="No validity date"
                         />
                       </Field>
                       <Field label="Currency">
@@ -977,7 +1016,10 @@ export default function Home() {
         </div>
       </aside>
 
-      <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} />
+      <div className={cn("flex-1 bg-[#EBEBEB] min-h-0 print:block print:h-auto", activeView === 'preview' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col')}>
+        <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} />
+      </div>
+    </div>
 
       <Dialog open={cheatsheetOpen} onOpenChange={setCheatsheetOpen}>
         <DialogContent className="max-w-md font-mono">
@@ -1001,7 +1043,7 @@ export default function Home() {
               ['toAddress', 'Client address'],
               ['invoiceNumber', 'Invoice number'],
               ['issueDate', 'Issue date (YYYY-MM-DD)'],
-              ['dueDate', 'Due date (YYYY-MM-DD)'],
+              ['dueDate', 'Validity (YYYY-MM-DD)'],
               ['currency', 'Currency code'],
               ['vatRate', 'VAT %'],
               ['rateMarkup', 'Rate markup/adjustment %'],

@@ -15,11 +15,13 @@ interface PageData {
 export function MGInvoicePreview({ 
   invoice, 
   hoveredField,
-  onOpenCheatsheet 
+  onOpenCheatsheet,
+  onPagesChange
 }: { 
   invoice: Invoice; 
   hoveredField?: string | null;
-  onOpenCheatsheet?: () => void 
+  onOpenCheatsheet?: () => void;
+  onPagesChange?: (count: number) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -228,18 +230,24 @@ export function MGInvoicePreview({
   const virtualPages = paginateInvoice(invoice)
   const totalPages = virtualPages.length
 
+  useEffect(() => {
+    if (onPagesChange) {
+      onPagesChange(totalPages)
+    }
+  }, [totalPages, onPagesChange])
+
   return (
     <main
       ref={canvasRef}
-      className="md:flex-1 bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
+      className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
       {virtualPages.map((page, pageIndex) => {
         return (
-          <div key={pageIndex} className={cn("mb-8 last:mb-0 print:mb-0", pageIndex < totalPages - 1 && "print:break-after-page")}>
+          <div key={pageIndex} className={cn("mb-8 last:mb-0 print:mb-0", pageIndex < totalPages - 1 && "print-break")}>
             {/* Scale wrapper — occupies the visual space of the scaled paper */}
             <div 
               style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
-              className={cn("print-wrapper", pageIndex < totalPages - 1 && "print-break")}
+              className="print-wrapper"
             >
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
@@ -307,7 +315,7 @@ export function MGInvoicePreview({
                       {invoice.dueDate && (
                         <div className={cn("text-right p-1", getHighlightClass('dueDate'))}>
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                            Due Date
+                            Validity
                           </p>
                           <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
                             {formatDate(invoice.dueDate)}
