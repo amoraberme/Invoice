@@ -436,6 +436,14 @@ export default function Home() {
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-6 py-4 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden">
         <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+        <Button
+          onClick={handleDownload}
+          size="sm"
+          className="h-9 px-3 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer flex items-center"
+        >
+          <Download size={14} strokeWidth={2.5} />
+          PDF
+        </Button>
       </div>
 
       {/* Mobile Toggle */}
@@ -1004,10 +1012,10 @@ export default function Home() {
           </div>
 
           {/* Download button */}
-          <div className="px-6 pb-6 pt-4 border-t border-[#E5E5E5] shrink-0">
+          <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-[#E5E5E5] shrink-0">
             <Button
               onClick={handleDownload}
-              className="w-full h-11 rounded-[10px] text-[14px] font-semibold"
+              className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer"
             >
               <Download size={15} strokeWidth={2} />
               Download PDF
