@@ -1,8 +1,8 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download } from 'lucide-react'
-import { cn, generateDocumentId } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem } from '@/lib/types'
 import { CURRENCIES } from '@/lib/constants'
@@ -34,18 +34,22 @@ function SectionHeader({ children }: { children: ReactNode }) {
   )
 }
 
+interface FieldProps extends React.HTMLAttributes<HTMLDivElement> {
+  label: string
+  children: ReactNode
+}
+
 function Field({
   label,
   children,
   className,
-}: {
-  label: string
-  children: ReactNode
-  className?: string
-}) {
+  ...props
+}: FieldProps) {
   return (
-    <div className={cn('flex flex-col gap-1 min-w-0', className)}>
-      <Label>{label}</Label>
+    <div className={cn("space-y-1.5", className)} {...props}>
+      <Label className="text-[11px] font-semibold text-[#888888] tracking-widest uppercase">
+        {label}
+      </Label>
       {children}
     </div>
   )
@@ -277,6 +281,8 @@ export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
+  const [hoveredField, setHoveredField] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('ocr')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [ocrLoading, setOcrLoading] = useState(false)
@@ -422,468 +428,556 @@ export default function Home() {
   return (
     <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#F5F5F5] print:bg-white">
       {/* ── SIDEBAR ── */}
-      <aside className="w-full md:w-[380px] md:h-screen bg-white border-b md:border-b-0 md:border-r border-[#E5E5E5] flex flex-col shrink-0 print:hidden">
-        {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
-          <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+      <aside className="w-full md:w-[450px] md:h-screen bg-white border-b md:border-b-0 md:border-r border-[#E5E5E5] flex shrink-0 print:hidden">
+        {/* Left vertical tab strip */}
+        <div className="w-[76px] bg-[#F5F5F5] border-r border-[#E5E5E5] flex flex-col items-center py-6 gap-5 shrink-0">
+          {[
+            { id: 'ocr', label: 'OCR', icon: Sparkles, title: 'Upload & Spec OCR' },
+            { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
+            { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
+            { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details' },
+            { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
+            { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
+            { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
+          ].map((tab) => {
+            const Icon = tab.icon
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative w-14 h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none",
+                  active
+                    ? "bg-white text-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-[#E5E5E5]/80 font-semibold"
+                    : "text-[#888888] hover:text-[#555555] hover:bg-[#EBEBEB]"
+                )}
+                title={tab.title}
+              >
+                <Icon size={16} />
+                <span className="text-[9px] leading-none tracking-tight">{tab.label}</span>
+                {active && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#111111] rounded-r-[3px]" />
+                )}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Scrollable form */}
-        <div className="md:flex-1 md:overflow-y-auto px-6 py-6 space-y-7 md:min-h-0">
-          {/* TECHNICAL SPECIFICATION OCR DRAG-DROP */}
-          <section className="bg-[#005A36] p-4 rounded-[16px] relative overflow-hidden">
-            {ocrLoading && (
-              <div className="absolute inset-0 bg-white/95 rounded-[16px] flex flex-col justify-center items-center p-6 text-center z-10 animate-in fade-in duration-200">
-                <div className="w-10 h-10 border-4 border-[#E5E5E5] border-t-[#008B4C] rounded-full animate-spin mb-4" />
-                <p className="text-[11px] font-mono text-[#111111] leading-relaxed">
-                  <strong>Systemic Precision:</strong> &quot;Initializing local cryptographic text parsing engine... Processing layer variables cleanly inside your browser context. Sensitive document data never leaves your secure node.&quot;
-                </p>
-                <div className="w-full bg-[#E5E5E5] h-3 rounded-[16px] overflow-hidden mt-4 border border-[#E5E5E5] relative">
-                  <div 
-                    className="bg-[#008B4C] h-full transition-all duration-300"
-                    style={{ 
-                      width: `${ocrProgress}%`,
-                      clipPath: 'polygon(0% 0%, 100% 0%, 98% 100%, 0% 100%)'
-                    }}
-                  />
-                </div>
-                <span className="text-[10px] font-mono text-[#008B4C] mt-2 font-bold">{ocrProgress}%</span>
-              </div>
-            )}
+        {/* Right form layout */}
+        <div className="flex-1 flex flex-col h-full min-w-0">
+          {/* Logo */}
+          <div className="flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
+            <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+          </div>
 
-            <div 
-              className={cn(
-                "border border-dashed rounded-[16px] p-6 text-center transition-all bg-[#FFFFFF]",
-                dragActive ? "border-[#005A36] bg-[#F5F9F7]" : "border-[#008B4C]"
-              )}
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-            >
-              <p className="text-xs text-[#111111] font-medium leading-relaxed mb-3">
-                Have an existing Purchase Specification sheet? <br />
-                <strong className="text-[#008B4C]">Drop Image to Extract Configuration Data</strong>
-              </p>
-              
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                className="hidden"
-              />
-              
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-[#005A36] hover:bg-[#005A36]/90 text-[#FFFFFF] font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
-              >
-                UPLOAD TECHNICAL SPEC SHEET
-              </Button>
-            </div>
-
-            {/* Cascading Selection Fields (only rendered once parsed) */}
-            {specData.brand && (
-              <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[12px] p-4 text-[#111111] space-y-3 mt-3 animate-in fade-in duration-300">
-                <h4 className="text-[10px] font-bold text-[#008B4C] uppercase tracking-wider">Parsed Configuration</h4>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                    <span className="text-[8px] text-[#888888] font-mono font-semibold">BRAND</span>
-                    <span className="font-semibold text-[#111111] truncate">{specData.brand}</span>
+          {/* Scrollable active tab form content */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
+            {activeTab === 'ocr' && (
+              <section className="bg-[#111111] p-4 rounded-[16px] relative overflow-hidden">
+                {ocrLoading && (
+                  <div className="absolute inset-0 bg-white/95 rounded-[16px] flex flex-col justify-center items-center p-6 text-center z-10 animate-in fade-in duration-200">
+                    <div className="w-10 h-10 border-4 border-[#E5E5E5] border-t-[#111111] rounded-full animate-spin mb-4" />
+                    <p className="text-[11px] font-mono text-[#111111] leading-relaxed">
+                      <strong>Systemic Precision:</strong> &quot;Initializing local cryptographic text parsing engine... Processing layer variables cleanly inside your browser context. Sensitive document data never leaves your secure node.&quot;
+                    </p>
+                    <div className="w-full bg-[#E5E5E5] h-3 rounded-[16px] overflow-hidden mt-4 border border-[#E5E5E5] relative">
+                      <div 
+                        className="bg-[#111111] h-full transition-all duration-300"
+                        style={{ 
+                          width: `${ocrProgress}%`,
+                          clipPath: 'polygon(0% 0%, 100% 0%, 98% 100%, 0% 100%)'
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono text-[#111111] mt-2 font-bold">{ocrProgress}%</span>
                   </div>
-                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                    <span className="text-[8px] text-[#888888] font-mono font-semibold">FORM FACTOR</span>
-                    <span className="font-semibold text-[#111111] truncate">{specData.formFactor}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                    <span className="text-[8px] text-[#888888] font-mono font-semibold">COOLING CAPACITY</span>
-                    <span className="font-semibold text-[#111111] truncate">{specData.coolingCapacity}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                    <span className="text-[8px] text-[#888888] font-mono font-semibold">BREAKER STATUS</span>
-                    <span className="font-semibold text-[#111111] truncate">{specData.breakerStatus}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
+                )}
 
-          {/* SALES CONTACT */}
-          <section className="space-y-3">
-            <SectionHeader>Sales Contact</SectionHeader>
-            <div className="space-y-2">
-              <Field label="Salesperson">
-                <Select value={invoice.salesPerson || 'custom'} onValueChange={handleSalesPersonChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Salesperson" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SALESPEOPLE.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Sales Name">
-                <Input
-                  value={invoice.salesName || ''}
-                  onChange={(e) => {
-                    update('salesName', e.target.value)
-                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
-                  }}
-                  placeholder="Salesperson Name"
-                />
-              </Field>
-              <Field label="Position">
-                <Input
-                  value={invoice.salesPosition || ''}
-                  onChange={(e) => {
-                    update('salesPosition', e.target.value)
-                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
-                  }}
-                  placeholder="Sales & Marketing Executive"
-                />
-              </Field>
-              <Field label="Company Name">
-                <Input
-                  value={invoice.salesCompany || ''}
-                  onChange={(e) => {
-                    update('salesCompany', e.target.value)
-                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
-                  }}
-                  placeholder="M&G Non-Specialized Wholesale Trading"
-                />
-              </Field>
-              <Field label="Contact Number">
-                <Input
-                  type="tel"
-                  value={invoice.salesContact || ''}
-                  onChange={(e) => {
-                    update('salesContact', e.target.value)
-                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
-                  }}
-                  placeholder="+(63) 9XX XXXX XXX"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={invoice.salesEmail || ''}
-                  onChange={(e) => {
-                    update('salesEmail', e.target.value)
-                    if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
-                  }}
-                  placeholder="email@mgtrading.com"
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* FROM */}
-          <section className="space-y-3">
-            <SectionHeader>From</SectionHeader>
-            <div className="space-y-2">
-              <Field label="Company name">
-                <Input
-                  value={invoice.fromName}
-                  onChange={(e) => update('fromName', e.target.value)}
-                  placeholder="Acme Studio"
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={invoice.fromEmail}
-                  onChange={(e) => update('fromEmail', e.target.value)}
-                  placeholder="hello@acmestudio.com"
-                />
-              </Field>
-              <Field label="Address">
-                <Textarea
-                  value={invoice.fromAddress}
-                  onChange={(e) => update('fromAddress', e.target.value)}
-                  placeholder="123 Design Ave, San Francisco"
-                  rows={2}
-                />
-              </Field>
-              <Field label="Phone">
-                <Input
-                  type="tel"
-                  value={invoice.fromPhone}
-                  onChange={(e) => update('fromPhone', e.target.value)}
-                  placeholder="+1 234 567 8900"
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* BILL TO */}
-          <section className="space-y-3">
-            <SectionHeader>Bill To</SectionHeader>
-            <div className="space-y-2">
-              <Field label="Client name">
-                <Input
-                  value={invoice.toName}
-                  onChange={(e) => update('toName', e.target.value)}
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={invoice.toEmail}
-                  onChange={(e) => update('toEmail', e.target.value)}
-                />
-              </Field>
-              <Field label="Address">
-                <Textarea
-                  value={invoice.toAddress}
-                  onChange={(e) => update('toAddress', e.target.value)}
-                  rows={2}
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* BANK DETAILS */}
-          <section className="space-y-3">
-            <SectionHeader>Bank Details</SectionHeader>
-            <div className="space-y-2">
-              <Field label="Beneficiary">
-                <Input
-                  value={invoice.bankBeneficiary}
-                  onChange={(e) => update('bankBeneficiary', e.target.value)}
-                  placeholder="Acme Studio Ltd."
-                />
-              </Field>
-              <Field label="Bank name">
-                <Input
-                  value={invoice.bankName}
-                  onChange={(e) => update('bankName', e.target.value)}
-                  placeholder="First National Bank"
-                />
-              </Field>
-              <Field label="Sort Code / Routing">
-                <Input
-                  value={invoice.bankSortCode}
-                  onChange={(e) => update('bankSortCode', e.target.value)}
-                  placeholder="20-00-00"
-                />
-              </Field>
-              <Field label="Account number / IBAN">
-                <Input
-                  value={invoice.bankAccount}
-                  onChange={(e) => update('bankAccount', e.target.value)}
-                  placeholder="GB29 NWBK 6016 1331 9268 19"
-                />
-              </Field>
-              <Field label="SWIFT / BIC">
-                <Input
-                  value={invoice.bankSwift}
-                  onChange={(e) => update('bankSwift', e.target.value)}
-                  placeholder="NWBKGB2L"
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* INVOICE DETAILS */}
-          <section className="space-y-3">
-            <SectionHeader>Invoice Details</SectionHeader>
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Invoice #">
-                  <Input
-                    className="font-mono text-xs"
-                    value={invoice.invoiceNumber}
-                    onChange={(e) => update('invoiceNumber', e.target.value)}
-                    placeholder="INV-0001"
+                <div 
+                  className={cn(
+                    "border border-dashed rounded-[16px] p-6 text-center transition-all bg-[#FFFFFF]",
+                    dragActive ? "border-[#111111] bg-[#F5F5F5]" : "border-[#CCCCCC]"
+                  )}
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <p className="text-xs text-[#111111] font-medium leading-relaxed mb-3">
+                    Have an existing Purchase Specification sheet? <br />
+                    <strong className="text-[#111111]">Drop Image to Extract Configuration Data</strong>
+                  </p>
+                  
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
                   />
-                  <div className="flex gap-1 mt-1 justify-end">
-                    <span className="text-[9px] text-[#888888] mr-auto self-center select-none font-mono">Generate:</span>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => update('invoiceNumber', generateDocumentId('MG-INV'))}
-                      className="h-5 px-1.5 text-[9px] font-mono"
-                      title="Generate Invoice ID"
-                    >
-                      +INV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => update('invoiceNumber', generateDocumentId('MG-QT'))}
-                      className="h-5 px-1.5 text-[9px] font-mono"
-                      title="Generate Quotation ID"
-                    >
-                      +QT
-                    </Button>
-                  </div>
-                </Field>
-                <Field label="Issue Date">
-                  <DatePicker
-                    value={invoice.issueDate}
-                    onChange={(v) => update('issueDate', v)}
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Due Date">
-                  <DatePicker
-                    value={invoice.dueDate}
-                    onChange={(v) => update('dueDate', v)}
-                    placeholder="No due date"
-                  />
-                </Field>
-                <Field label="Currency">
-                  <Select value={invoice.currency} onValueChange={(v) => update('currency', v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <Field label="VAT %">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={invoice.vatRate || ''}
-                  onChange={(e) => update('vatRate', parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                />
-              </Field>
-              <Field label="Subject">
-                <Input
-                  value={invoice.subject || ''}
-                  onChange={(e) => update('subject', e.target.value)}
-                  placeholder="Supply & Deliver Safety Hats"
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* SALUTATION */}
-          <section className="space-y-3">
-            <SectionHeader>Salutation / Intro</SectionHeader>
-            <Textarea
-              value={invoice.salutation || ''}
-              onChange={(e) => update('salutation', e.target.value)}
-              placeholder="Dear Madam/Sir, We are pleased to submit..."
-              rows={3}
-            />
-          </section>
-
-          {/* LINE ITEMS */}
-          <section className="space-y-3">
-            <SectionHeader>Line Items</SectionHeader>
-            <div className="space-y-1.5">
-              {/* Column headers */}
-              <div className="flex gap-2 px-1">
-                <span className="flex-1 text-[11px] font-medium text-[#888888]">Description</span>
-                <span className="w-12 text-[11px] font-medium text-[#888888] text-center">Unit</span>
-                <span className="w-10 text-[11px] font-medium text-[#888888] text-center">Qty</span>
-                <span className="w-[72px] text-[11px] font-medium text-[#888888] text-right">Rate</span>
-                <span className="w-5" />
-              </div>
-
-              {/* Item rows */}
-              {invoice.lineItems.map((item) => (
-                <div key={item.id} className="flex gap-2 items-center">
-                  <Input
-                    className="flex-1"
-                    value={item.description}
-                    onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                    placeholder="Item description"
-                  />
-                  <Input
-                    className="w-12 px-1 text-center"
-                    value={item.unit || ''}
-                    onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                    placeholder="pcs"
-                  />
-                  <Input
-                    className="w-10 px-0 text-center"
-                    type="number"
-                    min="0"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                  />
-                  <Input
-                    className="w-[72px] px-2 text-right"
-                    type="number"
-                    min="0"
-                    value={item.rate}
-                    onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                    placeholder="0"
-                  />
+                  
                   <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => removeItem(item.id)}
-                    className="text-[#CCCCCC] hover:text-[#888888] hover:bg-transparent shrink-0"
-                    aria-label="Remove item"
+                    variant="default"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-[#111111] hover:bg-[#111111]/90 text-[#FFFFFF] font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
                   >
-                    <Trash2 size={13} />
+                    UPLOAD TECHNICAL SPEC SHEET
                   </Button>
                 </div>
-              ))}
 
-              {/* Add item */}
-              <Button
-                variant="outline"
-                onClick={addItem}
-                className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1"
-              >
-                <Plus size={13} />
-                Add item
-              </Button>
-            </div>
-          </section>
+                {/* Cascading Selection Fields (only rendered once parsed) */}
+                {specData.brand && (
+                  <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[12px] p-4 text-[#111111] space-y-3 mt-3 animate-in fade-in duration-300">
+                    <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider">Parsed Configuration</h4>
+                    <div className="grid grid-cols-2 gap-2 text-left">
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold">BRAND</span>
+                        <span className="font-semibold text-[#111111] truncate">{specData.brand}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold">FORM FACTOR</span>
+                        <span className="font-semibold text-[#111111] truncate">{specData.formFactor}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold">COOLING CAPACITY</span>
+                        <span className="font-semibold text-[#111111] truncate">{specData.coolingCapacity}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold">BREAKER STATUS</span>
+                        <span className="font-semibold text-[#111111] truncate">{specData.breakerStatus}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
-          {/* TERMS & CONDITION (renamed from Note) */}
-          <section className="space-y-3">
-            <SectionHeader>Terms & Condition</SectionHeader>
-            <Textarea
-              value={invoice.note}
-              onChange={(e) => update('note', e.target.value)}
-              placeholder="Payment terms, conditions, or any additional details…"
-              rows={4}
-            />
-          </section>
+            {activeTab === 'sender' && (
+              <>
+                {/* FROM */}
+                <section className="space-y-3">
+                  <SectionHeader>From</SectionHeader>
+                  <div className="space-y-2" onMouseEnter={() => setHoveredField('fromName')} onMouseLeave={() => setHoveredField(null)}>
+                    <Field label="Company name">
+                      <Input
+                        value={invoice.fromName}
+                        onChange={(e) => update('fromName', e.target.value)}
+                        placeholder="Acme Studio"
+                      />
+                    </Field>
+                    <Field label="Email">
+                      <Input
+                        type="email"
+                        value={invoice.fromEmail}
+                        onChange={(e) => update('fromEmail', e.target.value)}
+                        placeholder="hello@acmestudio.com"
+                      />
+                    </Field>
+                    <Field label="Address">
+                      <Textarea
+                        value={invoice.fromAddress}
+                        onChange={(e) => update('fromAddress', e.target.value)}
+                        placeholder="123 Design Ave, San Francisco"
+                        rows={2}
+                      />
+                    </Field>
+                    <Field label="Phone">
+                      <Input
+                        type="tel"
+                        value={invoice.fromPhone}
+                        onChange={(e) => update('fromPhone', e.target.value)}
+                        placeholder="+1 234 567 8900"
+                      />
+                    </Field>
+                  </div>
+                </section>
 
-          {/* CLOSING */}
-          <section className="space-y-3">
-            <SectionHeader>Closing / Footer</SectionHeader>
-            <Textarea
-              value={invoice.closing || ''}
-              onChange={(e) => update('closing', e.target.value)}
-              placeholder="We are looking forward to building..."
-              rows={2}
-            />
-          </section>
-        </div>
+                {/* SALES CONTACT */}
+                <section className="space-y-3">
+                  <SectionHeader>Sales Contact</SectionHeader>
+                  <div className="space-y-2" onMouseEnter={() => setHoveredField('salesName')} onMouseLeave={() => setHoveredField(null)}>
+                    <Field label="Salesperson">
+                      <Select value={invoice.salesPerson || 'custom'} onValueChange={handleSalesPersonChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Salesperson" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SALESPEOPLE.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Sales Name">
+                      <Input
+                        value={invoice.salesName || ''}
+                        onChange={(e) => {
+                          update('salesName', e.target.value)
+                          if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                        }}
+                        placeholder="Salesperson Name"
+                      />
+                    </Field>
+                    <Field label="Position">
+                      <Input
+                        value={invoice.salesPosition || ''}
+                        onChange={(e) => {
+                          update('salesPosition', e.target.value)
+                          if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                        }}
+                        placeholder="Sales & Marketing Executive"
+                      />
+                    </Field>
+                    <Field label="Company Name">
+                      <Input
+                        value={invoice.salesCompany || ''}
+                        onChange={(e) => {
+                          update('salesCompany', e.target.value)
+                          if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                        }}
+                        placeholder="M&G Non-Specialized Wholesale Trading"
+                      />
+                    </Field>
+                    <Field label="Contact Number">
+                      <Input
+                        type="tel"
+                        value={invoice.salesContact || ''}
+                        onChange={(e) => {
+                          update('salesContact', e.target.value)
+                          if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                        }}
+                        placeholder="+(63) 9XX XXXX XXX"
+                      />
+                    </Field>
+                    <Field label="Email">
+                      <Input
+                        type="email"
+                        value={invoice.salesEmail || ''}
+                        onChange={(e) => {
+                          update('salesEmail', e.target.value)
+                          if (invoice.salesPerson !== 'custom') update('salesPerson', 'custom')
+                        }}
+                        placeholder="email@mgtrading.com"
+                      />
+                    </Field>
+                  </div>
+                </section>
+              </>
+            )}
 
-        {/* Download button */}
-        <div className="px-6 pb-6 pt-4 border-t border-[#E5E5E5] shrink-0">
-          <Button
-            onClick={handleDownload}
-            className="w-full h-11 rounded-[10px] text-[14px] font-semibold"
-          >
-            <Download size={15} strokeWidth={2} />
-            Download PDF
-          </Button>
+            {activeTab === 'client' && (
+              <section className="space-y-3">
+                <SectionHeader>Bill To</SectionHeader>
+                <div className="space-y-2" onMouseEnter={() => setHoveredField('toName')} onMouseLeave={() => setHoveredField(null)}>
+                  <Field label="Client name">
+                    <Input
+                      value={invoice.toName}
+                      onChange={(e) => update('toName', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <Input
+                      type="email"
+                      value={invoice.toEmail}
+                      onChange={(e) => update('toEmail', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Address">
+                    <Textarea
+                      value={invoice.toAddress}
+                      onChange={(e) => update('toAddress', e.target.value)}
+                      rows={2}
+                    />
+                  </Field>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'payment' && (
+              <section className="space-y-3">
+                <SectionHeader>Bank Details</SectionHeader>
+                <div className="space-y-2" onMouseEnter={() => setHoveredField('bankBeneficiary')} onMouseLeave={() => setHoveredField(null)}>
+                  <Field label="Beneficiary">
+                    <Input
+                      value={invoice.bankBeneficiary}
+                      onChange={(e) => update('bankBeneficiary', e.target.value)}
+                      placeholder="Acme Studio Ltd."
+                    />
+                  </Field>
+                  <Field label="Bank name">
+                    <Input
+                      value={invoice.bankName}
+                      onChange={(e) => update('bankName', e.target.value)}
+                      placeholder="First National Bank"
+                    />
+                  </Field>
+                  <Field label="Sort Code / Routing">
+                    <Input
+                      value={invoice.bankSortCode}
+                      onChange={(e) => update('bankSortCode', e.target.value)}
+                      placeholder="20-00-00"
+                    />
+                  </Field>
+                  <Field label="Account number / IBAN">
+                    <Input
+                      value={invoice.bankAccount}
+                      onChange={(e) => update('bankAccount', e.target.value)}
+                      placeholder="GB29 NWBK 6016 1331 9268 19"
+                    />
+                  </Field>
+                  <Field label="SWIFT / BIC">
+                    <Input
+                      value={invoice.bankSwift}
+                      onChange={(e) => update('bankSwift', e.target.value)}
+                      placeholder="NWBKGB2L"
+                    />
+                  </Field>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'invoice' && (
+              <>
+                {/* INVOICE DETAILS */}
+                <section className="space-y-3">
+                  <SectionHeader>Invoice Details</SectionHeader>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Invoice #" onMouseEnter={() => setHoveredField('invoiceNumber')} onMouseLeave={() => setHoveredField(null)}>
+                        <Input
+                          className="font-mono text-xs"
+                          value={invoice.invoiceNumber}
+                          onChange={(e) => update('invoiceNumber', e.target.value)}
+                          placeholder="INV-0001"
+                        />
+                        <div className="flex gap-1 mt-1 justify-end">
+                          <span className="text-[9px] text-[#888888] mr-auto self-center select-none font-mono">Generate:</span>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => update('invoiceNumber', generateDocumentId('MG-INV'))}
+                            className="h-5 px-1.5 text-[9px] font-mono"
+                            title="Generate Invoice ID"
+                          >
+                            +INV
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => update('invoiceNumber', generateDocumentId('MG-QT'))}
+                            className="h-5 px-1.5 text-[9px] font-mono"
+                            title="Generate Quotation ID"
+                          >
+                            +QT
+                          </Button>
+                        </div>
+                      </Field>
+                      <Field label="Issue Date" onMouseEnter={() => setHoveredField('issueDate')} onMouseLeave={() => setHoveredField(null)}>
+                        <DatePicker
+                          value={invoice.issueDate}
+                          onChange={(v) => update('issueDate', v)}
+                        />
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Due Date" onMouseEnter={() => setHoveredField('dueDate')} onMouseLeave={() => setHoveredField(null)}>
+                        <DatePicker
+                          value={invoice.dueDate}
+                          onChange={(v) => update('dueDate', v)}
+                          placeholder="No due date"
+                        />
+                      </Field>
+                      <Field label="Currency">
+                        <Select value={invoice.currency} onValueChange={(v) => update('currency', v)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCIES.map((c) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label="VAT %" onMouseEnter={() => setHoveredField('vatRate')} onMouseLeave={() => setHoveredField(null)}>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={invoice.vatRate || ''}
+                        onChange={(e) => update('vatRate', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label="Subject" onMouseEnter={() => setHoveredField('subject')} onMouseLeave={() => setHoveredField(null)}>
+                      <Input
+                        value={invoice.subject || ''}
+                        onChange={(e) => update('subject', e.target.value)}
+                        placeholder="Supply & Deliver Safety Hats"
+                      />
+                    </Field>
+                  </div>
+                </section>
+
+                {/* SALUTATION */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('salutation')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Salutation / Intro</SectionHeader>
+                  <Textarea
+                    value={invoice.salutation || ''}
+                    onChange={(e) => update('salutation', e.target.value)}
+                    placeholder="Dear Madam/Sir, We are pleased to submit..."
+                    rows={3}
+                  />
+                </section>
+              </>
+            )}
+
+            {activeTab === 'items' && (
+              <section className="space-y-3">
+                <SectionHeader>Line Items</SectionHeader>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Rate Adjustment %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
+                    <Input
+                      type="number"
+                      min="-100"
+                      max="1000"
+                      value={invoice.rateMarkup || ''}
+                      onChange={(e) => update('rateMarkup', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                  </Field>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  {/* Column headers */}
+                  <div className="flex gap-2 px-1">
+                    <span className="flex-1 text-[11px] font-medium text-[#888888]">Description</span>
+                    <span className="w-12 text-[11px] font-medium text-[#888888] text-center">Unit</span>
+                    <span className="w-10 text-[11px] font-medium text-[#888888] text-center">Qty</span>
+                    <span className="w-[72px] text-[11px] font-medium text-[#888888] text-right" title={invoice.rateMarkup ? `Markup of ${invoice.rateMarkup}% is active` : undefined}>
+                      Rate{invoice.rateMarkup ? ` (${invoice.rateMarkup > 0 ? '+' : ''}${invoice.rateMarkup}%)` : ''}
+                    </span>
+                    <span className="w-5" />
+                  </div>
+
+                  {/* Item rows */}
+                  {invoice.lineItems.map((item) => (
+                    <div key={item.id} className="flex gap-2 items-start" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
+                      <Input
+                        className="flex-1"
+                        value={item.description}
+                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                        placeholder="Item description"
+                      />
+                      <Input
+                        className="w-12 px-1 text-center"
+                        value={item.unit || ''}
+                        onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                        placeholder="pcs"
+                      />
+                      <Input
+                        className="w-10 px-0 text-center"
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                      />
+                      <div className="flex flex-col items-end w-[72px] shrink-0">
+                        <Input
+                          className="w-full px-2 text-right"
+                          type="number"
+                          min="0"
+                          value={item.rate}
+                          onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                        />
+                        {invoice.rateMarkup !== 0 && (
+                          <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={`Base: ${item.rate} + ${invoice.rateMarkup}%`}>
+                            {formatCurrency(item.rate * (1 + invoice.rateMarkup / 100), invoice.currency)}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => removeItem(item.id)}
+                        className="text-[#CCCCCC] hover:text-[#888888] hover:bg-transparent shrink-0 mt-[4px]"
+                        aria-label="Remove item"
+                      >
+                        <Trash2 size={13} />
+                      </Button>
+                    </div>
+                  ))}
+
+                  {/* Add item */}
+                  <Button
+                    variant="outline"
+                    onClick={addItem}
+                    className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1"
+                  >
+                    <Plus size={13} />
+                    Add item
+                  </Button>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'notes' && (
+              <>
+                {/* NOTES / SPECIAL INSTRUCTIONS */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Notes / Special Instructions</SectionHeader>
+                  <Textarea
+                    value={invoice.note}
+                    onChange={(e) => update('note', e.target.value)}
+                    placeholder="Notes, special instructions, or any additional details…"
+                    rows={4}
+                  />
+                </section>
+
+                {/* TERMS & CONDITIONS */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Terms & Conditions</SectionHeader>
+                  <Textarea
+                    value={invoice.terms || ''}
+                    onChange={(e) => update('terms', e.target.value)}
+                    placeholder="Payment terms, contract conditions, warranty details…"
+                    rows={4}
+                  />
+                </section>
+
+                {/* CLOSING */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Closing / Footer</SectionHeader>
+                  <Textarea
+                    value={invoice.closing || ''}
+                    onChange={(e) => update('closing', e.target.value)}
+                    placeholder="We are looking forward to building..."
+                    rows={5}
+                  />
+                </section>
+              </>
+            )}
+          </div>
+
+          {/* Download button */}
+          <div className="px-6 pb-6 pt-4 border-t border-[#E5E5E5] shrink-0">
+            <Button
+              onClick={handleDownload}
+              className="w-full h-11 rounded-[10px] text-[14px] font-semibold"
+            >
+              <Download size={15} strokeWidth={2} />
+              Download PDF
+            </Button>
+          </div>
         </div>
       </aside>
 
-      <MGInvoicePreview invoice={invoice} onOpenCheatsheet={() => setCheatsheetOpen(true)} />
+      <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} />
 
       <Dialog open={cheatsheetOpen} onOpenChange={setCheatsheetOpen}>
         <DialogContent className="max-w-md font-mono">
@@ -910,6 +1004,7 @@ export default function Home() {
               ['dueDate', 'Due date (YYYY-MM-DD)'],
               ['currency', 'Currency code'],
               ['vatRate', 'VAT %'],
+              ['rateMarkup', 'Rate markup/adjustment %'],
               ['bankBeneficiary', 'Beneficiary'],
               ['bankName', 'Bank name'],
               ['bankSortCode', 'Sort Code / Routing'],
