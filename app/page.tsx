@@ -801,7 +801,7 @@ export default function Home() {
           </div>
 
           {/* Right form layout */}
-          <div className="flex-1 flex flex-col h-full min-w-0">
+          <div className="flex-1 flex flex-col lg:h-full min-w-0">
             {/* Logo (Desktop only, since Mobile has top bar) */}
             <div className="hidden lg:flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
             <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
