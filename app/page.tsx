@@ -719,7 +719,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#F5F5F5] print:bg-white print:block print:h-auto print:overflow-visible">
+    <div className="flex flex-col h-dvh overflow-hidden bg-[#F5F5F5] print:bg-white print:block print:h-auto print:overflow-visible">
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden gap-2">
         <span className="font-bold text-[15px] text-[#111111] tracking-tight shrink-0">MG Invoice</span>
@@ -764,7 +764,7 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full h-full lg:w-[450px] bg-white border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full lg:w-[450px] min-h-0 bg-white border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-[#F5F5F5] border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
@@ -801,7 +801,7 @@ export default function Home() {
           </div>
 
           {/* Right form layout */}
-          <div className="flex-1 flex flex-col lg:h-full min-w-0">
+          <div className="flex-1 flex flex-col min-h-0 lg:h-full min-w-0">
             {/* Logo (Desktop only, since Mobile has top bar) */}
             <div className="hidden lg:flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
             <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
