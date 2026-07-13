@@ -280,6 +280,25 @@ function extractLineItemsFromText(text: string) {
 
 export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const handleAddItem = () => {
+    addItem()
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        })
+      }
+      const inputs = scrollContainerRef.current?.querySelectorAll('input[placeholder="Item description"]')
+      if (inputs && inputs.length > 0) {
+        const lastInput = inputs[inputs.length - 1] as HTMLInputElement
+        lastInput.focus()
+      }
+    }, 80)
+  }
+
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [hoveredField, setHoveredField] = useState<string | null>(null)
@@ -702,42 +721,44 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F5F5F5] print:bg-white print:block print:h-auto print:overflow-visible">
       {/* Mobile Header */}
-      <div className="flex lg:hidden items-center justify-between px-6 py-4 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden">
-        <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
+      <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden gap-2">
+        <span className="font-bold text-[15px] text-[#111111] tracking-tight shrink-0">MG Invoice</span>
+        
+        {/* Toggle */}
+        <div className="flex bg-[#F5F5F5] p-0.5 rounded-[8px] border border-[#E5E5E5] gap-0.5 shrink-0">
+          <button
+            onClick={() => setActiveView('edit')}
+            className={cn(
+              "px-2.5 py-1.5 rounded-[6px] text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
+              activeView === 'edit'
+                ? "bg-[#111111] text-white shadow-sm"
+                : "text-[#555555] hover:text-[#111111]"
+            )}
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setActiveView('preview')}
+            className={cn(
+              "px-2.5 py-1.5 rounded-[6px] text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
+              activeView === 'preview'
+                ? "bg-[#111111] text-white shadow-sm"
+                : "text-[#555555] hover:text-[#111111]"
+            )}
+          >
+            Preview ({totalPages})
+          </button>
+        </div>
+
+        {/* PDF Download */}
         <Button
           onClick={handleDownload}
           size="sm"
-          className="h-9 px-3 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer flex items-center"
+          className="h-8 px-2.5 rounded-[6px] text-[10px] sm:text-xs font-semibold gap-1 cursor-pointer flex items-center shrink-0"
         >
-          <Download size={14} strokeWidth={2.5} />
+          <Download size={12} strokeWidth={2.5} />
           PDF
         </Button>
-      </div>
-
-      {/* Mobile Toggle */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-white/85 backdrop-blur-md border border-[#E5E5E5] px-2 py-1.5 rounded-full shadow-lg flex gap-1 items-center print:hidden">
-        <button
-          onClick={() => setActiveView('edit')}
-          className={cn(
-            "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
-            activeView === 'edit'
-              ? "bg-[#111111] text-white shadow-sm"
-              : "text-[#555555] hover:text-[#111111]"
-          )}
-        >
-          Edit Details
-        </button>
-        <button
-          onClick={() => setActiveView('preview')}
-          className={cn(
-            "px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
-            activeView === 'preview'
-              ? "bg-[#111111] text-white shadow-sm"
-              : "text-[#555555] hover:text-[#111111]"
-          )}
-        >
-          Live Preview ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
-        </button>
       </div>
 
       {/* Main Workspace Container */}
@@ -787,7 +808,7 @@ export default function Home() {
           </div>
 
           {/* Scrollable active tab form content */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
             {activeTab === 'ocr' && (
               <section className="bg-[#111111] p-4 rounded-[16px] relative overflow-hidden">
                 {ocrLoading && (
@@ -1265,7 +1286,7 @@ export default function Home() {
                   {/* Add item */}
                   <Button
                     variant="outline"
-                    onClick={addItem}
+                    onClick={handleAddItem}
                     className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1"
                   >
                     <Plus size={13} />
