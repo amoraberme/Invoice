@@ -62,6 +62,7 @@ const SALESPEOPLE = [
   { id: 'charlotte', name: 'Charlotte C. Santos', position: 'Senior Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 928 1655 179', email: 'charlotte.mgtrading@gmail.com' },
   { id: 'famella', name: 'Famella D. Ylanan', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 927 9487 013', email: 'sales.mgtradingph@gmail.com' },
   { id: 'jeramae', name: 'Jeramae E. Broqueza', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 981 2206 849', email: 'jeramaemgtrading6@gmail.com' },
+  { id: 'aya', name: 'Aya Rongavilla', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '09933746489', email: 'ayarongavilla021@gmail.com' },
 ]
 
 interface ParsedSpec {
@@ -388,6 +389,273 @@ export default function Home() {
     }
   }
 
+  const handleGenerateBoq = (systemKw: number) => {
+    let panelQty = 10
+    let rows = 2
+    let batteryQty = 1
+
+    if (systemKw === 3) {
+      panelQty = 4
+      rows = 1
+    } else if (systemKw === 6) {
+      panelQty = 6
+      rows = 1
+    } else if (systemKw === 8) {
+      panelQty = 8
+      rows = 2
+    } else if (systemKw === 10) {
+      panelQty = 10
+      rows = 2
+    } else if (systemKw === 12) {
+      panelQty = 10
+      rows = 2
+    }
+
+    const prices = {
+      Inverter: 34000.00,
+      Panel: 6300.00,
+      Railing: 520.00,
+      MidClamp: 65.00,
+      EndClamp: 65.00,
+      LFoot: 75.00,
+      FlexconHDPE: 0,
+      ACwire: 0,
+      PVwire: 0,
+      MC4: 50.00,
+      BreakerBox: 1000.00,
+      ACMCB: 350.00,
+      ACSPD: 400.00,
+      DCSPD: 400.00,
+      DCMCB: 300.00,
+      DCMCCB: 1500.00,
+      Raceway: 1000.00,
+      ATS: 1300.00,
+      TerminalLugs: 30.00,
+      DynessBattery: 109000.00,
+      TerminalBlock: 160.00,
+      BatteryCable: 600.00
+    }
+
+    const items: LineItem[] = []
+    const now = Date.now()
+
+    // 1. Inverter
+    const inverterPrice = prices.Inverter * (systemKw / 12)
+    items.push({
+      id: `boq-1-${now}`,
+      description: `Inverter Anern ${systemKw}kW`,
+      quantity: 1,
+      rate: inverterPrice,
+      unit: 'PC'
+    })
+
+    // 2. Solar Panels
+    items.push({
+      id: `boq-2-${now}`,
+      description: `Panel JA Solar 625W`,
+      quantity: panelQty,
+      rate: prices.Panel,
+      unit: 'PCS'
+    })
+
+    // 3. Railings
+    const railingQty = 2 * panelQty
+    items.push({
+      id: `boq-3-${now}`,
+      description: `Railings ${railingQty} pcs, 2.4m`,
+      quantity: railingQty,
+      rate: prices.Railing,
+      unit: 'PCS'
+    })
+
+    // 4. Mid Clamps
+    const midClampQty = 2 * panelQty
+    items.push({
+      id: `boq-4-${now}`,
+      description: `Mid Clamp`,
+      quantity: midClampQty,
+      rate: prices.MidClamp,
+      unit: 'PCS'
+    })
+
+    // 5. End Clamps
+    const endClampQty = 4 * rows
+    items.push({
+      id: `boq-5-${now}`,
+      description: `End Clamp`,
+      quantity: endClampQty,
+      rate: prices.EndClamp,
+      unit: 'PCS'
+    })
+
+    // 6. L Foot
+    const lFootQty = Math.ceil(1.25 * railingQty)
+    items.push({
+      id: `boq-6-${now}`,
+      description: `L Foot`,
+      quantity: lFootQty,
+      rate: prices.LFoot,
+      unit: 'PCS'
+    })
+
+    // 7. Flexcon HDPE Hose
+    items.push({
+      id: `boq-7-${now}`,
+      description: `Flexcon HDPE flexible hose`,
+      quantity: 1,
+      rate: 0,
+      unit: ''
+    })
+
+    // 8. AC Wire
+    items.push({
+      id: `boq-8-${now}`,
+      description: `AC wire`,
+      quantity: 1,
+      rate: 0,
+      unit: ''
+    })
+
+    // 9. PV Wire
+    items.push({
+      id: `boq-9-${now}`,
+      description: `PV wire`,
+      quantity: 1,
+      rate: 0,
+      unit: ''
+    })
+
+    // 10. MC4 Connectors
+    let mc4Qty = Math.ceil(1.2 * panelQty)
+    if (mc4Qty % 2 !== 0) mc4Qty += 1
+    items.push({
+      id: `boq-10-${now}`,
+      description: `MC4 50A`,
+      quantity: mc4Qty,
+      rate: prices.MC4,
+      unit: 'PCS'
+    })
+
+    // 11. Breaker Box
+    items.push({
+      id: `boq-11-${now}`,
+      description: `Breaker box`,
+      quantity: 1,
+      rate: prices.BreakerBox,
+      unit: 'PC'
+    })
+
+    // 12. AC MCB
+    items.push({
+      id: `boq-12-${now}`,
+      description: `AC MCB`,
+      quantity: 2,
+      rate: prices.ACMCB,
+      unit: 'PCS'
+    })
+
+    // 13. AC SPD
+    items.push({
+      id: `boq-13-${now}`,
+      description: `AC SPD`,
+      quantity: 2,
+      rate: prices.ACSPD,
+      unit: 'PCS'
+    })
+
+    // 14. DC SPD
+    items.push({
+      id: `boq-14-${now}`,
+      description: `DC SPD`,
+      quantity: 2,
+      rate: prices.DCSPD,
+      unit: 'PCS'
+    })
+
+    // 15. DC MCB
+    items.push({
+      id: `boq-15-${now}`,
+      description: `DC MCB`,
+      quantity: 2,
+      rate: prices.DCMCB,
+      unit: 'PCS'
+    })
+
+    // 16. DC MCCB
+    const mccbRating = systemKw >= 10 ? '250A' : '125A'
+    items.push({
+      id: `boq-16-${now}`,
+      description: `DC MCCB for battery ${mccbRating}`,
+      quantity: 1,
+      rate: prices.DCMCCB,
+      unit: 'PC'
+    })
+
+    // 17. Raceway
+    items.push({
+      id: `boq-17-${now}`,
+      description: `Cable raceway conduit 2 meters`,
+      quantity: 1,
+      rate: prices.Raceway,
+      unit: 'PC'
+    })
+
+    // 18. ATS
+    items.push({
+      id: `boq-18-${now}`,
+      description: `Automatic transfer switch`,
+      quantity: 1,
+      rate: prices.ATS,
+      unit: 'PC'
+    })
+
+    // 19. Terminal Lugs
+    items.push({
+      id: `boq-19-${now}`,
+      description: `Terminal lugs`,
+      quantity: 12,
+      rate: prices.TerminalLugs,
+      unit: 'PCS'
+    })
+
+    // 20. Battery
+    const batteryRating = systemKw >= 10 ? '314Ah (48V)' : '150Ah (48V)'
+    const batteryPrice = systemKw >= 10 ? prices.DynessBattery : prices.DynessBattery * 0.5
+    items.push({
+      id: `boq-20-${now}`,
+      description: `Dyness Battery ${batteryRating}`,
+      quantity: batteryQty,
+      rate: batteryPrice,
+      unit: 'PC'
+    })
+
+    // 21. Terminal Block
+    items.push({
+      id: `boq-21-${now}`,
+      description: `Terminal Block`,
+      quantity: 5,
+      rate: prices.TerminalBlock,
+      unit: 'PCS'
+    })
+
+    // 22. Battery Cable
+    const cableLength = systemKw >= 10 ? 4 : 2
+    const cableDesc = `Battery Cable (Black & Red) ${cableLength / 2} meters each`
+    items.push({
+      id: `boq-22-${now}`,
+      description: cableDesc,
+      quantity: cableLength,
+      rate: prices.BatteryCable,
+      unit: 'M'
+    })
+
+    setInvoice((prev) => ({
+      ...prev,
+      lineItems: items,
+      subject: `${systemKw}kW Hybrid System with Battery`
+    }))
+  }
+
   useEffect(() => {
     if (!loaded || !autoPrint.current) return
     const timer = setTimeout(() => {
@@ -572,6 +840,40 @@ export default function Home() {
                   >
                     UPLOAD TECHNICAL SPEC SHEET
                   </Button>
+                </div>
+
+                {/* Solar BOQ System Sizing Setup */}
+                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
+                  <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider mb-2">
+                    Solar BOQ Sizing Setup
+                  </h4>
+                  <p className="text-[10px] text-[#555555] mb-3 leading-relaxed">
+                    Generate a complete 22-item BOQ according to system capacity sizing rules.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[3, 6, 8, 10, 12].map((kw) => {
+                      let panelDesc = ''
+                      if (kw === 3) panelDesc = '4 Panels (1 Row)'
+                      else if (kw === 6) panelDesc = '6 Panels (1 Row)'
+                      else if (kw === 8) panelDesc = '8 Panels (2 Rows)'
+                      else if (kw === 10) panelDesc = '10 Panels (2 Rows)'
+                      else if (kw === 12) panelDesc = '10 Panels (2 Rows)'
+
+                      return (
+                        <button
+                          key={kw}
+                          onClick={() => handleGenerateBoq(kw)}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEB] border border-[#E5E5E5] text-[#111111] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
+                            kw === 12 ? "col-span-2" : ""
+                          )}
+                        >
+                          <span className="font-bold text-xs">{kw}kW Setup</span>
+                          <span className="text-[8px] text-[#888888] mt-1 font-mono font-normal">{panelDesc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {/* Cascading Selection Fields (only rendered once parsed) */}

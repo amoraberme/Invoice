@@ -374,13 +374,13 @@ export function MGInvoicePreview({
                             {item.unit || '—'}
                           </span>
                           <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                            {item.quantity}
+                            {item.rate === 0 ? '—' : item.quantity}
                           </span>
                           <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
-                            {formatCurrency(adjustedRate, invoice.currency)}
+                            {item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                           </span>
                           <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
-                            {formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                            {item.rate === 0 ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
                           </span>
                         </div>
                       )
