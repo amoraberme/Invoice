@@ -116,7 +116,7 @@ export function MGInvoicePreview({
     const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + 20
 
     // Available content height inside A4 borders with a safety buffer to prevent browser clipping
-    const PAGE_MAX_H = 960
+    const PAGE_MAX_H = 980
     
     let currentItems: LineItem[] = []
     let currentPageHeight = topSectionHeight + tableHeaderHeight
@@ -140,8 +140,9 @@ export function MGInvoicePreview({
       
       // If page is empty (just header/tableHeader), always accept the item
       const isPageEmpty = currentItems.length === 0
+      const maxItems = isFirstPage ? 12 : 18
       
-      if (isPageEmpty || (currentPageHeight + itemHeight <= PAGE_MAX_H && currentItems.length < 12)) {
+      if (isPageEmpty || (currentPageHeight + itemHeight <= PAGE_MAX_H && currentItems.length < maxItems)) {
         currentItems.push(item)
         currentPageHeight += itemHeight
         itemsToPlace.shift()
@@ -163,11 +164,37 @@ export function MGInvoicePreview({
     // Totals MUST appear directly after items on the same page.
     // If totals don't fit, push last item(s) to the next page.
     
-    // Check if totals fit on the current page
+    // If totals don't fit on the current page, and we have items, push items to next page
+    if (currentPageHeight + totalsHeight > PAGE_MAX_H && currentItems.length > 0) {
+      const nextPageItems: LineItem[] = []
+      let nextPageHeight = tableHeaderHeight
+
+      while (currentPageHeight + totalsHeight > PAGE_MAX_H && currentItems.length > 1) {
+        const item = currentItems.pop()!
+        nextPageItems.unshift(item)
+        currentPageHeight -= getItemHeight(item)
+        nextPageHeight += getItemHeight(item)
+      }
+
+      // Save the current page (without totals)
+      pages.push({
+        items: currentItems,
+        showTop: isFirstPage,
+        showTotals: false,
+        showBottom: false,
+      })
+
+      // Setup the next page as the active page
+      currentItems = nextPageItems
+      currentPageHeight = nextPageHeight
+      isFirstPage = false
+    }
+
+    // Now, totals should fit on this page (since we pushed items or it was already clean).
+    // Let's decide where totals + footer go.
     if (currentPageHeight + totalsHeight <= PAGE_MAX_H) {
-      // Totals fit. Check if footer also fits.
       if (currentPageHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
-        // Everything fits on one page
+        // Everything fits on this page
         pages.push({
           items: currentItems,
           showTop: isFirstPage,
@@ -190,8 +217,7 @@ export function MGInvoicePreview({
         })
       }
     } else {
-      // Totals don't fit on current page. Save current items page, 
-      // then put totals (with no items) + footer on the next page.
+      // Fallback in case totals are too massive for a single blank page
       if (currentItems.length > 0) {
         pages.push({
           items: currentItems,
@@ -200,21 +226,13 @@ export function MGInvoicePreview({
           showBottom: false,
         })
       }
-      // Totals + footer on a new page
-      if (totalsHeight + footerBlockHeight + tableHeaderHeight <= PAGE_MAX_H) {
-        pages.push({
-          items: [],
-          showTop: false,
-          showTotals: true,
-          showBottom: true,
-        })
-      } else {
-        pages.push({
-          items: [],
-          showTop: false,
-          showTotals: true,
-          showBottom: false,
-        })
+      pages.push({
+        items: [],
+        showTop: false,
+        showTotals: true,
+        showBottom: footerBlockHeight <= PAGE_MAX_H - totalsHeight,
+      })
+      if (footerBlockHeight > PAGE_MAX_H - totalsHeight) {
         pages.push({
           items: [],
           showTop: false,
@@ -374,7 +392,7 @@ export function MGInvoicePreview({
                             {item.unit || '—'}
                           </span>
                           <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                            {item.rate === 0 ? '—' : item.quantity}
+                            {item.quantity || '—'}
                           </span>
                           <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
                             {item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}

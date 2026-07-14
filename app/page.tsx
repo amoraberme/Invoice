@@ -315,6 +315,7 @@ export default function Home() {
     coolingCapacity: '',
     breakerStatus: ''
   })
+  const [selectedFloor, setSelectedFloor] = useState<number>(1)
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -406,6 +407,169 @@ export default function Home() {
         setOcrLoading(false)
       }, 500)
     }
+  }
+
+  const handleSelectFloor = (floorNum: number) => {
+    setSelectedFloor(floorNum)
+    
+    const pathLength = floorNum * 5
+    const buffer = 5
+    const runLength = pathLength + buffer
+
+    setInvoice((prev) => {
+      const items = [...prev.lineItems]
+      let hasHdpe = false
+      let hasAc = false
+      let hasPv = false
+      let hasDc = false
+
+      const updatedItems: LineItem[] = []
+
+      for (const item of items) {
+        const descLower = item.description.toLowerCase().trim()
+        
+        // Match Flexcon, HDPE, or Hose
+        if (descLower.includes('flexcon') || descLower.includes('hdpe') || descLower.includes('hose')) {
+          if (hasHdpe) {
+            // Duplicate found, skip/discard
+            continue
+          }
+          hasHdpe = true
+          updatedItems.push({
+            ...item,
+            quantity: runLength,
+            unit: 'M',
+            description: `Flexcon HDPE flexible hose`
+          })
+          continue
+        }
+        
+        // Match AC wire
+        const hasAcWord = /\bac\b/i.test(item.description)
+        if (
+          descLower === 'ac' ||
+          descLower === 'ac wire' ||
+          descLower === 'ac cable' ||
+          descLower.includes('ac wire') || 
+          descLower.includes('ac cable') ||
+          (hasAcWord && descLower.includes('wire')) ||
+          (hasAcWord && descLower.includes('cable'))
+        ) {
+          if (hasAc) {
+            // Duplicate found, skip/discard
+            continue
+          }
+          hasAc = true
+          updatedItems.push({
+            ...item,
+            quantity: runLength,
+            unit: 'M',
+            description: `AC wire`
+          })
+          continue
+        }
+
+        // Match PV wire (checking specifically for 'pv' to separate from 'dc')
+        const hasPvWord = /\bpv\b/i.test(item.description)
+        const isPvWire = 
+          descLower === 'pv' || 
+          descLower === 'pv wire' || 
+          descLower === 'pv cable' || 
+          descLower.includes('pv wire') || 
+          descLower.includes('pv cable') || 
+          (hasPvWord && descLower.includes('wire')) || 
+          (hasPvWord && descLower.includes('cable')) || 
+          descLower.includes('red pv')
+        
+        if (isPvWire) {
+          if (hasPv) {
+            // Duplicate found, skip/discard
+            continue
+          }
+          hasPv = true
+          updatedItems.push({
+            ...item,
+            quantity: runLength,
+            unit: 'M',
+            description: `PV wire`
+          })
+          continue
+        }
+
+        // Match DC wire
+        const hasDcWord = /\bdc\b/i.test(item.description)
+        const isDcWire = 
+          descLower === 'dc' || 
+          descLower === 'dc wire' || 
+          descLower === 'dc cable' || 
+          descLower.includes('dc wire') || 
+          descLower.includes('dc cable') || 
+          (hasDcWord && descLower.includes('wire')) || 
+          (hasDcWord && descLower.includes('cable')) || 
+          descLower.includes('black pv')
+        
+        if (isDcWire) {
+          if (hasDc) {
+            // Duplicate found, skip/discard
+            continue
+          }
+          hasDc = true
+          updatedItems.push({
+            ...item,
+            quantity: runLength,
+            unit: 'M',
+            description: `DC wire`
+          })
+          continue
+        }
+
+        // Not a matched material, keep as is
+        updatedItems.push(item)
+      }
+
+      const now = Date.now()
+      if (!hasHdpe) {
+        updatedItems.push({
+          id: `floor-hdpe-${now}`,
+          description: `Flexcon HDPE flexible hose`,
+          quantity: runLength,
+          rate: 0,
+          unit: 'M'
+        })
+      }
+      if (!hasAc) {
+        updatedItems.push({
+          id: `floor-ac-${now}`,
+          description: `AC wire`,
+          quantity: runLength,
+          rate: 0,
+          unit: 'M'
+        })
+      }
+      if (!hasPv) {
+        updatedItems.push({
+          id: `floor-pv-${now}`,
+          description: `PV wire`,
+          quantity: runLength,
+          rate: 0,
+          unit: 'M'
+        })
+      }
+      if (!hasDc) {
+        updatedItems.push({
+          id: `floor-dc-${now}`,
+          description: `DC wire`,
+          quantity: runLength,
+          rate: 0,
+          unit: 'M'
+        })
+      }
+
+      return {
+        ...prev,
+        lineItems: updatedItems
+      }
+    })
   }
 
   const handleGenerateBoq = (systemKw: number) => {
@@ -517,31 +681,44 @@ export default function Home() {
       unit: 'PCS'
     })
 
+    const floorNum = selectedFloor || 1
+    const runLength = floorNum * 5 + 5
+    const totalPvLength = runLength * 2
+
     // 7. Flexcon HDPE Hose
     items.push({
       id: `boq-7-${now}`,
       description: `Flexcon HDPE flexible hose`,
-      quantity: 1,
+      quantity: runLength,
       rate: 0,
-      unit: ''
+      unit: 'M'
     })
 
     // 8. AC Wire
     items.push({
       id: `boq-8-${now}`,
       description: `AC wire`,
-      quantity: 1,
+      quantity: runLength,
       rate: 0,
-      unit: ''
+      unit: 'M'
     })
 
     // 9. PV Wire
     items.push({
       id: `boq-9-${now}`,
       description: `PV wire`,
-      quantity: 1,
+      quantity: runLength,
       rate: 0,
-      unit: ''
+      unit: 'M'
+    })
+
+    // 9.5 DC Wire
+    items.push({
+      id: `boq-dc-${now}`,
+      description: `DC wire`,
+      quantity: runLength,
+      rate: 0,
+      unit: 'M'
     })
 
     // 10. MC4 Connectors
@@ -893,6 +1070,40 @@ export default function Home() {
                           <span className="text-[8px] text-[#888888] mt-1 font-mono font-normal">{panelDesc}</span>
                         </button>
                       )
+                    })}
+                  </div>
+                </div>
+
+                {/* Floor Chooser */}
+                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider">
+                      🏢 Floor Selection
+                    </h4>
+                    {selectedFloor && (
+                      <span className="text-[9px] bg-[#E8F5E9] text-[#2E7D32] px-2 py-0.5 rounded-[12px] font-bold border border-[#C8E6C9]">
+                        Auto-Synced
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-1.5 select-none">
+                    {[1, 2, 3, 4, 5].map((floorNum) => {
+                      const isSelected = selectedFloor === floorNum;
+                      return (
+                        <button
+                          key={floorNum}
+                          onClick={() => handleSelectFloor(floorNum)}
+                          className={cn(
+                            "h-9 rounded-[8px] flex items-center justify-center text-[11px] font-bold transition-all relative border cursor-pointer select-none",
+                            isSelected 
+                              ? "bg-[#111111] text-[#FFFFFF] border-[#111111] shadow-[0_2px_8px_rgba(0,0,0,0.15)] scale-[1.02] z-10" 
+                              : "bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#555555] border-[#E5E5E5]"
+                          )}
+                        >
+                          F{floorNum}
+                        </button>
+                      );
                     })}
                   </div>
                 </div>
