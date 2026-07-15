@@ -1289,17 +1289,8 @@ export default function Home() {
                           {(() => {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
-                            const calculated = dailyAvg / 4
-                            let recommended = 0
-                            if (calculated <= 12) {
-                              const supported = [3, 5, 6, 8, 10, 12]
-                              recommended = supported.reduce((prev, curr) => 
-                                Math.abs(curr - calculated) < Math.abs(prev - calculated) ? curr : prev
-                              )
-                            } else {
-                              recommended = Math.round(calculated)
-                            }
-                            return `${recommended}kW`
+                            const calculated = dailyAvg / 8
+                            return `${calculated.toFixed(2)}kW`
                           })()}
                         </span>
                       </div>
