@@ -1288,11 +1288,12 @@ export default function Home() {
                           {(() => {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
-                            const hourlyAvg = dailyAvg / 24
-                            const eightHourAvg = hourlyAvg * 8
-                            const baseCapacity = eightHourAvg / 4
-                            const calculated = baseCapacity * 1.5
-                            return `${Math.ceil(calculated)}kW`
+                            const calculated = dailyAvg / 4
+                            const supported = [3, 5, 6, 8, 10, 12]
+                            const recommended = supported.reduce((prev, curr) => 
+                              Math.abs(curr - calculated) < Math.abs(prev - calculated) ? curr : prev
+                            )
+                            return `${recommended}kW`
                           })()}
                         </span>
                       </div>
