@@ -842,6 +842,15 @@ export default function Home() {
       unit: 'PCS'
     })
 
+    // 20. Battery
+    items.push({
+      id: `boq-20-${now}`,
+      description: `Battery 314Ah (48V)`,
+      quantity: batteryQty,
+      rate: 88000.00,
+      unit: 'PC'
+    })
+
     // 3. Railings
     const railingQty = 2 * panelQty + extraQty
     items.push({
@@ -1011,15 +1020,6 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 20. Battery
-    items.push({
-      id: `boq-20-${now}`,
-      description: `Battery 314Ah (48V)`,
-      quantity: batteryQty,
-      rate: 88000.00,
-      unit: 'PC'
-    })
-
     // 21. Terminal Block
     items.push({
       id: `boq-21-${now}`,
@@ -1099,6 +1099,7 @@ export default function Home() {
 
   return (
     <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:bg-white print:block print:h-auto print:overflow-visible", `theme-${invoice.theme || 'light'}`)}>
+      <title>{[invoice.toName ? invoice.toName.trim() : 'Client', invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''].filter(Boolean).join(' - ') || 'Quotation'}</title>
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0 print:hidden gap-2">
         <div className="flex items-center gap-2">

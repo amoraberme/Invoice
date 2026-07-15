@@ -3,7 +3,7 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MG Invoice — Free Invoice Generator',
+  title: 'Quotation',
   description:
     'Create, preview and download professional PDF invoices in seconds. Free, no account needed, works in your browser.',
   keywords: [
