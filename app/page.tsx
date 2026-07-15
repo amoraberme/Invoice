@@ -387,16 +387,42 @@ export default function Home() {
   })
   const [selectedFloor, setSelectedFloor] = useState<number>(1)
   const [monthlyKwh, setMonthlyKwh] = useState<string>('')
+  const [dailyKwh, setDailyKwh] = useState<string>('')
   const [pricePerKwh, setPricePerKwh] = useState<string>('15.01')
   const [totalBill, setTotalBill] = useState<string>('')
+  const [customKwInput, setCustomKwInput] = useState<string>('')
+
+  const handleDailyKwhChange = (val: string) => {
+    setDailyKwh(val)
+    const d = parseFloat(val)
+    const p = parseFloat(pricePerKwh)
+    if (!isNaN(d)) {
+      const m = d * 30
+      setMonthlyKwh(m.toFixed(2))
+      if (!isNaN(p)) {
+        setTotalBill((m * p).toFixed(2))
+      } else {
+        setTotalBill('')
+      }
+    } else {
+      setMonthlyKwh('')
+      setTotalBill('')
+    }
+  }
 
   const handleMonthlyKwhChange = (val: string) => {
     setMonthlyKwh(val)
     const m = parseFloat(val)
     const p = parseFloat(pricePerKwh)
-    if (!isNaN(m) && !isNaN(p)) {
-      setTotalBill((m * p).toFixed(2))
+    if (!isNaN(m)) {
+      setDailyKwh((m / 30).toFixed(2))
+      if (!isNaN(p)) {
+        setTotalBill((m * p).toFixed(2))
+      } else {
+        setTotalBill('')
+      }
     } else {
+      setDailyKwh('')
       setTotalBill('')
     }
   }
@@ -417,9 +443,12 @@ export default function Home() {
     const t = parseFloat(val)
     const p = parseFloat(pricePerKwh)
     if (!isNaN(t) && !isNaN(p) && p > 0) {
-      setMonthlyKwh((t / p).toFixed(2))
+      const m = t / p
+      setMonthlyKwh(m.toFixed(2))
+      setDailyKwh((m / 30).toFixed(2))
     } else if (val === '') {
       setMonthlyKwh('')
+      setDailyKwh('')
     }
   }
 
@@ -527,10 +556,8 @@ export default function Home() {
   const handleSelectFloor = (floorNum: number) => {
     setSelectedFloor(floorNum)
     
-    const pathLength = floorNum * 5
-    const buffer = 5
-    const runLength = pathLength + buffer
-    const extraQty = floorNum > 2 ? 1 : 0
+    const runLength = floorNum * 5
+    const extraQty = floorNum >= 2 ? 3 : 0
 
     setInvoice((prev) => {
       const items = [...prev.lineItems]
@@ -651,7 +678,7 @@ export default function Home() {
         if (descLower === 'railings' || descLower.includes('railing')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (2 * panelQty + extraQty * panelQty) : item.quantity
+            quantity: panelQty > 0 ? (2 * panelQty + extraQty) : item.quantity
           })
           continue
         }
@@ -660,7 +687,7 @@ export default function Home() {
         if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (2 * panelQty + extraQty * panelQty) : item.quantity
+            quantity: panelQty > 0 ? (2 * panelQty + extraQty) : item.quantity
           })
           continue
         }
@@ -669,7 +696,7 @@ export default function Home() {
         if (descLower === 'end clamp' || descLower.includes('end clamp')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (4 * rows + extraQty * panelQty) : item.quantity
+            quantity: panelQty > 0 ? (4 * rows + extraQty) : item.quantity
           })
           continue
         }
@@ -678,7 +705,7 @@ export default function Home() {
         if (descLower === 'l foot' || descLower.includes('l foot')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (Math.ceil(1.25 * (2 * panelQty)) + extraQty * panelQty) : item.quantity
+            quantity: panelQty > 0 ? (Math.ceil(1.25 * (2 * panelQty)) + extraQty) : item.quantity
           })
           continue
         }
@@ -742,15 +769,50 @@ export default function Home() {
     const items: LineItem[] = []
     const now = Date.now()
     const floorNum = selectedFloor || 1
-    const runLength = floorNum * 5 + 5
-    const extraQty = floorNum > 2 ? 1 : 0
+    const runLength = floorNum * 5
+    const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
-    const inverterKw = systemKw === 5 ? 6 : systemKw
-    const inverterPrice = prices.Inverter * (inverterKw / 12)
+    const inverterSizes = [3, 5, 6, 8, 10, 12, 16, 18, 100]
+    let inverterKw = inverterSizes.find(s => s >= systemKw)
+    if (inverterKw === undefined) {
+      inverterKw = Math.ceil(systemKw)
+    }
+    
+    let inverterDesc = `Inverter ${inverterKw}kW Hybrid`
+    let inverterPrice = 0
+    if (inverterKw <= 3) {
+      inverterDesc = 'Inverter 5kW Hybrid'
+      inverterPrice = 41000.00
+    } else if (inverterKw <= 5) {
+      inverterDesc = 'Inverter 5kW Hybrid'
+      inverterPrice = 41000.00
+    } else if (inverterKw <= 6) {
+      inverterDesc = 'Inverter 6kW Hybrid'
+      inverterPrice = 44000.00
+    } else if (inverterKw <= 8) {
+      inverterDesc = 'Inverter 8kW Hybrid'
+      inverterPrice = 60000.00
+    } else if (inverterKw <= 10) {
+      inverterDesc = 'Inverter 10kW Hybrid'
+      inverterPrice = 68000.00
+    } else if (inverterKw <= 12) {
+      inverterDesc = 'Inverter 12kW Hybrid'
+      inverterPrice = 82000.00
+    } else if (inverterKw <= 16) {
+      inverterDesc = 'Inverter 16kW Hybrid'
+      inverterPrice = 113000.00
+    } else if (inverterKw <= 18) {
+      inverterDesc = 'Inverter 30kW Hybrid'
+      inverterPrice = 208000.00
+    } else {
+      inverterDesc = 'Inverter 125kW Hybrid'
+      inverterPrice = 580000.00
+    }
+
     items.push({
       id: `boq-1-${now}`,
-      description: `Inverter ${inverterKw}kW`,
+      description: inverterDesc,
       quantity: 1,
       rate: inverterPrice,
       unit: 'PC'
@@ -767,7 +829,7 @@ export default function Home() {
 
     // 3. Railings
     // 3. Railings
-    const railingQty = 2 * panelQty + (extraQty * panelQty)
+    const railingQty = 2 * panelQty + extraQty
     items.push({
       id: `boq-3-${now}`,
       description: `Railings`,
@@ -777,7 +839,7 @@ export default function Home() {
     })
 
     // 4. Mid Clamps
-    const midClampQty = 2 * panelQty + (extraQty * panelQty)
+    const midClampQty = 2 * panelQty + extraQty
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -787,7 +849,7 @@ export default function Home() {
     })
 
     // 5. End Clamps
-    const endClampQty = 4 * rows + (extraQty * panelQty)
+    const endClampQty = 4 * rows + extraQty
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -797,7 +859,7 @@ export default function Home() {
     })
 
     // 6. L Foot
-    const lFootQty = Math.ceil(1.25 * (2 * panelQty)) + (extraQty * panelQty)
+    const lFootQty = Math.ceil(1.25 * (2 * panelQty)) + extraQty
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
@@ -1169,8 +1231,8 @@ export default function Home() {
                   <p className="text-[10px] text-[#555555] mb-3 leading-relaxed">
                     Generate a complete 22-item BOQ according to system capacity sizing rules.
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[3, 5, 6, 8, 10, 12].map((kw) => {
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {[3, 4, 5, 6, 8, 10, 12].map((kw) => {
                       const calculatedPanelQty = Math.floor(kw / 0.625)
                       const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
                       const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
@@ -1186,6 +1248,37 @@ export default function Home() {
                         </button>
                       )
                     })}
+                  </div>
+
+                  <div className="border-t border-[#E5E5E5] pt-3 mt-3">
+                    <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                      Apply by Custom kW Setup
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={customKwInput}
+                        onChange={(e) => setCustomKwInput(e.target.value)}
+                        placeholder="e.g. 7.5"
+                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black flex-1"
+                      />
+                      <Button
+                        onClick={() => {
+                          const val = parseFloat(customKwInput)
+                          if (!isNaN(val) && val > 0) {
+                            handleGenerateBoq(val)
+                          }
+                        }}
+                        disabled={!customKwInput || parseFloat(customKwInput) <= 0}
+                        variant="default"
+                        size="sm"
+                        className="bg-black hover:bg-black/90 text-white font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0"
+                      >
+                        APPLY
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -1230,48 +1323,66 @@ export default function Home() {
                   </h4>
                   
                   <div className="space-y-3">
-                    <div>
-                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
-                        Monthly Consumption (kWh)
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={monthlyKwh}
-                        onChange={(e) => handleMonthlyKwhChange(e.target.value)}
-                        placeholder="e.g. 500"
-                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
-                        Price per kWh (₱)
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={pricePerKwh}
-                        onChange={(e) => handlePricePerKwhChange(e.target.value)}
-                        placeholder="15.01"
-                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                          Monthly Consumption (kWh)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={monthlyKwh}
+                          onChange={(e) => handleMonthlyKwhChange(e.target.value)}
+                          placeholder="e.g. 500"
+                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                          Daily Consumption (kWh)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={dailyKwh}
+                          onChange={(e) => handleDailyKwhChange(e.target.value)}
+                          placeholder="e.g. 16.67"
+                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
-                        Total Monthly Bill (₱)
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={totalBill}
-                        onChange={(e) => handleTotalBillChange(e.target.value)}
-                        placeholder="e.g. 7500.00"
-                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                          Price per kWh (₱)
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={pricePerKwh}
+                          onChange={(e) => handlePricePerKwhChange(e.target.value)}
+                          placeholder="15.01"
+                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                          Total Monthly Bill (₱)
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={totalBill}
+                          onChange={(e) => handleTotalBillChange(e.target.value)}
+                          placeholder="e.g. 7500.00"
+                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-1">
@@ -1288,7 +1399,7 @@ export default function Home() {
                           {(() => {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
-                            const calculated = (dailyAvg / 4) * 1.5
+                            const calculated = (dailyAvg / 8) * 1.5
                             return `${calculated.toFixed(2)}kW`
                           })()}
                         </span>
