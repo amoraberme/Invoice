@@ -16,6 +16,17 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 export async function loadInvoice(): Promise<Invoice | null> {
+  // Try localStorage first (fast, synchronous, widely supported on iOS)
+  try {
+    const local = localStorage.getItem(INVOICE_KEY)
+    if (local) {
+      return JSON.parse(local)
+    }
+  } catch (e) {
+    console.error('Failed to load from localStorage', e)
+  }
+
+  // Fallback to IndexedDB
   try {
     const db = await openDB()
     return new Promise((resolve, reject) => {
@@ -30,6 +41,14 @@ export async function loadInvoice(): Promise<Invoice | null> {
 }
 
 export async function saveInvoice(invoice: Invoice): Promise<void> {
+  // Save to localStorage immediately
+  try {
+    localStorage.setItem(INVOICE_KEY, JSON.stringify(invoice))
+  } catch (e) {
+    console.error('Failed to save to localStorage', e)
+  }
+
+  // Save to IndexedDB as secondary backup
   try {
     const db = await openDB()
     return new Promise((resolve, reject) => {
