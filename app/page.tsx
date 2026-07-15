@@ -72,9 +72,17 @@ const loadPdfJs = async (): Promise<any> => {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
-    script.onload = () => {
+    script.onload = async () => {
       const pdfjs = (window as any).pdfjsLib;
-      pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+      try {
+        const workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        const response = await fetch(workerUrl);
+        const blob = new Blob([await response.text()], { type: 'application/javascript' });
+        pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+      } catch (e) {
+        console.error('Failed to load PDF.js worker via Blob URL, falling back to direct URL', e);
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+      }
       resolve(pdfjs);
     };
     script.onerror = reject;
@@ -92,7 +100,7 @@ const extractTextFromPdf = async (file: File, onProgress?: (pct: number) => void
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    const pageText = textContent.items.map((item: any) => item.str || '').join(' ');
     fullText += `--- PAGE ${i} ---\n${pageText}\n\n`;
     if (onProgress) {
       onProgress(Math.round((i / pdf.numPages) * 100));
@@ -447,12 +455,14 @@ export default function Home() {
 
     try {
       let text = ''
-      if (file.type === 'application/pdf') {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      
+      if (isPdf) {
         text = await extractTextFromPdf(file, (pct) => setOcrProgress(pct))
       } else {
         const { createWorker } = await import('tesseract.js')
         
-        const worker = await createWorker('eng', 1, {
+        const worker = await createWorker('eng', undefined, {
           logger: (m) => {
             if (m.status === 'recognizing text') {
               setOcrProgress(Math.round(m.progress * 100))
@@ -466,6 +476,7 @@ export default function Home() {
         URL.revokeObjectURL(imageUrl)
         text = parsedText
       }
+
 
       const parsed = parseTechnicalSpec(text)
       setSpecData(parsed)
