@@ -1288,7 +1288,10 @@ export default function Home() {
                           {(() => {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
-                            const calculated = (dailyAvg / 8) * 1.5
+                            const hourlyAvg = dailyAvg / 24
+                            const eightHourAvg = hourlyAvg * 8
+                            const baseCapacity = eightHourAvg / 4
+                            const calculated = baseCapacity * 1.5
                             return `${Math.ceil(calculated)}kW`
                           })()}
                         </span>
