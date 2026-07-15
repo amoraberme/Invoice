@@ -143,13 +143,13 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
-    1: { desc: "Inverter Anern 12kW 1pc $34,000.00", qty: "1pc", price: "₱34,000.00", total: "₱34,000.00" },
-    2: { desc: "Panel JA Solar 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
-    3: { desc: "Railings 20 pcs, 2.4m", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
+    1: { desc: "Inverter 12kW 1pc $34,000.00", qty: "1pc", price: "₱34,000.00", total: "₱34,000.00" },
+    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
+    3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱65.00", total: "₱1,300.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
     6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
-    7: { desc: "Flexcon HDPE flexible hose", qty: "1 Ps", price: "-", total: "-" },
+    7: { desc: "Flexible hose", qty: "1 Ps", price: "-", total: "-" },
     8: { desc: "AC wire _ x", qty: "-", price: "TBD", total: "TBD" },
     9: { desc: "PV wire", qty: "-", price: "TBD", total: "TBD" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "TBD", total: "TBD" },
@@ -162,7 +162,7 @@ function extractLineItemsFromText(text: string) {
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
     19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
-    20: { desc: "Dyness Battery 314Ah (48V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
+    20: { desc: "Battery 314Ah (48V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" }
   };
@@ -278,6 +278,32 @@ function extractLineItemsFromText(text: string) {
   return lineItems;
 }
 
+const SOLAR_PRICES = {
+  Inverter: 34000.00,
+  Panel: 6300.00,
+  Railing: 470.00,
+  MidClamp: 65.00,
+  EndClamp: 32.00,
+  LFoot: 50.00,
+  FlexconHDPE: 215.00,
+  ACwire: 190.00,
+  PVwire: 170.00,
+  DCwire: 200.00,
+  MC4: 80.00,
+  BreakerBox: 1000.00,
+  ACMCB: 350.00,
+  ACSPD: 400.00,
+  DCSPD: 400.00,
+  DCMCB: 300.00,
+  DCMCCB: 1500.00,
+  Raceway: 1000.00,
+  ATS: 1300.00,
+  TerminalLugs: 30.00,
+  DynessBattery: 109000.00,
+  TerminalBlock: 160.00,
+  BatteryCable: 600.00
+};
+
 export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -316,6 +342,42 @@ export default function Home() {
     breakerStatus: ''
   })
   const [selectedFloor, setSelectedFloor] = useState<number>(1)
+  const [monthlyKwh, setMonthlyKwh] = useState<string>('')
+  const [pricePerKwh, setPricePerKwh] = useState<string>('15.01')
+  const [totalBill, setTotalBill] = useState<string>('')
+
+  const handleMonthlyKwhChange = (val: string) => {
+    setMonthlyKwh(val)
+    const m = parseFloat(val)
+    const p = parseFloat(pricePerKwh)
+    if (!isNaN(m) && !isNaN(p)) {
+      setTotalBill((m * p).toFixed(2))
+    } else {
+      setTotalBill('')
+    }
+  }
+
+  const handlePricePerKwhChange = (val: string) => {
+    setPricePerKwh(val)
+    const m = parseFloat(monthlyKwh)
+    const p = parseFloat(val)
+    if (!isNaN(m) && !isNaN(p)) {
+      setTotalBill((m * p).toFixed(2))
+    } else {
+      setTotalBill('')
+    }
+  }
+
+  const handleTotalBillChange = (val: string) => {
+    setTotalBill(val)
+    const t = parseFloat(val)
+    const p = parseFloat(pricePerKwh)
+    if (!isNaN(t) && !isNaN(p) && p > 0) {
+      setMonthlyKwh((t / p).toFixed(2))
+    } else if (val === '') {
+      setMonthlyKwh('')
+    }
+  }
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -415,6 +477,7 @@ export default function Home() {
     const pathLength = floorNum * 5
     const buffer = 5
     const runLength = pathLength + buffer
+    const extraQty = floorNum > 2 ? 1 : 0
 
     setInvoice((prev) => {
       const items = [...prev.lineItems]
@@ -422,6 +485,15 @@ export default function Home() {
       let hasAc = false
       let hasPv = false
       let hasDc = false
+
+      let panelQty = 0
+      for (const item of items) {
+        if (item.description.toLowerCase().includes('panel')) {
+          panelQty = item.quantity
+        }
+      }
+      const rows = panelQty <= 6 ? 1 : 2
+      const effectivePanelQty = panelQty + extraQty * rows
 
       const updatedItems: LineItem[] = []
 
@@ -439,7 +511,7 @@ export default function Home() {
             ...item,
             quantity: runLength,
             unit: 'M',
-            description: `Flexcon HDPE flexible hose`
+            description: `Flexible hose`
           })
           continue
         }
@@ -523,6 +595,42 @@ export default function Home() {
           continue
         }
 
+        // Match Railings
+        if (descLower === 'railings' || descLower.includes('railing')) {
+          updatedItems.push({
+            ...item,
+            quantity: panelQty > 0 ? (2 * effectivePanelQty) : item.quantity
+          })
+          continue
+        }
+
+        // Match Mid Clamp
+        if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
+          updatedItems.push({
+            ...item,
+            quantity: panelQty > 0 ? (2 * effectivePanelQty) : item.quantity
+          })
+          continue
+        }
+
+        // Match End Clamp
+        if (descLower === 'end clamp' || descLower.includes('end clamp')) {
+          updatedItems.push({
+            ...item,
+            quantity: panelQty > 0 ? ((4 + extraQty) * rows) : item.quantity
+          })
+          continue
+        }
+
+        // Match L Foot
+        if (descLower === 'l foot' || descLower.includes('l foot')) {
+          updatedItems.push({
+            ...item,
+            quantity: panelQty > 0 ? Math.ceil(1.25 * (2 * effectivePanelQty)) : item.quantity
+          })
+          continue
+        }
+
         // Not a matched material, keep as is
         updatedItems.push(item)
       }
@@ -531,9 +639,9 @@ export default function Home() {
       if (!hasHdpe) {
         updatedItems.push({
           id: `floor-hdpe-${now}`,
-          description: `Flexcon HDPE flexible hose`,
+          description: `Flexible hose`,
           quantity: runLength,
-          rate: 0,
+          rate: SOLAR_PRICES.FlexconHDPE,
           unit: 'M'
         })
       }
@@ -542,7 +650,7 @@ export default function Home() {
           id: `floor-ac-${now}`,
           description: `AC wire`,
           quantity: runLength,
-          rate: 0,
+          rate: SOLAR_PRICES.ACwire,
           unit: 'M'
         })
       }
@@ -551,7 +659,7 @@ export default function Home() {
           id: `floor-pv-${now}`,
           description: `PV wire`,
           quantity: runLength,
-          rate: 0,
+          rate: SOLAR_PRICES.PVwire,
           unit: 'M'
         })
       }
@@ -560,7 +668,7 @@ export default function Home() {
           id: `floor-dc-${now}`,
           description: `DC wire`,
           quantity: runLength,
-          rate: 0,
+          rate: SOLAR_PRICES.DCwire,
           unit: 'M'
         })
       }
@@ -573,60 +681,24 @@ export default function Home() {
   }
 
   const handleGenerateBoq = (systemKw: number) => {
-    let panelQty = 10
-    let rows = 2
-    let batteryQty = 1
+    const panelQty = Math.floor(systemKw / 0.625)
+    const rows = panelQty <= 6 ? 1 : 2
+    const batteryQty = 1
 
-    if (systemKw === 3) {
-      panelQty = 4
-      rows = 1
-    } else if (systemKw === 6) {
-      panelQty = 6
-      rows = 1
-    } else if (systemKw === 8) {
-      panelQty = 8
-      rows = 2
-    } else if (systemKw === 10) {
-      panelQty = 10
-      rows = 2
-    } else if (systemKw === 12) {
-      panelQty = 10
-      rows = 2
-    }
-
-    const prices = {
-      Inverter: 34000.00,
-      Panel: 6300.00,
-      Railing: 520.00,
-      MidClamp: 65.00,
-      EndClamp: 65.00,
-      LFoot: 75.00,
-      FlexconHDPE: 0,
-      ACwire: 0,
-      PVwire: 0,
-      MC4: 50.00,
-      BreakerBox: 1000.00,
-      ACMCB: 350.00,
-      ACSPD: 400.00,
-      DCSPD: 400.00,
-      DCMCB: 300.00,
-      DCMCCB: 1500.00,
-      Raceway: 1000.00,
-      ATS: 1300.00,
-      TerminalLugs: 30.00,
-      DynessBattery: 109000.00,
-      TerminalBlock: 160.00,
-      BatteryCable: 600.00
-    }
+    const prices = SOLAR_PRICES
 
     const items: LineItem[] = []
     const now = Date.now()
+    const floorNum = selectedFloor || 1
+    const runLength = floorNum * 5 + 5
+    const extraQty = floorNum > 2 ? 1 : 0
 
     // 1. Inverter
-    const inverterPrice = prices.Inverter * (systemKw / 12)
+    const inverterKw = systemKw === 5 ? 6 : systemKw
+    const inverterPrice = prices.Inverter * (inverterKw / 12)
     items.push({
       id: `boq-1-${now}`,
-      description: `Inverter Anern ${systemKw}kW`,
+      description: `Inverter ${inverterKw}kW`,
       quantity: 1,
       rate: inverterPrice,
       unit: 'PC'
@@ -635,24 +707,25 @@ export default function Home() {
     // 2. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Panel JA Solar 625W`,
+      description: `Panel 625W`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
     })
 
     // 3. Railings
-    const railingQty = 2 * panelQty
+    const effectivePanelQty = panelQty + extraQty * rows
+    const railingQty = 2 * effectivePanelQty
     items.push({
       id: `boq-3-${now}`,
-      description: `Railings ${railingQty} pcs, 2.4m`,
+      description: `Railings`,
       quantity: railingQty,
       rate: prices.Railing,
       unit: 'PCS'
     })
 
     // 4. Mid Clamps
-    const midClampQty = 2 * panelQty
+    const midClampQty = 2 * effectivePanelQty
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -662,7 +735,7 @@ export default function Home() {
     })
 
     // 5. End Clamps
-    const endClampQty = 4 * rows
+    const endClampQty = (4 + extraQty) * rows
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -672,7 +745,7 @@ export default function Home() {
     })
 
     // 6. L Foot
-    const lFootQty = Math.ceil(1.25 * railingQty)
+    const lFootQty = Math.ceil(1.25 * (2 * effectivePanelQty))
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
@@ -681,16 +754,12 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    const floorNum = selectedFloor || 1
-    const runLength = floorNum * 5 + 5
-    const totalPvLength = runLength * 2
-
     // 7. Flexcon HDPE Hose
     items.push({
       id: `boq-7-${now}`,
-      description: `Flexcon HDPE flexible hose`,
+      description: `Flexible hose`,
       quantity: runLength,
-      rate: 0,
+      rate: prices.FlexconHDPE,
       unit: 'M'
     })
 
@@ -699,7 +768,7 @@ export default function Home() {
       id: `boq-8-${now}`,
       description: `AC wire`,
       quantity: runLength,
-      rate: 0,
+      rate: prices.ACwire,
       unit: 'M'
     })
 
@@ -708,7 +777,7 @@ export default function Home() {
       id: `boq-9-${now}`,
       description: `PV wire`,
       quantity: runLength,
-      rate: 0,
+      rate: prices.PVwire,
       unit: 'M'
     })
 
@@ -717,7 +786,7 @@ export default function Home() {
       id: `boq-dc-${now}`,
       description: `DC wire`,
       quantity: runLength,
-      rate: 0,
+      rate: prices.DCwire,
       unit: 'M'
     })
 
@@ -819,7 +888,7 @@ export default function Home() {
     const batteryPrice = systemKw >= 10 ? prices.DynessBattery : prices.DynessBattery * 0.5
     items.push({
       id: `boq-20-${now}`,
-      description: `Dyness Battery ${batteryRating}`,
+      description: `Battery ${batteryRating}`,
       quantity: batteryQty,
       rate: batteryPrice,
       unit: 'PC'
@@ -1049,22 +1118,16 @@ export default function Home() {
                     Generate a complete 22-item BOQ according to system capacity sizing rules.
                   </p>
                   <div className="grid grid-cols-2 gap-2">
-                    {[3, 6, 8, 10, 12].map((kw) => {
-                      let panelDesc = ''
-                      if (kw === 3) panelDesc = '4 Panels (1 Row)'
-                      else if (kw === 6) panelDesc = '6 Panels (1 Row)'
-                      else if (kw === 8) panelDesc = '8 Panels (2 Rows)'
-                      else if (kw === 10) panelDesc = '10 Panels (2 Rows)'
-                      else if (kw === 12) panelDesc = '10 Panels (2 Rows)'
+                    {[3, 5, 6, 8, 10, 12].map((kw) => {
+                      const calculatedPanelQty = Math.floor(kw / 0.625)
+                      const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
+                      const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
 
                       return (
                         <button
                           key={kw}
                           onClick={() => handleGenerateBoq(kw)}
-                          className={cn(
-                            "flex flex-col items-center justify-center p-3 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEB] border border-[#E5E5E5] text-[#111111] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
-                            kw === 12 ? "col-span-2" : ""
-                          )}
+                          className="flex flex-col items-center justify-center p-3 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEB] border border-[#E5E5E5] text-[#111111] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold"
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
                           <span className="text-[8px] text-[#888888] mt-1 font-mono font-normal">{panelDesc}</span>
@@ -1105,6 +1168,89 @@ export default function Home() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Electricity Consumption Calculator */}
+                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
+                  <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider mb-3 flex items-center gap-1">
+                    <span>⚡</span> Consumption Calculator
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        Monthly Consumption (kWh)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={monthlyKwh}
+                        onChange={(e) => handleMonthlyKwhChange(e.target.value)}
+                        placeholder="e.g. 500"
+                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        Price per kWh (₱)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={pricePerKwh}
+                        onChange={(e) => handlePricePerKwhChange(e.target.value)}
+                        placeholder="15.01"
+                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        Total Monthly Bill (₱)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={totalBill}
+                        onChange={(e) => handleTotalBillChange(e.target.value)}
+                        placeholder="e.g. 7500.00"
+                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold uppercase">Daily Avg</span>
+                        <span className="font-bold text-xs text-[#111111] font-mono">
+                          {((parseFloat(monthlyKwh) || 0) / 30).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
+                        <span className="text-[8px] text-[#888888] font-mono font-semibold uppercase">Recommended Setup</span>
+                        <span className="font-bold text-xs text-[#111111] font-mono">
+                          {(() => {
+                            const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
+                            if (dailyAvg <= 0) return '-'
+                            const calculated = dailyAvg / 4
+                            let recommended = 0
+                            if (calculated <= 12) {
+                              const supported = [3, 5, 6, 8, 10, 12]
+                              recommended = supported.reduce((prev, curr) => 
+                                Math.abs(curr - calculated) < Math.abs(prev - calculated) ? curr : prev
+                              )
+                            } else {
+                              recommended = Math.round(calculated)
+                            }
+                            return `${recommended}kW`
+                          })()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
