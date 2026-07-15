@@ -63,6 +63,7 @@ const SALESPEOPLE = [
   { id: 'famella', name: 'Famella D. Ylanan', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 927 9487 013', email: 'sales.mgtradingph@gmail.com' },
   { id: 'jeramae', name: 'Jeramae E. Broqueza', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 981 2206 849', email: 'jeramaemgtrading6@gmail.com' },
   { id: 'aya', name: 'Aya Rongavilla', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '09933746489', email: 'ayarongavilla021@gmail.com' },
+  { id: 'noel', name: 'Noel Jayson E. Santos', position: 'Chief Operating Officer', company: MG_COMPANY, contact: '09198718747', email: 'Santosnoel9999@gmail.com' },
 ]
 
 const loadPdfJs = async (): Promise<any> => {
@@ -762,7 +763,18 @@ export default function Home() {
   const handleGenerateBoq = (systemKw: number) => {
     const panelQty = Math.floor(systemKw / 0.625)
     const rows = panelQty <= 6 ? 1 : 2
-    const batteryQty = 1
+    let batteryQty = 1
+    if (systemKw >= 5 && systemKw < 8) {
+      batteryQty = 1
+    } else if (systemKw >= 8 && systemKw < 15) {
+      batteryQty = 2
+    } else if (systemKw >= 15 && systemKw < 30) {
+      batteryQty = 3
+    } else if (systemKw >= 30) {
+      batteryQty = Math.ceil(systemKw / 10)
+    } else {
+      batteryQty = 1
+    }
 
     const prices = SOLAR_PRICES
 
@@ -998,8 +1010,9 @@ export default function Home() {
     })
 
     // 20. Battery
-    const batteryRating = systemKw >= 10 ? '314Ah (48V)' : '150Ah (48V)'
-    const batteryPrice = systemKw >= 10 ? prices.DynessBattery : prices.DynessBattery * 0.5
+    const isBigBattery = systemKw >= 5
+    const batteryRating = isBigBattery ? '314Ah (48V)' : '200Ah (48V)'
+    const batteryPrice = isBigBattery ? 88000.00 : 65000.00
     items.push({
       id: `boq-20-${now}`,
       description: `Battery ${batteryRating}`,
@@ -1018,7 +1031,7 @@ export default function Home() {
     })
 
     // 22. Battery Cable
-    const cableLength = systemKw >= 10 ? 4 : 2
+    const cableLength = batteryQty * 2
     const cableDesc = `Battery Cable (Black & Red) ${cableLength / 2} meters each`
     items.push({
       id: `boq-22-${now}`,
@@ -1232,7 +1245,7 @@ export default function Home() {
                     Generate a complete 22-item BOQ according to system capacity sizing rules.
                   </p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    {[3, 4, 5, 6, 8, 10, 12].map((kw) => {
+                    {[4, 5, 6, 8, 10, 12].map((kw) => {
                       const calculatedPanelQty = Math.floor(kw / 0.625)
                       const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
                       const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
