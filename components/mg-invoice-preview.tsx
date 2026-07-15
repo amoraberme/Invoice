@@ -53,7 +53,9 @@ export function MGInvoicePreview({
 
   const rateMarkup = invoice.rateMarkup || 0
   const subtotal = invoice.lineItems.reduce((sum, item) => {
-    const adjustedRate = item.rate * (1 + rateMarkup / 100)
+    const isLabor = item.description.toLowerCase().trim() === 'labor and installation'
+    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+    const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     return sum + item.quantity * adjustedRate
   }, 0)
   const vat = subtotal * (invoice.vatRate / 100)
@@ -382,7 +384,9 @@ export function MGInvoicePreview({
                       </span>
                     </div>
                     {page.items.map((item) => {
-                      const adjustedRate = item.rate * (1 + rateMarkup / 100)
+                      const isLabor = item.description.toLowerCase().trim() === 'labor and installation'
+                      const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+                      const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
                       return (
                         <div key={item.id} className={cn("flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">

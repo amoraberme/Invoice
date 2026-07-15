@@ -20,6 +20,7 @@ export interface Invoice {
   currency: string
   vatRate: number
   rateMarkup: number
+  excludeLaborMarkup: boolean
   lineItems: LineItem[]
   bankBeneficiary: string
   bankName: string
@@ -58,6 +59,7 @@ export const defaultInvoice: Invoice = {
   currency: 'PHP',
   vatRate: 0,
   rateMarkup: 0,
+  excludeLaborMarkup: false,
   lineItems: [],
   bankBeneficiary: '',
   bankName: '',

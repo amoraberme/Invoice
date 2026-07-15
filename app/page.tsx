@@ -761,7 +761,7 @@ export default function Home() {
   }
 
   const handleGenerateBoq = (systemKw: number) => {
-    const panelQty = Math.floor(systemKw / 0.625)
+    const panelQty = Math.round(systemKw * 10 / 12)
     const rows = panelQty <= 6 ? 1 : 2
     let batteryQty = 1
     if (systemKw >= 5 && systemKw < 8) {
@@ -839,7 +839,6 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 3. Railings
     // 3. Railings
     const railingQty = 2 * panelQty + extraQty
     items.push({
@@ -1041,6 +1040,21 @@ export default function Home() {
       unit: 'M'
     })
 
+    // 23. Labor and Installation
+    let laborRate = 50000
+    if (systemKw >= 16) {
+      laborRate = 120000
+    } else if (systemKw >= 8) {
+      laborRate = 55000
+    }
+    items.push({
+      id: `boq-23-${now}`,
+      description: `Labor and Installation`,
+      quantity: 1,
+      rate: laborRate,
+      unit: 'LOT'
+    })
+
     setInvoice((prev) => ({
       ...prev,
       lineItems: items,
@@ -1052,9 +1066,9 @@ export default function Home() {
     if (!loaded || !autoPrint.current) return
     const timer = setTimeout(() => {
       const client = invoice.toName ? invoice.toName.trim() : 'Client'
-      const date = invoice.issueDate || new Date().toISOString().split('T')[0]
-      const parts = [client, invoice.invoiceNumber, date].filter(Boolean)
-      document.title = parts.length > 0 ? parts.join(' - ') : 'invoice'
+      const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
+      const parts = [client, quotationNumber].filter(Boolean)
+      document.title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
       window.print()
       window.onafterprint = () => {
         document.title = 'MG Invoice'
@@ -1062,14 +1076,14 @@ export default function Home() {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [loaded, invoice.toName, invoice.invoiceNumber, invoice.issueDate])
+  }, [loaded, invoice.toName, invoice.invoiceNumber])
 
   const handleDownload = () => {
     const original = document.title
     const client = invoice.toName ? invoice.toName.trim() : 'Client'
-    const date = invoice.issueDate || new Date().toISOString().split('T')[0]
-    const parts = [client, invoice.invoiceNumber, date].filter(Boolean)
-    document.title = parts.length > 0 ? parts.join(' - ') : 'invoice'
+    const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
+    const parts = [client, quotationNumber].filter(Boolean)
+    document.title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
     window.print()
     window.onafterprint = () => {
       document.title = original
@@ -1242,13 +1256,18 @@ export default function Home() {
                     Solar BOQ Sizing Setup
                   </h4>
                   <p className="text-[10px] text-[#555555] mb-3 leading-relaxed">
-                    Generate a complete 22-item BOQ according to system capacity sizing rules.
+                    Generate a complete 23-item BOQ according to system capacity sizing rules.
                   </p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    {[4, 5, 6, 8, 10, 12].map((kw) => {
-                      const calculatedPanelQty = Math.floor(kw / 0.625)
+                    {[4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
+                      const calculatedPanelQty = Math.round(kw * 10 / 12)
                       const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
+                      let laborCost = 50000
+                      if (kw >= 16) laborCost = 120000
+                      else if (kw >= 8) laborCost = 55000
+                      
                       const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
+                      const laborDesc = `Labor: ₱${(laborCost / 1000)}k`
 
                       return (
                         <button
@@ -1258,6 +1277,7 @@ export default function Home() {
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
                           <span className="text-[8px] text-[#888888] mt-1 font-mono font-normal">{panelDesc}</span>
+                          <span className="text-[8px] text-[#2E7D32] mt-0.5 font-mono font-bold">{laborDesc}</span>
                         </button>
                       )
                     })}
@@ -1744,6 +1764,22 @@ export default function Home() {
                       placeholder="0"
                     />
                   </Field>
+                  <Field label="Labor Adjustment" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
+                    <Button
+                      type="button"
+                      variant={invoice.excludeLaborMarkup ? "outline" : "default"}
+                      onClick={() => update('excludeLaborMarkup', !invoice.excludeLaborMarkup)}
+                      className={cn(
+                        "w-full h-9 text-[9px] font-bold rounded-[8px] transition-all cursor-pointer select-none tracking-wider",
+                        invoice.excludeLaborMarkup
+                          ? "bg-[#FAFAFA] border-[#E5E5E5] text-[#888888] hover:bg-[#EBEBEB]"
+                          : "bg-[#111111] text-white hover:bg-black/90"
+                      )}
+                      title={invoice.excludeLaborMarkup ? "Labor & Installation is excluded from rate markup" : "Labor & Installation is included in rate markup"}
+                    >
+                      {invoice.excludeLaborMarkup ? "EXCLUDE LABOR" : "INCLUDE LABOR"}
+                    </Button>
+                  </Field>
                 </div>
 
                 <div className="space-y-1.5 pt-2">
@@ -1790,8 +1826,17 @@ export default function Home() {
                           placeholder="0"
                         />
                         {invoice.rateMarkup !== 0 && (
-                          <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={`Base: ${item.rate} + ${invoice.rateMarkup}%`}>
-                            {formatCurrency(item.rate * (1 + invoice.rateMarkup / 100), invoice.currency)}
+                          <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
+                            (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                              ? 'Labor is excluded from rate markup'
+                              : `Base: ${item.rate} + ${invoice.rateMarkup}%`
+                          }>
+                            {formatCurrency(
+                              (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                                ? item.rate
+                                : item.rate * (1 + invoice.rateMarkup / 100),
+                              invoice.currency
+                            )}
                           </span>
                         )}
                       </div>

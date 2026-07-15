@@ -41,7 +41,9 @@ export function useMGInvoice() {
           const savedVal = savedObj[key]
           const defaultVal = defaultInvoice[key]
           
-          if (typeof defaultVal === 'number') {
+          if (typeof defaultVal === 'boolean') {
+            ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal === true || savedVal === 'true'
+          } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             ;(sanitized as unknown as Record<string, unknown>)[key] = !isNaN(parsed) ? parsed : defaultVal
           } else {
@@ -58,7 +60,7 @@ export function useMGInvoice() {
       setLoaded(true)
     })
   }, [])
-
+ 
   useEffect(() => {
     if (!loaded) return
     const params = new URLSearchParams(window.location.search)
@@ -67,7 +69,9 @@ export function useMGInvoice() {
     for (const [key, value] of params.entries()) {
       if (key in defaultInvoice) {
         const field = key as keyof Invoice
-        if (typeof defaultInvoice[field] === 'number') {
+        if (typeof defaultInvoice[field] === 'boolean') {
+          (overrides as unknown as Record<string, boolean>)[field] = value === 'true'
+        } else if (typeof defaultInvoice[field] === 'number') {
           (overrides as unknown as Record<string, number>)[field] = parseFloat(value) || 0
         } else if (field !== 'lineItems') {
           if (value !== 'undefined') {
