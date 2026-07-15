@@ -1289,7 +1289,7 @@ export default function Home() {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
                             const calculated = (dailyAvg / 8) * 1.5
-                            return `${calculated.toFixed(2)}kW`
+                            return `${Math.ceil(calculated)}kW`
                           })()}
                         </span>
                       </div>
