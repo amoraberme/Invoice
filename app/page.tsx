@@ -65,6 +65,42 @@ const SALESPEOPLE = [
   { id: 'aya', name: 'Aya Rongavilla', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '09933746489', email: 'ayarongavilla021@gmail.com' },
 ]
 
+const loadPdfJs = async (): Promise<any> => {
+  if (typeof window === 'undefined') return null;
+  if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+    script.onload = () => {
+      const pdfjs = (window as any).pdfjsLib;
+      pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+      resolve(pdfjs);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+const extractTextFromPdf = async (file: File, onProgress?: (pct: number) => void): Promise<string> => {
+  const pdfjs = await loadPdfJs();
+  if (!pdfjs) return '';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    fullText += `--- PAGE ${i} ---\n${pageText}\n\n`;
+    if (onProgress) {
+      onProgress(Math.round((i / pdf.numPages) * 100));
+    }
+  }
+  return fullText;
+};
+
 interface ParsedSpec {
   brand: string;
   formFactor: string;
@@ -410,20 +446,26 @@ export default function Home() {
     setOcrProgress(0)
 
     try {
-      const { createWorker } = await import('tesseract.js')
-      
-      const worker = await createWorker('eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(m.progress * 100))
+      let text = ''
+      if (file.type === 'application/pdf') {
+        text = await extractTextFromPdf(file, (pct) => setOcrProgress(pct))
+      } else {
+        const { createWorker } = await import('tesseract.js')
+        
+        const worker = await createWorker('eng', 1, {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setOcrProgress(Math.round(m.progress * 100))
+            }
           }
-        }
-      })
+        })
 
-      const imageUrl = URL.createObjectURL(file)
-      const { data: { text } } = await worker.recognize(imageUrl)
-      await worker.terminate()
-      URL.revokeObjectURL(imageUrl)
+        const imageUrl = URL.createObjectURL(file)
+        const { data: { text: parsedText } } = await worker.recognize(imageUrl)
+        await worker.terminate()
+        URL.revokeObjectURL(imageUrl)
+        text = parsedText
+      }
 
       const parsed = parseTechnicalSpec(text)
       setSpecData(parsed)
@@ -1088,14 +1130,14 @@ export default function Home() {
                 >
                   <p className="text-xs text-[#111111] font-medium leading-relaxed mb-3">
                     Have an existing Purchase Specification sheet? <br />
-                    <strong className="text-[#111111]">Drop Image to Extract Configuration Data</strong>
+                    <strong className="text-[#111111]">Drop Image or PDF to Extract Configuration Data</strong>
                   </p>
                   
                   <input 
                     type="file" 
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/*"
+                    accept="image/*,application/pdf"
                     className="hidden"
                   />
                   
