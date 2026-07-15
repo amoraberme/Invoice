@@ -1074,13 +1074,33 @@ export default function Home() {
   useEffect(() => {
     if (!loaded || !autoPrint.current) return
     const timer = setTimeout(() => {
+      const client = invoice.toName ? invoice.toName.trim() : 'Client'
+      const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
+      const parts = [client, quotationNumber].filter(Boolean)
+      const title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
+      document.title = title
+      const titleEl = document.querySelector('title')
+      if (titleEl) {
+        titleEl.innerText = title
+      }
       window.print()
-    }, 300)
+    }, 450)
     return () => clearTimeout(timer)
-  }, [loaded])
+  }, [loaded, invoice.toName, invoice.invoiceNumber])
 
   const handleDownload = () => {
-    window.print()
+    const client = invoice.toName ? invoice.toName.trim() : 'Client'
+    const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
+    const parts = [client, quotationNumber].filter(Boolean)
+    const title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
+    document.title = title
+    const titleEl = document.querySelector('title')
+    if (titleEl) {
+      titleEl.innerText = title
+    }
+    setTimeout(() => {
+      window.print()
+    }, 150)
   }
 
   const handleSalesPersonChange = (val: string) => {
@@ -1099,7 +1119,6 @@ export default function Home() {
 
   return (
     <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:bg-white print:block print:h-auto print:overflow-visible", `theme-${invoice.theme || 'light'}`)}>
-      <title>{[invoice.toName ? invoice.toName.trim() : 'Client', invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''].filter(Boolean).join(' - ') || 'Quotation'}</title>
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0 print:hidden gap-2">
         <div className="flex items-center gap-2">
