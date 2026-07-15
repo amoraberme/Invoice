@@ -57,6 +57,13 @@ function Field({
 
 const MG_COMPANY = 'M&G Non-Specialized Wholesale Trading'
 
+const THEME_CHARACTERS: Record<string, string> = {
+  barbie: '🎀',
+  spiderman: '🕷️',
+  minion: '🍌',
+  violet: '🔮',
+}
+
 const SALESPEOPLE = [
   { id: 'custom', name: 'Custom / None', position: '', company: '', contact: '', email: '' },
   { id: 'charlotte', name: 'Charlotte C. Santos', position: 'Senior Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 928 1655 179', email: 'charlotte.mgtrading@gmail.com' },
@@ -1096,6 +1103,11 @@ export default function Home() {
       <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0 print:hidden gap-2">
         <div className="flex items-center gap-2">
           <span className="font-bold text-[15px] text-foreground tracking-tight shrink-0">MG Invoice</span>
+          {THEME_CHARACTERS[invoice.theme] && (
+            <span className="text-sm animate-bounce" style={{ animationDuration: '2.5s' }}>
+              {THEME_CHARACTERS[invoice.theme]}
+            </span>
+          )}
           <select
             value={invoice.theme || 'light'}
             onChange={(e) => update('theme', e.target.value as any)}
@@ -1105,6 +1117,8 @@ export default function Home() {
             <option value="dark">🌙 Dark</option>
             <option value="barbie">💖 Barbie</option>
             <option value="spiderman">🕷️ Spidey</option>
+            <option value="minion">🍌 Minion</option>
+            <option value="violet">🔮 Violet</option>
           </select>
         </div>
         
@@ -1188,7 +1202,14 @@ export default function Home() {
           <div className="flex-1 flex flex-col min-h-0 lg:h-full min-w-0">
             {/* Logo & Theme Picker (Desktop only) */}
             <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-              <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
+                {THEME_CHARACTERS[invoice.theme] && (
+                  <span className="text-lg animate-bounce" style={{ animationDuration: '2.5s' }}>
+                    {THEME_CHARACTERS[invoice.theme]}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1">Theme</span>
                 <select
@@ -1200,6 +1221,8 @@ export default function Home() {
                   <option value="dark">🌙 Dark</option>
                   <option value="barbie">💖 Barbie</option>
                   <option value="spiderman">🕷️ Spidey</option>
+                  <option value="minion">🍌 Minion</option>
+                  <option value="violet">🔮 Violet</option>
                 </select>
               </div>
             </div>
@@ -1952,7 +1975,18 @@ export default function Home() {
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto", activeView === 'preview' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col')}>
+      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto relative overflow-hidden flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
+        {/* Floating background themed characters (screen only, hidden on print) */}
+        {THEME_CHARACTERS[invoice.theme] && (
+          <>
+            <div className="absolute left-8 top-12 text-[140px] pointer-events-none select-none opacity-[0.06] animate-bounce duration-5000 print:hidden">
+              {THEME_CHARACTERS[invoice.theme]}
+            </div>
+            <div className="absolute right-12 bottom-12 text-[160px] pointer-events-none select-none opacity-[0.06] animate-pulse duration-3000 print:hidden">
+              {THEME_CHARACTERS[invoice.theme]}
+            </div>
+          </>
+        )}
         <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} />
       </div>
     </div>

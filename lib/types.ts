@@ -22,7 +22,7 @@ export interface Invoice {
   rateMarkup: number
   excludeLaborMarkup: boolean
   excludeBattery: boolean
-  theme: 'light' | 'dark' | 'barbie' | 'spiderman'
+  theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
   bankBeneficiary: string
   bankName: string
