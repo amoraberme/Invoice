@@ -546,7 +546,6 @@ export default function Home() {
         }
       }
       const rows = panelQty <= 6 ? 1 : 2
-      const effectivePanelQty = panelQty + extraQty * rows
 
       const updatedItems: LineItem[] = []
 
@@ -652,7 +651,7 @@ export default function Home() {
         if (descLower === 'railings' || descLower.includes('railing')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (2 * effectivePanelQty) : item.quantity
+            quantity: panelQty > 0 ? (2 * panelQty + extraQty * panelQty) : item.quantity
           })
           continue
         }
@@ -661,7 +660,7 @@ export default function Home() {
         if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? (2 * effectivePanelQty) : item.quantity
+            quantity: panelQty > 0 ? (2 * panelQty + extraQty * panelQty) : item.quantity
           })
           continue
         }
@@ -670,7 +669,7 @@ export default function Home() {
         if (descLower === 'end clamp' || descLower.includes('end clamp')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? ((4 + extraQty) * rows) : item.quantity
+            quantity: panelQty > 0 ? (4 * rows + extraQty * panelQty) : item.quantity
           })
           continue
         }
@@ -679,7 +678,7 @@ export default function Home() {
         if (descLower === 'l foot' || descLower.includes('l foot')) {
           updatedItems.push({
             ...item,
-            quantity: panelQty > 0 ? Math.ceil(1.25 * (2 * effectivePanelQty)) : item.quantity
+            quantity: panelQty > 0 ? (Math.ceil(1.25 * (2 * panelQty)) + extraQty * panelQty) : item.quantity
           })
           continue
         }
@@ -767,8 +766,8 @@ export default function Home() {
     })
 
     // 3. Railings
-    const effectivePanelQty = panelQty + extraQty * rows
-    const railingQty = 2 * effectivePanelQty
+    // 3. Railings
+    const railingQty = 2 * panelQty + (extraQty * panelQty)
     items.push({
       id: `boq-3-${now}`,
       description: `Railings`,
@@ -778,7 +777,7 @@ export default function Home() {
     })
 
     // 4. Mid Clamps
-    const midClampQty = 2 * effectivePanelQty
+    const midClampQty = 2 * panelQty + (extraQty * panelQty)
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -788,7 +787,7 @@ export default function Home() {
     })
 
     // 5. End Clamps
-    const endClampQty = (4 + extraQty) * rows
+    const endClampQty = 4 * rows + (extraQty * panelQty)
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -798,7 +797,7 @@ export default function Home() {
     })
 
     // 6. L Foot
-    const lFootQty = Math.ceil(1.25 * (2 * effectivePanelQty))
+    const lFootQty = Math.ceil(1.25 * (2 * panelQty)) + (extraQty * panelQty)
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
