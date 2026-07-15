@@ -28,7 +28,7 @@ import {
 
 function SectionHeader({ children }: { children: ReactNode }) {
   return (
-    <h3 className="text-[11px] font-semibold text-[#888888] tracking-widest uppercase">
+    <h3 className="text-[11px] font-semibold text-muted-foreground tracking-widest uppercase">
       {children}
     </h3>
   )
@@ -47,7 +47,7 @@ function Field({
 }: FieldProps) {
   return (
     <div className={cn("space-y-1.5", className)} {...props}>
-      <Label className="text-[11px] font-semibold text-[#888888] tracking-widest uppercase">
+      <Label className="text-[11px] font-semibold text-muted-foreground tracking-widest uppercase">
         {label}
       </Label>
       {children}
@@ -1091,13 +1091,25 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden bg-[#F5F5F5] print:bg-white print:block print:h-auto print:overflow-visible">
+    <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:bg-white print:block print:h-auto print:overflow-visible", `theme-${invoice.theme || 'light'}`)}>
       {/* Mobile Header */}
-      <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-white border-b border-[#E5E5E5] shrink-0 print:hidden gap-2">
-        <span className="font-bold text-[15px] text-[#111111] tracking-tight shrink-0">MG Invoice</span>
+      <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0 print:hidden gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-[15px] text-foreground tracking-tight shrink-0">MG Invoice</span>
+          <select
+            value={invoice.theme || 'light'}
+            onChange={(e) => update('theme', e.target.value as any)}
+            className="text-[10px] font-bold bg-secondary border border-border text-foreground rounded-[6px] px-1.5 py-0.5 outline-none cursor-pointer transition-all select-none"
+          >
+            <option value="light">☀️ Light</option>
+            <option value="dark">🌙 Dark</option>
+            <option value="barbie">💖 Barbie</option>
+            <option value="spiderman">🕷️ Spidey</option>
+          </select>
+        </div>
         
         {/* Toggle */}
-        <div className="flex bg-[#F5F5F5] p-0.5 rounded-[8px] border border-[#E5E5E5] gap-0.5 shrink-0">
+        <div className="flex bg-secondary p-0.5 rounded-[8px] border border-border gap-0.5 shrink-0">
           <button
             onClick={() => setActiveView('edit')}
             className={cn(
@@ -1136,9 +1148,9 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full lg:w-[450px] min-h-0 bg-white border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full lg:w-[450px] min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
-          <div className="w-full lg:w-[76px] h-auto lg:h-full bg-[#F5F5F5] border-b lg:border-b-0 lg:border-r border-[#E5E5E5] flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
+          <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
               { id: 'ocr', label: 'OCR', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
@@ -1157,15 +1169,15 @@ export default function Home() {
                   className={cn(
                     "relative w-12 h-12 lg:w-14 lg:h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none shrink-0",
                     active
-                      ? "bg-white text-[#111111] shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-[#E5E5E5]/80 font-semibold"
-                      : "text-[#888888] hover:text-[#555555] hover:bg-[#EBEBEB]"
+                      ? "bg-card text-foreground shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-border font-semibold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                   )}
                   title={tab.title}
                 >
                   <Icon size={15} className="lg:w-4 lg:h-4" />
                   <span className="text-[8px] lg:text-[9px] leading-none tracking-tight">{tab.label}</span>
                   {active && (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 lg:bottom-auto lg:left-0 lg:top-1/2 lg:-translate-y-1/2 w-6 lg:w-[3px] h-[3px] lg:h-6 bg-[#111111] rounded-t-[3px] lg:rounded-t-none lg:rounded-r-[3px]" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 lg:bottom-auto lg:left-0 lg:top-1/2 lg:-translate-y-1/2 w-6 lg:w-[3px] h-[3px] lg:h-6 bg-primary rounded-t-[3px] lg:rounded-t-none lg:rounded-r-[3px]" />
                   )}
                 </button>
               )
@@ -1174,10 +1186,23 @@ export default function Home() {
 
           {/* Right form layout */}
           <div className="flex-1 flex flex-col min-h-0 lg:h-full min-w-0">
-            {/* Logo (Desktop only, since Mobile has top bar) */}
-            <div className="hidden lg:flex items-center justify-between px-6 py-[22px] border-b border-[#E5E5E5] shrink-0">
-            <span className="font-bold text-[17px] text-[#111111] tracking-tight">MG Invoice</span>
-          </div>
+            {/* Logo & Theme Picker (Desktop only) */}
+            <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1">Theme</span>
+                <select
+                  value={invoice.theme || 'light'}
+                  onChange={(e) => update('theme', e.target.value as any)}
+                  className="text-[11px] font-bold bg-secondary border border-border text-foreground rounded-[6px] px-2 py-1 outline-none cursor-pointer hover:bg-secondary/85 transition-all select-none"
+                >
+                  <option value="light">☀️ Light</option>
+                  <option value="dark">🌙 Dark</option>
+                  <option value="barbie">💖 Barbie</option>
+                  <option value="spiderman">🕷️ Spidey</option>
+                </select>
+              </div>
+            </div>
 
           {/* Scrollable active tab form content */}
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
@@ -1229,18 +1254,18 @@ export default function Home() {
                     variant="default"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-[#111111] hover:bg-[#111111]/90 text-[#FFFFFF] font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
                   >
                     UPLOAD TECHNICAL SPEC SHEET
                   </Button>
                 </div>
 
                 {/* Solar BOQ System Sizing Setup */}
-                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
-                  <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider mb-2">
+                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
+                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-2">
                     Solar BOQ Sizing Setup
                   </h4>
-                  <p className="text-[10px] text-[#555555] mb-3 leading-relaxed">
+                  <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
                     Generate a complete 23-item BOQ according to system capacity sizing rules.
                   </p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
@@ -1258,18 +1283,18 @@ export default function Home() {
                         <button
                           key={kw}
                           onClick={() => handleGenerateBoq(kw)}
-                          className="flex flex-col items-center justify-center p-3 rounded-[12px] bg-[#F5F5F5] hover:bg-[#EBEBEB] border border-[#E5E5E5] text-[#111111] transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold"
+                          className="flex flex-col items-center justify-center p-3 rounded-[12px] bg-secondary/50 hover:bg-secondary/80 border border-border text-foreground transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold"
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
-                          <span className="text-[8px] text-[#888888] mt-1 font-mono font-normal">{panelDesc}</span>
+                          <span className="text-[8px] text-muted-foreground mt-1 font-mono font-normal">{panelDesc}</span>
                           <span className="text-[8px] text-[#2E7D32] mt-0.5 font-mono font-bold">{laborDesc}</span>
                         </button>
                       )
                     })}
                   </div>
 
-                  <div className="border-t border-[#E5E5E5] pt-3 mt-3">
-                    <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                  <div className="border-t border-border pt-3 mt-3">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                       Apply by Custom kW Setup
                     </label>
                     <div className="flex gap-2">
@@ -1280,7 +1305,7 @@ export default function Home() {
                         value={customKwInput}
                         onChange={(e) => setCustomKwInput(e.target.value)}
                         placeholder="e.g. 7.5"
-                        className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black flex-1"
+                        className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary flex-1"
                       />
                       <Button
                         onClick={() => {
@@ -1292,7 +1317,7 @@ export default function Home() {
                         disabled={!customKwInput || parseFloat(customKwInput) <= 0}
                         variant="default"
                         size="sm"
-                        className="bg-black hover:bg-black/90 text-white font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0"
                       >
                         APPLY
                       </Button>
@@ -1335,15 +1360,15 @@ export default function Home() {
                 </div>
 
                 {/* Electricity Consumption Calculator */}
-                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
-                  <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider mb-3 flex items-center gap-1">
+                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
+                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
                     <span>⚡</span> Consumption Calculator
                   </h4>
                   
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                           Monthly Consumption (kWh)
                         </label>
                         <Input
@@ -1352,12 +1377,12 @@ export default function Home() {
                           value={monthlyKwh}
                           onChange={(e) => handleMonthlyKwhChange(e.target.value)}
                           placeholder="e.g. 500"
-                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                           Daily Consumption (kWh)
                         </label>
                         <Input
@@ -1366,14 +1391,14 @@ export default function Home() {
                           value={dailyKwh}
                           onChange={(e) => handleDailyKwhChange(e.target.value)}
                           placeholder="e.g. 16.67"
-                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                           Price per kWh (₱)
                         </label>
                         <Input
@@ -1383,12 +1408,12 @@ export default function Home() {
                           value={pricePerKwh}
                           onChange={(e) => handlePricePerKwhChange(e.target.value)}
                           placeholder="15.01"
-                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[9px] font-bold text-[#888888] uppercase tracking-wider block mb-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                           Total Monthly Bill (₱)
                         </label>
                         <Input
@@ -1398,22 +1423,22 @@ export default function Home() {
                           value={totalBill}
                           onChange={(e) => handleTotalBillChange(e.target.value)}
                           placeholder="e.g. 7500.00"
-                          className="bg-[#FAFAFA] border-[#E5E5E5] text-[#111111] font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-black focus:border-black"
+                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold uppercase">Daily Avg</span>
-                        <span className="font-bold text-xs text-[#111111] font-mono">
+                      <div className="flex flex-col gap-0.5 bg-secondary/40 p-2 rounded-[12px] border border-border">
+                        <span className="text-[8px] text-muted-foreground font-mono font-semibold uppercase">Daily Avg</span>
+                        <span className="font-bold text-xs text-foreground font-mono">
                           {((parseFloat(monthlyKwh) || 0) / 30).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh
                         </span>
                       </div>
                       
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold uppercase">Recommended Setup</span>
-                        <span className="font-bold text-xs text-[#111111] font-mono">
+                      <div className="flex flex-col gap-0.5 bg-secondary/40 p-2 rounded-[12px] border border-border">
+                        <span className="text-[8px] text-muted-foreground font-mono font-semibold uppercase">Recommended Setup</span>
+                        <span className="font-bold text-xs text-foreground font-mono">
                           {(() => {
                             const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
                             if (dailyAvg <= 0) return '-'
@@ -1915,7 +1940,7 @@ export default function Home() {
           </div>
 
           {/* Download button */}
-          <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-[#E5E5E5] shrink-0">
+          <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
             <Button
               onClick={handleDownload}
               className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer"
@@ -1927,7 +1952,7 @@ export default function Home() {
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] min-h-0 print:block print:h-auto", activeView === 'preview' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col')}>
+      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto", activeView === 'preview' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col')}>
         <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} />
       </div>
     </div>

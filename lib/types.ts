@@ -22,6 +22,7 @@ export interface Invoice {
   rateMarkup: number
   excludeLaborMarkup: boolean
   excludeBattery: boolean
+  theme: 'light' | 'dark' | 'barbie' | 'spiderman'
   lineItems: LineItem[]
   bankBeneficiary: string
   bankName: string
@@ -62,6 +63,7 @@ export const defaultInvoice: Invoice = {
   rateMarkup: 0,
   excludeLaborMarkup: false,
   excludeBattery: false,
+  theme: 'light',
   lineItems: [],
   bankBeneficiary: '',
   bankName: '',
