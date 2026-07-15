@@ -1062,33 +1062,25 @@ export default function Home() {
     }))
   }
 
+  // Keep document title synced at all times with the client name and quotation number
   useEffect(() => {
-    if (!loaded || !autoPrint.current) return
-    const timer = setTimeout(() => {
-      const client = invoice.toName ? invoice.toName.trim() : 'Client'
-      const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
-      const parts = [client, quotationNumber].filter(Boolean)
-      document.title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
-      window.print()
-      window.onafterprint = () => {
-        document.title = 'MG Invoice'
-        window.onafterprint = null
-      }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [loaded, invoice.toName, invoice.invoiceNumber])
-
-  const handleDownload = () => {
-    const original = document.title
+    if (!loaded) return
     const client = invoice.toName ? invoice.toName.trim() : 'Client'
     const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
     const parts = [client, quotationNumber].filter(Boolean)
     document.title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
+  }, [loaded, invoice.toName, invoice.invoiceNumber])
+
+  useEffect(() => {
+    if (!loaded || !autoPrint.current) return
+    const timer = setTimeout(() => {
+      window.print()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [loaded])
+
+  const handleDownload = () => {
     window.print()
-    window.onafterprint = () => {
-      document.title = original
-      window.onafterprint = null
-    }
   }
 
   const handleSalesPersonChange = (val: string) => {
