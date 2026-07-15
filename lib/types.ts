@@ -21,6 +21,7 @@ export interface Invoice {
   vatRate: number
   rateMarkup: number
   excludeLaborMarkup: boolean
+  excludeBattery: boolean
   lineItems: LineItem[]
   bankBeneficiary: string
   bankName: string
@@ -60,6 +61,7 @@ export const defaultInvoice: Invoice = {
   vatRate: 0,
   rateMarkup: 0,
   excludeLaborMarkup: false,
+  excludeBattery: false,
   lineItems: [],
   bankBeneficiary: '',
   bankName: '',

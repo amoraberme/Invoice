@@ -1773,20 +1773,18 @@ export default function Home() {
                   </span>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={invoice.excludeBattery ? "default" : "outline"}
                     size="sm"
-                    onClick={() => {
-                      setInvoice((prev) => ({
-                        ...prev,
-                        lineItems: prev.lineItems.filter(
-                          (item) => !item.description.toLowerCase().includes('battery')
-                        )
-                      }))
-                    }}
-                    className="h-7 text-[9px] font-extrabold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300 rounded-[6px] cursor-pointer transition-all select-none px-2"
-                    title="Remove Battery, DC MCCB for battery, and Battery Cable items from the invoice"
+                    onClick={() => update('excludeBattery', !invoice.excludeBattery)}
+                    className={cn(
+                      "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
+                      invoice.excludeBattery
+                        ? "bg-black text-white hover:bg-black/90 border-black"
+                        : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                    )}
+                    title={invoice.excludeBattery ? "Include battery items in the invoice again" : "Temporarily exclude battery items from the invoice"}
                   >
-                    🗑️ REMOVE BATTERY
+                    {invoice.excludeBattery ? "➕ INCLUDE BATTERY" : "➖ EXCLUDE BATTERY"}
                   </Button>
                 </div>
 
@@ -1803,7 +1801,12 @@ export default function Home() {
                   </div>
 
                   {/* Item rows */}
-                  {invoice.lineItems.map((item) => (
+                  {invoice.lineItems
+                    .filter((item) => {
+                      const isBatteryItem = item.description.toLowerCase().includes('battery')
+                      return !(invoice.excludeBattery && isBatteryItem)
+                    })
+                    .map((item) => (
                     <div key={item.id} className="flex gap-2 items-start" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
                       <Input
                         className="flex-1"

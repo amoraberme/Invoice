@@ -53,6 +53,10 @@ export function MGInvoicePreview({
 
   const rateMarkup = invoice.rateMarkup || 0
   const subtotal = invoice.lineItems.reduce((sum, item) => {
+    const isBatteryItem = item.description.toLowerCase().includes('battery')
+    if (invoice.excludeBattery && isBatteryItem) {
+      return sum
+    }
     const isLabor = item.description.toLowerCase().trim() === 'labor and installation'
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
     const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
@@ -134,7 +138,10 @@ export function MGInvoicePreview({
       return 30 + itemLines * 19
     }
     
-    const itemsToPlace = [...inv.lineItems]
+    const itemsToPlace = [...inv.lineItems].filter(item => {
+      const isBatteryItem = item.description.toLowerCase().includes('battery')
+      return !(inv.excludeBattery && isBatteryItem)
+    })
     
     while (itemsToPlace.length > 0) {
       const item = itemsToPlace[0]
