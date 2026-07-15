@@ -764,16 +764,12 @@ export default function Home() {
     const panelQty = Math.round(systemKw * 10 / 12)
     const rows = panelQty <= 6 ? 1 : 2
     let batteryQty = 1
-    if (systemKw >= 5 && systemKw < 8) {
+    if (systemKw < 12) {
       batteryQty = 1
-    } else if (systemKw >= 8 && systemKw < 15) {
+    } else if (systemKw >= 12 && systemKw < 24) {
       batteryQty = 2
-    } else if (systemKw >= 15 && systemKw < 30) {
-      batteryQty = 3
-    } else if (systemKw >= 30) {
-      batteryQty = Math.ceil(systemKw / 10)
     } else {
-      batteryQty = 1
+      batteryQty = Math.ceil(systemKw / 12)
     }
 
     const prices = SOLAR_PRICES
@@ -972,7 +968,7 @@ export default function Home() {
     })
 
     // 16. DC MCCB
-    const mccbRating = systemKw >= 10 ? '250A' : '125A'
+    const mccbRating = batteryQty >= 2 ? '250A' : '125A'
     items.push({
       id: `boq-16-${now}`,
       description: `DC MCCB for battery ${mccbRating}`,
@@ -1009,14 +1005,11 @@ export default function Home() {
     })
 
     // 20. Battery
-    const isBigBattery = systemKw >= 5
-    const batteryRating = isBigBattery ? '314Ah (48V)' : '200Ah (48V)'
-    const batteryPrice = isBigBattery ? 88000.00 : 65000.00
     items.push({
       id: `boq-20-${now}`,
-      description: `Battery ${batteryRating}`,
+      description: `Battery 314Ah (48V)`,
       quantity: batteryQty,
-      rate: batteryPrice,
+      rate: 88000.00,
       unit: 'PC'
     })
 
@@ -1772,6 +1765,29 @@ export default function Home() {
                       {invoice.excludeLaborMarkup ? "EXCLUDE LABOR" : "INCLUDE LABOR"}
                     </Button>
                   </Field>
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-[#E5E5E5] mt-1">
+                  <span className="text-[10px] font-bold text-[#888888] tracking-wider uppercase">
+                    Quick Actions
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setInvoice((prev) => ({
+                        ...prev,
+                        lineItems: prev.lineItems.filter(
+                          (item) => !item.description.toLowerCase().includes('battery')
+                        )
+                      }))
+                    }}
+                    className="h-7 text-[9px] font-extrabold text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300 rounded-[6px] cursor-pointer transition-all select-none px-2"
+                    title="Remove Battery, DC MCCB for battery, and Battery Cable items from the invoice"
+                  >
+                    🗑️ REMOVE BATTERY
+                  </Button>
                 </div>
 
                 <div className="space-y-1.5 pt-2">
