@@ -1,1 +1,1 @@
-heartbeat 100
+contribution heartbeat 1
