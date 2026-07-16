@@ -1567,9 +1567,12 @@ export default function Home() {
                 <section className="space-y-3">
                   <SectionHeader>Sales Contact</SectionHeader>
                   <div className="space-y-2" onMouseEnter={() => setHoveredField('salesName')} onMouseLeave={() => setHoveredField(null)}>
-                    <Field label="Salesperson">
+                    <Field 
+                      label="Salesperson"
+                      className="p-3 bg-primary/5 rounded-[12px] border border-primary/30 shadow-sm transition-all duration-300 hover:border-primary/50 relative"
+                    >
                       <Select value={invoice.salesPerson || 'custom'} onValueChange={handleSalesPersonChange}>
-                        <SelectTrigger>
+                        <SelectTrigger className="border-primary/30 bg-background/50 hover:bg-background transition-all font-medium">
                           <SelectValue placeholder="Select Salesperson" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1578,6 +1581,9 @@ export default function Home() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <span className="absolute -top-2 right-3 px-1.5 py-0.5 text-[8px] font-bold bg-primary text-primary-foreground rounded uppercase tracking-wider whitespace-nowrap shadow-sm">
+                        Select Rep
+                      </span>
                     </Field>
                     <Field label="Sales Name">
                       <Input
