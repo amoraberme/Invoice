@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — invoi.xyz',
-  description: 'Privacy policy for invoi.xyz — free invoice generator.',
+  title: 'Privacy Policy — MG Invoice',
+  description: 'Privacy policy for MG Invoice — free invoice generator.',
 }
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
           href="/"
           className="text-[13px] text-[#888888] hover:text-[#111111] transition-colors mb-12 inline-block"
         >
-          ← invoi.xyz
+          ← MG Invoice
         </Link>
 
         <h1 className="font-bold text-[32px] text-[#111111] tracking-tight mb-2">
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="font-semibold text-[16px] text-[#111111] tracking-tight">The short version</h2>
             <p>
-              invoi.xyz does not collect, store, or transmit any personal data to our servers.
+              MG Invoice does not collect, store, or transmit any personal data to our servers.
               Your invoice data never leaves your device.
             </p>
           </section>
@@ -64,14 +64,12 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="font-semibold text-[16px] text-[#111111] tracking-tight">Contact</h2>
             <p>
-              Questions? Reach out on{' '}
+              Questions? Reach out to us at{' '}
               <a
-                href="https://x.com/kprovorov"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="mailto:info@mgtradingph.com"
                 className="text-[#111111] underline underline-offset-2"
               >
-                X / Twitter
+                info@mgtradingph.com
               </a>
               .
             </p>
