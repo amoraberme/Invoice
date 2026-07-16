@@ -70,6 +70,8 @@ const SALESPEOPLE = [
   { id: 'famella', name: 'Famella D. Ylanan', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 927 9487 013', email: 'sales.mgtradingph@gmail.com' },
   { id: 'jeramae', name: 'Jeramae E. Broqueza', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '+(63) 981 2206 849', email: 'jeramaemgtrading6@gmail.com' },
   { id: 'aya', name: 'Aya Rongavilla', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '09933746489', email: 'ayarongavilla021@gmail.com' },
+  { id: 'ryan', name: 'Ryan M. Castillo', position: 'Liaison Officer', company: MG_COMPANY, contact: '09352956244', email: 'ry.manalo1111@gmail.com' },
+  { id: 'renzel', name: 'Renzel G. Rongavilla', position: 'Liaison Officer', company: MG_COMPANY, contact: '09299606023', email: 'rongavillarenzel.gs@gmail.com' },
   { id: 'noel', name: 'Noel Jayson E. Santos', position: 'Chief Operating Officer', company: MG_COMPANY, contact: '09198718747', email: 'Santosnoel9999@gmail.com' },
 ]
 
