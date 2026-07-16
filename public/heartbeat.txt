@@ -1,1 +1,1 @@
-contribution heartbeat 30
+contribution heartbeat 31
