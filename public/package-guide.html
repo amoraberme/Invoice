@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MG Solar - Complete Power Package Guide</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #FF5722;
+      --primary-hover: #E64A19;
+      --secondary: #0B3C5D;
+      --secondary-dark: #072a42;
+      --accent: #FFC107;
+      --background: #F4F7F9;
+      --card-bg: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+    }
+
+    /* Container */
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+
+    .navbar-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 70px;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--secondary);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: var(--primary);
+    }
+
+    .nav-contact {
+      display: flex;
+      gap: 20px;
+    }
+
+    .nav-contact-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .nav-contact-item svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary);
+    }
+
+    /* Hero Section */
+    .hero {
+      background: radial-gradient(circle at 80% 20%, rgba(255, 87, 34, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 10% 80%, rgba(11, 60, 93, 0.08) 0%, transparent 50%),
+                  var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 60px 0 50px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--secondary), var(--primary), var(--accent));
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(11, 60, 93, 0.08);
+      color: var(--secondary);
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 6px 16px;
+      border-radius: 50px;
+      margin-bottom: 16px;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .hero h1 {
+      font-size: 44px;
+      color: var(--secondary);
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .hero h1 span {
+      color: var(--primary);
+      position: relative;
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 30px;
+    }
+
+    /* Calculator Widget */
+    .calculator-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      max-width: 750px;
+      margin: -25px auto 40px;
+      position: relative;
+      z-index: 10;
+      box-shadow: var(--shadow-lg);
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .calculator-card {
+        grid-template-columns: 1fr;
+        margin-top: 15px;
+      }
+    }
+
+    .calc-input-section {
+      border-right: 1px solid var(--border);
+      padding-right: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .calc-input-section {
+        border-right: none;
+        padding-right: 0;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 24px;
+      }
+    }
+
+    .calc-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--secondary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-currency {
+      position: absolute;
+      left: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .calc-input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 12px 0 28px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      outline: none;
+      transition: all 0.2s ease;
+      background-color: var(--background);
+    }
+
+    .calc-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.15);
+      background-color: #FFFFFF;
+    }
+
+    .slider-container {
+      margin-top: 10px;
+    }
+
+    .calc-slider {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 5px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .calc-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: transform 0.1s ease;
+    }
+
+    .calc-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .calc-result-section {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: rgba(11, 60, 93, 0.03);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .calc-result-badge {
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--secondary);
+      color: #FFFFFF;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .calc-result-value {
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.1;
+      margin-bottom: 4px;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .calc-result-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      max-width: 220px;
+    }
+
+    /* Comparison Section */
+    .guide-title {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .guide-title h2 {
+      font-size: 28px;
+      color: var(--secondary);
+      margin-bottom: 6px;
+    }
+
+    .guide-title p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* Package Row Layout */
+    .packages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .package-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      grid-template-columns: 280px 1fr 1fr;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    @media (max-width: 992px) {
+      .package-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .package-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-xl);
+      border-color: rgba(255, 87, 34, 0.2);
+    }
+
+    /* Highlighted Package (8 kW - Popular) */
+    .package-card.highlighted {
+      border: 2px solid var(--primary);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .package-card.highlighted::before {
+      content: 'POPULAR';
+      position: absolute;
+      top: 15px;
+      left: -35px;
+      background: var(--primary);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 35px;
+      transform: rotate(-45deg);
+      letter-spacing: 1px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 5;
+    }
+
+    .highlight-glow-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: 0 0 0px var(--primary);
+      transition: all 0.4s ease;
+      z-index: 10;
+    }
+
+    .package-card.highlighted.pulse .highlight-glow-layer {
+      box-shadow: 0 0 25px rgba(255, 87, 34, 0.4);
+    }
+
+    /* Package Size Column */
+    .package-size-col {
+      background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary) 100%);
+      color: #FFFFFF;
+      padding: 40px 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+    }
+
+    @media (max-width: 992px) {
+      .package-size-col {
+        padding: 30px;
+      }
+    }
+
+    .size-title {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 6px;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .size-subtitle {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 24px;
+    }
+
+    .prod-stat {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      width: 100%;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .prod-stat-label {
+      font-size: 8px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    .prod-stat-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .prod-stat-value span {
+      color: var(--accent);
+    }
+
+    /* Package Option Columns */
+    .package-option-col {
+      padding: 35px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+
+    .package-option-col:last-child {
+      border-right: none;
+    }
+
+    @media (max-width: 992px) {
+      .package-option-col {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 30px;
+      }
+      .package-option-col:last-child {
+        border-bottom: none;
+      }
+    }
+
+    /* Option Header */
+    .option-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .option-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--secondary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .option-badge {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    .option-header-badge {
+      background: var(--accent);
+      color: var(--secondary-dark);
+      font-weight: 800;
+      font-size: 8px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Option Price */
+    .option-price {
+      margin-bottom: 20px;
+    }
+
+    .price-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.1;
+    }
+
+    .price-unit {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Option Features */
+    .option-features {
+      list-style: none;
+      margin-bottom: 30px;
+      flex-grow: 1;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    .feature-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: rgba(11, 60, 93, 0.05);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .feature-item.negative .feature-icon-wrapper {
+      background: rgba(226, 232, 240, 0.8);
+    }
+
+    .feature-icon {
+      width: 12px;
+      height: 12px;
+      color: var(--secondary);
+    }
+
+    .feature-item.negative {
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+
+    .feature-item.negative .feature-icon {
+      color: var(--text-muted);
+    }
+
+    .feature-text {
+      font-weight: 500;
+    }
+
+    .feature-text span {
+      font-weight: 700;
+      color: var(--secondary);
+    }
+
+    /* CTA Button */
+    .cta-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 44px;
+      background: var(--secondary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .cta-button:hover {
+      background: var(--secondary-dark);
+      transform: translateY(-1px);
+    }
+
+    .cta-button.primary-cta {
+      background: var(--primary);
+    }
+
+    .cta-button.primary-cta:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Info Bar under 8kW */
+    .popular-banner {
+      background: #FFF3E0;
+      border: 1px solid #FFE0B2;
+      border-radius: var(--radius-md);
+      padding: 16px 24px;
+      margin: -10px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #E65100;
+    }
+
+    @media (max-width: 768px) {
+      .popular-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px;
+      }
+    }
+
+    .popular-banner-badge {
+      background: var(--primary);
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .popular-banner-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .popular-banner-links {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 768px) {
+      .popular-banner-links {
+        margin-left: 0;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+    }
+
+    .popular-banner-link-item {
+      background: rgba(230, 81, 0, 0.08);
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(230, 81, 0, 0.15);
+    }
+
+    /* Footer Section */
+    .footer {
+      background: var(--secondary-dark);
+      color: rgba(255, 255, 255, 0.8);
+      padding: 60px 0 40px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .footer-inner {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 768px) {
+      .footer-inner {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+    }
+
+    .footer-col h3 {
+      color: #FFFFFF;
+      font-size: 18px;
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 8px;
+    }
+
+    .footer-col h3::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 30px;
+      height: 2px;
+      background: var(--primary);
+    }
+
+    .footer-about p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 20px;
+    }
+
+    .footer-contact-list {
+      list-style: none;
+    }
+
+    .footer-contact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    .footer-contact-item svg {
+      width: 18px;
+      height: 18px;
+      color: var(--primary);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .footer-contact-text {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.4;
+    }
+
+    .footer-links {
+      list-style: none;
+    }
+
+    .footer-link-item {
+      margin-bottom: 12px;
+    }
+
+    .footer-link-item a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-link-item a:hover {
+      color: var(--primary);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    @media (max-width: 576px) {
+      .footer-bottom {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+      }
+    }
+
+    /* Utilities */
+    .text-highlight {
+      color: var(--primary);
+    }
+
+    /* Animations */
+    @keyframes pulse-highlight {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 15px rgba(255, 87, 34, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 87, 34, 0);
+      }
+    }
+
+    .pulse-animation {
+      animation: pulse-highlight 2s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container navbar-inner">
+      <a href="/" class="logo-container">
+        <img src="/mg.png" alt="MG Solar Logo" class="logo-img">
+        <span class="logo-text">MG <span>SOLAR</span></span>
+      </a>
+      <div class="nav-contact">
+        <div class="nav-contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span>(02) 8658 4943</span>
+        </div>
+        <div class="nav-contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span>info@mgtradingph.com</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <div class="hero-badge">Official Package Guide</div>
+      <h1>Complete <span>Solar Power</span> Package Guide</h1>
+      <p>Check out M&G Solar's Complete Power Package Guide to find the perfect fit for your household energy goals and start saving today.</p>
+    </div>
+  </header>
+
+  <!-- Sizing Calculator -->
+  <section class="container">
+    <div class="calculator-card">
+      <div class="calc-input-section">
+        <h4 class="calc-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Sizing Calculator
+        </h4>
+        <div class="input-group">
+          <label class="input-label" for="bill-input">Average Monthly Bill</label>
+          <div class="input-wrapper">
+            <span class="input-currency">₱</span>
+            <input type="number" id="bill-input" class="calc-input" value="9000" min="0" step="100">
+          </div>
+        </div>
+        <div class="slider-container">
+          <input type="range" id="bill-slider" class="calc-slider" min="3000" max="25000" step="500" value="9000">
+        </div>
+      </div>
+      
+      <div class="calc-result-section">
+        <div class="calc-result-badge">Recommended Size</div>
+        <div class="calc-result-value" id="recommended-size-val">8 kW</div>
+        <div class="calc-result-desc" id="recommended-size-desc">Suitable for a daily consumption of <strong>20 kWh</strong> (approx. <strong>600 kWh</strong>/month)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Package Guide Grid -->
+  <main class="container">
+    <div class="guide-title">
+      <h2>Select Your System Size</h2>
+      <p>Compare our premium Hybrid (with Battery Backup) and On-Grid (Solar Only) packages.</p>
+    </div>
+
+    <div class="packages-list">
+      <!-- 5 kW Card -->
+      <div class="package-card" id="pkg-5">
+        <div class="highlight-glow-layer"></div>
+        <div class="package-size-col">
+          <div class="size-title">5 kW</div>
+          <div class="size-subtitle">System Size</div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Est. Daily Production</span>
+            <div class="prod-stat-value">20 - 25 <span>kWh</span></div>
+          </div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Ideal For Monthly Bill</span>
+            <div class="prod-stat-value">₱5,600 or less</div>
+          </div>
+
+          <div class="prod-stat">
+            <span class="prod-stat-label">Daily Consumption limit</span>
+            <div class="prod-stat-value">~12.5 <span>kWh/day</span></div>
+          </div>
+        </div>
+
+        <!-- Hybrid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              Hybrid Setup
+              <span class="option-badge">Battery Backup Included</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱223,259</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>7-8 Panels</span> (520W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>6 kW</span> Hybrid Inverter</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>5 kWh</span> Battery Storage (48V)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱50k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=5&type=hybrid" class="cta-button">Generate 5kW Hybrid Quote</a>
+        </div>
+
+        <!-- On-Grid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              On-Grid Setup
+              <span class="option-badge">Solar Grid Tie Only</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱132,559</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>7-8 Panels</span> (520W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>6 kW</span> On-Grid Inverter</span>
+            </li>
+            <li class="feature-item negative">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <span class="feature-text">NO Battery Storage</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱50k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=5&type=ongrid" class="cta-button">Generate 5kW On-Grid Quote</a>
+        </div>
+      </div>
+
+      <!-- 6 kW Card -->
+      <div class="package-card" id="pkg-6">
+        <div class="highlight-glow-layer"></div>
+        <div class="package-size-col">
+          <div class="size-title">6 kW</div>
+          <div class="size-subtitle">System Size</div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Est. Daily Production</span>
+            <div class="prod-stat-value">24 - 30 <span>kWh</span></div>
+          </div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Ideal For Monthly Bill</span>
+            <div class="prod-stat-value">₱6,750 or less</div>
+          </div>
+
+          <div class="prod-stat">
+            <span class="prod-stat-label">Daily Consumption limit</span>
+            <div class="prod-stat-value">~15.0 <span>kWh/day</span></div>
+          </div>
+        </div>
+
+        <!-- Hybrid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              Hybrid Setup
+              <span class="option-badge">Battery Backup Included</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱233,713</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>9-10 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>6 kW</span> Hybrid Inverter</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>10 kWh</span> Battery Storage (48V)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱50k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=6&type=hybrid" class="cta-button">Generate 6kW Hybrid Quote</a>
+        </div>
+
+        <!-- On-Grid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              On-Grid Setup
+              <span class="option-badge">Solar Grid Tie Only</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱143,013</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>9-10 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>6 kW</span> On-Grid Inverter</span>
+            </li>
+            <li class="feature-item negative">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <span class="feature-text">NO Battery Storage</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱50k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=6&type=ongrid" class="cta-button">Generate 6kW On-Grid Quote</a>
+        </div>
+      </div>
+
+      <!-- 8 kW Card -->
+      <div class="package-card highlighted" id="pkg-8">
+        <div class="highlight-glow-layer"></div>
+        <div class="package-size-col">
+          <div class="size-title">8 kW</div>
+          <div class="size-subtitle">System Size</div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Est. Daily Production</span>
+            <div class="prod-stat-value">32 - 40 <span>kWh</span></div>
+          </div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Ideal For Monthly Bill</span>
+            <div class="prod-stat-value">₱9,000 or less</div>
+          </div>
+
+          <div class="prod-stat">
+            <span class="prod-stat-label">Daily Consumption limit</span>
+            <div class="prod-stat-value">~20.0 <span>kWh/day</span></div>
+          </div>
+        </div>
+
+        <!-- Hybrid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              Hybrid Setup
+              <span class="option-badge">Battery Backup Included</span>
+            </span>
+            <span class="option-header-badge">MOST RECOMMENDED</span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱270,019</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>11-13 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>8 kW</span> Hybrid Inverter</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>10 kWh</span> Battery Storage (48V)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=8&type=hybrid" class="cta-button primary-cta">Generate 8kW Hybrid Quote</a>
+        </div>
+
+        <!-- On-Grid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              On-Grid Setup
+              <span class="option-badge">Solar Grid Tie Only</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱179,319</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>11-13 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>8 kW</span> On-Grid Inverter</span>
+            </li>
+            <li class="feature-item negative">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <span class="feature-text">NO Battery Storage</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=8&type=ongrid" class="cta-button">Generate 8kW On-Grid Quote</a>
+        </div>
+      </div>
+
+      <!-- Popular Banner Info Box -->
+      <div class="popular-banner">
+        <span class="popular-banner-badge">Our Most Popular Choice</span>
+        <span class="popular-banner-text">The 8 kW Hybrid System is a crowd favorite! Highly recommended for most standard households.</span>
+        <div class="popular-banner-links">
+          <span class="popular-banner-link-item">EASY FUTURE EXPANSION</span>
+          <span class="popular-banner-link-item">ADD MORE PANELS LATER</span>
+          <span class="popular-banner-link-item">UPGRADE BATTERY</span>
+        </div>
+      </div>
+
+      <!-- 10 kW Card -->
+      <div class="package-card" id="pkg-10">
+        <div class="highlight-glow-layer"></div>
+        <div class="package-size-col">
+          <div class="size-title">10 kW</div>
+          <div class="size-subtitle">System Size</div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Est. Daily Production</span>
+            <div class="prod-stat-value">40 - 50 <span>kWh</span></div>
+          </div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Ideal For Monthly Bill</span>
+            <div class="prod-stat-value">₱11,250 or less</div>
+          </div>
+
+          <div class="prod-stat">
+            <span class="prod-stat-label">Daily Consumption limit</span>
+            <div class="prod-stat-value">~25.0 <span>kWh/day</span></div>
+          </div>
+        </div>
+
+        <!-- Hybrid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              Hybrid Setup
+              <span class="option-badge">Battery Backup Included</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱285,423</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>14-16 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>10 kW</span> Hybrid Inverter</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>15 kWh</span> Battery Storage (48V)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=10&type=hybrid" class="cta-button">Generate 10kW Hybrid Quote</a>
+        </div>
+
+        <!-- On-Grid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              On-Grid Setup
+              <span class="option-badge">Solar Grid Tie Only</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱194,723</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>14-16 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>10 kW</span> On-Grid Inverter</span>
+            </li>
+            <li class="feature-item negative">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <span class="feature-text">NO Battery Storage</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=10&type=ongrid" class="cta-button">Generate 10kW On-Grid Quote</a>
+        </div>
+      </div>
+
+      <!-- 12 kW Card -->
+      <div class="package-card" id="pkg-12">
+        <div class="highlight-glow-layer"></div>
+        <div class="package-size-col">
+          <div class="size-title">12 kW</div>
+          <div class="size-subtitle">System Size</div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Est. Daily Production</span>
+            <div class="prod-stat-value">48 - 60 <span>kWh</span></div>
+          </div>
+          
+          <div class="prod-stat">
+            <span class="prod-stat-label">Ideal For Monthly Bill</span>
+            <div class="prod-stat-value">₱13,500 or less</div>
+          </div>
+
+          <div class="prod-stat">
+            <span class="prod-stat-label">Daily Consumption limit</span>
+            <div class="prod-stat-value">~30.0 <span>kWh/day</span></div>
+          </div>
+        </div>
+
+        <!-- Hybrid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              Hybrid Setup
+              <span class="option-badge">Battery Backup Included</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱403,641</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>17-19 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>12 kW</span> Hybrid Inverter</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>25 kWh</span> Battery Storage (48V)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=12&type=hybrid" class="cta-button">Generate 12kW Hybrid Quote</a>
+        </div>
+
+        <!-- On-Grid Option -->
+        <div class="package-option-col">
+          <div class="option-header">
+            <span class="option-name">
+              On-Grid Setup
+              <span class="option-badge">Solar Grid Tie Only</span>
+            </span>
+          </div>
+          
+          <div class="option-price">
+            <span class="price-value">₱223,741</span>
+            <span class="price-unit">.00 (All-in)</span>
+          </div>
+
+          <ul class="option-features">
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>17-19 Panels</span> (620W - 730W Mono)</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text"><span>12 kW</span> On-Grid Inverter</span>
+            </li>
+            <li class="feature-item negative">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <span class="feature-text">NO Battery Storage</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Mounting, Accessories & Wiring</span>
+            </li>
+            <li class="feature-item">
+              <div class="feature-icon-wrapper">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="feature-text">Full Labor & Installation (₱55k value)</span>
+            </li>
+          </ul>
+
+          <a href="/?kw=12&type=ongrid" class="cta-button">Generate 12kW On-Grid Quote</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-col footer-about">
+        <h3>About MG Solar</h3>
+        <p>MG Solar provides clean, reliable, and affordable solar energy solutions for residential, commercial, and industrial properties in the Philippines. Our packages feature top-tier materials and professional installation services.</p>
+        <img src="/mg.png" alt="MG Solar Logo" style="height: 40px; filter: brightness(0) invert(1); opacity: 0.8;">
+      </div>
+      
+      <div class="footer-col">
+        <h3>Contact Us</h3>
+        <ul class="footer-contact-list">
+          <li class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="footer-contact-text">(02) 8658 4943</span>
+          </li>
+          <li class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span class="footer-contact-text">info@mgtradingph.com</span>
+          </li>
+          <li class="footer-contact-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="footer-contact-text">55 Main Drive, Mintcor Southrow,<br>West Cupang, Muntinlupa City</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li class="footer-link-item"><a href="/">Quotation Generator</a></li>
+          <li class="footer-link-item"><a href="/privacy">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="container footer-bottom">
+      <span>&copy; 2026 MG Solar. All rights reserved.</span>
+      <span>Request your FREE SOLAR QUOTE TODAY!</span>
+    </div>
+  </footer>
+
+  <script>
+    const billInput = document.getElementById('bill-input');
+    const billSlider = document.getElementById('bill-slider');
+    const recommendedSizeVal = document.getElementById('recommended-size-val');
+    const recommendedSizeDesc = document.getElementById('recommended-size-desc');
+    const pricePerKwh = 15.01;
+
+    // Helper to calculate solar system size based on formula:
+    // avgHourly = dailyAvg / 24
+    // baseCapacity = avgHourly / 0.125
+    // recommended = baseCapacity * 1.2
+    // Which simplifies to: recommended = dailyAvg * 0.4
+    // Or: recommended = (monthlyBill / pricePerKwh / 30) * 0.4
+    function calculateRecommendedSize(billValue) {
+      if (isNaN(billValue) || billValue <= 0) return { size: 0, dailyAvg: 0 };
+      const monthlyKwh = billValue / pricePerKwh;
+      const dailyAvg = monthlyKwh / 30;
+      const size = dailyAvg * 0.4;
+      return { size, dailyAvg };
+    }
+
+    function updateRecommendation(billValue) {
+      const { size, dailyAvg } = calculateRecommendedSize(billValue);
+      
+      // Determine nearest discrete package sizes: 5, 6, 8, 10, 12 kW
+      const sizes = [5, 6, 8, 10, 12];
+      let recommendedSize = 5;
+      
+      if (size <= 5.5) {
+        recommendedSize = 5;
+      } else if (size <= 7) {
+        recommendedSize = 6;
+      } else if (size <= 9) {
+        recommendedSize = 8;
+      } else if (size <= 11) {
+        recommendedSize = 10;
+      } else {
+        recommendedSize = 12;
+      }
+
+      // Update widget details
+      recommendedSizeVal.innerText = `${recommendedSize} kW`;
+      recommendedSizeDesc.innerHTML = `Suitable for a daily consumption of <strong>${dailyAvg.toFixed(1)} kWh</strong> (approx. <strong>${(dailyAvg * 30).toFixed(0)} kWh</strong>/month)`;
+
+      // Highlight the corresponding package card
+      sizes.forEach(s => {
+        const card = document.getElementById(`pkg-${s}`);
+        if (card) {
+          if (s === recommendedSize) {
+            card.classList.add('highlighted', 'pulse', 'pulse-animation');
+          } else {
+            // Keep default styling (except 8kW which keeps 'highlighted' as popular by default if nothing else is highlighted)
+            card.classList.remove('pulse', 'pulse-animation');
+            if (s !== 8) {
+              card.classList.remove('highlighted');
+            } else {
+              // Ensure 8kW has highlighted class but no pulse/animation if not currently selected
+              card.classList.add('highlighted');
+            }
+          }
+        }
+      });
+    }
+
+    // Sync input and slider
+    billInput.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      billSlider.value = Math.min(Math.max(val, 3000), 25000);
+      updateRecommendation(val);
+    });
+
+    billSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      billInput.value = val;
+      updateRecommendation(val);
+    });
+
+    // Run on load
+    updateRecommendation(parseFloat(billInput.value));
+  </script>
+</body>
+</html>
