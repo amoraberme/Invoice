@@ -42,3 +42,16 @@ export function generateDocumentId(prefix: 'MG-QT' | 'MG-INV' = 'MG-INV', date: 
   return `${prefix}-${yy}${mm}${dd}${hh}${min}${ss}`
 }
 
+export function addDays(dateStr: string, days: number): string {
+  if (!dateStr) return ''
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(isNaN)) return ''
+  const date = new Date(parts[0], parts[1] - 1, parts[2])
+  date.setDate(date.getDate() + days)
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+

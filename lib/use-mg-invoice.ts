@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { type Invoice, type LineItem, newLineItem, defaultInvoice } from './types'
 import { loadInvoice, saveInvoice } from './store'
-import { generateDocumentId } from './utils'
+import { generateDocumentId, addDays } from './utils'
 
 export function useMGInvoice() {
   const [invoice, setInvoice] = useState<Invoice>(defaultInvoice)
@@ -52,10 +52,14 @@ export function useMGInvoice() {
         }
         
         sanitized.issueDate = todayStr
+        if (!sanitized.dueDate) {
+          sanitized.dueDate = addDays(todayStr, 15)
+        }
         setInvoice(sanitized)
       } else {
         const freshId = generateDocumentId('MG-QT')
-        setInvoice(prev => ({ ...prev, invoiceNumber: freshId, issueDate: todayStr }))
+        const dueStr = addDays(todayStr, 15)
+        setInvoice(prev => ({ ...prev, invoiceNumber: freshId, issueDate: todayStr, dueDate: dueStr }))
       }
       setLoaded(true)
     })
@@ -130,6 +134,10 @@ export function useMGInvoice() {
       } else if (field === 'fromPhone') {
         next.salesContact = value as string
       }
+      
+      if (field === 'issueDate') {
+        next.dueDate = addDays(value as string, 15)
+      }
       return next
     })
   }, [])
@@ -163,6 +171,10 @@ export function useMGInvoice() {
       const nextSync = { ...next }
       nextSync.fromEmail = nextSync.salesEmail
       nextSync.fromPhone = nextSync.salesContact
+      
+      if (nextSync.issueDate !== prev.issueDate) {
+        nextSync.dueDate = addDays(nextSync.issueDate, 15)
+      }
       return nextSync
     })
   }, [])
