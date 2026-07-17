@@ -1057,10 +1057,18 @@ export default function Home() {
       unit: 'LOT'
     })
 
+    // Calculate current local date string (YYYY-MM-DD)
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const currentDateStr = `${yyyy}-${mm}-${dd}`
+
     setInvoice((prev) => ({
       ...prev,
       lineItems: items,
-      subject: `${systemKw}kW Hybrid System with Battery`
+      subject: `${systemKw}kW Hybrid System with Battery`,
+      issueDate: currentDateStr
     }))
   }
 
