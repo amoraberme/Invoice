@@ -197,7 +197,7 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
-    1: { desc: "Inverter 12kW 1pc $34,000.00", qty: "1pc", price: "₱34,000.00", total: "₱34,000.00" },
+    1: { desc: "Inverter 12kW 1pc $82,000.00", qty: "1pc", price: "₱82,000.00", total: "₱82,000.00" },
     2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
     3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
@@ -333,7 +333,7 @@ function extractLineItemsFromText(text: string) {
 }
 
 const SOLAR_PRICES = {
-  Inverter: 34000.00,
+  Inverter: 82000.00,
   Panel: 6300.00,
   Railing: 470.00,
   MidClamp: 32.00,
@@ -790,7 +790,7 @@ export default function Home() {
     const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
-    const inverterSizes = [3, 5, 6, 8, 10, 12, 16, 18, 100]
+    const inverterSizes = [5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
     let inverterKw = inverterSizes.find(s => s >= systemKw)
     if (inverterKw === undefined) {
       inverterKw = Math.ceil(systemKw)
@@ -798,10 +798,7 @@ export default function Home() {
     
     let inverterDesc = `Inverter ${inverterKw}kW Hybrid`
     let inverterPrice = 0
-    if (inverterKw <= 3) {
-      inverterDesc = 'Inverter 5kW Hybrid'
-      inverterPrice = 41000.00
-    } else if (inverterKw <= 5) {
+    if (inverterKw <= 5) {
       inverterDesc = 'Inverter 5kW Hybrid'
       inverterPrice = 41000.00
     } else if (inverterKw <= 6) {
@@ -819,9 +816,18 @@ export default function Home() {
     } else if (inverterKw <= 16) {
       inverterDesc = 'Inverter 16kW Hybrid'
       inverterPrice = 113000.00
-    } else if (inverterKw <= 18) {
+    } else if (inverterKw <= 30) {
       inverterDesc = 'Inverter 30kW Hybrid'
-      inverterPrice = 208000.00
+      inverterPrice = 259000.00
+    } else if (inverterKw <= 50) {
+      inverterDesc = 'Inverter 50kW Hybrid'
+      inverterPrice = 310000.00
+    } else if (inverterKw <= 60) {
+      inverterDesc = 'Inverter 60kW Hybrid'
+      inverterPrice = 500000.00
+    } else if (inverterKw <= 75) {
+      inverterDesc = 'Inverter 75kW Hybrid'
+      inverterPrice = 580000.00
     } else {
       inverterDesc = 'Inverter 125kW Hybrid'
       inverterPrice = 580000.00
