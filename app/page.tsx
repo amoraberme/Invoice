@@ -32,21 +32,19 @@ const PANEL_WIDTH_FT = 3.72
 function recalculateBoqAccessories(
   lineItems: LineItem[], 
   floorNum: number, 
-  customRows?: number, 
-  endClampSize?: 'small' | 'medium' | 'large'
+  rowsPreset: 'small' | 'medium' | 'large' = 'large'
 ): { updated: boolean, items: LineItem[] } {
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
   
-  const rows = customRows !== undefined ? customRows : (panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2))
+  let rows = 3
+  if (rowsPreset === 'small') rows = 1
+  else if (rowsPreset === 'medium') rows = 2
+
   const extraQty = floorNum >= 2 ? 3 : 0
   
   const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
   const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
-  
-  let endClampDesc = 'End Clamp 35mm'
-  if (endClampSize === 'small') endClampDesc = 'End Clamp 30mm'
-  else if (endClampSize === 'large') endClampDesc = 'End Clamp 40mm'
   
   let newMidClampQty = 0
   if (panelQty > 0 && rows > 0) {
@@ -72,9 +70,9 @@ function recalculateBoqAccessories(
         return { ...item, quantity: newRailingQty }
       }
     } else if (descLower === 'end clamp' || descLower.includes('end clamp') || descLower.startsWith('end clamp')) {
-      if (item.quantity !== newEndClampQty || item.description !== endClampDesc) {
+      if (item.quantity !== newEndClampQty || item.description !== 'End Clamp') {
         changed = true
-        return { ...item, description: endClampDesc, quantity: newEndClampQty }
+        return { ...item, description: 'End Clamp', quantity: newEndClampQty }
       }
     } else if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
       if (item.quantity !== newMidClampQty) {
@@ -475,13 +473,11 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
-  const [activeRows, setActiveRows] = useState<number>(2)
-  const [activeEndClampSize, setActiveEndClampSize] = useState<'small' | 'medium' | 'large'>('medium')
+  const [activeRowsPreset, setActiveRowsPreset] = useState<'small' | 'medium' | 'large'>('large')
 
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
-  const prevRowsRef = useRef<number | null>(null)
-  const prevEndClampSizeRef = useRef<'small' | 'medium' | 'large' | null>(null)
+  const prevRowsPresetRef = useRef<'small' | 'medium' | 'large' | null>(null)
 
   useEffect(() => {
     if (!loaded) return
@@ -490,11 +486,11 @@ export default function Home() {
     const floor = selectedFloor || 1
     
     const hasPanelOrFloorChanged = panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current
-    const hasRowsOrClampChanged = activeRows !== prevRowsRef.current || activeEndClampSize !== prevEndClampSizeRef.current
+    const hasRowsPresetChanged = activeRowsPreset !== prevRowsPresetRef.current
 
-    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null && prevRowsRef.current !== null && prevEndClampSizeRef.current !== null) {
-      if (hasPanelOrFloorChanged || hasRowsOrClampChanged) {
-        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor, activeRows, activeEndClampSize)
+    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null && prevRowsPresetRef.current !== null) {
+      if (hasPanelOrFloorChanged || hasRowsPresetChanged) {
+        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor, activeRowsPreset)
         if (updated) {
           setInvoice(prev => ({
             ...prev,
@@ -505,13 +501,12 @@ export default function Home() {
     }
     prevPanelQtyRef.current = panelQty
     prevFloorRef.current = floor
-    prevRowsRef.current = activeRows
-    prevEndClampSizeRef.current = activeEndClampSize
-  }, [invoice.lineItems, selectedFloor, loaded, setInvoice, activeRows, activeEndClampSize])
+    prevRowsPresetRef.current = activeRowsPreset
+  }, [invoice.lineItems, selectedFloor, loaded, setInvoice, activeRowsPreset])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
-    handleGenerateBoq(activeKwSetup, preset, activeRows, activeEndClampSize)
+    handleGenerateBoq(activeKwSetup, preset, activeRowsPreset)
   }
 
   const handleDailyKwhChange = (val: string) => {
@@ -849,7 +844,7 @@ export default function Home() {
         })
       }
 
-      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum, activeRows, activeEndClampSize)
+      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum, activeRowsPreset)
       return {
         ...prev,
         lineItems: finalItems
@@ -860,8 +855,7 @@ export default function Home() {
   const handleGenerateBoq = (
     systemKw: number, 
     preset: 'min' | 'balance' | 'max' = 'balance',
-    customRows?: number,
-    endClampSize?: 'small' | 'medium' | 'large'
+    rowsPreset: 'small' | 'medium' | 'large' = 'large'
   ) => {
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
@@ -870,7 +864,9 @@ export default function Home() {
     } else if (preset === 'balance') {
       panelQty = Math.max(4, Math.round(maxPanels * 0.75))
     }
-    const rows = customRows !== undefined ? customRows : (panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2))
+    let rows = 3
+    if (rowsPreset === 'small') rows = 1
+    else if (rowsPreset === 'medium') rows = 2
     let batteryQty = 1
     if (systemKw < 12) {
       batteryQty = 1
@@ -988,12 +984,9 @@ export default function Home() {
 
     // 5. End Clamps
     const endClampQty = panelQty <= 0 ? 0 : 4 * rows
-    let endClampDesc = 'End Clamp 35mm'
-    if (endClampSize === 'small') endClampDesc = 'End Clamp 30mm'
-    else if (endClampSize === 'large') endClampDesc = 'End Clamp 40mm'
     items.push({
       id: `boq-5-${now}`,
-      description: endClampDesc,
+      description: `End Clamp`,
       quantity: endClampQty,
       rate: prices.EndClamp,
       unit: 'PCS'
@@ -1447,7 +1440,10 @@ export default function Home() {
                         calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
                       }
                       
-                      const calculatedRows = activeRows
+                      let calculatedRows = 3
+                      if (activeRowsPreset === 'small') calculatedRows = 1
+                      else if (activeRowsPreset === 'medium') calculatedRows = 2
+                      
                       let laborCost = 50000
                       if (kw >= 16) laborCost = 120000
                       else if (kw >= 8) laborCost = 55000
@@ -1464,7 +1460,7 @@ export default function Home() {
                           key={kw}
                           onClick={() => {
                             setActiveKwSetup(kw)
-                            handleGenerateBoq(kw, activePreset, activeRows, activeEndClampSize)
+                            handleGenerateBoq(kw, activePreset, activeRowsPreset)
                           }}
                           className={cn(
                             "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
@@ -1500,7 +1496,7 @@ export default function Home() {
                           const val = parseFloat(customKwInput)
                           if (!isNaN(val) && val > 0) {
                             setActiveKwSetup(val)
-                            handleGenerateBoq(val, activePreset, activeRows, activeEndClampSize)
+                            handleGenerateBoq(val, activePreset, activeRowsPreset)
                           }
                         }}
                         disabled={!customKwInput || parseFloat(customKwInput) <= 0}
@@ -1554,56 +1550,28 @@ export default function Home() {
                       </Button>
                     </div>
 
-                    {/* Rows Selection Button Group */}
+                    {/* Configuration Rows Selector Group */}
                     <div className="flex items-center justify-between border-t border-border pt-3 mt-3">
                       <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">
                         Configuration Rows
                       </label>
                       <div className="flex gap-1">
-                        {[1, 2].map((r) => (
-                          <Button
-                            key={r}
-                            variant={activeRows === r ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => {
-                              setActiveRows(r)
-                              handleGenerateBoq(activeKwSetup, activePreset, r, activeEndClampSize)
-                            }}
-                            className={cn(
-                              "text-[10px] font-bold py-1.5 px-3 rounded-[10px] transition-all h-8 border border-border shadow-none",
-                              activeRows === r
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-transparent text-foreground hover:bg-secondary"
-                            )}
-                          >
-                            {r} Row{r > 1 ? 's' : ''}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* End Clamp Sizing Button Group */}
-                    <div className="flex items-center justify-between border-t border-border pt-3 mt-3">
-                      <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">
-                        End Clamp Size
-                      </label>
-                      <div className="flex gap-1">
                         {[
-                          { size: 'small', label: 'Small (30mm)' },
-                          { size: 'medium', label: 'Medium (35mm)' },
-                          { size: 'large', label: 'Large (40mm)' }
+                          { size: 'small', label: 'Small (1 Row)' },
+                          { size: 'medium', label: 'Medium (2 Rows)' },
+                          { size: 'large', label: 'Large (3 Rows)' }
                         ].map((opt) => (
                           <Button
                             key={opt.size}
-                            variant={activeEndClampSize === opt.size ? 'default' : 'outline'}
+                            variant={activeRowsPreset === opt.size ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => {
-                              setActiveEndClampSize(opt.size as any)
-                              handleGenerateBoq(activeKwSetup, activePreset, activeRows, opt.size as any)
+                              setActiveRowsPreset(opt.size as any)
+                              handleGenerateBoq(activeKwSetup, activePreset, opt.size as any)
                             }}
                             className={cn(
-                              "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 border border-border shadow-none",
-                              activeEndClampSize === opt.size
+                              "text-[10px] font-bold py-1.5 px-3 rounded-[10px] transition-all h-8 border border-border shadow-none",
+                              activeRowsPreset === opt.size
                                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                                 : "bg-transparent text-foreground hover:bg-secondary"
                             )}
