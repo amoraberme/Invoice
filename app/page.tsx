@@ -29,32 +29,16 @@ import {
 const PANEL_WATTAGE = 625
 const PANEL_WIDTH_FT = 3.72
 
-function recalculateBoqAccessories(
-  lineItems: LineItem[], 
-  floorNum: number, 
-  rowsPreset: 'small' | 'medium' | 'large' = 'large'
-): { updated: boolean, items: LineItem[] } {
+function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { updated: boolean, items: LineItem[] } {
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
   
-  let rows = 3
-  if (rowsPreset === 'small') rows = 1
-  else if (rowsPreset === 'medium') rows = 2
-
+  const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
   const extraQty = floorNum >= 2 ? 3 : 0
   
   const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
   const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
-  
-  let newMidClampQty = 0
-  if (panelQty > 0 && rows > 0) {
-    const base = Math.floor(panelQty / rows)
-    const extra = panelQty % rows
-    for (let i = 0; i < rows; i++) {
-      const panelsInRow = base + (i < extra ? 1 : 0)
-      newMidClampQty += Math.max(0, (panelsInRow - 1) * 2)
-    }
-  }
+  const newMidClampQty = newEndClampQty // mid clamps count same as end clamps
   
   const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
   
@@ -473,11 +457,8 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
-  const [activeRowsPreset, setActiveRowsPreset] = useState<'small' | 'medium' | 'large'>('large')
-
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
-  const prevRowsPresetRef = useRef<'small' | 'medium' | 'large' | null>(null)
 
   useEffect(() => {
     if (!loaded) return
@@ -485,12 +466,9 @@ export default function Home() {
     const panelQty = panelItem ? panelItem.quantity : 0
     const floor = selectedFloor || 1
     
-    const hasPanelOrFloorChanged = panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current
-    const hasRowsPresetChanged = activeRowsPreset !== prevRowsPresetRef.current
-
-    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null && prevRowsPresetRef.current !== null) {
-      if (hasPanelOrFloorChanged || hasRowsPresetChanged) {
-        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor, activeRowsPreset)
+    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null) {
+      if (panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current) {
+        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor)
         if (updated) {
           setInvoice(prev => ({
             ...prev,
@@ -501,12 +479,11 @@ export default function Home() {
     }
     prevPanelQtyRef.current = panelQty
     prevFloorRef.current = floor
-    prevRowsPresetRef.current = activeRowsPreset
-  }, [invoice.lineItems, selectedFloor, loaded, setInvoice, activeRowsPreset])
+  }, [invoice.lineItems, selectedFloor, loaded, setInvoice])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
-    handleGenerateBoq(activeKwSetup, preset, activeRowsPreset)
+    handleGenerateBoq(activeKwSetup, preset)
   }
 
   const handleDailyKwhChange = (val: string) => {
@@ -844,7 +821,7 @@ export default function Home() {
         })
       }
 
-      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum, activeRowsPreset)
+      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum)
       return {
         ...prev,
         lineItems: finalItems
@@ -852,11 +829,7 @@ export default function Home() {
     })
   }
 
-  const handleGenerateBoq = (
-    systemKw: number, 
-    preset: 'min' | 'balance' | 'max' = 'balance',
-    rowsPreset: 'small' | 'medium' | 'large' = 'large'
-  ) => {
+  const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance') => {
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
     if (preset === 'min') {
@@ -864,9 +837,7 @@ export default function Home() {
     } else if (preset === 'balance') {
       panelQty = Math.max(4, Math.round(maxPanels * 0.75))
     }
-    let rows = 3
-    if (rowsPreset === 'small') rows = 1
-    else if (rowsPreset === 'medium') rows = 2
+    const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
     let batteryQty = 1
     if (systemKw < 12) {
       batteryQty = 1
@@ -964,24 +935,6 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 4. Mid Clamps
-    let midClampQty = 0
-    if (panelQty > 0 && rows > 0) {
-      const base = Math.floor(panelQty / rows)
-      const extra = panelQty % rows
-      for (let i = 0; i < rows; i++) {
-        const panelsInRow = base + (i < extra ? 1 : 0)
-        midClampQty += Math.max(0, (panelsInRow - 1) * 2)
-      }
-    }
-    items.push({
-      id: `boq-4-${now}`,
-      description: `Mid Clamp`,
-      quantity: midClampQty,
-      rate: prices.MidClamp,
-      unit: 'PCS'
-    })
-
     // 5. End Clamps
     const endClampQty = panelQty <= 0 ? 0 : 4 * rows
     items.push({
@@ -989,6 +942,16 @@ export default function Home() {
       description: `End Clamp`,
       quantity: endClampQty,
       rate: prices.EndClamp,
+      unit: 'PCS'
+    })
+
+    // 4. Mid Clamps
+    const midClampQty = endClampQty
+    items.push({
+      id: `boq-4-${now}`,
+      description: `Mid Clamp`,
+      quantity: midClampQty,
+      rate: prices.MidClamp,
       unit: 'PCS'
     })
 
@@ -1440,10 +1403,7 @@ export default function Home() {
                         calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
                       }
                       
-                      let calculatedRows = 3
-                      if (activeRowsPreset === 'small') calculatedRows = 1
-                      else if (activeRowsPreset === 'medium') calculatedRows = 2
-                      
+                      const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
                       let laborCost = 50000
                       if (kw >= 16) laborCost = 120000
                       else if (kw >= 8) laborCost = 55000
@@ -1460,7 +1420,7 @@ export default function Home() {
                           key={kw}
                           onClick={() => {
                             setActiveKwSetup(kw)
-                            handleGenerateBoq(kw, activePreset, activeRowsPreset)
+                            handleGenerateBoq(kw, activePreset)
                           }}
                           className={cn(
                             "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
@@ -1496,7 +1456,7 @@ export default function Home() {
                           const val = parseFloat(customKwInput)
                           if (!isNaN(val) && val > 0) {
                             setActiveKwSetup(val)
-                            handleGenerateBoq(val, activePreset, activeRowsPreset)
+                            handleGenerateBoq(val, activePreset)
                           }
                         }}
                         disabled={!customKwInput || parseFloat(customKwInput) <= 0}
@@ -1548,38 +1508,6 @@ export default function Home() {
                       >
                         Max Panels
                       </Button>
-                    </div>
-
-                    {/* Configuration Rows Selector Group */}
-                    <div className="flex items-center justify-between border-t border-border pt-3 mt-3">
-                      <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">
-                        Configuration Rows
-                      </label>
-                      <div className="flex gap-1">
-                        {[
-                          { size: 'small', label: 'Small (1 Row)' },
-                          { size: 'medium', label: 'Medium (2 Rows)' },
-                          { size: 'large', label: 'Large (3 Rows)' }
-                        ].map((opt) => (
-                          <Button
-                            key={opt.size}
-                            variant={activeRowsPreset === opt.size ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => {
-                              setActiveRowsPreset(opt.size as any)
-                              handleGenerateBoq(activeKwSetup, activePreset, opt.size as any)
-                            }}
-                            className={cn(
-                              "text-[10px] font-bold py-1.5 px-3 rounded-[10px] transition-all h-8 border border-border shadow-none",
-                              activeRowsPreset === opt.size
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                : "bg-transparent text-foreground hover:bg-secondary"
-                            )}
-                          >
-                            {opt.label}
-                          </Button>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </div>
