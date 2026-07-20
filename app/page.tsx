@@ -866,7 +866,7 @@ export default function Home() {
     const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
-    const inverterSizes = [5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
+    const inverterSizes = [4, 5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
     let inverterKw = inverterSizes.find(s => s >= systemKw)
     if (inverterKw === undefined) {
       inverterKw = Math.ceil(systemKw)
@@ -874,7 +874,10 @@ export default function Home() {
     
     let inverterDesc = `Inverter ${inverterKw}kW Hybrid`
     let inverterPrice = 0
-    if (inverterKw <= 5) {
+    if (inverterKw <= 4) {
+      inverterDesc = 'Inverter 4kW Hybrid'
+      inverterPrice = 14000.00
+    } else if (inverterKw <= 5) {
       inverterDesc = 'Inverter 5kW Hybrid'
       inverterPrice = 41000.00
     } else if (inverterKw <= 6) {
