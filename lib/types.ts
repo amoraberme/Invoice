@@ -60,7 +60,7 @@ export const defaultInvoice: Invoice = {
   dueDate: '',
   currency: 'PHP',
   vatRate: 0,
-  rateMarkup: 0,
+  rateMarkup: 25,
   excludeLaborMarkup: false,
   excludeBattery: false,
   theme: 'light',
