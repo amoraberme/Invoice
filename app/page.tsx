@@ -26,6 +26,59 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+const PANEL_WATTAGE = 625
+const PANEL_WIDTH_FT = 3.72
+
+function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { updated: boolean, items: LineItem[] } {
+  const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
+  const panelQty = panelItem ? panelItem.quantity : 0
+  
+  const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
+  const extraQty = floorNum >= 2 ? 3 : 0
+  
+  const newRailingQty = panelQty <= 0 ? 0 : Math.ceil((2 * (panelQty * PANEL_WIDTH_FT + rows * 0.5)) / 14)
+  const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
+  const newMidClampQty = panelQty <= 0 ? 0 : Math.max(0, (panelQty - 1) * 2 * rows)
+  const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
+  
+  let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
+  if (newMc4Qty % 2 !== 0 && newMc4Qty > 0) newMc4Qty += 1
+
+  let changed = false
+  const items = lineItems.map(item => {
+    const descLower = item.description.toLowerCase().trim()
+    if (descLower === 'railings' || descLower.includes('railing')) {
+      if (item.quantity !== newRailingQty) {
+        changed = true
+        return { ...item, quantity: newRailingQty }
+      }
+    } else if (descLower === 'end clamp' || descLower.includes('end clamp')) {
+      if (item.quantity !== newEndClampQty) {
+        changed = true
+        return { ...item, quantity: newEndClampQty }
+      }
+    } else if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
+      if (item.quantity !== newMidClampQty) {
+        changed = true
+        return { ...item, quantity: newMidClampQty }
+      }
+    } else if (descLower === 'l foot' || descLower.includes('l foot')) {
+      if (item.quantity !== newLFootQty) {
+        changed = true
+        return { ...item, quantity: newLFootQty }
+      }
+    } else if (descLower.startsWith('mc4') || descLower.includes('mc4')) {
+      if (item.quantity !== newMc4Qty) {
+        changed = true
+        return { ...item, quantity: newMc4Qty }
+      }
+    }
+    return item
+  })
+  
+  return { updated: changed, items }
+}
+
 function SectionHeader({ children }: { children: ReactNode }) {
   return (
     <h3 className="text-[11px] font-semibold text-muted-foreground tracking-widest uppercase">
@@ -401,6 +454,37 @@ export default function Home() {
   const [pricePerKwh, setPricePerKwh] = useState<string>('15.01')
   const [totalBill, setTotalBill] = useState<string>('')
   const [customKwInput, setCustomKwInput] = useState<string>('')
+  const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('balance')
+  const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
+
+  const prevPanelQtyRef = useRef<number | null>(null)
+  const prevFloorRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!loaded) return
+    const panelItem = invoice.lineItems.find(it => it.description.toLowerCase().includes('panel'))
+    const panelQty = panelItem ? panelItem.quantity : 0
+    const floor = selectedFloor || 1
+    
+    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null) {
+      if (panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current) {
+        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor)
+        if (updated) {
+          setInvoice(prev => ({
+            ...prev,
+            lineItems: items
+          }))
+        }
+      }
+    }
+    prevPanelQtyRef.current = panelQty
+    prevFloorRef.current = floor
+  }, [invoice.lineItems, selectedFloor, loaded, setInvoice])
+
+  const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
+    setActivePreset(preset)
+    handleGenerateBoq(activeKwSetup, preset)
+  }
 
   const handleDailyKwhChange = (val: string) => {
     setDailyKwh(val)
@@ -684,39 +768,14 @@ export default function Home() {
           continue
         }
 
-        // Match Railings
-        if (descLower === 'railings' || descLower.includes('railing')) {
-          updatedItems.push({
-            ...item,
-            quantity: panelQty > 0 ? (2 * panelQty + extraQty) : item.quantity
-          })
-          continue
-        }
-
-        // Match Mid Clamp
-        if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
-          updatedItems.push({
-            ...item,
-            quantity: panelQty > 0 ? (2 * panelQty + extraQty) : item.quantity
-          })
-          continue
-        }
-
-        // Match End Clamp
-        if (descLower === 'end clamp' || descLower.includes('end clamp')) {
-          updatedItems.push({
-            ...item,
-            quantity: panelQty > 0 ? (4 * rows + extraQty) : item.quantity
-          })
-          continue
-        }
-
-        // Match L Foot
-        if (descLower === 'l foot' || descLower.includes('l foot')) {
-          updatedItems.push({
-            ...item,
-            quantity: panelQty > 0 ? (Math.ceil(1.25 * (2 * panelQty)) + extraQty) : item.quantity
-          })
+        // Railings, Mid Clamp, End Clamp, L Foot are structural accessories and will be handled by recalculateBoqAccessories
+        if (
+          descLower === 'railings' || descLower.includes('railing') ||
+          descLower === 'mid clamp' || descLower.includes('mid clamp') ||
+          descLower === 'end clamp' || descLower.includes('end clamp') ||
+          descLower === 'l foot' || descLower.includes('l foot')
+        ) {
+          updatedItems.push(item)
           continue
         }
 
@@ -762,16 +821,23 @@ export default function Home() {
         })
       }
 
+      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum)
       return {
         ...prev,
-        lineItems: updatedItems
+        lineItems: finalItems
       }
     })
   }
 
-  const handleGenerateBoq = (systemKw: number) => {
-    const panelQty = Math.round(systemKw * 10 / 12)
-    const rows = panelQty <= 6 ? 1 : 2
+  const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance') => {
+    const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
+    let panelQty = maxPanels
+    if (preset === 'min') {
+      panelQty = Math.max(4, Math.round(maxPanels * 0.5))
+    } else if (preset === 'balance') {
+      panelQty = Math.max(4, Math.round(maxPanels * 0.75))
+    }
+    const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
     let batteryQty = 1
     if (systemKw < 12) {
       batteryQty = 1
@@ -860,7 +926,7 @@ export default function Home() {
     })
 
     // 3. Railings
-    const railingQty = 2 * panelQty + extraQty
+    const railingQty = panelQty <= 0 ? 0 : Math.ceil((2 * (panelQty * PANEL_WIDTH_FT + rows * 0.5)) / 14)
     items.push({
       id: `boq-3-${now}`,
       description: `Railings`,
@@ -870,7 +936,7 @@ export default function Home() {
     })
 
     // 4. Mid Clamps
-    const midClampQty = 2 * panelQty + extraQty
+    const midClampQty = panelQty <= 0 ? 0 : Math.max(0, (panelQty - 1) * 2 * rows)
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -880,7 +946,7 @@ export default function Home() {
     })
 
     // 5. End Clamps
-    const endClampQty = 4 * rows + extraQty
+    const endClampQty = panelQty <= 0 ? 0 : 4 * rows
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -890,7 +956,7 @@ export default function Home() {
     })
 
     // 6. L Foot
-    const lFootQty = Math.ceil(1.25 * (2 * panelQty)) + extraQty
+    const lFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
@@ -936,8 +1002,8 @@ export default function Home() {
     })
 
     // 10. MC4 Connectors
-    let mc4Qty = Math.ceil(1.2 * panelQty)
-    if (mc4Qty % 2 !== 0) mc4Qty += 1
+    let mc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
+    if (mc4Qty % 2 !== 0 && mc4Qty > 0) mc4Qty += 1
     items.push({
       id: `boq-10-${now}`,
       description: `MC4 50A`,
@@ -1202,7 +1268,7 @@ export default function Home() {
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
-              { id: 'ocr', label: 'OCR', icon: Sparkles, title: 'Upload & Spec OCR' },
+              { id: 'ocr', label: 'kW Set Up', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details' },
@@ -1296,9 +1362,9 @@ export default function Home() {
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <p className="text-xs text-[#111111] font-medium leading-relaxed mb-3">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
                     Have an existing Purchase Specification sheet? <br />
-                    <strong className="text-[#111111]">Drop Image or PDF to Extract Configuration Data</strong>
+                    <span className="text-[11px] font-medium text-foreground">Drop Image or PDF to Extract Configuration Data</span>
                   </p>
                   
                   <input 
@@ -1310,10 +1376,10 @@ export default function Home() {
                   />
                   
                   <Button
-                    variant="default"
+                    variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 py-2 rounded-[12px] text-xs transition-all border-0 shadow-none"
+                    className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 bg-transparent hover:bg-gray-50 rounded-md shadow-sm transition-all"
                   >
                     UPLOAD TECHNICAL SPEC SHEET
                   </Button>
@@ -1329,7 +1395,14 @@ export default function Home() {
                   </p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {[4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
-                      const calculatedPanelQty = Math.round(kw * 10 / 12)
+                      const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
+                      let calculatedPanelQty = maxPanels
+                      if (activePreset === 'min') {
+                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.5))
+                      } else if (activePreset === 'balance') {
+                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
+                      }
+                      
                       const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
                       let laborCost = 50000
                       if (kw >= 16) laborCost = 120000
@@ -1338,15 +1411,27 @@ export default function Home() {
                       const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
                       const laborDesc = `Labor: ₱${(laborCost / 1000)}k`
 
+                      const isSelected = activeKwSetup === kw
+                      const panelDescColor = isSelected ? "text-primary-foreground/75" : "text-muted-foreground"
+                      const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
+
                       return (
                         <button
                           key={kw}
-                          onClick={() => handleGenerateBoq(kw)}
-                          className="flex flex-col items-center justify-center p-3 rounded-[12px] bg-secondary/50 hover:bg-secondary/80 border border-border text-foreground transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold"
+                          onClick={() => {
+                            setActiveKwSetup(kw)
+                            handleGenerateBoq(kw, activePreset)
+                          }}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground"
+                          )}
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
-                          <span className="text-[8px] text-muted-foreground mt-1 font-mono font-normal">{panelDesc}</span>
-                          <span className="text-[8px] text-[#2E7D32] mt-0.5 font-mono font-bold">{laborDesc}</span>
+                          <span className={cn("text-[8px] mt-1 font-mono font-normal", panelDescColor)}>{panelDesc}</span>
+                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
                         </button>
                       )
                     })}
@@ -1370,7 +1455,8 @@ export default function Home() {
                         onClick={() => {
                           const val = parseFloat(customKwInput)
                           if (!isNaN(val) && val > 0) {
-                            handleGenerateBoq(val)
+                            setActiveKwSetup(val)
+                            handleGenerateBoq(val, activePreset)
                           }
                         }}
                         disabled={!customKwInput || parseFloat(customKwInput) <= 0}
@@ -1379,6 +1465,48 @@ export default function Home() {
                         className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0"
                       >
                         APPLY
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2 mt-3 w-full">
+                      <Button
+                        variant={activePreset === 'min' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleApplyPreset('min')}
+                        className={cn(
+                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
+                          activePreset === 'min'
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                        )}
+                      >
+                        Min Panels
+                      </Button>
+                      <Button
+                        variant={activePreset === 'balance' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleApplyPreset('balance')}
+                        className={cn(
+                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
+                          activePreset === 'balance'
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                        )}
+                      >
+                        Balance Setup
+                      </Button>
+                      <Button
+                        variant={activePreset === 'max' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleApplyPreset('max')}
+                        className={cn(
+                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
+                          activePreset === 'max'
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                        )}
+                      >
+                        Max Panels
                       </Button>
                     </div>
                   </div>
