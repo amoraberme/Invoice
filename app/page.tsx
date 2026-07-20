@@ -464,7 +464,7 @@ export default function Home() {
   const [pricePerKwh, setPricePerKwh] = useState<string>('15.01')
   const [totalBill, setTotalBill] = useState<string>('')
   const [customKwInput, setCustomKwInput] = useState<string>('')
-  const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('balance')
+  const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
 
   const prevPanelQtyRef = useRef<number | null>(null)
