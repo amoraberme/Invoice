@@ -36,9 +36,19 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
   const extraQty = floorNum >= 2 ? 3 : 0
   
-  const newRailingQty = panelQty <= 0 ? 0 : Math.ceil((2 * (panelQty * PANEL_WIDTH_FT + rows * 0.5)) / 14)
+  const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
   const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
-  const newMidClampQty = panelQty <= 0 ? 0 : Math.max(0, (panelQty - 1) * 2 * rows)
+  
+  let newMidClampQty = 0
+  if (panelQty > 0 && rows > 0) {
+    const base = Math.floor(panelQty / rows)
+    const extra = panelQty % rows
+    for (let i = 0; i < rows; i++) {
+      const panelsInRow = base + (i < extra ? 1 : 0)
+      newMidClampQty += Math.max(0, (panelsInRow - 1) * 2)
+    }
+  }
+  
   const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
   
   let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
@@ -926,7 +936,7 @@ export default function Home() {
     })
 
     // 3. Railings
-    const railingQty = panelQty <= 0 ? 0 : Math.ceil((2 * (panelQty * PANEL_WIDTH_FT + rows * 0.5)) / 14)
+    const railingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
     items.push({
       id: `boq-3-${now}`,
       description: `Railings`,
@@ -936,7 +946,15 @@ export default function Home() {
     })
 
     // 4. Mid Clamps
-    const midClampQty = panelQty <= 0 ? 0 : Math.max(0, (panelQty - 1) * 2 * rows)
+    let midClampQty = 0
+    if (panelQty > 0 && rows > 0) {
+      const base = Math.floor(panelQty / rows)
+      const extra = panelQty % rows
+      for (let i = 0; i < rows; i++) {
+        const panelsInRow = base + (i < extra ? 1 : 0)
+        midClampQty += Math.max(0, (panelsInRow - 1) * 2)
+      }
+    }
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
