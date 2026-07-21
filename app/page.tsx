@@ -280,7 +280,7 @@ function extractLineItemsFromText(text: string) {
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
     19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
-    20: { desc: "Battery 314Ah (48V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
+    20: { desc: "Battery 314Ah (51.2V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" }
   };
@@ -932,7 +932,7 @@ export default function Home() {
     // 20. Battery
     items.push({
       id: `boq-20-${now}`,
-      description: `Battery 314Ah (48V)`,
+      description: `Battery 314Ah (51.2V)`,
       quantity: batteryQty,
       rate: 88000.00,
       unit: 'PC'
