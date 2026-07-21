@@ -262,7 +262,7 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $82,000.00", qty: "1pc", price: "₱82,000.00", total: "₱82,000.00" },
-    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
+    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱4,960.00", total: "₱49,600.00" },
     3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
@@ -398,7 +398,7 @@ function extractLineItemsFromText(text: string) {
 
 const SOLAR_PRICES = {
   Inverter: 82000.00,
-  Panel: 6300.00,
+  Panel: 4960.00,
   Railing: 470.00,
   MidClamp: 32.00,
   EndClamp: 32.00,
