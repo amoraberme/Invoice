@@ -261,16 +261,16 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
-    1: { desc: "Inverter 12kW 1pc $82,000.00", qty: "1pc", price: "₱82,000.00", total: "₱82,000.00" },
+    1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
     2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
     3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
     6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
-    7: { desc: "Flexible hose", qty: "1 Ps", price: "-", total: "-" },
-    8: { desc: "AC wire _ x", qty: "-", price: "TBD", total: "TBD" },
-    9: { desc: "PV wire", qty: "-", price: "TBD", total: "TBD" },
-    10: { desc: "MC4 50A", qty: "12 pcs", price: "TBD", total: "TBD" },
+    7: { desc: "Flexible hose", qty: "5m", price: "₱215.00", total: "₱1,075.00" },
+    8: { desc: "AC wire", qty: "5m", price: "₱190.00", total: "₱950.00" },
+    9: { desc: "PV wire", qty: "5m", price: "₱170.00", total: "₱850.00" },
+    10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
     11: { desc: "Breaker box 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     12: { desc: "AC MCB", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
     13: { desc: "AC SPD", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
@@ -396,8 +396,32 @@ function extractLineItemsFromText(text: string) {
   return lineItems;
 }
 
+const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; goodwe: number }> = {
+  3: { anern: 14000, solis: 41000, goodwe: 35000 },
+  4: { anern: 14000, solis: 41000, goodwe: 35000 },
+  5: { anern: 16500, solis: 41000, goodwe: 45000 },
+  6: { anern: 18000, solis: 44000, goodwe: 47000 },
+  8: { anern: 25000, solis: 60000, goodwe: 62000 },
+  10: { anern: 28000, solis: 68000, goodwe: 74000 },
+  12: { anern: 32500, solis: 68000, goodwe: 78000 },
+  16: { anern: 45000, solis: 113000, goodwe: 150000 },
+  18: { anern: 55000, solis: 135000, goodwe: 150000 },
+  20: { anern: 65000, solis: 155000, goodwe: 150000 },
+  30: { anern: 95000, solis: 217000, goodwe: 140000 },
+  50: { anern: 160000, solis: 217000, goodwe: 170000 },
+  60: { anern: 200000, solis: 237000, goodwe: 220000 },
+  75: { anern: 250000, solis: 290000, goodwe: 260000 },
+  125: { anern: 350000, solis: 580000, goodwe: 400000 },
+}
+
+function getInverterBrandPrices(kw: number) {
+  const keys = Object.keys(INVERTER_BRAND_PRICES_MAP).map(Number).sort((a, b) => a - b)
+  const matchedKw = keys.find(k => k >= kw) || keys[keys.length - 1]
+  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 68000, goodwe: 78000 }
+}
+
 const SOLAR_PRICES = {
-  Inverter: 82000.00,
+  Inverter: 68000.00,
   Panel: 6300.00,
   Railing: 470.00,
   MidClamp: 32.00,
@@ -872,45 +896,9 @@ export default function Home() {
       inverterKw = Math.ceil(systemKw)
     }
     
+    const brandPrices = getInverterBrandPrices(inverterKw)
     let inverterDesc = `Inverter ${inverterKw}kW Hybrid`
-    let inverterPrice = 0
-    if (inverterKw <= 4) {
-      inverterDesc = 'Inverter 4kW Hybrid'
-      inverterPrice = 14000.00
-    } else if (inverterKw <= 5) {
-      inverterDesc = 'Inverter 5kW Hybrid'
-      inverterPrice = 41000.00
-    } else if (inverterKw <= 6) {
-      inverterDesc = 'Inverter 6kW Hybrid'
-      inverterPrice = 44000.00
-    } else if (inverterKw <= 8) {
-      inverterDesc = 'Inverter 8kW Hybrid'
-      inverterPrice = 60000.00
-    } else if (inverterKw <= 10) {
-      inverterDesc = 'Inverter 10kW Hybrid'
-      inverterPrice = 68000.00
-    } else if (inverterKw <= 12) {
-      inverterDesc = 'Inverter 12kW Hybrid'
-      inverterPrice = 82000.00
-    } else if (inverterKw <= 16) {
-      inverterDesc = 'Inverter 16kW Hybrid'
-      inverterPrice = 113000.00
-    } else if (inverterKw <= 30) {
-      inverterDesc = 'Inverter 30kW Hybrid'
-      inverterPrice = 259000.00
-    } else if (inverterKw <= 50) {
-      inverterDesc = 'Inverter 50kW Hybrid'
-      inverterPrice = 310000.00
-    } else if (inverterKw <= 60) {
-      inverterDesc = 'Inverter 60kW Hybrid'
-      inverterPrice = 500000.00
-    } else if (inverterKw <= 75) {
-      inverterDesc = 'Inverter 75kW Hybrid'
-      inverterPrice = 580000.00
-    } else {
-      inverterDesc = 'Inverter 125kW Hybrid'
-      inverterPrice = 580000.00
-    }
+    let inverterPrice = brandPrices.solis
 
     items.push({
       id: `boq-1-${now}`,
@@ -2050,6 +2038,15 @@ export default function Home() {
                       const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei')
                       const isTongweiSelected = item.rate === 4960
 
+                      const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe')
+                      const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
+                      const itemKw = kwMatch ? parseFloat(kwMatch[1]) : 12
+                      const invBrandPrices = getInverterBrandPrices(itemKw)
+
+                      const isInverterAnern = item.rate === invBrandPrices.anern
+                      const isInverterGoodWe = item.rate === invBrandPrices.goodwe
+                      const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
+
                       return (
                         <div key={item.id} className="flex flex-col gap-1 p-1.5 rounded-lg hover:bg-[#F9F9F9] dark:hover:bg-[#1A1A1A] transition-colors border border-transparent hover:border-[#E5E5E5] dark:hover:border-[#333333]" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
                           <div className="flex gap-2 items-start">
@@ -2136,6 +2133,54 @@ export default function Home() {
                                   title="Tongwei - ₱4,960.00 each"
                                 >
                                   <img src="/TW.svg" alt="Tongwei" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {isInverterItem && (
+                            <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
+                              <div className="inline-flex gap-2.5 items-center flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.anern)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isInverterAnern
+                                      ? "bg-red-50 dark:bg-red-950/40 border-red-500/60 ring-2 ring-red-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`Anern - ₱${invBrandPrices.anern.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/anern.svg" alt="Anern" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.solis)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isInverterSolis
+                                      ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500/60 ring-2 ring-orange-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`Solis - ₱${invBrandPrices.solis.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/solis.svg" alt="Solis" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.goodwe)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isInverterGoodWe
+                                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/60 ring-2 ring-emerald-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`GoodWe - ₱${invBrandPrices.goodwe.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto object-contain shrink-0" />
                                 </button>
                               </div>
                             </div>

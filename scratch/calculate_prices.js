@@ -63,7 +63,7 @@ function calculateSystemCost(systemKw, isHybrid) {
   } else if (inverterKw <= 10) {
     inverterPrice = 68000.00;
   } else if (inverterKw <= 12) {
-    inverterPrice = 82000.00;
+    inverterPrice = 68000.00;
   } else if (inverterKw <= 16) {
     inverterPrice = 113000.00;
   } else if (inverterKw <= 18) {
