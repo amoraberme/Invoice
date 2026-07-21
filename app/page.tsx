@@ -2239,18 +2239,18 @@ export default function Home() {
 
                             const getGenixData = (cap: typeof capKey) => {
                               if (cap === '200Ah') return { desc: 'Battery 51.2V 200Ah', rate: 65000 }
-                              if (cap === '100Ah') return { desc: 'Genix Green Lithium Battery 102.4V 100Ah', rate: 90000 }
-                              return { desc: 'Genix Green Lithium Battery 51.2V 314Ah', rate: 85000 }
+                              if (cap === '100Ah') return { desc: 'Battery 102.4V 100Ah', rate: 90000 }
+                              return { desc: 'Battery 51.2V 314Ah', rate: 85000 }
                             }
 
                             const getDynessData = (cap: typeof capKey) => {
-                              if (cap === '100Ah') return { desc: 'Dyness Battery 100Ah (51.2V)', rate: 43000 }
-                              return { desc: 'Dyness Battery 314Ah (51.2V)', rate: 88000 }
+                              if (cap === '100Ah') return { desc: 'Battery 51.2V 100Ah', rate: 43000 }
+                              return { desc: 'Battery 51.2V 314Ah', rate: 88000 }
                             }
 
                             const getCescData = (cap: typeof capKey) => {
-                              if (cap === '261kW') return { desc: 'CESC 261 kW Power', rate: 2400000 }
-                              return { desc: 'CESC 51.2V DC / 314A', rate: 88000 }
+                              if (cap === '261kW') return { desc: 'Battery 261 kW Power System', rate: 2400000 }
+                              return { desc: 'Battery 51.2V 314Ah', rate: 88000 }
                             }
 
                             const genixInfo = getGenixData(capKey)
