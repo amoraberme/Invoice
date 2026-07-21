@@ -2327,7 +2327,7 @@ export default function Home() {
                                         )}
                                         title="100Ah - ₱38,000.00"
                                       >
-                                        100Ah (₱38k)
+                                        100Ah
                                       </button>
 
                                       <button
@@ -2344,7 +2344,7 @@ export default function Home() {
                                         )}
                                         title="200Ah - ₱65,000.00"
                                       >
-                                        200Ah (₱65k)
+                                        200Ah
                                       </button>
 
                                       <button
@@ -2361,7 +2361,7 @@ export default function Home() {
                                         )}
                                         title="314Ah - ₱85,000.00"
                                       >
-                                        314Ah (₱85k)
+                                        314Ah
                                       </button>
                                     </>
                                   )}
@@ -2382,7 +2382,7 @@ export default function Home() {
                                       )}
                                       title="100Ah - ₱43,000.00"
                                     >
-                                      100Ah (₱43k)
+                                      100Ah
                                     </button>
                                   )}
 
@@ -2403,7 +2403,7 @@ export default function Home() {
                                         )}
                                         title="314Ah - ₱88,000.00"
                                       >
-                                        314Ah (₱88k)
+                                        314Ah
                                       </button>
 
                                       <button
@@ -2420,7 +2420,7 @@ export default function Home() {
                                         )}
                                         title="261kW - ₱2,400,000.00"
                                       >
-                                        261kW (₱2.4M)
+                                        261kW
                                       </button>
                                     </>
                                   )}
