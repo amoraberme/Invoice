@@ -2220,7 +2220,7 @@ export default function Home() {
                             }
 
                             let activeBrand: 'genix' | 'dyness' | 'cesc' = 'cesc'
-                            if (descLower.includes('genix') || item.rate === 90000 || item.rate === 65000 || item.rate === 85000) {
+                            if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
                               activeBrand = 'genix'
                             } else if (descLower.includes('dyness') || item.rate === 43000) {
                               activeBrand = 'dyness'
@@ -2229,23 +2229,22 @@ export default function Home() {
                             }
 
                             const genixAvail = capKey === '100Ah' || capKey === '200Ah' || capKey === '314Ah'
-                            const dynessAvail = capKey === '100Ah' || capKey === '314Ah'
+                            const dynessAvail = capKey === '100Ah'
                             const cescAvail = capKey === '314Ah' || capKey === '261kW'
 
                             const cap100Avail = activeBrand === 'genix' || activeBrand === 'dyness'
                             const cap200Avail = activeBrand === 'genix'
-                            const cap314Avail = true
+                            const cap314Avail = activeBrand === 'genix' || activeBrand === 'cesc'
                             const cap261Avail = activeBrand === 'cesc'
 
                             const getGenixData = (cap: typeof capKey) => {
                               if (cap === '200Ah') return { desc: 'Battery 51.2V 200Ah', rate: 65000 }
-                              if (cap === '100Ah') return { desc: 'Battery 102.4V 100Ah', rate: 90000 }
+                              if (cap === '100Ah') return { desc: 'Battery 51.2V 100Ah', rate: 38000 }
                               return { desc: 'Battery 51.2V 314Ah', rate: 85000 }
                             }
 
                             const getDynessData = (cap: typeof capKey) => {
-                              if (cap === '100Ah') return { desc: 'Battery 51.2V 100Ah', rate: 43000 }
-                              return { desc: 'Battery 51.2V 314Ah', rate: 88000 }
+                              return { desc: 'Battery 51.2V 100Ah', rate: 43000 }
                             }
 
                             const getCescData = (cap: typeof capKey) => {
@@ -2316,16 +2315,18 @@ export default function Home() {
                                     type="button"
                                     disabled={!cap314Avail}
                                     onClick={() => {
-                                      const data = activeBrand === 'genix' ? getGenixData('314Ah') : activeBrand === 'dyness' ? getDynessData('314Ah') : getCescData('314Ah')
+                                      const data = activeBrand === 'genix' ? getGenixData('314Ah') : getCescData('314Ah')
                                       applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
                                       "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
                                       capKey === '314Ah'
                                         ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                        : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        : cap314Avail
+                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
                                     )}
-                                    title="314Ah Battery"
+                                    title={!cap314Avail ? "Dyness does not have 314Ah" : "314Ah Battery"}
                                   >
                                     314Ah
                                   </button>
@@ -2379,8 +2380,7 @@ export default function Home() {
                                     type="button"
                                     disabled={!dynessAvail}
                                     onClick={() => {
-                                      const cap = (capKey === '200Ah' || capKey === '261kW') ? '314Ah' : capKey
-                                      const data = getDynessData(cap)
+                                      const data = getDynessData('100Ah')
                                       applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
@@ -2391,7 +2391,7 @@ export default function Home() {
                                           ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                           : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
                                     )}
-                                    title={!dynessAvail ? `Dyness is not available for ${capKey}` : `Dyness - ₱${dynessInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                    title={!dynessAvail ? `Dyness is only available for 100Ah` : `Dyness - ₱${dynessInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
                                   >
                                     <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
