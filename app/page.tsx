@@ -2109,35 +2109,33 @@ export default function Home() {
 
                           {isPanelItem && (
                             <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
-                              <div className="inline-flex gap-3 w-full">
+                              <div className="inline-flex gap-3 items-center">
                                 <button
                                   type="button"
                                   onClick={() => updateItem(item.id, 'rate', 6300)}
                                   className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer select-none",
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
                                     !isTongweiSelected
-                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] text-[#777777] hover:bg-[#F5F5F5] hover:text-[#111111]"
+                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 ring-2 ring-amber-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                   )}
                                   title="JA Solar - ₱6,300.00 each"
                                 >
-                                  <img src="/JaSo.svg" alt="JA Solar" className="h-7 w-auto object-contain max-w-[72px] shrink-0" />
-                                  <span>Ja Solar</span>
+                                  <img src="/JaSo.svg" alt="JA Solar" className="h-8 w-auto object-contain shrink-0" />
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => updateItem(item.id, 'rate', 4960)}
                                   className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer select-none",
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
                                     isTongweiSelected
-                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] text-[#777777] hover:bg-[#F5F5F5] hover:text-[#111111]"
+                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                   )}
                                   title="Tongwei - ₱4,960.00 each"
                                 >
-                                  <img src="/TW.svg" alt="Tongwei" className="h-7 w-auto object-contain max-w-[72px] shrink-0" />
-                                  <span>Tongwei</span>
+                                  <img src="/TW.svg" alt="Tongwei" className="h-8 w-auto object-contain shrink-0" />
                                 </button>
                               </div>
                             </div>
