@@ -2228,15 +2228,6 @@ export default function Home() {
                               activeBrand = 'cesc'
                             }
 
-                            const genixAvail = capKey === '100Ah' || capKey === '200Ah' || capKey === '314Ah'
-                            const dynessAvail = capKey === '100Ah'
-                            const cescAvail = capKey === '314Ah' || capKey === '261kW'
-
-                            const cap100Avail = activeBrand === 'genix' || activeBrand === 'dyness'
-                            const cap200Avail = activeBrand === 'genix'
-                            const cap314Avail = activeBrand === 'genix' || activeBrand === 'cesc'
-                            const cap261Avail = activeBrand === 'cesc'
-
                             const getGenixData = (cap: typeof capKey) => {
                               if (cap === '200Ah') return { desc: 'Battery 51.2V 200Ah', rate: 65000 }
                               if (cap === '100Ah') return { desc: 'Battery 51.2V 100Ah', rate: 38000 }
@@ -2252,10 +2243,6 @@ export default function Home() {
                               return { desc: 'Battery 51.2V 314Ah', rate: 88000 }
                             }
 
-                            const genixInfo = getGenixData(capKey)
-                            const dynessInfo = getDynessData(capKey)
-                            const cescInfo = getCescData(capKey)
-
                             const applySelection = (newDesc: string, newRate: number) => {
                               updateItem(item.id, 'description', newDesc)
                               updateItem(item.id, 'rate', newRate)
@@ -2263,101 +2250,10 @@ export default function Home() {
 
                             return (
                               <div className="flex flex-col gap-2 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
-                                {/* 1. Capacity Quick Select Buttons */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Capacity:</span>
-                                  
-                                  {/* 100Ah */}
-                                  <button
-                                    type="button"
-                                    disabled={!cap100Avail}
-                                    onClick={() => {
-                                      const b = activeBrand === 'cesc' ? 'genix' : activeBrand
-                                      const data = b === 'dyness' ? getDynessData('100Ah') : getGenixData('100Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
-                                      capKey === '100Ah'
-                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                        : cap100Avail
-                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
-                                    )}
-                                    title={!cap100Avail ? "100Ah is not available for CESC" : "100Ah Battery"}
-                                  >
-                                    100Ah
-                                  </button>
-
-                                  {/* 200Ah */}
-                                  <button
-                                    type="button"
-                                    disabled={!cap200Avail}
-                                    onClick={() => {
-                                      const data = getGenixData('200Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
-                                      capKey === '200Ah'
-                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                        : cap200Avail
-                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
-                                    )}
-                                    title={!cap200Avail ? "200Ah is only available for Genix Green" : "200Ah Battery"}
-                                  >
-                                    200Ah
-                                  </button>
-
-                                  {/* 314Ah */}
-                                  <button
-                                    type="button"
-                                    disabled={!cap314Avail}
-                                    onClick={() => {
-                                      const data = activeBrand === 'genix' ? getGenixData('314Ah') : getCescData('314Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
-                                      capKey === '314Ah'
-                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                        : cap314Avail
-                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
-                                    )}
-                                    title={!cap314Avail ? "Dyness does not have 314Ah" : "314Ah Battery"}
-                                  >
-                                    314Ah
-                                  </button>
-
-                                  {/* 261kW */}
-                                  <button
-                                    type="button"
-                                    disabled={!cap261Avail}
-                                    onClick={() => {
-                                      const data = getCescData('261kW')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
-                                      capKey === '261kW'
-                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                        : cap261Avail
-                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
-                                    )}
-                                    title={!cap261Avail ? "261kW is only available for CESC" : "261kW Battery Power System"}
-                                  >
-                                    261kW
-                                  </button>
-                                </div>
-
-                                {/* 2. Brand Selector SVG Buttons */}
+                                {/* 1. Brand Selector Row (Primary Control) */}
                                 <div className="flex items-center gap-2.5 flex-wrap">
                                   <button
                                     type="button"
-                                    disabled={!genixAvail}
                                     onClick={() => {
                                       const cap = capKey === '261kW' ? '314Ah' : capKey
                                       const data = getGenixData(cap)
@@ -2365,40 +2261,34 @@ export default function Home() {
                                     }}
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'genix' && genixAvail
+                                      activeBrand === 'genix'
                                         ? "bg-green-50 dark:bg-green-950/40 border-green-500/60 ring-2 ring-green-500/40 shadow-sm"
-                                        : genixAvail
-                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                     )}
-                                    title={!genixAvail ? "Genix Green is not available for 261kW" : `Genix Green - ₱${genixInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                    title="Genix Green Battery"
                                   >
                                     <img src="/genixgreen.svg" alt="Genix Green" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
 
                                   <button
                                     type="button"
-                                    disabled={!dynessAvail}
                                     onClick={() => {
                                       const data = getDynessData('100Ah')
                                       applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'dyness' && dynessAvail
+                                      activeBrand === 'dyness'
                                         ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
-                                        : dynessAvail
-                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                     )}
-                                    title={!dynessAvail ? `Dyness is only available for 100Ah` : `Dyness - ₱${dynessInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                    title="Dyness Battery"
                                   >
                                     <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
 
                                   <button
                                     type="button"
-                                    disabled={!cescAvail}
                                     onClick={() => {
                                       const cap = (capKey === '100Ah' || capKey === '200Ah') ? '314Ah' : capKey
                                       const data = getCescData(cap)
@@ -2406,16 +2296,134 @@ export default function Home() {
                                     }}
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'cesc' && cescAvail
+                                      activeBrand === 'cesc'
                                         ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/40 shadow-sm"
-                                        : cescAvail
-                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
                                     )}
-                                    title={!cescAvail ? `CESC is not available for ${capKey}` : `CESC - ₱${cescInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                    title="CESC Battery"
                                   >
                                     <img src="/cesc.svg" alt="CESC" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
+                                </div>
+
+                                {/* 2. Available Capacity Buttons for Selected Brand */}
+                                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-dotted border-[#E5E5E5] dark:border-[#333333]">
+                                  <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Capacity:</span>
+
+                                  {/* Genix Green Capacities */}
+                                  {activeBrand === 'genix' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getGenixData('100Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '100Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="100Ah - ₱38,000.00"
+                                      >
+                                        100Ah (₱38k)
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getGenixData('200Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '200Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="200Ah - ₱65,000.00"
+                                      >
+                                        200Ah (₱65k)
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getGenixData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '314Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="314Ah - ₱85,000.00"
+                                      >
+                                        314Ah (₱85k)
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {/* Dyness Capacities */}
+                                  {activeBrand === 'dyness' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const data = getDynessData('100Ah')
+                                        applySelection(data.desc, data.rate)
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                        capKey === '100Ah'
+                                          ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                          : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                      )}
+                                      title="100Ah - ₱43,000.00"
+                                    >
+                                      100Ah (₱43k)
+                                    </button>
+                                  )}
+
+                                  {/* CESC Capacities */}
+                                  {activeBrand === 'cesc' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getCescData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '314Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="314Ah - ₱88,000.00"
+                                      >
+                                        314Ah (₱88k)
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getCescData('261kW')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '261kW'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="261kW - ₱2,400,000.00"
+                                      >
+                                        261kW (₱2.4M)
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             )
