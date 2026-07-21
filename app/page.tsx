@@ -2123,7 +2123,7 @@ export default function Home() {
                                   title="JA Solar - ₱6,300.00 each"
                                 >
                                   <img src="/JaSo.svg" alt="JA Solar" className="h-3.5 w-auto object-contain max-w-[36px] shrink-0" />
-                                  <span>Ja Solar (₱6,300)</span>
+                                  <span>Ja Solar</span>
                                 </button>
 
                                 <button
@@ -2138,7 +2138,7 @@ export default function Home() {
                                   title="Tongwei - ₱4,960.00 each"
                                 >
                                   <img src="/TW.svg" alt="Tongwei" className="h-3.5 w-auto object-contain max-w-[36px] shrink-0" />
-                                  <span>Tongwei (₱4,960)</span>
+                                  <span>Tongwei</span>
                                 </button>
                               </div>
                             </div>
