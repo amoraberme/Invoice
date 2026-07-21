@@ -441,7 +441,7 @@ const SOLAR_PRICES = {
   Raceway: 1000.00,
   ATS: 1300.00,
   TerminalLugs: 30.00,
-  DynessBattery: 109000.00,
+  DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 600.00
 };
@@ -2047,6 +2047,29 @@ export default function Home() {
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
 
+                      const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
+
+                      let genixPrice = 85000
+                      if (descLower.includes('200ah')) {
+                        genixPrice = 65000
+                      } else if (descLower.includes('102.4v') || descLower.includes('100ah')) {
+                        genixPrice = 90000
+                      }
+
+                      let dynessPrice = 43000
+                      if (descLower.includes('314ah')) {
+                        dynessPrice = 88000
+                      }
+
+                      let cescPrice = 88000
+                      if (descLower.includes('261') || descLower.includes('power')) {
+                        cescPrice = 2400000
+                      }
+
+                      const isGenixSelected = item.rate === genixPrice
+                      const isDynessSelected = item.rate === dynessPrice
+                      const isCescSelected = item.rate === cescPrice || (!isGenixSelected && !isDynessSelected)
+
                       return (
                         <div key={item.id} className="flex flex-col gap-1 p-1.5 rounded-lg hover:bg-[#F9F9F9] dark:hover:bg-[#1A1A1A] transition-colors border border-transparent hover:border-[#E5E5E5] dark:hover:border-[#333333]" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
                           <div className="flex gap-2 items-start">
@@ -2181,6 +2204,54 @@ export default function Home() {
                                   title={`GoodWe - ₱${invBrandPrices.goodwe.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
                                 >
                                   <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {isBatteryItem && (
+                            <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
+                              <div className="inline-flex gap-2.5 items-center flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', genixPrice)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isGenixSelected
+                                      ? "bg-green-50 dark:bg-green-950/40 border-green-500/60 ring-2 ring-green-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`Genix Green - ₱${genixPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/genixgreen.svg" alt="Genix Green" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', dynessPrice)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isDynessSelected
+                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`Dyness - ₱${dynessPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', cescPrice)}
+                                  className={cn(
+                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                    isCescSelected
+                                      ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                  )}
+                                  title={`CESC - ₱${cescPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                >
+                                  <img src="/cesc.svg" alt="CESC" className="h-8 w-auto object-contain shrink-0" />
                                 </button>
                               </div>
                             </div>
