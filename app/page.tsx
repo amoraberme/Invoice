@@ -262,7 +262,7 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $82,000.00", qty: "1pc", price: "₱82,000.00", total: "₱82,000.00" },
-    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱4,960.00", total: "₱49,600.00" },
+    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
     3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
@@ -398,7 +398,7 @@ function extractLineItemsFromText(text: string) {
 
 const SOLAR_PRICES = {
   Inverter: 82000.00,
-  Panel: 4960.00,
+  Panel: 6300.00,
   Railing: 470.00,
   MidClamp: 32.00,
   EndClamp: 32.00,
@@ -2045,62 +2045,107 @@ export default function Home() {
                       const isBatteryItem = item.description.toLowerCase().includes('battery')
                       return !(invoice.excludeBattery && isBatteryItem)
                     })
-                    .map((item) => (
-                    <div key={item.id} className="flex gap-2 items-start" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
-                      <Input
-                        className="flex-1"
-                        value={item.description}
-                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        placeholder="Item description"
-                      />
-                      <Input
-                        className="w-12 px-1 text-center"
-                        value={item.unit || ''}
-                        onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                        placeholder="pcs"
-                      />
-                      <Input
-                        className="w-10 px-0 text-center"
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                      />
-                      <div className="flex flex-col items-end w-[72px] shrink-0">
-                        <Input
-                          className="w-full px-2 text-right"
-                          type="number"
-                          min="0"
-                          value={item.rate}
-                          onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                          placeholder="0"
-                        />
-                        {invoice.rateMarkup !== 0 && (
-                          <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
-                            (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
-                              ? 'Labor is excluded from rate markup'
-                              : `Base: ${item.rate} + ${invoice.rateMarkup}%`
-                          }>
-                            {formatCurrency(
-                              (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
-                                ? item.rate
-                                : item.rate * (1 + invoice.rateMarkup / 100),
-                              invoice.currency
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => removeItem(item.id)}
-                        className="text-[#CCCCCC] hover:text-[#888888] hover:bg-transparent shrink-0 mt-[4px]"
-                        aria-label="Remove item"
-                      >
-                        <Trash2 size={13} />
-                      </Button>
-                    </div>
-                  ))}
+                    .map((item) => {
+                      const descLower = item.description.toLowerCase()
+                      const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei')
+                      const isTongweiSelected = item.rate === 4960
+
+                      return (
+                        <div key={item.id} className="flex flex-col gap-1 p-1.5 rounded-lg hover:bg-[#F9F9F9] dark:hover:bg-[#1A1A1A] transition-colors border border-transparent hover:border-[#E5E5E5] dark:hover:border-[#333333]" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              className="flex-1"
+                              value={item.description}
+                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                              placeholder="Item description"
+                            />
+                            <Input
+                              className="w-12 px-1 text-center"
+                              value={item.unit || ''}
+                              onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                              placeholder="pcs"
+                            />
+                            <Input
+                              className="w-10 px-0 text-center"
+                              type="number"
+                              min="0"
+                              value={item.quantity}
+                              onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            />
+                            <div className="flex flex-col items-end w-[72px] shrink-0">
+                              <Input
+                                className="w-full px-2 text-right"
+                                type="number"
+                                min="0"
+                                value={item.rate}
+                                onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                                placeholder="0"
+                              />
+                              {invoice.rateMarkup !== 0 && (
+                                <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
+                                  (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                                    ? 'Labor is excluded from rate markup'
+                                    : `Base: ${item.rate} + ${invoice.rateMarkup}%`
+                                }>
+                                  {formatCurrency(
+                                    (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                                      ? item.rate
+                                      : item.rate * (1 + invoice.rateMarkup / 100),
+                                    invoice.currency
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => removeItem(item.id)}
+                              className="text-[#CCCCCC] hover:text-[#888888] hover:bg-transparent shrink-0 mt-[4px]"
+                              aria-label="Remove item"
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </div>
+
+                          {isPanelItem && (
+                            <div className="flex items-center gap-1.5 pt-0.5 pb-0.5 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1">
+                              <span className="text-[9px] font-bold text-[#888888] uppercase tracking-wider shrink-0">Brand Option:</span>
+                              <div className="inline-flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', 6300)}
+                                  className={cn(
+                                    "flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-bold border transition-all cursor-pointer select-none",
+                                    !isTongweiSelected
+                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] text-[#777777] hover:bg-[#F5F5F5] hover:text-[#111111]"
+                                  )}
+                                  title="JA Solar - ₱6,300.00 each"
+                                >
+                                  <img src="/JaSo.svg" alt="JA Solar" className="h-3.5 w-auto object-contain max-w-[36px] shrink-0" />
+                                  <span>Ja Solar (₱6,300)</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'rate', 4960)}
+                                  className={cn(
+                                    "flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-bold border transition-all cursor-pointer select-none",
+                                    isTongweiSelected
+                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500/40 shadow-sm"
+                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] text-[#777777] hover:bg-[#F5F5F5] hover:text-[#111111]"
+                                  )}
+                                  title="Tongwei - ₱4,960.00 each"
+                                >
+                                  <img src="/TW.svg" alt="Tongwei" className="h-3.5 w-auto object-contain max-w-[36px] shrink-0" />
+                                  <span>Tongwei (₱4,960)</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
 
                   {/* Add item */}
                   <Button
