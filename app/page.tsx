@@ -2209,53 +2209,217 @@ export default function Home() {
                             </div>
                           )}
 
-                          {isBatteryItem && (
-                            <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
-                              <div className="inline-flex gap-2.5 items-center flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', genixPrice)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isGenixSelected
-                                      ? "bg-green-50 dark:bg-green-950/40 border-green-500/60 ring-2 ring-green-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`Genix Green - ₱${genixPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/genixgreen.svg" alt="Genix Green" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                          {isBatteryItem && (() => {
+                            let capKey: '100Ah' | '200Ah' | '314Ah' | '261kW' = '314Ah'
+                            if (descLower.includes('261') || descLower.includes('power')) {
+                              capKey = '261kW'
+                            } else if (descLower.includes('200ah')) {
+                              capKey = '200Ah'
+                            } else if (descLower.includes('100ah') || descLower.includes('102.4v')) {
+                              capKey = '100Ah'
+                            }
 
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', dynessPrice)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isDynessSelected
-                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`Dyness - ₱${dynessPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                            let activeBrand: 'genix' | 'dyness' | 'cesc' = 'cesc'
+                            if (descLower.includes('genix') || item.rate === 90000 || item.rate === 65000 || item.rate === 85000) {
+                              activeBrand = 'genix'
+                            } else if (descLower.includes('dyness') || item.rate === 43000) {
+                              activeBrand = 'dyness'
+                            } else if (descLower.includes('cesc') || item.rate === 2400000 || item.rate === 88000) {
+                              activeBrand = 'cesc'
+                            }
 
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', cescPrice)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isCescSelected
-                                      ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`CESC - ₱${cescPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/cesc.svg" alt="CESC" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                            const genixAvail = capKey === '100Ah' || capKey === '200Ah' || capKey === '314Ah'
+                            const dynessAvail = capKey === '100Ah' || capKey === '314Ah'
+                            const cescAvail = capKey === '314Ah' || capKey === '261kW'
+
+                            const cap100Avail = activeBrand === 'genix' || activeBrand === 'dyness'
+                            const cap200Avail = activeBrand === 'genix'
+                            const cap314Avail = true
+                            const cap261Avail = activeBrand === 'cesc'
+
+                            const getGenixData = (cap: typeof capKey) => {
+                              if (cap === '200Ah') return { desc: 'Battery 51.2V 200Ah', rate: 65000 }
+                              if (cap === '100Ah') return { desc: 'Genix Green Lithium Battery 102.4V 100Ah', rate: 90000 }
+                              return { desc: 'Genix Green Lithium Battery 51.2V 314Ah', rate: 85000 }
+                            }
+
+                            const getDynessData = (cap: typeof capKey) => {
+                              if (cap === '100Ah') return { desc: 'Dyness Battery 100Ah (51.2V)', rate: 43000 }
+                              return { desc: 'Dyness Battery 314Ah (51.2V)', rate: 88000 }
+                            }
+
+                            const getCescData = (cap: typeof capKey) => {
+                              if (cap === '261kW') return { desc: 'CESC 261 kW Power', rate: 2400000 }
+                              return { desc: 'CESC 51.2V DC / 314A', rate: 88000 }
+                            }
+
+                            const genixInfo = getGenixData(capKey)
+                            const dynessInfo = getDynessData(capKey)
+                            const cescInfo = getCescData(capKey)
+
+                            const applySelection = (newDesc: string, newRate: number) => {
+                              updateItem(item.id, 'description', newDesc)
+                              updateItem(item.id, 'rate', newRate)
+                            }
+
+                            return (
+                              <div className="flex flex-col gap-2 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
+                                {/* 1. Capacity Quick Select Buttons */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Capacity:</span>
+                                  
+                                  {/* 100Ah */}
+                                  <button
+                                    type="button"
+                                    disabled={!cap100Avail}
+                                    onClick={() => {
+                                      const b = activeBrand === 'cesc' ? 'genix' : activeBrand
+                                      const data = b === 'dyness' ? getDynessData('100Ah') : getGenixData('100Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                      capKey === '100Ah'
+                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                        : cap100Avail
+                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!cap100Avail ? "100Ah is not available for CESC" : "100Ah Battery"}
+                                  >
+                                    100Ah
+                                  </button>
+
+                                  {/* 200Ah */}
+                                  <button
+                                    type="button"
+                                    disabled={!cap200Avail}
+                                    onClick={() => {
+                                      const data = getGenixData('200Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                      capKey === '200Ah'
+                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                        : cap200Avail
+                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!cap200Avail ? "200Ah is only available for Genix Green" : "200Ah Battery"}
+                                  >
+                                    200Ah
+                                  </button>
+
+                                  {/* 314Ah */}
+                                  <button
+                                    type="button"
+                                    disabled={!cap314Avail}
+                                    onClick={() => {
+                                      const data = activeBrand === 'genix' ? getGenixData('314Ah') : activeBrand === 'dyness' ? getDynessData('314Ah') : getCescData('314Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                      capKey === '314Ah'
+                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                        : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                    )}
+                                    title="314Ah Battery"
+                                  >
+                                    314Ah
+                                  </button>
+
+                                  {/* 261kW */}
+                                  <button
+                                    type="button"
+                                    disabled={!cap261Avail}
+                                    onClick={() => {
+                                      const data = getCescData('261kW')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                      capKey === '261kW'
+                                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                        : cap261Avail
+                                          ? "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!cap261Avail ? "261kW is only available for CESC" : "261kW Battery Power System"}
+                                  >
+                                    261kW
+                                  </button>
+                                </div>
+
+                                {/* 2. Brand Selector SVG Buttons */}
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    disabled={!genixAvail}
+                                    onClick={() => {
+                                      const cap = capKey === '261kW' ? '314Ah' : capKey
+                                      const data = getGenixData(cap)
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'genix' && genixAvail
+                                        ? "bg-green-50 dark:bg-green-950/40 border-green-500/60 ring-2 ring-green-500/40 shadow-sm"
+                                        : genixAvail
+                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!genixAvail ? "Genix Green is not available for 261kW" : `Genix Green - ₱${genixInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/genixgreen.svg" alt="Genix Green" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={!dynessAvail}
+                                    onClick={() => {
+                                      const cap = (capKey === '200Ah' || capKey === '261kW') ? '314Ah' : capKey
+                                      const data = getDynessData(cap)
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'dyness' && dynessAvail
+                                        ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
+                                        : dynessAvail
+                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!dynessAvail ? `Dyness is not available for ${capKey}` : `Dyness - ₱${dynessInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={!cescAvail}
+                                    onClick={() => {
+                                      const cap = (capKey === '100Ah' || capKey === '200Ah') ? '314Ah' : capKey
+                                      const data = getCescData(cap)
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'cesc' && cescAvail
+                                        ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/40 shadow-sm"
+                                        : cescAvail
+                                          ? "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                          : "opacity-30 border-[#E5E5E5] dark:border-[#333333] cursor-not-allowed bg-secondary/20"
+                                    )}
+                                    title={!cescAvail ? `CESC is not available for ${capKey}` : `CESC - ₱${cescInfo.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/cesc.svg" alt="CESC" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )
+                          })()}
                         </div>
                       )
                     })}
