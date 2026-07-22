@@ -2224,7 +2224,8 @@ export default function Home() {
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
 
-                      const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
+                      const isBatteryAccessory = descLower.includes('mccb') || descLower.includes('cable') || descLower.includes('breaker')
+                      const isBatteryItem = !isBatteryAccessory && (descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v'))
 
                       let genixPrice = 85000
                       if (descLower.includes('200ah')) {
