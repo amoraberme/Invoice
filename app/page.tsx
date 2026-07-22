@@ -1769,13 +1769,13 @@ export default function Home() {
                 </div>
 
                 {/* Floor Chooser */}
-                <div className="mt-4 p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[16px] text-left">
+                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                       🏢 Floor Selection
                     </h4>
                     {selectedFloor && (
-                      <span className="text-[9px] bg-[#E8F5E9] text-[#2E7D32] px-2 py-0.5 rounded-[12px] font-bold border border-[#C8E6C9]">
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-[12px] font-bold border border-emerald-500/20">
                         Auto-Synced
                       </span>
                     )}
@@ -1791,8 +1791,8 @@ export default function Home() {
                           className={cn(
                             "h-9 rounded-[8px] flex items-center justify-center text-[11px] font-bold transition-all relative border cursor-pointer select-none",
                             isSelected 
-                              ? "bg-[#111111] text-[#FFFFFF] border-[#111111] shadow-[0_2px_8px_rgba(0,0,0,0.15)] scale-[1.02] z-10" 
-                              : "bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#555555] border-[#E5E5E5]"
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02] z-10" 
+                              : "bg-secondary/50 hover:bg-secondary text-muted-foreground border-border"
                           )}
                         >
                           F{floorNum}
@@ -1816,45 +1816,44 @@ export default function Home() {
                     Reference recommended system capacity (kW) based on monthly electric bill.
                   </p>
 
-                  <div className="border border-border rounded-[12px] overflow-hidden bg-background">
-                    <div className="grid grid-cols-2 bg-secondary/70 px-3 py-2 border-b border-border text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                      <span>Monthly Bill (₱)</span>
-                      <span className="text-right">Recommended Setup</span>
-                    </div>
-                    <div className="divide-y divide-border/60 max-h-[260px] overflow-y-auto">
-                      {ELECTRIC_BILL_PRICE_REFERENCES.map((ref, idx) => {
-                        const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(ref.kw) !== null)
-                        const isDisabled = systemType === 'ongrid' && !hasOnGridOption
-                        const isSelected = activeKwSetup === ref.kw
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {ELECTRIC_BILL_PRICE_REFERENCES.map((ref, idx) => {
+                      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(ref.kw) !== null)
+                      const isDisabled = systemType === 'ongrid' && !hasOnGridOption
+                      const isSelected = activeKwSetup === ref.kw
 
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            disabled={isDisabled}
-                            onClick={() => {
-                              if (isDisabled) return
-                              setActiveKwSetup(ref.kw)
-                              handleGenerateBoq(ref.kw, activePreset)
-                            }}
-                            className={cn(
-                              "w-full grid grid-cols-2 px-3 py-2 text-xs transition-colors select-none text-left items-center",
-                              isDisabled
-                                ? "opacity-35 bg-secondary/20 cursor-not-allowed pointer-events-none line-through"
-                                : isSelected
-                                  ? "bg-primary/10 font-bold text-primary cursor-pointer"
-                                  : "hover:bg-secondary/50 text-foreground cursor-pointer"
-                            )}
-                            title={isDisabled ? "Not available in On-Grid database" : `Click to apply ${ref.kw}kW Setup`}
-                          >
-                            <span className="font-mono text-[11px] font-semibold">{ref.bill}</span>
-                            <span className="text-right font-mono text-[11px] font-bold">
-                              {ref.kw} kW
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (isDisabled) return
+                            setActiveKwSetup(ref.kw)
+                            handleGenerateBoq(ref.kw, activePreset)
+                          }}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 text-xs rounded-[10px] border transition-all select-none text-left cursor-pointer",
+                            isDisabled
+                              ? "opacity-35 bg-secondary/20 border-border cursor-not-allowed pointer-events-none line-through text-muted-foreground"
+                              : isSelected
+                                ? "bg-primary/10 border-primary font-bold text-primary shadow-xs scale-[1.01]"
+                                : "bg-background hover:bg-secondary/60 border-border text-foreground"
+                          )}
+                          title={isDisabled ? "Not available in On-Grid database" : `Click to apply ${ref.kw}kW Setup`}
+                        >
+                          <span className="font-mono text-[11px] font-semibold">{ref.bill}</span>
+                          <span className={cn(
+                            "font-mono text-[11px] font-bold px-2 py-0.5 rounded-[6px] border transition-colors",
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-secondary/80 text-foreground border-border/60"
+                          )}>
+                            {ref.kw} kW
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
 
