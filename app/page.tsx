@@ -2486,7 +2486,7 @@ export default function Home() {
                             let activeBrand: 'genix' | 'dyness' | 'cesc' = 'cesc'
                             if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
                               activeBrand = 'genix'
-                            } else if (descLower.includes('dyness') || item.rate === 43000) {
+                            } else if (descLower.includes('dyness') || item.rate === 43000 || item.rate === 111000) {
                               activeBrand = 'dyness'
                             } else if (descLower.includes('cesc') || item.rate === 2400000 || item.rate === 88000) {
                               activeBrand = 'cesc'
@@ -2499,7 +2499,8 @@ export default function Home() {
                             }
 
                             const getDynessData = (cap: typeof capKey) => {
-                              return { desc: 'Battery 51.2V 100Ah', rate: 43000 }
+                              if (cap === '314Ah') return { desc: 'Dyness Battery 51.2V 314Ah', rate: 111000 }
+                              return { desc: 'Dyness Battery 51.2V 100Ah', rate: 43000 }
                             }
 
                             const getCescData = (cap: typeof capKey) => {
@@ -2537,7 +2538,8 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const data = getDynessData('100Ah')
+                                      const cap = (capKey === '200Ah' || capKey === '261kW') ? '314Ah' : capKey
+                                      const data = getDynessData(cap)
                                       applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
@@ -2632,22 +2634,41 @@ export default function Home() {
 
                                   {/* Dyness Capacities */}
                                   {activeBrand === 'dyness' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const data = getDynessData('100Ah')
-                                        applySelection(data.desc, data.rate)
-                                      }}
-                                      className={cn(
-                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
-                                        capKey === '100Ah'
-                                          ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                          : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
-                                      )}
-                                      title="100Ah - ₱43,000.00"
-                                    >
-                                      100Ah
-                                    </button>
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getDynessData('100Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '100Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="100Ah - ₱43,000.00"
+                                      >
+                                        100Ah
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getDynessData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '314Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="314Ah - ₱111,000.00"
+                                      >
+                                        314Ah
+                                      </button>
+                                    </>
                                   )}
 
                                   {/* CESC Capacities */}

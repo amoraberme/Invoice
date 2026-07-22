@@ -53,7 +53,8 @@ export function MGInvoicePreview({
 
   const rateMarkup = invoice.rateMarkup || 0
   const subtotal = invoice.lineItems.reduce((sum, item) => {
-    const isBatteryItem = item.description.toLowerCase().includes('battery')
+    const descLower = (item.description || '').toLowerCase()
+    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
     if (invoice.excludeBattery && isBatteryItem) {
       return sum
     }
@@ -139,7 +140,8 @@ export function MGInvoicePreview({
     }
     
     const itemsToPlace = [...inv.lineItems].filter(item => {
-      const isBatteryItem = item.description.toLowerCase().includes('battery')
+      const descLower = (item.description || '').toLowerCase()
+      const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
       return !(inv.excludeBattery && isBatteryItem)
     })
     
