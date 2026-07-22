@@ -654,6 +654,44 @@ export default function Home() {
     }))
   }
 
+  const handleToggleBatteryExclusion = () => {
+    const nextExclude = !invoice.excludeBattery
+    setInvoice(prev => {
+      let updatedItems = [...prev.lineItems]
+
+      if (!nextExclude) {
+        // User is INCLUDING battery: make sure at least one battery item exists
+        const hasBattery = updatedItems.some(item => {
+          const d = item.description.toLowerCase()
+          return d.includes('battery') || d.includes('dyness') || d.includes('genix') || d.includes('cesc')
+        })
+
+        if (!hasBattery) {
+          let batteryQty = 1
+          if (activeKwSetup >= 12 && activeKwSetup < 24) batteryQty = 2
+          else if (activeKwSetup >= 24) batteryQty = Math.ceil(activeKwSetup / 12)
+
+          const panelIdx = updatedItems.findIndex(i => i.description.toLowerCase().includes('panel'))
+          const insertIdx = panelIdx !== -1 ? panelIdx + 1 : 1
+
+          updatedItems.splice(insertIdx, 0, {
+            id: `boq-20-${Date.now()}`,
+            description: `Battery 314Ah (51.2V)`,
+            quantity: batteryQty,
+            rate: 88000.00,
+            unit: 'PC'
+          })
+        }
+      }
+
+      return {
+        ...prev,
+        excludeBattery: nextExclude,
+        lineItems: updatedItems
+      }
+    })
+  }
+
   useEffect(() => {
     if (!loaded) return
     const panelItem = invoice.lineItems.find(it => it.description.toLowerCase().includes('panel'))
@@ -1088,8 +1126,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 20. Battery (only included if Hybrid and not excluded)
-    if (systemType === 'hybrid' && !invoice.excludeBattery) {
+    // 20. Battery (included for Hybrid setup, excludeBattery flag toggles display/totals)
+    if (systemType === 'hybrid') {
       items.push({
         id: `boq-20-${now}`,
         description: `Battery 314Ah (51.2V)`,
@@ -2176,7 +2214,7 @@ export default function Home() {
                       type="button"
                       variant={invoice.excludeBattery ? "default" : "outline"}
                       size="sm"
-                      onClick={() => update('excludeBattery', !invoice.excludeBattery)}
+                      onClick={handleToggleBatteryExclusion}
                       className={cn(
                         "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
                         invoice.excludeBattery
@@ -2205,8 +2243,9 @@ export default function Home() {
                   {/* Item rows */}
                   {invoice.lineItems
                     .filter((item) => {
-                      const isBatteryItem = item.description.toLowerCase().includes('battery')
-                      return !(invoice.excludeBattery && isBatteryItem)
+                      const descLower = item.description.toLowerCase()
+                      const isBatteryRelated = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
+                      return !(invoice.excludeBattery && isBatteryRelated)
                     })
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
