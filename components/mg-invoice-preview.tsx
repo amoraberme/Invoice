@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -16,12 +16,14 @@ export function MGInvoicePreview({
   invoice, 
   hoveredField,
   onOpenCheatsheet,
-  onPagesChange
+  onPagesChange,
+  onToggleCondensed
 }: { 
   invoice: Invoice; 
   hoveredField?: string | null;
   onOpenCheatsheet?: () => void;
   onPagesChange?: (count: number) => void;
+  onToggleCondensed?: (isCondensed: boolean) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -52,7 +54,12 @@ export function MGInvoicePreview({
   }, [])
 
   const rateMarkup = invoice.rateMarkup || 0
-  const subtotal = invoice.lineItems.reduce((sum, item) => {
+  const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : invoice.lineItems
+  const subtotal = displayItems.reduce((sum, item) => {
+    const isCondensedItem = item.id.startsWith('condensed-')
+    if (isCondensedItem) {
+      return sum + item.quantity * item.rate
+    }
     const descLower = (item.description || '').toLowerCase()
     const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
     if (invoice.excludeBattery && isBatteryItem) {
@@ -139,11 +146,13 @@ export function MGInvoicePreview({
       return 30 + itemLines * 19
     }
     
-    const itemsToPlace = [...inv.lineItems].filter(item => {
-      const descLower = (item.description || '').toLowerCase()
-      const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
-      return !(inv.excludeBattery && isBatteryItem)
-    })
+    const itemsToPlace = inv.isCondensed
+      ? getCondensedLineItems(inv)
+      : [...inv.lineItems].filter(item => {
+          const descLower = (item.description || '').toLowerCase()
+          const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
+          return !(inv.excludeBattery && isBatteryItem)
+        })
     
     while (itemsToPlace.length > 0) {
       const item = itemsToPlace[0]
@@ -270,6 +279,40 @@ export function MGInvoicePreview({
       ref={canvasRef}
       className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
+      {/* Quotation Format Pill Toggle */}
+      <div className="mb-4 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border shadow-xs z-10 select-none">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          Quotation Format:
+        </span>
+        <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
+          <button
+            type="button"
+            onClick={() => onToggleCondensed?.(true)}
+            className={cn(
+              "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+              invoice.isCondensed
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Condensed brief breakdown: Solar Panels, Inverter, Battery, Materials, Electrical, Services"
+          >
+            📦 [Condensed]
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleCondensed?.(false)}
+            className={cn(
+              "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+              !invoice.isCondensed
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Comprehensive detailed itemized breakdown"
+          >
+            📋 [Comprehensive]
+          </button>
+        </div>
+      </div>
       {virtualPages.map((page, pageIndex) => {
         return (
           <div key={pageIndex} className={cn("mb-8 last:mb-0 print:mb-0", pageIndex < totalPages - 1 && "print-break")}>
@@ -393,9 +436,10 @@ export function MGInvoicePreview({
                       </span>
                     </div>
                     {page.items.map((item) => {
-                      const isLabor = item.description.toLowerCase().trim() === 'labor and installation'
-                      const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
-                      const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
+                      const isCondensedItem = item.id.startsWith('condensed-')
+                      const isLabor = !isCondensedItem && item.description.toLowerCase().trim() === 'labor and installation'
+                      const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
+                      const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
                       return (
                         <div key={item.id} className={cn("flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">

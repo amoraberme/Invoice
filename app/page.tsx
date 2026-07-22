@@ -2205,27 +2205,45 @@ export default function Home() {
                   </Field>
                 </div>
 
-                <div className="flex justify-between items-center pt-2 border-t border-[#E5E5E5] mt-1">
+                <div className="flex justify-between items-center pt-2 border-t border-[#E5E5E5] mt-1 gap-2 flex-wrap">
                   <span className="text-[10px] font-bold text-[#888888] tracking-wider uppercase">
                     Quick Actions
                   </span>
-                  {systemType === 'hybrid' && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Button
                       type="button"
-                      variant={invoice.excludeBattery ? "default" : "outline"}
+                      variant={invoice.isCondensed ? "default" : "outline"}
                       size="sm"
-                      onClick={handleToggleBatteryExclusion}
+                      onClick={() => update('isCondensed', !invoice.isCondensed)}
                       className={cn(
-                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
-                        invoice.excludeBattery
+                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 flex items-center gap-1",
+                        invoice.isCondensed
                           ? "bg-black text-white hover:bg-black/90 border-black"
                           : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
                       )}
-                      title={invoice.excludeBattery ? "Include battery items in the invoice again" : "Temporarily exclude battery items from the invoice"}
+                      title={invoice.isCondensed ? "Currently in Condensed mode. Click to switch to Comprehensive itemized view." : "Currently in Comprehensive mode. Click to switch to Condensed breakdown (Solar Panels, Inverter, Battery, Materials, Electrical, Services)."}
                     >
-                      {invoice.excludeBattery ? "➕ INCLUDE BATTERY" : "➖ EXCLUDE BATTERY"}
+                      {invoice.isCondensed ? "📦 [Condensed]" : "📋 [Comprehensive]"}
                     </Button>
-                  )}
+
+                    {systemType === 'hybrid' && (
+                      <Button
+                        type="button"
+                        variant={invoice.excludeBattery ? "default" : "outline"}
+                        size="sm"
+                        onClick={handleToggleBatteryExclusion}
+                        className={cn(
+                          "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
+                          invoice.excludeBattery
+                            ? "bg-black text-white hover:bg-black/90 border-black"
+                            : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                        )}
+                        title={invoice.excludeBattery ? "Include battery items in the invoice again" : "Temporarily exclude battery items from the invoice"}
+                      >
+                        {invoice.excludeBattery ? "➕ INCLUDE BATTERY" : "➖ EXCLUDE BATTERY"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 pt-2">
@@ -2833,7 +2851,7 @@ export default function Home() {
             </div>
           </>
         )}
-        <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} />
+        <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} onToggleCondensed={(val) => update('isCondensed', val)} />
       </div>
     </div>
 

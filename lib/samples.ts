@@ -15,6 +15,7 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   rateMarkup: 25,
   excludeLaborMarkup: false,
   excludeBattery: false,
+  isCondensed: false,
   theme: 'light',
   bankBeneficiary: '',
   bankName: '',
