@@ -259,10 +259,18 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
   return { quantity, unit };
 }
 
+function getPanelDimensions(wattageStr: string): string {
+  const num = parseInt(wattageStr.replace(/\D/g, ''), 10) || 625
+  if (num >= 720) {
+    return '7.82ft x 4.28ft'
+  }
+  return '7.82ft x 3.72ft'
+}
+
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
-    2: { desc: "Panel 625W", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
+    2: { desc: "Panel 625W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
     3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
@@ -533,9 +541,90 @@ const SOLAR_PRICES = {
   BatteryCable: 600.00
 };
 
+interface PanelOption {
+  wattage: string
+  rate: number
+}
+
+interface PanelBrandOption {
+  id: string
+  name: string
+  logo?: string
+  options: PanelOption[]
+}
+
+const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
+  {
+    id: 'tongwei',
+    name: 'Tongwei',
+    logo: '/TW.svg',
+    options: [
+      { wattage: '620W', rate: 4960 },
+      { wattage: '625W', rate: 5000 },
+      { wattage: '630W', rate: 5544 },
+      { wattage: '720W', rate: 6336 },
+      { wattage: '725W', rate: 6380 },
+      { wattage: '730W', rate: 6424 },
+    ],
+  },
+  {
+    id: 'ja',
+    name: 'JA Solar',
+    logo: '/JaSo.svg',
+    options: [
+      { wattage: '625W', rate: 6400 },
+      { wattage: '630W', rate: 6900 },
+      { wattage: '720W', rate: 6900 },
+    ],
+  },
+  {
+    id: 'runergy',
+    name: 'Runergy',
+    logo: '/runergy.svg',
+    options: [
+      { wattage: '620W', rate: 4960 },
+    ],
+  },
+  {
+    id: 'jinko',
+    name: 'Jinko',
+    logo: '/jinko.svg',
+    options: [
+      { wattage: '640W', rate: 7700 },
+      { wattage: '725W', rate: 7700 },
+    ],
+  },
+  {
+    id: 'gokin',
+    name: 'Gokin',
+    logo: '/gokin.svg',
+    options: [
+      { wattage: '650W', rate: 6400 },
+    ],
+  },
+  {
+    id: 'longi',
+    name: 'Longi',
+    logo: '/longi.svg',
+    options: [
+      { wattage: '650W', rate: 6500 },
+    ],
+  },
+  {
+    id: 'ian',
+    name: 'IAN Solar',
+    logo: '/ian.svg',
+    options: [
+      { wattage: '660W', rate: 6300 },
+      { wattage: '670W', rate: 6400 },
+    ],
+  },
+]
+
 export default function Home() {
   const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [selectedPanelBrands, setSelectedPanelBrands] = useState<Record<string, string>>({})
 
   const handleAddItem = () => {
     addItem()
@@ -1120,7 +1209,7 @@ export default function Home() {
     // 2. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Panel 625W`,
+      description: `Panel 625W (7.82ft x 3.72ft)`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
@@ -2266,7 +2355,7 @@ export default function Home() {
                     })
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
-                      const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei')
+                      const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar')
                       const isTongweiSelected = item.rate === 4960
 
                       const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways')
@@ -2361,39 +2450,115 @@ export default function Home() {
                             </Button>
                           </div>
 
-                          {isPanelItem && (
-                            <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
-                              <div className="inline-flex gap-3 items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', 6300)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    !isTongweiSelected
-                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 ring-2 ring-amber-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title="JA Solar - ₱6,300.00 each"
-                                >
-                                  <img src="/JaSo.svg" alt="JA Solar" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                          {isPanelItem && (() => {
+                            const wattMatch = item.description.match(/(\d{3})\s*w/i)
+                            const currentWattage = wattMatch ? `${wattMatch[1]}W` : null
 
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', 4960)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isTongweiSelected
-                                      ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title="Tongwei - ₱4,960.00 each"
-                                >
-                                  <img src="/TW.svg" alt="Tongwei" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                            const storedBrand = selectedPanelBrands[item.id]
+                            let activeBrandId = storedBrand
+
+                            if (!activeBrandId || !SOLAR_PANEL_BRANDS.some(b => b.id === activeBrandId)) {
+                              if (descLower.includes('gokin')) {
+                                activeBrandId = 'gokin'
+                              } else if (descLower.includes('ian')) {
+                                activeBrandId = 'ian'
+                              } else if (descLower.includes('runergy')) {
+                                activeBrandId = 'runergy'
+                              } else if (descLower.includes('jinko')) {
+                                activeBrandId = 'jinko'
+                              } else if (descLower.includes('longi')) {
+                                activeBrandId = 'longi'
+                              } else if (descLower.includes('tongwei')) {
+                                activeBrandId = 'tongwei'
+                              } else if (descLower.includes('ja')) {
+                                activeBrandId = 'ja'
+                              } else if (item.rate === 7700) {
+                                activeBrandId = 'jinko'
+                              } else if (item.rate === 6500) {
+                                activeBrandId = 'longi'
+                              } else if ([4960, 5000, 5544, 6336, 6380, 6424].includes(item.rate)) {
+                                activeBrandId = 'tongwei'
+                              } else if ([6400, 6300, 6900].includes(item.rate)) {
+                                activeBrandId = 'ja'
+                              } else {
+                                activeBrandId = 'ja'
+                              }
+                            }
+
+                            const activeBrandObj = SOLAR_PANEL_BRANDS.find(b => b.id === activeBrandId) || SOLAR_PANEL_BRANDS[1]
+
+                            let activeWattage = currentWattage
+                            if (!activeWattage) {
+                              const matchedOpt = activeBrandObj.options.find(o => o.rate === item.rate)
+                              activeWattage = matchedOpt ? matchedOpt.wattage : activeBrandObj.options[0].wattage
+                            }
+
+                            const applyPanelSelection = (brandObj: PanelBrandOption, option: PanelOption) => {
+                              setSelectedPanelBrands(prev => ({ ...prev, [item.id]: brandObj.id }))
+                              const dims = getPanelDimensions(option.wattage)
+                              updateItem(item.id, 'description', `Panel ${option.wattage} (${dims})`)
+                              updateItem(item.id, 'rate', option.rate)
+                            }
+
+                            return (
+                              <div className="flex flex-col gap-2 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
+                                {/* 1. Brand Selector Row */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Brand:</span>
+                                  {SOLAR_PANEL_BRANDS.map((b) => {
+                                    const isSelected = activeBrandId === b.id
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        onClick={() => {
+                                          const targetOpt = b.options.find(o => o.wattage === activeWattage) || b.options[0]
+                                          applyPanelSelection(b, targetOpt)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-1.5 rounded-lg border transition-all cursor-pointer select-none min-h-[34px]",
+                                          isSelected
+                                            ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 ring-2 ring-amber-500/40 shadow-sm"
+                                            : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100"
+                                        )}
+                                        title={`${b.name} Solar Panels`}
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[80px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1.5 py-0.5 text-foreground">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+
+                                {/* 2. Wattage Chooser Buttons Row */}
+                                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-dotted border-[#E5E5E5] dark:border-[#333333]">
+                                  <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Wattage:</span>
+                                  {activeBrandObj.options.map((opt) => {
+                                    const isWattageSelected = (currentWattage === opt.wattage || activeWattage === opt.wattage) && item.rate === opt.rate
+                                    return (
+                                      <button
+                                        key={opt.wattage}
+                                        type="button"
+                                        onClick={() => applyPanelSelection(activeBrandObj, opt)}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          isWattageSelected
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
+                                        )}
+                                        title={`${opt.wattage} - ₱${opt.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                      >
+                                        {opt.wattage}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )
+                          })()}
 
                           {isInverterItem && (
                             <div className="flex flex-col gap-1.5 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
