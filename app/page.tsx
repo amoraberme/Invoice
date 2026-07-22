@@ -420,6 +420,79 @@ function getInverterBrandPrices(kw: number) {
   return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 68000, goodwe: 78000 }
 }
 
+interface OnGridBrandInfo {
+  id: string
+  name: string
+  logo?: string
+  getPrice: (kw: number) => number | null
+}
+
+const ON_GRID_BRANDS: OnGridBrandInfo[] = [
+  {
+    id: 'goodwe',
+    name: 'GoodWe',
+    logo: '/goodwe.svg',
+    getPrice: (kw: number) => {
+      if (kw === 1.5) return 15000
+      if (kw === 3) return 18000
+      if (kw === 6) return 24000
+      if (kw === 10) return 37000
+      return null
+    }
+  },
+  {
+    id: 'solis',
+    name: 'Solis',
+    logo: '/solis.svg',
+    getPrice: (kw: number) => {
+      if (kw >= 3 && kw <= 5) return 25600
+      if (kw === 6) return 40000
+      if (kw === 10) return 71000
+      return null
+    }
+  },
+  {
+    id: 'hypontech',
+    name: 'Hypontech',
+    logo: '/Hypontech.svg',
+    getPrice: (kw: number) => {
+      if (kw === 8) return 33000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 41500
+      return null
+    }
+  },
+  {
+    id: 'solax',
+    name: 'SolaX',
+    logo: '/SolaX.svg',
+    getPrice: (kw: number) => {
+      if (kw === 8) return 34500
+      if (kw === 10) return 37500
+      return null
+    }
+  },
+  {
+    id: 'foxess',
+    name: 'FoxESS',
+    logo: '/FoxESS.svg',
+    getPrice: (kw: number) => {
+      if (kw === 8) return 38000
+      return null
+    }
+  },
+  {
+    id: 'sunways',
+    name: 'Sunways',
+    logo: '/Sunways.svg',
+    getPrice: (kw: number) => {
+      if (kw === 8) return 39500
+      if (kw === 10) return 44500
+      return null
+    }
+  }
+]
+
+
 const SOLAR_PRICES = {
   Inverter: 68000.00,
   Panel: 6300.00,
@@ -491,8 +564,57 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
+  const [systemType, setSystemType] = useState<'hybrid' | 'ongrid'>('hybrid')
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
+
+  const handleSystemTypeChange = (type: 'hybrid' | 'ongrid') => {
+    setSystemType(type)
+    const isExclude = type === 'ongrid'
+    update('excludeBattery', isExclude)
+
+    const updatedItems = invoice.lineItems.map(item => {
+      const descLower = item.description.toLowerCase()
+      if (
+        descLower.includes('inverter') ||
+        descLower.includes('goodwe') ||
+        descLower.includes('solis') ||
+        descLower.includes('anern') ||
+        descLower.includes('hypontech') ||
+        descLower.includes('solax') ||
+        descLower.includes('foxess') ||
+        descLower.includes('sunways')
+      ) {
+        const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
+        const kw = kwMatch ? parseFloat(kwMatch[1]) : activeKwSetup
+
+        if (type === 'ongrid') {
+          const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(kw) !== null)
+          const price = defaultBrand ? defaultBrand.getPrice(kw)! : 25600
+          const brandName = defaultBrand ? defaultBrand.name : 'On-Grid'
+          return {
+            ...item,
+            description: `Inverter ${kw}kW On-Grid`,
+            rate: price
+          }
+        } else {
+          const brandPrices = getInverterBrandPrices(kw)
+          return {
+            ...item,
+            description: `Inverter ${kw}kW Hybrid`,
+            rate: brandPrices.solis
+          }
+        }
+      }
+      return item
+    })
+
+    setInvoice(prev => ({
+      ...prev,
+      excludeBattery: isExclude,
+      lineItems: updatedItems
+    }))
+  }
 
   useEffect(() => {
     if (!loaded) return
@@ -890,15 +1012,26 @@ export default function Home() {
     const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
-    const inverterSizes = [4, 5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
+    const inverterSizes = [1.5, 3, 4, 5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
     let inverterKw = inverterSizes.find(s => s >= systemKw)
     if (inverterKw === undefined) {
       inverterKw = Math.ceil(systemKw)
     }
     
-    const brandPrices = getInverterBrandPrices(inverterKw)
-    let inverterDesc = `Inverter ${inverterKw}kW Hybrid`
-    let inverterPrice = brandPrices.solis
+    let inverterDesc = ''
+    let inverterPrice = 0
+
+    if (systemType === 'ongrid') {
+      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
+      const price = defaultBrand ? defaultBrand.getPrice(inverterKw)! : 25600
+      const brandName = defaultBrand ? defaultBrand.name : 'On-Grid'
+      inverterDesc = `Inverter ${inverterKw}kW On-Grid`
+      inverterPrice = price
+    } else {
+      const brandPrices = getInverterBrandPrices(inverterKw)
+      inverterDesc = `Inverter ${inverterKw}kW Hybrid`
+      inverterPrice = brandPrices.solis
+    }
 
     items.push({
       id: `boq-1-${now}`,
@@ -917,14 +1050,16 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 20. Battery
-    items.push({
-      id: `boq-20-${now}`,
-      description: `Battery 314Ah (51.2V)`,
-      quantity: batteryQty,
-      rate: 88000.00,
-      unit: 'PC'
-    })
+    // 20. Battery (only included if Hybrid and not excluded)
+    if (systemType === 'hybrid' && !invoice.excludeBattery) {
+      items.push({
+        id: `boq-20-${now}`,
+        description: `Battery 314Ah (51.2V)`,
+        quantity: batteryQty,
+        rate: 88000.00,
+        unit: 'PC'
+      })
+    }
 
     // 3. Railings
     const railingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
@@ -1363,19 +1498,14 @@ export default function Home() {
 
                 <div 
                   className={cn(
-                    "border border-dashed rounded-[16px] p-6 text-center transition-all bg-[#FFFFFF]",
-                    dragActive ? "border-[#111111] bg-[#F5F5F5]" : "border-[#CCCCCC]"
+                    "border border-dashed rounded-[14px] p-3 text-center transition-all bg-[#FFFFFF] dark:bg-[#1A1A1A] flex flex-col items-center justify-center gap-2",
+                    dragActive ? "border-[#111111] dark:border-white bg-[#F5F5F5] dark:bg-[#222222]" : "border-[#CCCCCC] dark:border-[#444444]"
                   )}
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
-                    Have an existing Purchase Specification sheet? <br />
-                    <span className="text-[11px] font-medium text-foreground">Drop Image or PDF to Extract Configuration Data</span>
-                  </p>
-                  
                   <input 
                     type="file" 
                     ref={fileInputRef}
@@ -1388,22 +1518,54 @@ export default function Home() {
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 bg-transparent hover:bg-gray-50 rounded-md shadow-sm transition-all"
+                    className="w-full py-2.5 px-4 text-xs font-bold border border-gray-300 dark:border-gray-700 text-foreground bg-secondary/80 hover:bg-primary hover:text-primary-foreground rounded-[10px] shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                   >
+                    <Sparkles className="w-4 h-4 text-primary shrink-0" />
                     UPLOAD TECHNICAL SPEC SHEET
                   </Button>
                 </div>
 
                 {/* Solar BOQ System Sizing Setup */}
                 <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
-                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-2">
-                    Solar BOQ Sizing Setup
-                  </h4>
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                      Solar BOQ Sizing Setup
+                    </h4>
+                    <div className="flex gap-1.5 bg-secondary p-1 rounded-[10px] border border-border">
+                      <button
+                        type="button"
+                        onClick={() => handleSystemTypeChange('hybrid')}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
+                          systemType === 'hybrid'
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        ⚡ Hybrid
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSystemTypeChange('ongrid')}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
+                          systemType === 'ongrid'
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        🌐 On-Grid
+                      </button>
+                    </div>
+                  </div>
                   <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-                    Generate a complete 23-item BOQ according to system capacity sizing rules.
+                    Generate a complete BOQ ({systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'}) according to system capacity sizing rules.
                   </p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    {[4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
+                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
+                      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
+                      const isDisabled = systemType === 'ongrid' && !hasOnGridOption
+
                       const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
                       let calculatedPanelQty = maxPanels
                       if (activePreset === 'min') {
@@ -1427,15 +1589,20 @@ export default function Home() {
                       return (
                         <button
                           key={kw}
+                          disabled={isDisabled}
                           onClick={() => {
+                            if (isDisabled) return
                             setActiveKwSetup(kw)
                             handleGenerateBoq(kw, activePreset)
                           }}
+                          title={isDisabled ? `Not available in On-Grid database` : undefined}
                           className={cn(
-                            "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none select-none font-semibold",
-                            isSelected
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground"
+                            "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all select-none font-semibold",
+                            isDisabled
+                              ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
+                              : isSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                           )}
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
@@ -1448,17 +1615,21 @@ export default function Home() {
 
                   <div className="border-t border-border pt-3 mt-3">
                     <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                      Apply by Custom kW Setup
+                      Apply by Custom kW Setup {systemType === 'ongrid' && "(Disabled for On-Grid)"}
                     </label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
                         step="0.01"
                         min="0"
+                        disabled={systemType === 'ongrid'}
                         value={customKwInput}
                         onChange={(e) => setCustomKwInput(e.target.value)}
-                        placeholder="e.g. 7.5"
-                        className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary flex-1"
+                        placeholder={systemType === 'ongrid' ? "Disabled for On-Grid" : "e.g. 7.5"}
+                        className={cn(
+                          "bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary flex-1",
+                          systemType === 'ongrid' && "opacity-50 cursor-not-allowed bg-secondary/30"
+                        )}
                       />
                       <Button
                         onClick={() => {
@@ -1468,10 +1639,10 @@ export default function Home() {
                             handleGenerateBoq(val, activePreset)
                           }
                         }}
-                        disabled={!customKwInput || parseFloat(customKwInput) <= 0}
+                        disabled={systemType === 'ongrid' || !customKwInput || parseFloat(customKwInput) <= 0}
                         variant="default"
                         size="sm"
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0 disabled:opacity-40"
                       >
                         APPLY
                       </Button>
@@ -1998,21 +2169,23 @@ export default function Home() {
                   <span className="text-[10px] font-bold text-[#888888] tracking-wider uppercase">
                     Quick Actions
                   </span>
-                  <Button
-                    type="button"
-                    variant={invoice.excludeBattery ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => update('excludeBattery', !invoice.excludeBattery)}
-                    className={cn(
-                      "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
-                      invoice.excludeBattery
-                        ? "bg-black text-white hover:bg-black/90 border-black"
-                        : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
-                    )}
-                    title={invoice.excludeBattery ? "Include battery items in the invoice again" : "Temporarily exclude battery items from the invoice"}
-                  >
-                    {invoice.excludeBattery ? "➕ INCLUDE BATTERY" : "➖ EXCLUDE BATTERY"}
-                  </Button>
+                  {systemType === 'hybrid' && (
+                    <Button
+                      type="button"
+                      variant={invoice.excludeBattery ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => update('excludeBattery', !invoice.excludeBattery)}
+                      className={cn(
+                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2",
+                        invoice.excludeBattery
+                          ? "bg-black text-white hover:bg-black/90 border-black"
+                          : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      )}
+                      title={invoice.excludeBattery ? "Include battery items in the invoice again" : "Temporarily exclude battery items from the invoice"}
+                    >
+                      {invoice.excludeBattery ? "➕ INCLUDE BATTERY" : "➖ EXCLUDE BATTERY"}
+                    </Button>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 pt-2">
@@ -2038,10 +2211,12 @@ export default function Home() {
                       const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei')
                       const isTongweiSelected = item.rate === 4960
 
-                      const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe')
+                      const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways')
                       const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
                       const itemKw = kwMatch ? parseFloat(kwMatch[1]) : 12
                       const invBrandPrices = getInverterBrandPrices(itemKw)
+
+                      const isItemOnGrid = descLower.includes('on-grid') || systemType === 'ongrid'
 
                       const isInverterAnern = item.rate === invBrandPrices.anern
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
@@ -2162,50 +2337,137 @@ export default function Home() {
                           )}
 
                           {isInverterItem && (
-                            <div className="flex items-center pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
-                              <div className="inline-flex gap-2.5 items-center flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.anern)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isInverterAnern
-                                      ? "bg-red-50 dark:bg-red-950/40 border-red-500/60 ring-2 ring-red-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`Anern - ₱${invBrandPrices.anern.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/anern.svg" alt="Anern" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.solis)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isInverterSolis
-                                      ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500/60 ring-2 ring-orange-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`Solis - ₱${invBrandPrices.solis.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/solis.svg" alt="Solis" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => updateItem(item.id, 'rate', invBrandPrices.goodwe)}
-                                  className={cn(
-                                    "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                    isInverterGoodWe
-                                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/60 ring-2 ring-emerald-500/40 shadow-sm"
-                                      : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                  )}
-                                  title={`GoodWe - ₱${invBrandPrices.goodwe.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                >
-                                  <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto object-contain shrink-0" />
-                                </button>
+                            <div className="flex flex-col gap-1.5 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                                  Inverter Options ({isItemOnGrid ? 'On-Grid' : 'Hybrid'})
+                                </span>
+                                <div className="flex gap-1 bg-secondary/60 p-0.5 rounded-[6px] border border-border">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newDesc = item.description.replace(/On-Grid/i, 'Hybrid')
+                                      const finalDesc = newDesc.includes('Hybrid') ? newDesc : `${newDesc} Hybrid`
+                                      const prices = getInverterBrandPrices(itemKw)
+                                      updateItem(item.id, 'description', finalDesc)
+                                      updateItem(item.id, 'rate', prices.solis)
+                                      setSystemType('hybrid')
+                                      update('excludeBattery', false)
+                                    }}
+                                    className={cn(
+                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none cursor-pointer",
+                                      !isItemOnGrid ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    ⚡ Hybrid
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newDesc = item.description.replace(/Hybrid/i, 'On-Grid')
+                                      const finalDesc = newDesc.includes('On-Grid') ? newDesc : `${newDesc} On-Grid`
+                                      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
+                                      const price = defaultBrand ? defaultBrand.getPrice(itemKw)! : 25600
+                                      updateItem(item.id, 'description', finalDesc)
+                                      updateItem(item.id, 'rate', price)
+                                      setSystemType('ongrid')
+                                      update('excludeBattery', true)
+                                    }}
+                                    className={cn(
+                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none cursor-pointer",
+                                      isItemOnGrid ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                  >
+                                    🌐 On-Grid
+                                  </button>
+                                </div>
                               </div>
+
+                              {isItemOnGrid ? (
+                                <div className="inline-flex gap-1.5 items-center flex-wrap">
+                                  {ON_GRID_BRANDS.map((b) => {
+                                    const brandPrice = b.getPrice(itemKw)
+                                    const isApplicable = brandPrice !== null
+                                    const isSelected = isApplicable && item.rate === brandPrice
+
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        disabled={!isApplicable}
+                                        onClick={() => {
+                                          if (!isApplicable) return
+                                          updateItem(item.id, 'rate', brandPrice)
+                                          updateItem(item.id, 'description', `Inverter ${itemKw}kW On-Grid`)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
+                                          !isApplicable
+                                            ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
+                                            : isSelected
+                                              ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
+                                              : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100 cursor-pointer"
+                                        )}
+                                        title={
+                                          isApplicable
+                                            ? `${b.name} - ₱${brandPrice.toLocaleString()} each`
+                                            : `${b.name} - Not available for ${itemKw}kW setup`
+                                        }
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[90px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="inline-flex gap-2.5 items-center flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.anern)}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      isInverterAnern
+                                        ? "bg-red-50 dark:bg-red-950/40 border-red-500/60 ring-2 ring-red-500/40 shadow-sm"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                    )}
+                                    title={`Anern - ₱${invBrandPrices.anern.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/anern.svg" alt="Anern" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.solis)}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      isInverterSolis
+                                        ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500/60 ring-2 ring-orange-500/40 shadow-sm"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                    )}
+                                    title={`Solis - ₱${invBrandPrices.solis.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/solis.svg" alt="Solis" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.goodwe)}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      isInverterGoodWe
+                                        ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/60 ring-2 ring-emerald-500/40 shadow-sm"
+                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                    )}
+                                    title={`GoodWe - ₱${invBrandPrices.goodwe.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
+                                  >
+                                    <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto object-contain shrink-0" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
 
