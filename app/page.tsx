@@ -492,6 +492,20 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
   }
 ]
 
+const ELECTRIC_BILL_PRICE_REFERENCES = [
+  { bill: '₱5,000 – ₱7,000', kw: 4 },
+  { bill: '₱8,000', kw: 5 },
+  { bill: '₱9,000', kw: 6 },
+  { bill: '₱10,000', kw: 8 },
+  { bill: '₱15,000', kw: 10 },
+  { bill: '₱20,000', kw: 12 },
+  { bill: '₱25,000', kw: 15 },
+  { bill: '₱30,000', kw: 16 },
+  { bill: '₱40,000', kw: 20 },
+  { bill: '₱50,000', kw: 25 },
+  { bill: '₱60,000', kw: 30 },
+  { bill: '₱70,000', kw: 35 },
+]
 
 const SOLAR_PRICES = {
   Inverter: 68000.00,
@@ -573,7 +587,7 @@ export default function Home() {
     const isExclude = type === 'ongrid'
     update('excludeBattery', isExclude)
 
-    const updatedItems = invoice.lineItems.map(item => {
+    let updatedItems = invoice.lineItems.map(item => {
       const descLower = item.description.toLowerCase()
       if (
         descLower.includes('inverter') ||
@@ -591,7 +605,6 @@ export default function Home() {
         if (type === 'ongrid') {
           const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(kw) !== null)
           const price = defaultBrand ? defaultBrand.getPrice(kw)! : 25600
-          const brandName = defaultBrand ? defaultBrand.name : 'On-Grid'
           return {
             ...item,
             description: `Inverter ${kw}kW On-Grid`,
@@ -608,6 +621,31 @@ export default function Home() {
       }
       return item
     })
+
+    if (type === 'ongrid') {
+      // Remove battery rows when switching to On-Grid
+      updatedItems = updatedItems.filter(item => !item.description.toLowerCase().includes('battery'))
+    } else {
+      // Ensure only one single battery line item exists with proper quantity when switching to Hybrid
+      const batteryItems = updatedItems.filter(item => item.description.toLowerCase().includes('battery'))
+      if (batteryItems.length > 1) {
+        // Keep only the first battery item and remove extra duplicate battery rows
+        const firstId = batteryItems[0].id
+        updatedItems = updatedItems.filter(item => !item.description.toLowerCase().includes('battery') || item.id === firstId)
+      } else if (batteryItems.length === 0) {
+        let batteryQty = 1
+        if (activeKwSetup >= 12 && activeKwSetup < 24) batteryQty = 2
+        else if (activeKwSetup >= 24) batteryQty = Math.ceil(activeKwSetup / 12)
+
+        updatedItems.push({
+          id: `boq-20-${Date.now()}`,
+          description: `Battery 314Ah (51.2V)`,
+          quantity: batteryQty,
+          rate: 88000.00,
+          unit: 'PC'
+        })
+      }
+    }
 
     setInvoice(prev => ({
       ...prev,
@@ -1726,94 +1764,58 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Electricity Consumption Calculator */}
+                {/* Electric Bill vs Recommended System Size Reference Table */}
                 <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
-                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-1">
-                    <span>⚡</span> Consumption Calculator
-                  </h4>
-                  
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                          Monthly Consumption (kWh)
-                        </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={monthlyKwh}
-                          onChange={(e) => handleMonthlyKwhChange(e.target.value)}
-                          placeholder="e.g. 500"
-                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
-                        />
-                      </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <span>💡</span> Electric Bill & Sizing Reference
+                    </h4>
+                    <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-[8px] border border-border">
+                      Quick Guide
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+                    Reference recommended system capacity (kW) based on monthly electric bill.
+                  </p>
 
-                      <div>
-                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                          Daily Consumption (kWh)
-                        </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={dailyKwh}
-                          onChange={(e) => handleDailyKwhChange(e.target.value)}
-                          placeholder="e.g. 16.67"
-                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
-                        />
-                      </div>
+                  <div className="border border-border rounded-[12px] overflow-hidden bg-background">
+                    <div className="grid grid-cols-2 bg-secondary/70 px-3 py-2 border-b border-border text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span>Monthly Bill (₱)</span>
+                      <span className="text-right">Recommended Setup</span>
                     </div>
+                    <div className="divide-y divide-border/60 max-h-[260px] overflow-y-auto">
+                      {ELECTRIC_BILL_PRICE_REFERENCES.map((ref, idx) => {
+                        const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(ref.kw) !== null)
+                        const isDisabled = systemType === 'ongrid' && !hasOnGridOption
+                        const isSelected = activeKwSetup === ref.kw
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                          Price per kWh (₱)
-                        </label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={pricePerKwh}
-                          onChange={(e) => handlePricePerKwhChange(e.target.value)}
-                          placeholder="15.01"
-                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                          Total Monthly Bill (₱)
-                        </label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={totalBill}
-                          onChange={(e) => handleTotalBillChange(e.target.value)}
-                          placeholder="e.g. 7500.00"
-                          className="bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div className="flex flex-col gap-0.5 bg-secondary/40 p-2 rounded-[12px] border border-border">
-                        <span className="text-[8px] text-muted-foreground font-mono font-semibold uppercase">Daily Avg</span>
-                        <span className="font-bold text-xs text-foreground font-mono">
-                          {((parseFloat(monthlyKwh) || 0) / 30).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kWh
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-col gap-0.5 bg-secondary/40 p-2 rounded-[12px] border border-border">
-                        <span className="text-[8px] text-muted-foreground font-mono font-semibold uppercase">Recommended Setup</span>
-                        <span className="font-bold text-xs text-foreground font-mono">
-                          {(() => {
-                            const dailyAvg = (parseFloat(monthlyKwh) || 0) / 30
-                            if (dailyAvg <= 0) return '-'
-                            const calculated = ((dailyAvg / 24) / 0.125) * 1.2
-                            return `${calculated.toFixed(2)}kW`
-                          })()}
-                        </span>
-                      </div>
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => {
+                              if (isDisabled) return
+                              setActiveKwSetup(ref.kw)
+                              handleGenerateBoq(ref.kw, activePreset)
+                            }}
+                            className={cn(
+                              "w-full grid grid-cols-2 px-3 py-2 text-xs transition-colors select-none text-left items-center",
+                              isDisabled
+                                ? "opacity-35 bg-secondary/20 cursor-not-allowed pointer-events-none line-through"
+                                : isSelected
+                                  ? "bg-primary/10 font-bold text-primary cursor-pointer"
+                                  : "hover:bg-secondary/50 text-foreground cursor-pointer"
+                            )}
+                            title={isDisabled ? "Not available in On-Grid database" : `Click to apply ${ref.kw}kW Setup`}
+                          >
+                            <span className="font-mono text-[11px] font-semibold">{ref.bill}</span>
+                            <span className="text-right font-mono text-[11px] font-bold">
+                              {ref.kw} kW
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
