@@ -538,6 +538,67 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
       if (kw === 10) return 44500
       return null
     }
+  },
+  {
+    id: 'sungrow',
+    name: 'Sungrow',
+    logo: '/sungrow.svg',
+    getPrice: (kw: number) => {
+      if (kw === 3 || kw === 4) return 34000
+      if (kw === 5) return 44000
+      if (kw === 6) return 46000
+      if (kw === 8) return 48000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 56000
+      return null
+    }
+  }
+]
+
+interface HybridBrandInfo {
+  id: string
+  name: string
+  logo?: string
+  getPrice: (kw: number) => number | null
+}
+
+const HYBRID_BRANDS: HybridBrandInfo[] = [
+  {
+    id: 'anern',
+    name: 'Anern',
+    logo: '/anern.svg',
+    getPrice: (kw: number) => {
+      const prices = getInverterBrandPrices(kw)
+      return prices.anern
+    }
+  },
+  {
+    id: 'solis',
+    name: 'Solis',
+    logo: '/solis.svg',
+    getPrice: (kw: number) => {
+      const prices = getInverterBrandPrices(kw)
+      return prices.solis
+    }
+  },
+  {
+    id: 'goodwe',
+    name: 'GoodWe',
+    logo: '/goodwe.svg',
+    getPrice: (kw: number) => {
+      const prices = getInverterBrandPrices(kw)
+      return prices.goodwe
+    }
+  },
+  {
+    id: 'sungrow',
+    name: 'Sungrow',
+    logo: '/sungrow.svg',
+    getPrice: (kw: number) => {
+      if (kw === 6) return 48000
+      if (kw === 8) return 65000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 82000
+      return null
+    }
   }
 ]
 
@@ -798,7 +859,8 @@ export default function Home() {
       d.includes('hypontech') ||
       d.includes('solax') ||
       d.includes('foxess') ||
-      d.includes('sunways')
+      d.includes('sunways') ||
+      d.includes('sungrow')
     ) {
       return { key: 'equipment', label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' }
     }
@@ -851,7 +913,8 @@ export default function Home() {
         descLower.includes('hypontech') ||
         descLower.includes('solax') ||
         descLower.includes('foxess') ||
-        descLower.includes('sunways')
+        descLower.includes('sunways') ||
+        descLower.includes('sungrow')
       ) {
         const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
         const kw = kwMatch ? parseFloat(kwMatch[1]) : activeKwSetup
@@ -2801,48 +2864,44 @@ export default function Home() {
                                   })}
                                 </div>
                               ) : (
-                                <div className="inline-flex gap-2.5 items-center flex-wrap">
-                                  <button
-                                    type="button"
-                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.anern)}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      isInverterAnern
-                                        ? "bg-red-50 dark:bg-red-950/40 border-red-500/60 ring-2 ring-red-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                    )}
-                                    title={`Anern - ₱${invBrandPrices.anern.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                  >
-                                    <img src="/anern.svg" alt="Anern" className="h-8 w-auto object-contain shrink-0" />
-                                  </button>
+                                <div className="inline-flex gap-1.5 items-center flex-wrap">
+                                  {HYBRID_BRANDS.map((b) => {
+                                    const brandPrice = b.getPrice(itemKw)
+                                    const isApplicable = brandPrice !== null
+                                    const isSelected = isApplicable && item.rate === brandPrice
 
-                                  <button
-                                    type="button"
-                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.solis)}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      isInverterSolis
-                                        ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500/60 ring-2 ring-orange-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                    )}
-                                    title={`Solis - ₱${invBrandPrices.solis.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                  >
-                                    <img src="/solis.svg" alt="Solis" className="h-8 w-auto object-contain shrink-0" />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => updateItem(item.id, 'rate', invBrandPrices.goodwe)}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      isInverterGoodWe
-                                        ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/60 ring-2 ring-emerald-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
-                                    )}
-                                    title={`GoodWe - ₱${invBrandPrices.goodwe.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
-                                  >
-                                    <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto object-contain shrink-0" />
-                                  </button>
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        disabled={!isApplicable}
+                                        onClick={() => {
+                                          if (!isApplicable) return
+                                          updateItem(item.id, 'rate', brandPrice)
+                                          updateItem(item.id, 'description', `Inverter ${itemKw}kW Hybrid`)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
+                                          !isApplicable
+                                            ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
+                                            : isSelected
+                                              ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
+                                              : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100 cursor-pointer"
+                                        )}
+                                        title={
+                                          isApplicable
+                                            ? `${b.name} - ₱${brandPrice.toLocaleString()} each`
+                                            : `${b.name} - Not available for ${itemKw}kW hybrid setup`
+                                        }
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[90px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
