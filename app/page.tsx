@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
+import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import {
   Dialog,
   DialogContent,
@@ -3481,43 +3482,7 @@ export default function Home() {
 
             {activeTab === 'checklist' && (
               <section className="space-y-5 animate-in fade-in duration-200">
-                {/* 1. Header with Return Navigation & Source Badge */}
-                <div className="bg-card border border-border rounded-[16px] p-4 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleTabSwitch(previousTab || 'items')}
-                      className="h-8 px-3 rounded-[8px] text-[11px] font-semibold gap-1.5 cursor-pointer hover:bg-secondary border-border"
-                    >
-                      <ArrowLeft size={13} />
-                      Back to {TAB_LABEL_MAP[previousTab] || 'Previous Tab'}
-                    </Button>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Source context:</span>
-                      <span className={cn(
-                        "px-2.5 py-1 rounded-[8px] text-[10px] font-bold border font-mono",
-                        previousTab === 'supply'
-                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                          : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                      )}>
-                        {previousTab === 'supply' ? '📦 Supply Materials List' : '📋 Full Line Items Proposal'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <ClipboardCheck size={18} className="text-primary" />
-                      Material Packing & Dispatch Checklist
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                      Interactive checklist generated from your preview output. Check off items during packing, warehouse dispatch, or site installation.
-                    </p>
-                  </div>
-                </div>
 
                 {/* 2. Progress & Bulk Action Toolbar */}
                 {(() => {
@@ -3610,28 +3575,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                           </Button>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCopyChecklist}
-                            className="h-7 px-2.5 text-[11px] font-semibold gap-1.5 cursor-pointer border-border"
-                          >
-                            {checklistCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                            {checklistCopied ? 'Copied!' : 'Copy Text'}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.print()}
-                            className="h-7 px-2.5 text-[11px] font-semibold gap-1.5 cursor-pointer border-border"
-                          >
-                            <Printer size={12} />
-                            Print
-                          </Button>
-                        </div>
+
                       </div>
 
                       {/* Grouped Checklist Content */}
@@ -3771,7 +3715,24 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             </div>
           </>
         )}
-        <MGInvoicePreview invoice={invoice} hoveredField={hoveredField} onOpenCheatsheet={() => setCheatsheetOpen(true)} onPagesChange={setTotalPages} onToggleCondensed={(val) => update('isCondensed', val)} />
+        {activeTab === 'checklist' ? (
+          <MGChecklistPreview
+            invoice={invoice}
+            hoveredField={hoveredField}
+            checkedItems={checkedChecklistItems}
+            previousTab={previousTab}
+            onToggleCheck={(id) => setCheckedChecklistItems(prev => ({ ...prev, [id]: !prev[id] }))}
+            onPagesChange={setTotalPages}
+          />
+        ) : (
+          <MGInvoicePreview
+            invoice={invoice}
+            hoveredField={hoveredField}
+            onOpenCheatsheet={() => setCheatsheetOpen(true)}
+            onPagesChange={setTotalPages}
+            onToggleCondensed={(val) => update('isCondensed', val)}
+          />
+        )}
       </div>
     </div>
 
