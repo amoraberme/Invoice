@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem } from '@/lib/types'
@@ -752,6 +752,9 @@ export default function Home() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [hoveredField, setHoveredField] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('ocr')
+  const [previousTab, setPreviousTab] = useState<string>('items')
+  const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({})
+  const [checklistCopied, setChecklistCopied] = useState(false)
   const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit')
   const [totalPages, setTotalPages] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -793,10 +796,26 @@ export default function Home() {
     )
   }
 
+  const TAB_LABEL_MAP: Record<string, string> = {
+    ocr: 'kW Set Up',
+    sender: 'Sender',
+    client: 'Client',
+    invoice: 'Details',
+    items: 'Line Items',
+    payment: 'Bank',
+    notes: 'Terms',
+    supply: 'Supply Tab',
+    checklist: 'Checklist',
+  }
+
   const handleTabSwitch = (newTab: string) => {
     if (activeTab === newTab) return
 
-    if (newTab === 'supply' && activeTab !== 'supply') {
+    if (activeTab !== 'checklist') {
+      setPreviousTab(activeTab)
+    }
+
+    if (newTab === 'supply' && activeTab !== 'supply' && activeTab !== 'checklist') {
       const currentLaborItems = invoice.lineItems.filter((item) => isLaborItem(item.description))
       savedLaborItemsRef.current = currentLaborItems
       savedSubjectRef.current = invoice.subject
@@ -807,7 +826,7 @@ export default function Home() {
         subject: 'Supply of Solar System Materials',
         lineItems: remainingItems,
       }))
-    } else if (activeTab === 'supply' && newTab !== 'supply') {
+    } else if (activeTab === 'supply' && newTab !== 'supply' && newTab !== 'checklist') {
       const laborToRestore = savedLaborItemsRef.current
       const subjectToRestore = savedSubjectRef.current
 
@@ -1813,6 +1832,7 @@ export default function Home() {
               { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
               { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
               { id: 'supply', label: 'Supply', icon: Package, title: 'Supplied Items Filter' },
+              { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
             ].map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -3456,6 +3476,272 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
+
+            {activeTab === 'checklist' && (
+              <section className="space-y-5 animate-in fade-in duration-200">
+                {/* 1. Header with Return Navigation & Source Badge */}
+                <div className="bg-card border border-border rounded-[16px] p-4 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTabSwitch(previousTab || 'items')}
+                      className="h-8 px-3 rounded-[8px] text-[11px] font-semibold gap-1.5 cursor-pointer hover:bg-secondary border-border"
+                    >
+                      <ArrowLeft size={13} />
+                      Back to {TAB_LABEL_MAP[previousTab] || 'Previous Tab'}
+                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Source context:</span>
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-[8px] text-[10px] font-bold border font-mono",
+                        previousTab === 'supply'
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                      )}>
+                        {previousTab === 'supply' ? '📦 Supply Materials List' : '📋 Full Line Items Proposal'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <ClipboardCheck size={18} className="text-primary" />
+                      Material Packing & Dispatch Checklist
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      Interactive checklist generated from your preview output. Check off items during packing, warehouse dispatch, or site installation.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Progress & Bulk Action Toolbar */}
+                {(() => {
+                  const activeChecklistItems = invoice.lineItems.filter(item => {
+                    const descLower = (item.description || '').toLowerCase()
+                    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah')
+                    if (invoice.excludeBattery && isBatteryItem) return false
+                    return true
+                  })
+
+                  const totalCount = activeChecklistItems.length
+                  const checkedCount = activeChecklistItems.filter(it => checkedChecklistItems[it.id]).length
+                  const percent = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
+
+                  const handleSelectAll = () => {
+                    const next: Record<string, boolean> = {}
+                    activeChecklistItems.forEach(it => { next[it.id] = true })
+                    setCheckedChecklistItems(next)
+                  }
+
+                  const handleClearAll = () => {
+                    setCheckedChecklistItems({})
+                  }
+
+                  const handleCopyChecklist = () => {
+                    const sourceName = previousTab === 'supply' ? 'Supply Materials' : 'Full Quotation'
+                    const dateStr = new Date().toLocaleDateString()
+                    let txt = `SOLAR SYSTEM DISPATCH CHECKLIST (${sourceName})
+Date: ${dateStr}
+Subject: ${invoice.subject || 'Solar Installation'}
+-----------------------------------
+`
+
+                    activeChecklistItems.forEach((it, idx) => {
+                      const isChecked = !!checkedChecklistItems[it.id]
+                      txt += `[${isChecked ? 'x' : ' '}] ${idx + 1}. ${it.description || 'Item'} - ${it.quantity} ${it.unit}
+`
+                    })
+
+                    txt += `-----------------------------------
+Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
+
+                    navigator.clipboard.writeText(txt)
+                    setChecklistCopied(true)
+                    setTimeout(() => setChecklistCopied(false), 2000)
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Overall Progress Meter */}
+                      <div className="p-4 rounded-[16px] bg-card border border-border space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground flex items-center gap-1.5">
+                            Checklist Progress
+                          </span>
+                          <span className="font-mono font-bold text-primary">
+                            {checkedCount} / {totalCount} Completed ({percent}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden border border-border">
+                          <div
+                            className="bg-primary h-full transition-all duration-300 rounded-full"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Action Toolbar */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap bg-card p-3 rounded-[14px] border border-border">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={handleSelectAll}
+                            className="h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer"
+                          >
+                            <CheckSquare size={12} />
+                            Select All
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleClearAll}
+                            className="h-7 px-2.5 text-[11px] font-semibold gap-1 cursor-pointer border-border"
+                          >
+                            <RefreshCw size={12} />
+                            Clear
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCopyChecklist}
+                            className="h-7 px-2.5 text-[11px] font-semibold gap-1.5 cursor-pointer border-border"
+                          >
+                            {checklistCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                            {checklistCopied ? 'Copied!' : 'Copy Text'}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.print()}
+                            className="h-7 px-2.5 text-[11px] font-semibold gap-1.5 cursor-pointer border-border"
+                          >
+                            <Printer size={12} />
+                            Print
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Grouped Checklist Content */}
+                      {totalCount === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground bg-card rounded-[16px] border border-border space-y-2">
+                          <Package size={28} className="mx-auto opacity-50" />
+                          <p className="text-xs font-semibold">No line items available to generate checklist.</p>
+                          <p className="text-[11px]">Add line items in the Items tab or select a BOQ preset to build your checklist.</p>
+                        </div>
+                      ) : (
+                        (() => {
+                          // Group items by supply category
+                          const grouped: Record<string, { label: string; badgeColor: string; items: LineItem[] }> = {
+                            equipment: { label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20', items: [] },
+                            mounting: { label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', items: [] },
+                            electrical: { label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', items: [] },
+                            grounding: { label: 'Grounding & Bonding', badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', items: [] },
+                            labor: { label: 'Labor & Installation Services', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', items: [] },
+                            other: { label: 'Other Items', badgeColor: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20', items: [] },
+                          }
+
+                          activeChecklistItems.forEach(item => {
+                            const cat = getSupplyCategory(item.description)
+                            if (grouped[cat.key]) {
+                              grouped[cat.key].items.push(item)
+                            } else {
+                              grouped.other.items.push(item)
+                            }
+                          })
+
+                          return (
+                            <div className="space-y-4">
+                              {Object.entries(grouped).map(([catKey, group]) => {
+                                if (group.items.length === 0) return null
+
+                                const groupChecked = group.items.filter(it => checkedChecklistItems[it.id]).length
+
+                                return (
+                                  <div key={catKey} className="bg-card rounded-[16px] border border-border p-4 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-border pb-2.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn("px-2.5 py-0.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider border", group.badgeColor)}>
+                                          {group.label}
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] font-mono font-bold text-muted-foreground">
+                                        {groupChecked} / {group.items.length} Checked
+                                      </span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      {group.items.map(item => {
+                                        const isChecked = !!checkedChecklistItems[item.id]
+
+                                        return (
+                                          <label
+                                            key={item.id}
+                                            onClick={() => {
+                                              setCheckedChecklistItems(prev => ({ ...prev, [item.id]: !prev[item.id] }))
+                                            }}
+                                            className={cn(
+                                              "flex items-center justify-between p-3 rounded-[12px] border transition-all cursor-pointer select-none gap-3",
+                                              isChecked
+                                                ? "bg-primary/5 border-primary/40 dark:bg-primary/10 shadow-xs"
+                                                : "bg-background border-border hover:bg-secondary/40"
+                                            )}
+                                          >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                              <div className={cn(
+                                                "w-5 h-5 rounded-[6px] border flex items-center justify-center transition-all shrink-0",
+                                                isChecked
+                                                  ? "bg-primary border-primary text-primary-foreground"
+                                                  : "border-border bg-card"
+                                              )}>
+                                                {isChecked && <Check size={12} strokeWidth={3} />}
+                                              </div>
+
+                                              <span className={cn(
+                                                "text-xs font-semibold break-words font-mono transition-all",
+                                                isChecked ? "line-through text-muted-foreground" : "text-foreground"
+                                              )}>
+                                                {item.description || 'Untitled Item'}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <span className="px-2 py-0.5 rounded-[6px] bg-secondary border border-border text-[11px] font-bold font-mono text-foreground">
+                                                {item.quantity} {item.unit}
+                                              </span>
+                                              <span className={cn(
+                                                "text-[10px] font-bold px-1.5 py-0.5 rounded-[4px]",
+                                                isChecked ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                              )}>
+                                                {isChecked ? 'Ready' : 'Pending'}
+                                              </span>
+                                            </div>
+                                          </label>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })()
+                      )}
+                    </div>
+                  )
+                })()}
               </section>
             )}
           </div>
