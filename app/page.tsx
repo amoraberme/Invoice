@@ -899,6 +899,13 @@ export default function Home() {
   }
 
   const handleSystemTypeChange = (type: 'hybrid' | 'ongrid') => {
+    if (type === 'ongrid') {
+      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+      if (!hasOnGridOption) {
+        return
+      }
+    }
+
     setSystemType(type)
     const isExclude = type === 'ongrid'
     update('excludeBattery', isExclude)
@@ -921,11 +928,13 @@ export default function Home() {
 
         if (type === 'ongrid') {
           const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(kw) !== null)
-          const price = defaultBrand ? defaultBrand.getPrice(kw)! : 25600
-          return {
-            ...item,
-            description: `Inverter ${kw}kW On-Grid`,
-            rate: price
+          if (defaultBrand) {
+            const price = defaultBrand.getPrice(kw)!
+            return {
+              ...item,
+              description: `Inverter ${kw}kW On-Grid`,
+              rate: price
+            }
           }
         } else {
           const brandPrices = getInverterBrandPrices(kw)
@@ -1385,10 +1394,14 @@ export default function Home() {
 
     if (systemType === 'ongrid') {
       const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
-      const price = defaultBrand ? defaultBrand.getPrice(inverterKw)! : 25600
-      const brandName = defaultBrand ? defaultBrand.name : 'On-Grid'
-      inverterDesc = `Inverter ${inverterKw}kW On-Grid`
-      inverterPrice = price
+      if (defaultBrand) {
+        inverterDesc = `Inverter ${inverterKw}kW On-Grid`
+        inverterPrice = defaultBrand.getPrice(inverterKw)!
+      } else {
+        const brandPrices = getInverterBrandPrices(inverterKw)
+        inverterDesc = `Inverter ${inverterKw}kW Hybrid`
+        inverterPrice = brandPrices.solis
+      }
     } else {
       const brandPrices = getInverterBrandPrices(inverterKw)
       inverterDesc = `Inverter ${inverterKw}kW Hybrid`
@@ -1927,13 +1940,21 @@ export default function Home() {
                       </button>
                       <button
                         type="button"
+                        disabled={!ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)}
                         onClick={() => handleSystemTypeChange('ongrid')}
                         className={cn(
-                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
-                          systemType === 'ongrid'
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all select-none",
+                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+                            ? "opacity-40 cursor-not-allowed pointer-events-none text-muted-foreground"
+                            : systemType === 'ongrid'
+                              ? "bg-primary text-primary-foreground shadow-sm cursor-pointer"
+                              : "text-muted-foreground hover:text-foreground cursor-pointer"
                         )}
+                        title={
+                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+                            ? `On-Grid is not available for ${activeKwSetup}kW setup`
+                            : undefined
+                        }
                       >
                         🌐 On-Grid
                       </button>
@@ -2785,38 +2806,61 @@ export default function Home() {
                                 <div className="flex gap-1 bg-secondary/60 p-0.5 rounded-[6px] border border-border">
                                   <button
                                     type="button"
+                                    disabled={!HYBRID_BRANDS.some(b => b.getPrice(itemKw) !== null)}
                                     onClick={() => {
+                                      const defaultBrand = HYBRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
+                                      if (!defaultBrand) return
+                                      const price = defaultBrand.getPrice(itemKw)!
                                       const newDesc = item.description.replace(/On-Grid/i, 'Hybrid')
                                       const finalDesc = newDesc.includes('Hybrid') ? newDesc : `${newDesc} Hybrid`
-                                      const prices = getInverterBrandPrices(itemKw)
                                       updateItem(item.id, 'description', finalDesc)
-                                      updateItem(item.id, 'rate', prices.solis)
+                                      updateItem(item.id, 'rate', price)
                                       setSystemType('hybrid')
                                       update('excludeBattery', false)
                                     }}
                                     className={cn(
-                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none cursor-pointer",
-                                      !isItemOnGrid ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none",
+                                      !HYBRID_BRANDS.some(b => b.getPrice(itemKw) !== null)
+                                        ? "opacity-40 cursor-not-allowed pointer-events-none text-muted-foreground"
+                                        : !isItemOnGrid
+                                          ? "bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                                          : "text-muted-foreground hover:text-foreground cursor-pointer"
                                     )}
+                                    title={
+                                      !HYBRID_BRANDS.some(b => b.getPrice(itemKw) !== null)
+                                        ? `Hybrid is not available for ${itemKw}kW setup`
+                                        : undefined
+                                    }
                                   >
                                     ⚡ Hybrid
                                   </button>
                                   <button
                                     type="button"
+                                    disabled={!ON_GRID_BRANDS.some(b => b.getPrice(itemKw) !== null)}
                                     onClick={() => {
+                                      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
+                                      if (!defaultBrand) return
+                                      const price = defaultBrand.getPrice(itemKw)!
                                       const newDesc = item.description.replace(/Hybrid/i, 'On-Grid')
                                       const finalDesc = newDesc.includes('On-Grid') ? newDesc : `${newDesc} On-Grid`
-                                      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
-                                      const price = defaultBrand ? defaultBrand.getPrice(itemKw)! : 25600
                                       updateItem(item.id, 'description', finalDesc)
                                       updateItem(item.id, 'rate', price)
                                       setSystemType('ongrid')
                                       update('excludeBattery', true)
                                     }}
                                     className={cn(
-                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none cursor-pointer",
-                                      isItemOnGrid ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                                      "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none",
+                                      !ON_GRID_BRANDS.some(b => b.getPrice(itemKw) !== null)
+                                        ? "opacity-40 cursor-not-allowed pointer-events-none text-muted-foreground"
+                                        : isItemOnGrid
+                                          ? "bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                                          : "text-muted-foreground hover:text-foreground cursor-pointer"
                                     )}
+                                    title={
+                                      !ON_GRID_BRANDS.some(b => b.getPrice(itemKw) !== null)
+                                        ? `On-Grid is not available for ${itemKw}kW setup`
+                                        : undefined
+                                    }
                                   >
                                     🌐 On-Grid
                                   </button>
