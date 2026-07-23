@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem } from '@/lib/types'
@@ -55,6 +55,10 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
   if (newMc4Qty % 2 !== 0 && newMc4Qty > 0) newMc4Qty += 1
 
+  const newGroundLugQty = rows * 2
+  const rawGcLen = Math.ceil(((floorNum * 5) + 5) * 1.1)
+  const newGcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
+
   let changed = false
   const items = lineItems.map(item => {
     const descLower = item.description.toLowerCase().trim()
@@ -82,6 +86,43 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       if (item.quantity !== newMc4Qty) {
         changed = true
         return { ...item, quantity: newMc4Qty }
+      }
+    } else if (descLower.includes('grounding lug') || descLower.includes('solar grounding lug')) {
+      if (item.quantity !== newGroundLugQty || item.rate === 0) {
+        changed = true
+        return { ...item, quantity: newGroundLugQty, rate: item.rate === 0 ? 50 : item.rate }
+      }
+    } else if (
+      descLower === 'grounding conductor' ||
+      descLower === 'grounding connector' ||
+      descLower === 'ground wire' ||
+      descLower === 'ground wire 30m' ||
+      descLower.includes('grounding conductor') ||
+      descLower.includes('grounding connector') ||
+      descLower.includes('grounding copper wire') ||
+      descLower.includes('ground wire') ||
+      descLower.includes('equipment grounding') ||
+      descLower.includes('grounding electrode')
+    ) {
+      if (
+        item.quantity !== newGcRolls ||
+        item.description !== 'Ground Wire 30m' ||
+        item.unit !== 'ROLL' ||
+        item.rate !== 1300
+      ) {
+        changed = true
+        return {
+          ...item,
+          description: 'Ground Wire 30m',
+          unit: 'ROLL',
+          quantity: newGcRolls,
+          rate: 1300
+        }
+      }
+    } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
+      if (item.description !== 'Ground Rod w/ Clamp') {
+        changed = true
+        return { ...item, description: 'Ground Rod w/ Clamp' }
       }
     }
     return item
@@ -277,7 +318,7 @@ function extractLineItemsFromText(text: string) {
     6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
     7: { desc: "Flexible hose", qty: "5m", price: "₱215.00", total: "₱1,075.00" },
     8: { desc: "AC wire", qty: "5m", price: "₱190.00", total: "₱950.00" },
-    9: { desc: "PV wire", qty: "5m", price: "₱170.00", total: "₱850.00" },
+    9: { desc: "DC/PV wire", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
     11: { desc: "Breaker box 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     12: { desc: "AC MCB", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
@@ -538,7 +579,10 @@ const SOLAR_PRICES = {
   TerminalLugs: 30.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
-  BatteryCable: 600.00
+  BatteryCable: 600.00,
+  GroundRod: 1500.00,
+  GroundingLugs: 50.00,
+  GroundWire: 1300.00,
 };
 
 interface PanelOption {
@@ -668,8 +712,129 @@ export default function Home() {
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
   const [systemType, setSystemType] = useState<'hybrid' | 'ongrid'>('hybrid')
+  const [supplySearchQuery, setSupplySearchQuery] = useState('')
+  const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
+  const savedLaborItemsRef = useRef<LineItem[]>([])
+  const savedSubjectRef = useRef<string | null>(null)
+
+  const isLaborItem = (desc: string) => {
+    const d = (desc || '').toLowerCase().trim()
+    return (
+      d.includes('labor') ||
+      d.includes('installation') ||
+      d.includes('commissioning') ||
+      d.includes('delivery') ||
+      d.includes('freight') ||
+      d.includes('service') ||
+      d === 'labor and installation'
+    )
+  }
+
+  const handleTabSwitch = (newTab: string) => {
+    if (activeTab === newTab) return
+
+    if (newTab === 'supply' && activeTab !== 'supply') {
+      const currentLaborItems = invoice.lineItems.filter((item) => isLaborItem(item.description))
+      savedLaborItemsRef.current = currentLaborItems
+      savedSubjectRef.current = invoice.subject
+
+      const remainingItems = invoice.lineItems.filter((item) => !isLaborItem(item.description))
+      setInvoice((prev) => ({
+        ...prev,
+        subject: 'Supply of Solar System Materials',
+        lineItems: remainingItems,
+      }))
+    } else if (activeTab === 'supply' && newTab !== 'supply') {
+      const laborToRestore = savedLaborItemsRef.current
+      const subjectToRestore = savedSubjectRef.current
+
+      setInvoice((prev) => {
+        const currentNonLabor = prev.lineItems.filter((item) => !isLaborItem(item.description))
+        const combined = [...currentNonLabor, ...laborToRestore]
+        return {
+          ...prev,
+          subject: subjectToRestore !== null ? subjectToRestore : prev.subject,
+          lineItems: combined,
+        }
+      })
+
+      savedLaborItemsRef.current = []
+      savedSubjectRef.current = null
+    }
+
+    setActiveTab(newTab)
+  }
+
+  const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor' | 'other'; label: string; badgeColor: string } => {
+    const d = (description || '').toLowerCase().trim()
+    if (d.includes('labor') || d.includes('installation') || d.includes('commissioning') || d.includes('delivery') || d.includes('freight') || d.includes('service')) {
+      return { key: 'labor', label: 'Labor & Service', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' }
+    }
+    if (
+      d.includes('ground') ||
+      d.includes('bonding') ||
+      d.includes('egc') ||
+      d.includes('gec') ||
+      d.includes('weeb') ||
+      d.includes('ground rod') ||
+      d.includes('ground clamp') ||
+      d.includes('splice jumper')
+    ) {
+      return { key: 'grounding', label: 'Grounding & Bonding', badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' }
+    }
+    if (
+      d.includes('panel') ||
+      d.includes('module') ||
+      d.includes('inverter') ||
+      d.includes('battery') ||
+      d.includes('dyness') ||
+      d.includes('ja solar') ||
+      d.includes('tongwei') ||
+      d.includes('solis') ||
+      d.includes('goodwe') ||
+      d.includes('anern') ||
+      d.includes('hypontech') ||
+      d.includes('solax') ||
+      d.includes('foxess') ||
+      d.includes('sunways')
+    ) {
+      return { key: 'equipment', label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' }
+    }
+    if (
+      d.includes('railing') ||
+      d.includes('clamp') ||
+      d.includes('l foot') ||
+      d.includes('l-foot') ||
+      d.includes('mid clamp') ||
+      d.includes('end clamp') ||
+      d.includes('mounting') ||
+      d.includes('structure') ||
+      d.includes('hardware')
+    ) {
+      return { key: 'mounting', label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' }
+    }
+    if (
+      d.includes('wire') ||
+      d.includes('cable') ||
+      d.includes('breaker') ||
+      d.includes('mcb') ||
+      d.includes('spd') ||
+      d.includes('mccb') ||
+      d.includes('flexcon') ||
+      d.includes('hose') ||
+      d.includes('mc4') ||
+      d.includes('raceway') ||
+      d.includes('conduit') ||
+      d.includes('ats') ||
+      d.includes('terminal') ||
+      d.includes('lug')
+    ) {
+      return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
+    }
+    return { key: 'other', label: 'Supplied Item', badgeColor: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' }
+  }
 
   const handleSystemTypeChange = (type: 'hybrid' | 'ongrid') => {
     setSystemType(type)
@@ -1035,44 +1200,22 @@ export default function Home() {
           continue
         }
 
-        // Match PV wire (checking specifically for 'pv' to separate from 'dc')
-        const hasPvWord = /\bpv\b/i.test(item.description)
-        const isPvWire = 
-          descLower === 'pv' || 
-          descLower === 'pv wire' || 
-          descLower === 'pv cable' || 
-          descLower.includes('pv wire') || 
-          descLower.includes('pv cable') || 
-          (hasPvWord && descLower.includes('wire')) || 
-          (hasPvWord && descLower.includes('cable')) || 
-          descLower.includes('red pv')
-        
-        if (isPvWire) {
-          if (hasPv) {
-            // Duplicate found, skip/discard
-            continue
-          }
-          hasPv = true
-          updatedItems.push({
-            ...item,
-            quantity: runLength,
-            unit: 'M',
-            description: `PV wire`
-          })
-          continue
-        }
-
-        // Match DC wire
-        const hasDcWord = /\bdc\b/i.test(item.description)
+        // Match DC/PV wire
+        const hasDcWord = /\bdc\b|\bpv\b/i.test(item.description)
         const isDcWire = 
           descLower === 'dc' || 
           descLower === 'dc wire' || 
+          descLower === 'dc/pv wire' || 
+          descLower === 'pv wire' || 
           descLower === 'dc cable' || 
           descLower.includes('dc wire') || 
+          descLower.includes('dc/pv wire') || 
+          descLower.includes('pv wire') || 
           descLower.includes('dc cable') || 
           (hasDcWord && descLower.includes('wire')) || 
           (hasDcWord && descLower.includes('cable')) || 
-          descLower.includes('black pv')
+          descLower.includes('black pv') ||
+          descLower.includes('red pv')
         
         if (isDcWire) {
           if (hasDc) {
@@ -1084,7 +1227,7 @@ export default function Home() {
             ...item,
             quantity: runLength,
             unit: 'M',
-            description: `DC wire`
+            description: `DC/PV wire`
           })
           continue
         }
@@ -1123,19 +1266,10 @@ export default function Home() {
           unit: 'M'
         })
       }
-      if (!hasPv) {
-        updatedItems.push({
-          id: `floor-pv-${now}`,
-          description: `PV wire`,
-          quantity: runLength,
-          rate: SOLAR_PRICES.PVwire,
-          unit: 'M'
-        })
-      }
       if (!hasDc) {
         updatedItems.push({
           id: `floor-dc-${now}`,
-          description: `DC wire`,
+          description: `DC/PV wire`,
           quantity: runLength,
           rate: SOLAR_PRICES.DCwire,
           unit: 'M'
@@ -1292,19 +1426,10 @@ export default function Home() {
       unit: 'M'
     })
 
-    // 9. PV Wire
-    items.push({
-      id: `boq-9-${now}`,
-      description: `PV wire`,
-      quantity: runLength,
-      rate: prices.PVwire,
-      unit: 'M'
-    })
-
-    // 9.5 DC Wire
+    // 9. DC/PV Wire
     items.push({
       id: `boq-dc-${now}`,
-      description: `DC wire`,
+      description: `DC/PV wire`,
       quantity: runLength,
       rate: prices.DCwire,
       unit: 'M'
@@ -1421,6 +1546,33 @@ export default function Home() {
       quantity: cableLength,
       rate: prices.BatteryCable,
       unit: 'M'
+    })
+
+    // Grounding & Bonding System (Rate Empty / 0)
+    items.push({
+      id: `boq-g1-${now}`,
+      description: `Grounding Lugs`,
+      quantity: rows * 2,
+      rate: prices.GroundingLugs || 50,
+      unit: 'PCS'
+    })
+
+    const rawGcLen = Math.ceil((runLength + 5) * 1.1)
+    const gcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
+    items.push({
+      id: `boq-g2-${now}`,
+      description: `Ground Wire 30m`,
+      quantity: gcRolls,
+      rate: prices.GroundWire || 1300,
+      unit: 'ROLL'
+    })
+
+    items.push({
+      id: `boq-g3-${now}`,
+      description: `Ground Rod w/ Clamp`,
+      quantity: 1,
+      rate: prices.GroundRod || 1500,
+      unit: 'PC'
     })
 
     // 23. Labor and Installation
@@ -1584,13 +1736,14 @@ export default function Home() {
               { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
               { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
               { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
+              { id: 'supply', label: 'Supply', icon: Package, title: 'Supplied Items Filter' },
             ].map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabSwitch(tab.id)}
                   className={cn(
                     "relative w-12 h-12 lg:w-14 lg:h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none shrink-0",
                     active
@@ -2987,6 +3140,220 @@ export default function Home() {
                   />
                 </section>
               </>
+            )}
+
+            {activeTab === 'supply' && (
+              <section className="space-y-5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <SectionHeader>Supplied Items Filter</SectionHeader>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      View and filter physical items being supplied (equipment, mounting structure, and electrical hardware).
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. Financial & Category Summary Cards for Supply */}
+                {(() => {
+                  const rateMarkup = invoice.rateMarkup || 0
+                  let goodsSubtotal = 0
+                  let goodsCount = 0
+                  let equipmentCount = 0
+                  let hardwareCount = 0
+                  let groundingCount = 0
+
+                  invoice.lineItems.forEach(item => {
+                    const descLower = (item.description || '').toLowerCase()
+                    const isLabor = isLaborItem(item.description)
+                    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
+                    
+                    if (isLabor) return
+                    if (invoice.excludeBattery && isBatteryItem) return
+
+                    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+                    const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
+                    const lineTotal = item.quantity * adjustedRate
+
+                    goodsSubtotal += lineTotal
+                    goodsCount += 1
+
+                    const cat = getSupplyCategory(item.description)
+                    if (cat.key === 'equipment') equipmentCount += 1
+                    else if (cat.key === 'grounding') groundingCount += 1
+                    else hardwareCount += 1
+                  })
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-[12px] bg-primary/10 border border-primary/20 space-y-1">
+                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider block">Total Supplied Value</span>
+                        <span className="text-sm font-bold text-primary block font-mono">{formatCurrency(goodsSubtotal, invoice.currency)}</span>
+                        <span className="text-[10px] text-primary/80">{goodsCount} supplied item(s)</span>
+                      </div>
+
+                      <div className="p-3 rounded-[12px] bg-secondary/40 border border-border space-y-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Major Equipment</span>
+                        <span className="text-sm font-bold text-foreground block font-mono">{equipmentCount}</span>
+                        <span className="text-[10px] text-muted-foreground">Panels, Inverters, Batteries</span>
+                      </div>
+
+                      <div className="p-3 rounded-[12px] bg-secondary/40 border border-border space-y-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Hardware & Electrical</span>
+                        <span className="text-sm font-bold text-foreground block font-mono">{hardwareCount}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">Structure, Cables & Wiring</span>
+                      </div>
+
+                      <div className="p-3 rounded-[12px] bg-teal-500/10 border border-teal-500/20 space-y-1">
+                        <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider block">Grounding Systems</span>
+                        <span className="text-sm font-bold text-foreground block font-mono">{groundingCount}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">Lugs, Wire, Rod & Clamp</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* 2. Category Filter Chips & Search Bar */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+                    <div className="relative flex-1">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={supplySearchQuery}
+                        onChange={(e) => setSupplySearchQuery(e.target.value)}
+                        placeholder="Filter supplied items by name…"
+                        className="pl-8 h-9 text-xs"
+                      />
+                      {supplySearchQuery && (
+                        <button
+                          onClick={() => setSupplySearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                      {[
+                        { id: 'all', label: 'All Supplied Items' },
+                        { id: 'equipment', label: 'Equipment' },
+                        { id: 'mounting', label: 'Mounting' },
+                        { id: 'electrical', label: 'Electrical' },
+                        { id: 'grounding', label: 'Grounding' },
+                      ].map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setSupplyCategoryFilter(cat.id as any)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-[8px] text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap border select-none",
+                            supplyCategoryFilter === cat.id
+                              ? "bg-foreground text-background border-foreground font-bold shadow-xs"
+                              : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+                          )}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Supplied Items Table */}
+                  <div className="border border-border rounded-[14px] overflow-hidden bg-card shadow-xs">
+                    <div className="bg-secondary/50 px-4 py-2.5 border-b border-border flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span>Supplied Item</span>
+                      <span>Category & Pricing</span>
+                    </div>
+
+                    <div className="divide-y divide-border max-h-[460px] overflow-y-auto">
+                      {(() => {
+                        const filtered = invoice.lineItems.filter(item => {
+                          const descLower = (item.description || '').toLowerCase().trim()
+                          const isLabor = isLaborItem(item.description)
+                          if (isLabor) return false // Pure supply view - filter out labor items
+
+                          const matchesSearch = !supplySearchQuery || item.description.toLowerCase().includes(supplySearchQuery.toLowerCase())
+                          const cat = getSupplyCategory(item.description)
+                          
+                          if (!matchesSearch) return false
+                          if (supplyCategoryFilter === 'all') return true
+                          if (supplyCategoryFilter === 'equipment') return cat.key === 'equipment'
+                          if (supplyCategoryFilter === 'mounting') return cat.key === 'mounting'
+                          if (supplyCategoryFilter === 'electrical') return cat.key === 'electrical'
+                          if (supplyCategoryFilter === 'grounding') return cat.key === 'grounding'
+                          return true
+                        })
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="p-8 text-center text-muted-foreground space-y-2">
+                              <Package size={24} className="mx-auto text-muted-foreground/50" />
+                              <p className="text-xs font-semibold">No supplied items match the current filter.</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setSupplySearchQuery(''); setSupplyCategoryFilter('all'); }}
+                                className="text-[11px] h-7 cursor-pointer"
+                              >
+                                Clear Filters
+                              </Button>
+                            </div>
+                          )
+                        }
+
+                        const rateMarkup = invoice.rateMarkup || 0
+
+                        return filtered.map(item => {
+                          const catInfo = getSupplyCategory(item.description)
+                          const shouldApplyMarkup = true
+                          const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
+                          const lineTotal = item.quantity * adjustedRate
+
+                          return (
+                            <div key={item.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-secondary/20">
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={cn("px-2 py-0.5 rounded-[6px] text-[9px] font-bold uppercase tracking-wider border", catInfo.badgeColor)}>
+                                    {catInfo.label}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-semibold text-foreground break-words font-mono">
+                                  {item.description || 'Untitled Line Item'}
+                                </p>
+                                <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono">
+                                  <span>Qty: {item.quantity} {item.unit}</span>
+                                  <span>•</span>
+                                  <span>Rate: {formatCurrency(adjustedRate, invoice.currency)}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                                <div className="text-right font-mono">
+                                  <span className="text-xs font-bold text-foreground block">
+                                    {formatCurrency(lineTotal, invoice.currency)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground block">
+                                    {item.quantity} x {formatCurrency(adjustedRate, invoice.currency)}
+                                  </span>
+                                </div>
+
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeItem(item.id)}
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-[8px] cursor-pointer"
+                                  title="Remove item from quotation"
+                                >
+                                  <Trash2 size={13} />
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </section>
             )}
           </div>
 
