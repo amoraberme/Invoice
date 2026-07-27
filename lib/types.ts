@@ -72,7 +72,7 @@ export const defaultInvoice: Invoice = {
   bankSortCode: '',
   bankAccount: '',
   bankSwift: '',
-  note: 'All items are subject to availability.\nAny additional requests or changes may affect pricing and timeline.',
+  note: 'All items are subject to availability.\nAny additional requests or changes may affect pricing and timeline.\n\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.',
   salesPerson: 'charlotte',
   salesName: 'Charlotte C. Santos',
   salesPosition: 'Senior Sales & Marketing Executive',
