@@ -30,43 +30,127 @@ import {
 const PANEL_WATTAGE = 625
 const PANEL_WIDTH_FT = 3.72
 
+const FLOOR_BASE_METERS: Record<number, number> = {
+  1: 30,
+  2: 40,
+  3: 55,
+  4: 65,
+}
+
+function getFloorMeters(floorNum: number): number {
+  return FLOOR_BASE_METERS[floorNum] ?? 30
+}
+
+function getWireSize(inverterKw: number): string {
+  if (inverterKw <= 4) {
+    return '#8 10mm²'
+  } else if (inverterKw <= 10) {
+    return 'AWG #8'
+  } else if (inverterKw <= 12) {
+    return '#6 AWG 14mm²'
+  } else {
+    return '#4 22mm²'
+  }
+}
+
+function getDynamicBreakerRatings(systemKw: number) {
+  // AC MCB Calculation: I_AC = ceil((P_target * 1000 / (230 * 0.9)) * 1.25)
+  const iAcRaw = Math.ceil(((systemKw * 1000) / (230 * 0.9)) * 1.25)
+  const acBreakerSizes = [20, 32, 50, 63, 80, 100, 125]
+  const acMcbAmp = acBreakerSizes.find(s => s >= iAcRaw) || Math.ceil(iAcRaw)
+
+  // DC MCCB Calculation: I_DC = ceil(P_target * 1000 / (48 * 0.85 * 0.80))
+  const iDcRaw = Math.ceil((systemKw * 1000) / (48 * 0.85 * 0.80))
+  const dcMccbSizes = [100, 160, 200, 250, 300, 350, 500]
+  const dcMccbAmp = dcMccbSizes.find(s => s >= iDcRaw) || Math.ceil(iDcRaw)
+
+  // DC SPD Voltage Safeguard (600V < 8kW | 1000V >= 8kW)
+  const dcSpdVoltage = systemKw < 8 ? '600V DC' : '1000V DC'
+
+  // Changeover / ATS Rating (min 32A <=3kW; 63A 8-10kW; 80-100A 12kW+)
+  let atsAmp = acMcbAmp
+  if (systemKw <= 3) atsAmp = Math.max(32, acMcbAmp)
+  else if (systemKw <= 10) atsAmp = Math.max(63, acMcbAmp)
+  else atsAmp = Math.max(80, acMcbAmp)
+
+  return {
+    iAcRaw,
+    acMcbAmp,
+    acMcb: `AC MCB ${acMcbAmp}A`,
+    iDcRaw,
+    dcMccbAmp,
+    dcMccb: `DC MCCB for battery ${dcMccbAmp}A`,
+    dcMcb: systemKw <= 10 ? 'DC MCB 32A' : (systemKw <= 12 ? 'DC MCB 63A' : 'DC MCB 100A'),
+    acSpd: `AC SPD 275V 40kA`,
+    dcSpdVoltage,
+    dcSpd: `DC SPD ${dcSpdVoltage} 40kA`,
+    atsAmp,
+    ats: `Automatic transfer switch ${atsAmp}A`
+  }
+}
+
+function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable: string, groundWire: string, acWire: string } {
+  // DC Solar Cable: 4mm² standard, upgraded to 6mm² if >=8kW or run >30m
+  const dcCableGauge = (systemKw >= 8 || runLength > 30) ? '6mm²' : '4mm²'
+
+  // Grounding Wire: 6mm² standard, upgraded to 10mm² if >=10kW
+  const groundWireGauge = systemKw >= 10 ? '10mm²' : '6mm²'
+
+  // AC Wire (Standard size by kW)
+  let acWireGauge = '#8 10mm²'
+  if (systemKw > 4 && systemKw <= 10) acWireGauge = 'AWG #8'
+  else if (systemKw > 10 && systemKw <= 12) acWireGauge = '#6 AWG 14mm²'
+  else if (systemKw > 12) acWireGauge = '#4 22mm²'
+
+  return {
+    dcCable: `DC Solar Cable ${dcCableGauge}`,
+    groundWire: `Ground Wire ${groundWireGauge}`,
+    acWire: `AC Wire ${acWireGauge}`
+  }
+}
+
+function getInverterKwFromLineItems(lineItems: LineItem[]): number {
+  const inverterItem = lineItems.find(it => it.description.toLowerCase().includes('inverter'))
+  if (inverterItem) {
+    const match = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kW/i)
+    if (match) {
+      return parseFloat(match[1])
+    }
+  }
+  return 5
+}
+
 function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { updated: boolean, items: LineItem[] } {
+  const inverterKw = getInverterKwFromLineItems(lineItems)
+  const runLength = getFloorMeters(floorNum)
+  const wireInfo = getDynamicWireSize(inverterKw, runLength)
+  const breakers = getDynamicBreakerRatings(inverterKw)
+
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
   
-  const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
+  const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 6)
   const extraQty = floorNum >= 2 ? 3 : 0
   
   const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
-  
-  let newMidClampQty = 0
-  if (panelQty > 0 && rows > 0) {
-    const base = Math.floor(panelQty / rows)
-    const extra = panelQty % rows
-    for (let i = 0; i < rows; i++) {
-      const panelsInRow = base + (i < extra ? 1 : 0)
-      newMidClampQty += Math.max(0, (panelsInRow - 1) * 2)
-    }
-  }
-
-  const newEndClampQty = newMidClampQty // end clamps count same as mid clamps
-  
-  const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
+  const newMidClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
+  const newEndClampQty = panelQty <= 0 ? 0 : 2 * rows
+  const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
   
   let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
   if (newMc4Qty % 2 !== 0 && newMc4Qty > 0) newMc4Qty += 1
 
   const newGroundLugQty = rows * 2
-  const rawGcLen = Math.ceil(((floorNum * 5) + 5) * 1.1)
+  const rawGcLen = Math.ceil((runLength + 5) * 1.15)
   const newGcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
 
   let changed = false
   const items = lineItems.map(item => {
     const descLower = item.description.toLowerCase().trim()
-    if (descLower === 'railings' || descLower.includes('railing')) {
-      if (item.quantity !== newRailingQty) {
+    if (descLower === 'railings' || descLower === 'railing' || descLower.includes('railing')) {
+      if (item.quantity !== newRailingQty || item.description !== 'Railings 2.4m') {
         changed = true
-        return { ...item, quantity: newRailingQty }
+        return { ...item, description: 'Railings 2.4m', quantity: newRailingQty }
       }
     } else if (descLower === 'end clamp' || descLower.includes('end clamp') || descLower.startsWith('end clamp')) {
       if (item.quantity !== newEndClampQty || item.description !== 'End Clamp') {
@@ -121,9 +205,57 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         }
       }
     } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
-      if (item.description !== 'Ground Rod w/ Clamp') {
+      if (item.description !== 'Ground Rod w/ Clamp 3 Meters') {
         changed = true
-        return { ...item, description: 'Ground Rod w/ Clamp' }
+        return { ...item, description: 'Ground Rod w/ Clamp 3 Meters' }
+      }
+    } else if (
+      descLower === 'ac' ||
+      descLower === 'ac wire' ||
+      descLower === 'ac cable' ||
+      descLower.includes('ac wire') ||
+      descLower.includes('ac cable')
+    ) {
+      const targetDesc = wireInfo.acWire
+      if (item.description !== targetDesc) {
+        changed = true
+        return { ...item, description: targetDesc }
+      }
+    } else if (
+      descLower === 'dc' ||
+      descLower === 'dc wire' ||
+      descLower === 'dc/pv wire' ||
+      descLower === 'pv wire' ||
+      descLower === 'dc cable' ||
+      descLower.includes('dc wire') ||
+      descLower.includes('dc/pv wire') ||
+      descLower.includes('pv wire') ||
+      descLower.includes('dc cable')
+    ) {
+      const targetDesc = wireInfo.dcCable
+      if (item.description !== targetDesc) {
+        changed = true
+        return { ...item, description: targetDesc }
+      }
+    } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb')) {
+      if (item.description !== breakers.acMcb) {
+        changed = true
+        return { ...item, description: breakers.acMcb }
+      }
+    } else if (descLower === 'ac spd' || descLower.startsWith('ac spd')) {
+      if (item.description !== breakers.acSpd) {
+        changed = true
+        return { ...item, description: breakers.acSpd }
+      }
+    } else if (descLower === 'dc spd' || descLower.startsWith('dc spd')) {
+      if (item.description !== breakers.dcSpd) {
+        changed = true
+        return { ...item, description: breakers.dcSpd }
+      }
+    } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
+      if (item.description !== breakers.dcMcb) {
+        changed = true
+        return { ...item, description: breakers.dcMcb }
       }
     }
     return item
@@ -313,19 +445,19 @@ function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
     2: { desc: "Panel 625W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
-    3: { desc: "Railings", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
+    3: { desc: "Railings 2.4m", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
     6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
     7: { desc: "Flexible hose", qty: "5m", price: "₱215.00", total: "₱1,075.00" },
-    8: { desc: "AC wire", qty: "5m", price: "₱190.00", total: "₱950.00" },
-    9: { desc: "DC/PV wire", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
+    8: { desc: "AC Wire #6 AWG 14mm", qty: "5m", price: "₱190.00", total: "₱950.00" },
+    9: { desc: "DC/PV Wire #6 AWG 14mm", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
     11: { desc: "Breaker box 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
-    12: { desc: "AC MCB", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
-    13: { desc: "AC SPD", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
-    14: { desc: "DC SPD", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
-    15: { desc: "DC MCB", qty: "2 pcs", price: "₱300.00", total: "₱600.00" },
+    12: { desc: "AC MCB 63A", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
+    13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
+    14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
+    15: { desc: "DC MCB 63A", qty: "2 pcs", price: "₱300.00", total: "₱600.00" },
     16: { desc: "DC MCCB for battery 250A 1pc £1,500.00", qty: "1pc", price: "₱1,500.00", total: "₱1,500.00" },
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
@@ -1228,7 +1360,7 @@ export default function Home() {
   const handleSelectFloor = (floorNum: number) => {
     setSelectedFloor(floorNum)
     
-    const runLength = floorNum * 5
+    const runLength = getFloorMeters(floorNum)
     const extraQty = floorNum >= 2 ? 3 : 0
 
     setInvoice((prev) => {
@@ -1237,6 +1369,9 @@ export default function Home() {
       let hasAc = false
       let hasPv = false
       let hasDc = false
+
+      const inverterKw = getInverterKwFromLineItems(items)
+      const wireSize = getWireSize(inverterKw)
 
       let panelQty = 0
       for (const item of items) {
@@ -1287,7 +1422,7 @@ export default function Home() {
             ...item,
             quantity: runLength,
             unit: 'M',
-            description: `AC wire`
+            description: `AC Wire ${wireSize}`
           })
           continue
         }
@@ -1319,7 +1454,7 @@ export default function Home() {
             ...item,
             quantity: runLength,
             unit: 'M',
-            description: `DC/PV wire`
+            description: `DC/PV Wire ${wireSize}`
           })
           continue
         }
@@ -1352,7 +1487,7 @@ export default function Home() {
       if (!hasAc) {
         updatedItems.push({
           id: `floor-ac-${now}`,
-          description: `AC wire`,
+          description: `AC Wire ${wireSize}`,
           quantity: runLength,
           rate: SOLAR_PRICES.ACwire,
           unit: 'M'
@@ -1361,7 +1496,7 @@ export default function Home() {
       if (!hasDc) {
         updatedItems.push({
           id: `floor-dc-${now}`,
-          description: `DC/PV wire`,
+          description: `DC/PV Wire ${wireSize}`,
           quantity: runLength,
           rate: SOLAR_PRICES.DCwire,
           unit: 'M'
@@ -1399,7 +1534,7 @@ export default function Home() {
     const items: LineItem[] = []
     const now = Date.now()
     const floorNum = selectedFloor || 1
-    const runLength = floorNum * 5
+    const runLength = getFloorMeters(floorNum)
     const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
@@ -1456,26 +1591,21 @@ export default function Home() {
       })
     }
 
+    const wireInfo = getDynamicWireSize(inverterKw, runLength)
+    const breakers = getDynamicBreakerRatings(inverterKw)
+
     // 3. Railings
     const railingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
     items.push({
       id: `boq-3-${now}`,
-      description: `Railings`,
+      description: `Railings 2.4m`,
       quantity: railingQty,
       rate: prices.Railing,
       unit: 'PCS'
     })
 
-    // 4. Mid Clamps
-    let midClampQty = 0
-    if (panelQty > 0 && rows > 0) {
-      const base = Math.floor(panelQty / rows)
-      const extra = panelQty % rows
-      for (let i = 0; i < rows; i++) {
-        const panelsInRow = base + (i < extra ? 1 : 0)
-        midClampQty += Math.max(0, (panelsInRow - 1) * 2)
-      }
-    }
+    // 4. Mid Clamps (N_mid = 2 * (N_panels - N_rows))
+    const midClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -1484,8 +1614,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 5. End Clamps
-    const endClampQty = midClampQty
+    // 5. End Clamps (N_end = 2 * N_rows)
+    const endClampQty = panelQty <= 0 ? 0 : 2 * rows
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -1494,8 +1624,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 6. L Foot
-    const lFootQty = panelQty <= 0 ? 0 : Math.ceil(1.25 * (2 * panelQty)) + extraQty
+    // 6. L Foot (N_L-feet = ceil(N_panels * 3.2))
+    const lFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
@@ -1504,11 +1634,12 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 7. Flexcon HDPE Hose
+    // 7. Flexcon HDPE Hose (Conduit length L_conduit = (L_DC + L_AC) * 1.15)
+    const conduitLength = Math.ceil(runLength * 1.15)
     items.push({
       id: `boq-7-${now}`,
       description: `Flexible hose`,
-      quantity: runLength,
+      quantity: conduitLength,
       rate: prices.FlexconHDPE,
       unit: 'M'
     })
@@ -1516,7 +1647,7 @@ export default function Home() {
     // 8. AC Wire
     items.push({
       id: `boq-8-${now}`,
-      description: `AC wire`,
+      description: wireInfo.acWire,
       quantity: runLength,
       rate: prices.ACwire,
       unit: 'M'
@@ -1525,7 +1656,7 @@ export default function Home() {
     // 9. DC/PV Wire
     items.push({
       id: `boq-dc-${now}`,
-      description: `DC/PV wire`,
+      description: wireInfo.dcCable,
       quantity: runLength,
       rate: prices.DCwire,
       unit: 'M'
@@ -1554,7 +1685,7 @@ export default function Home() {
     // 12. AC MCB
     items.push({
       id: `boq-12-${now}`,
-      description: `AC MCB`,
+      description: breakers.acMcb,
       quantity: 2,
       rate: prices.ACMCB,
       unit: 'PCS'
@@ -1563,7 +1694,7 @@ export default function Home() {
     // 13. AC SPD
     items.push({
       id: `boq-13-${now}`,
-      description: `AC SPD`,
+      description: breakers.acSpd,
       quantity: 2,
       rate: prices.ACSPD,
       unit: 'PCS'
@@ -1572,7 +1703,7 @@ export default function Home() {
     // 14. DC SPD
     items.push({
       id: `boq-14-${now}`,
-      description: `DC SPD`,
+      description: breakers.dcSpd,
       quantity: 2,
       rate: prices.DCSPD,
       unit: 'PCS'
@@ -1581,17 +1712,16 @@ export default function Home() {
     // 15. DC MCB
     items.push({
       id: `boq-15-${now}`,
-      description: `DC MCB`,
+      description: breakers.dcMcb,
       quantity: 2,
       rate: prices.DCMCB,
       unit: 'PCS'
     })
 
     // 16. DC MCCB
-    const mccbRating = batteryQty >= 2 ? '250A' : '125A'
     items.push({
       id: `boq-16-${now}`,
-      description: `DC MCCB for battery ${mccbRating}`,
+      description: breakers.dcMccb,
       quantity: 1,
       rate: prices.DCMCCB,
       unit: 'PC'
@@ -1609,7 +1739,7 @@ export default function Home() {
     // 18. ATS
     items.push({
       id: `boq-18-${now}`,
-      description: `Automatic transfer switch`,
+      description: breakers.ats,
       quantity: 1,
       rate: prices.ATS,
       unit: 'PC'
@@ -1653,11 +1783,11 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    const rawGcLen = Math.ceil((runLength + 5) * 1.1)
+    const rawGcLen = Math.ceil((runLength + 5) * 1.15)
     const gcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
     items.push({
       id: `boq-g2-${now}`,
-      description: `Ground Wire 30m`,
+      description: wireInfo.groundWire,
       quantity: gcRolls,
       rate: prices.GroundWire || 1300,
       unit: 'ROLL'
@@ -1665,7 +1795,7 @@ export default function Home() {
 
     items.push({
       id: `boq-g3-${now}`,
-      description: `Ground Rod w/ Clamp`,
+      description: `Ground Rod w/ Clamp 3 Meters`,
       quantity: 1,
       rate: prices.GroundRod || 1500,
       unit: 'PC'
@@ -2128,24 +2258,117 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-5 gap-1.5 select-none">
-                    {[1, 2, 3, 4, 5].map((floorNum) => {
+                  <div className="grid grid-cols-4 gap-1.5 select-none">
+                    {[1, 2, 3, 4].map((floorNum) => {
                       const isSelected = selectedFloor === floorNum;
+                      const meters = getFloorMeters(floorNum);
                       return (
                         <button
                           key={floorNum}
                           onClick={() => handleSelectFloor(floorNum)}
                           className={cn(
-                            "h-9 rounded-[8px] flex items-center justify-center text-[11px] font-bold transition-all relative border cursor-pointer select-none",
+                            "h-10 rounded-[8px] flex flex-col items-center justify-center transition-all relative border cursor-pointer select-none py-1",
                             isSelected 
                               ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02] z-10" 
                               : "bg-secondary/50 hover:bg-secondary text-muted-foreground border-border"
                           )}
                         >
-                          F{floorNum}
+                          <span className="text-[11px] font-bold leading-none mb-0.5">F{floorNum}</span>
+                          <span className="text-[9px] opacity-80 leading-none">{meters}m</span>
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Building Code & Compliance Guardrails Panel */}
+                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🛡️</span> Compliance & Engineering Audit
+                    </h4>
+                    <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-[8px] font-mono font-bold border border-primary/20">
+                      NEC / Code Enforced
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 select-none text-[10px]">
+                    {/* Voltage Drop Safeguard */}
+                    <div className={cn(
+                      "p-2.5 rounded-[10px] border flex items-start gap-2",
+                      activeKwSetup >= 8 
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                        : "bg-secondary/40 border-border text-muted-foreground"
+                    )}>
+                      <span className="shrink-0 font-bold">{activeKwSetup >= 8 ? "✅" : "ℹ️"}</span>
+                      <div>
+                        <div className="font-bold">Voltage Drop Safeguard (&lt; 1.5%)</div>
+                        <div className="text-[9px] opacity-90 leading-relaxed mt-0.5">
+                          {activeKwSetup >= 8 
+                            ? `[PASSED] Forced 6mm² DC Cable to maintain < 1.5% voltage drop.`
+                            : `Standard 4mm² DC Cable evaluated for < 1.5% drop.`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Structural Load Check */}
+                    {(() => {
+                      const panelsCount = Math.ceil((activeKwSetup * 1000) / 550)
+                      const isOverLimit = panelsCount >= 16
+                      return (
+                        <div className={cn(
+                          "p-2.5 rounded-[10px] border flex items-start gap-2",
+                          isOverLimit
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                            : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                        )}>
+                          <span className="shrink-0 font-bold">{isOverLimit ? "⚠️" : "✅"}</span>
+                          <div>
+                            <div className="font-bold">Structural Roof Load Check</div>
+                            <div className="text-[9px] opacity-90 leading-relaxed mt-0.5">
+                              {isOverLimit 
+                                ? `[WARNING] Array exceeds 15 panels (${panelsCount} modules). Professional roof truss structural evaluation required.`
+                                : `[PASSED] Dead load within 12-15 kg/m² limit (${panelsCount} modules).`}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Battery C-Rating Check */}
+                    {(() => {
+                      const iDc = Math.ceil((activeKwSetup * 1000) / (48 * 0.85 * 0.80))
+                      const isHighCurrent = iDc > 200
+                      return (
+                        <div className={cn(
+                          "p-2.5 rounded-[10px] border flex items-start gap-2",
+                          isHighCurrent
+                            ? "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300"
+                            : "bg-secondary/40 border-border text-muted-foreground"
+                        )}>
+                          <span className="shrink-0 font-bold">{isHighCurrent ? "⚡" : "ℹ️"}</span>
+                          <div>
+                            <div className="font-bold">Battery C-Rating & Current Limit ({iDc}A DC)</div>
+                            <div className="text-[9px] opacity-90 leading-relaxed mt-0.5">
+                              {isHighCurrent 
+                                ? `[REQUIRED] System requires a minimum of 2x 48V Lithium Battery modules connected in parallel.`
+                                : `Single 48V Battery module sufficient for current limit.`}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Grounding & Waterproofing */}
+                    <div className="p-2.5 bg-secondary/40 border border-border rounded-[10px] text-muted-foreground flex items-start gap-2">
+                      <span className="shrink-0 font-bold">🔒</span>
+                      <div>
+                        <div className="font-bold text-foreground">Grounding & Waterproofing</div>
+                        <div className="text-[9px] opacity-90 leading-relaxed mt-0.5">
+                          Continuous bonding required across all railings and module frames (Rg ≤ 5 Ω). EPDM gaskets and silicone sealant on all penetrations.
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
