@@ -453,7 +453,7 @@ const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; 
   6: { anern: 18000, solis: 44000, goodwe: 47000 },
   8: { anern: 25000, solis: 60000, goodwe: 62000 },
   10: { anern: 28000, solis: 68000, goodwe: 74000 },
-  12: { anern: 32500, solis: 68000, goodwe: 78000 },
+  12: { anern: 32500, solis: 82000, goodwe: 78000 },
   16: { anern: 45000, solis: 113000, goodwe: 150000 },
   18: { anern: 55000, solis: 135000, goodwe: 150000 },
   20: { anern: 65000, solis: 155000, goodwe: 150000 },
@@ -467,7 +467,7 @@ const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; 
 function getInverterBrandPrices(kw: number) {
   const keys = Object.keys(INVERTER_BRAND_PRICES_MAP).map(Number).sort((a, b) => a - b)
   const matchedKw = keys.find(k => k >= kw) || keys[keys.length - 1]
-  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 68000, goodwe: 78000 }
+  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 82000, goodwe: 78000 }
 }
 
 interface OnGridBrandInfo {
