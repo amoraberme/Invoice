@@ -48,8 +48,12 @@ export function useMGInvoice() {
             ;(sanitized as unknown as Record<string, unknown>)[key] = !isNaN(parsed) ? parsed : defaultVal
           } else if (key === 'note') {
             const currentNote = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
-            if (currentNote.includes('All items are subject to availability') && !currentNote.includes('preliminary estimates')) {
-              sanitized.note = defaultInvoice.note
+            if (currentNote.includes('\n\nPlease be advised') || !currentNote.includes('preliminary estimates')) {
+              if (!currentNote || currentNote.includes('All items are subject to availability')) {
+                sanitized.note = defaultInvoice.note
+              } else {
+                sanitized.note = `${currentNote.replace(/\n\nPlease be advised[\s\S]*/, '')}\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.`
+              }
             } else {
               sanitized.note = currentNote
             }
@@ -86,7 +90,15 @@ export function useMGInvoice() {
           (overrides as unknown as Record<string, number>)[field] = parseFloat(value) || 0
         } else if (field !== 'lineItems') {
           if (value !== 'undefined') {
-            (overrides as Record<string, string>)[field] = value
+            if (field === 'note' && (value.includes('\n\nPlease be advised') || !value.includes('preliminary estimates'))) {
+              if (!value || value.includes('All items are subject to availability')) {
+                (overrides as Record<string, string>)[field] = defaultInvoice.note
+              } else {
+                (overrides as Record<string, string>)[field] = `${value.replace(/\n\nPlease be advised[\s\S]*/, '')}\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.`
+              }
+            } else {
+              (overrides as Record<string, string>)[field] = value
+            }
           }
         }
       }
