@@ -46,6 +46,13 @@ export function useMGInvoice() {
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             ;(sanitized as unknown as Record<string, unknown>)[key] = !isNaN(parsed) ? parsed : defaultVal
+          } else if (key === 'note') {
+            const currentNote = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+            if (currentNote.includes('All items are subject to availability') && !currentNote.includes('preliminary estimates')) {
+              sanitized.note = defaultInvoice.note
+            } else {
+              sanitized.note = currentNote
+            }
           } else {
             ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
           }
