@@ -588,7 +588,7 @@ const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; 
   12: { anern: 32500, solis: 82000, goodwe: 78000 },
   16: { anern: 45000, solis: 113000, goodwe: 150000 },
   18: { anern: 55000, solis: 135000, goodwe: 150000 },
-  20: { anern: 65000, solis: 155000, goodwe: 150000 },
+  20: { anern: 65000, solis: 150000, goodwe: 150000 },
   30: { anern: 95000, solis: 217000, goodwe: 140000 },
   50: { anern: 160000, solis: 217000, goodwe: 170000 },
   60: { anern: 200000, solis: 237000, goodwe: 220000 },
@@ -1538,7 +1538,7 @@ export default function Home() {
     const extraQty = floorNum >= 2 ? 3 : 0
 
     // 1. Inverter
-    const inverterSizes = [1.5, 3, 4, 5, 6, 8, 10, 12, 16, 30, 50, 60, 75, 125]
+    const inverterSizes = [1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20, 30, 50, 60, 75, 125]
     let inverterKw = inverterSizes.find(s => s >= systemKw)
     if (inverterKw === undefined) {
       inverterKw = Math.ceil(systemKw)
