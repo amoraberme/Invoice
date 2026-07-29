@@ -84,6 +84,26 @@ export function isBatteryItem(description: string): boolean {
   )
 }
 
+export function stripBrandName(description: string): string {
+  if (!description) return ''
+  const d = description.trim()
+
+  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC)\s+/i
+
+  return d.replace(brandRegex, '').trim()
+}
+
+export function formatItemDescription(description: string, withBrandName: boolean): string {
+  const d = (description || '').trim()
+  if (!d) return ''
+
+  if (withBrandName) {
+    return formatBrandItemDescription(d)
+  } else {
+    return stripBrandName(d)
+  }
+}
+
 export function formatBrandItemDescription(description: string): string {
   const d = (description || '').trim()
   if (!d) return ''
@@ -153,6 +173,7 @@ export function formatBrandItemDescription(description: string): string {
 
 export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   const rateMarkup = invoice.rateMarkup || 0
+  const withBrand = invoice.withBrandName !== false
 
   const groups: Record<
     string,
@@ -172,7 +193,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   })
 
   for (const item of validItems) {
-    const formattedDesc = formatBrandItemDescription(item.description)
+    const formattedDesc = formatItemDescription(item.description, withBrand)
     const descLower = formattedDesc.toLowerCase().trim()
     const isLabor = isLaborItem(formattedDesc)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)

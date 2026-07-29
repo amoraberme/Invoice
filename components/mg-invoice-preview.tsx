@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -17,13 +17,15 @@ export function MGInvoicePreview({
   hoveredField,
   onOpenCheatsheet,
   onPagesChange,
-  onToggleCondensed
+  onToggleCondensed,
+  onToggleWithBrandName
 }: { 
   invoice: Invoice; 
   hoveredField?: string | null;
   onOpenCheatsheet?: () => void;
   onPagesChange?: (count: number) => void;
   onToggleCondensed?: (isCondensed: boolean) => void;
+  onToggleWithBrandName?: (withBrandName: boolean) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -273,38 +275,78 @@ export function MGInvoicePreview({
       ref={canvasRef}
       className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
-      {/* with Brand Name Pill Toggle */}
-      <div className="mb-4 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border shadow-xs z-10 select-none">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          with Brand Name:
-        </span>
-        <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
-          <button
-            type="button"
-            onClick={() => onToggleCondensed?.(true)}
-            className={cn(
-              "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
-              invoice.isCondensed
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Condensed brief breakdown: Solar Panels, Inverter, Battery, Materials, Electrical, Services"
-          >
-            📦 [Condensed]
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleCondensed?.(false)}
-            className={cn(
-              "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
-              !invoice.isCondensed
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Comprehensive detailed itemized breakdown"
-          >
-            📋 [Comprehensive]
-          </button>
+      {/* Floating Controls Toolbar: Format & Brand Name Toggles */}
+      <div className="mb-4 print:hidden flex items-center gap-3 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-4 py-1.5 rounded-full border border-border shadow-xs z-10 select-none flex-wrap justify-center">
+        {/* Format Toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            Format:
+          </span>
+          <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
+            <button
+              type="button"
+              onClick={() => onToggleCondensed?.(true)}
+              className={cn(
+                "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+                invoice.isCondensed
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Condensed brief breakdown: Solar Panels, Inverter, Battery, Materials, Electrical, Services"
+            >
+              📦 [Condensed]
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleCondensed?.(false)}
+              className={cn(
+                "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+                !invoice.isCondensed
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Comprehensive detailed itemized breakdown"
+            >
+              📋 [Comprehensive]
+            </button>
+          </div>
+        </div>
+
+        <div className="h-4 w-[1px] bg-border hidden sm:block" />
+
+        {/* Brand Name Toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            with Brand Name:
+          </span>
+          <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
+            <button
+              type="button"
+              onClick={() => onToggleWithBrandName?.(true)}
+              className={cn(
+                "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+                invoice.withBrandName !== false
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Include brand names (Tongwei, Solis, Genix, etc.) in item descriptions"
+            >
+              🏷️ [ON]
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleWithBrandName?.(false)}
+              className={cn(
+                "px-3 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1",
+                invoice.withBrandName === false
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Hide brand names in item descriptions"
+            >
+              🚫 [OFF]
+            </button>
+          </div>
         </div>
       </div>
       {virtualPages.map((page, pageIndex) => {
@@ -434,10 +476,11 @@ export function MGInvoicePreview({
                       const isLabor = !isCondensedItem && isLaborItem(item.description)
                       const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
                       const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
+                      const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
                       return (
                         <div key={item.id} className={cn("flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                            {item.description || '—'}
+                            {displayDesc || '—'}
                           </span>
                           <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
                             {item.unit || '—'}

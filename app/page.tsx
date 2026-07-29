@@ -2691,6 +2691,22 @@ export default function Home() {
                       {invoice.isCondensed ? "📦 [Condensed]" : "📋 [Comprehensive]"}
                     </Button>
 
+                    <Button
+                      type="button"
+                      variant={invoice.withBrandName !== false ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => update('withBrandName', invoice.withBrandName === false)}
+                      className={cn(
+                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 flex items-center gap-1",
+                        invoice.withBrandName !== false
+                          ? "bg-black text-white hover:bg-black/90 border-black"
+                          : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      )}
+                      title={invoice.withBrandName !== false ? "Brand names included in item descriptions. Click to hide." : "Brand names hidden in item descriptions. Click to show."}
+                    >
+                      {invoice.withBrandName !== false ? "🏷️ [With Brand]" : "🚫 [Without Brand]"}
+                    </Button>
+
                     {systemType === 'hybrid' && (
                       <Button
                         type="button"
@@ -3846,6 +3862,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onOpenCheatsheet={() => setCheatsheetOpen(true)}
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
+            onToggleWithBrandName={(val) => update('withBrandName', val)}
           />
         )}
       </div>
