@@ -65,7 +65,7 @@ export function useMGInvoice() {
             }
             ;(sanitized as unknown as Record<string, unknown>)[key] = numVal
           } else if (key === 'note') {
-            const currentNote = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+            const currentNote = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.note) || ''
             if (currentNote.includes('\n\nPlease be advised') || !currentNote.includes('preliminary estimates')) {
               if (!currentNote || currentNote.includes('All items are subject to availability')) {
                 sanitized.note = defaultInvoice.note

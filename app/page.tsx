@@ -2671,13 +2671,29 @@ export default function Home() {
 
                 {/* CLOSING */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Closing / Footer</SectionHeader>
+                  <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
                   <Textarea
                     value={invoice.closing || ''}
                     onChange={(e) => update('closing', e.target.value)}
                     placeholder="We are looking forward to building..."
-                    rows={5}
+                    rows={4}
                   />
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                    <Field label="CEO / Executive Signee">
+                      <Input
+                        value={invoice.ceoName ?? 'Mary Grace E. Santos'}
+                        onChange={(e) => update('ceoName', e.target.value)}
+                        placeholder="Mary Grace E. Santos"
+                      />
+                    </Field>
+                    <Field label="Executive Title">
+                      <Input
+                        value={invoice.ceoPosition ?? 'Chief Executive Officer'}
+                        onChange={(e) => update('ceoPosition', e.target.value)}
+                        placeholder="Chief Executive Officer"
+                      />
+                    </Field>
+                  </div>
                 </section>
               </>
             )}

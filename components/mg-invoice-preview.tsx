@@ -35,7 +35,8 @@ export function MGInvoicePreview({
       (field === 'sender' && ['fromName', 'fromEmail', 'fromPhone', 'fromAddress'].includes(hoveredField || '')) ||
       (field === 'client' && ['toName', 'toEmail', 'toAddress'].includes(hoveredField || '')) ||
       (field === 'sales' && ['salesName', 'salesPosition', 'salesCompany', 'salesContact', 'salesEmail'].includes(hoveredField || '')) ||
-      (field === 'bankDetails' && ['bankBeneficiary', 'bankName', 'bankSortCode', 'bankAccount', 'bankSwift'].includes(hoveredField || ''))
+      (field === 'bankDetails' && ['bankBeneficiary', 'bankName', 'bankSortCode', 'bankAccount', 'bankSwift'].includes(hoveredField || '')) ||
+      (field === 'closing' && ['closing', 'ceoName', 'ceoPosition'].includes(hoveredField || ''))
 
     return isHovered 
       ? 'outline outline-[1.5px] outline-[#008B4C] outline-offset-2 bg-[#008B4C]/5 rounded-sm transition-all duration-200' 
@@ -115,7 +116,7 @@ export function MGInvoicePreview({
     const bankHeight = bankFields > 0 ? (bankFields * 24 + 90) : 0 // include padding, margins, gaps and header
     totalsHeight += bankHeight
     
-    // 3. Footer block height (Note, Terms, Sales Contact, Closing)
+    // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
     const noteLines = getWrappedLines(inv.note, 80)
     const noteHeight = inv.note ? (noteLines * 18 + 36) : 0
     
@@ -126,8 +127,10 @@ export function MGInvoicePreview({
     
     const closingLines = getWrappedLines(inv.closing, 80)
     const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
+
+    const ackHeight = inv.closing ? 160 : 0
     
-    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + 20
+    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 20
 
     // Available content height inside A4 borders with a safety buffer to prevent browser clipping
     const PAGE_MAX_H = 980
@@ -579,12 +582,60 @@ export function MGInvoicePreview({
                     )}
 
 
-                    {/* Closing Section */}
+                    {/* Closing & Acknowledgment Section */}
                     {invoice.closing && (
                       <div className={cn("mt-8 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1", getHighlightClass('closing'))}>
                         <p className="text-[12px] text-[#555555] italic text-center font-medium">
                           {invoice.closing}
                         </p>
+
+                        {/* Acknowledgment Section with Signatures */}
+                        <div className="mt-6 pt-6 border-t border-[#E5E5E5] print:break-inside-avoid">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-6 text-center">
+                            Acknowledgment & Conforme
+                          </p>
+
+                          <div className="grid grid-cols-3 gap-6 items-start pt-2">
+                            {/* Sales Signature */}
+                            <div className="flex flex-col text-center">
+                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                {invoice.salesName || 'Sales Representative'}
+                              </p>
+                              <div className="min-h-[24px] flex items-center justify-center px-1">
+                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                  {invoice.salesPosition || 'Sales'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Client Signature */}
+                            <div className="flex flex-col text-center">
+                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                {invoice.toName || 'Client Representative'}
+                              </p>
+                              <div className="min-h-[24px] flex items-center justify-center px-1">
+                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                  Client
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Chief Executive Officer Signature */}
+                            <div className="flex flex-col text-center">
+                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                {invoice.ceoName || 'Mary Grace E. Santos'}
+                              </p>
+                              <div className="min-h-[24px] flex items-center justify-center px-1">
+                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                  {invoice.ceoPosition || 'Chief Executive Officer'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </>
