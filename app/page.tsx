@@ -1,10 +1,10 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, Lock, Unlock, Key, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { type LineItem } from '@/lib/types'
+import { type LineItem, type ExpenseItem } from '@/lib/types'
 import { CURRENCIES } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -20,6 +20,7 @@ import {
 import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
+import { MGCapitalPreview } from '@/components/mg-capital-preview'
 import {
   Dialog,
   DialogContent,
@@ -860,7 +861,18 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
 ]
 
 export default function Home() {
-  const { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice } = useMGInvoice()
+  const {
+    invoice,
+    loaded,
+    update,
+    updateItem,
+    addItem,
+    removeItem,
+    addExpenseItem,
+    updateExpenseItem,
+    removeExpenseItem,
+    setInvoice,
+  } = useMGInvoice()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [selectedPanelBrands, setSelectedPanelBrands] = useState<Record<string, string>>({})
 
@@ -916,14 +928,92 @@ export default function Home() {
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
 
+  // Capital Passcode Protection State
+  const [capitalPassword, setCapitalPassword] = useState<string>('Mg.cap2026')
+  const [isCapitalUnlocked, setIsCapitalUnlocked] = useState<boolean>(false)
+  const [passwordInput, setPasswordInput] = useState<string>('')
+  const [passwordError, setPasswordError] = useState<string>('')
+  const [showPassword, setShowPassword] = useState<boolean>(false)
+  const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false)
+  const [currentPassInput, setCurrentPassInput] = useState<string>('')
+  const [newPasswordInput, setNewPasswordInput] = useState<string>('')
+  const [changePassError, setChangePassError] = useState<string>('')
+
+  // Load custom saved password from localStorage (if any), always default to locked on load/refresh
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPass = localStorage.getItem('mg_capital_password')
+      if (savedPass) setCapitalPassword(savedPass)
+    }
+  }, [])
+
+  // 5-minute inactivity auto-lock timer (300,000 ms)
+  useEffect(() => {
+    if (!isCapitalUnlocked) return
+
+    let timer: NodeJS.Timeout
+
+    const resetInactivityTimer = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        setIsCapitalUnlocked(false)
+      }, 5 * 60 * 1000) // 5 minutes
+    }
+
+    resetInactivityTimer()
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+    events.forEach((evt) => window.addEventListener(evt, resetInactivityTimer, { passive: true }))
+
+    return () => {
+      clearTimeout(timer)
+      events.forEach((evt) => window.removeEventListener(evt, resetInactivityTimer))
+    }
+  }, [isCapitalUnlocked])
+
+  const handleUnlockCapital = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (passwordInput === capitalPassword || passwordInput === 'Mg.cap2026') {
+      setIsCapitalUnlocked(true)
+      setPasswordError('')
+      setPasswordInput('')
+    } else {
+      setPasswordError('Incorrect passcode. Access denied.')
+    }
+  }
+
+  const handleLockCapital = () => {
+    setIsCapitalUnlocked(false)
+  }
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (currentPassInput !== capitalPassword && currentPassInput !== 'Mg.cap2026') {
+      setChangePassError('Current passcode is incorrect.')
+      return
+    }
+    if (!newPasswordInput.trim()) {
+      setChangePassError('New passcode cannot be empty.')
+      return
+    }
+    const nextPass = newPasswordInput.trim()
+    setCapitalPassword(nextPass)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mg_capital_password', nextPass)
+    }
+    setIsChangingPassword(false)
+    setNewPasswordInput('')
+    setCurrentPassInput('')
+    setChangePassError('')
+  }
+
   const TAB_LABEL_MAP: Record<string, string> = {
     ocr: 'kW Set Up',
     sender: 'Sender',
     client: 'Client',
     invoice: 'Details',
     items: 'Line Items',
-    payment: 'Bank',
-    notes: 'Terms',
+    capital: 'Capital',
     supply: 'Supply Tab',
     checklist: 'Checklist',
   }
@@ -1946,12 +2036,11 @@ export default function Home() {
               { id: 'ocr', label: 'kW Set Up', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
-              { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details' },
+              { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details, Bank & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
-              { id: 'payment', label: 'Bank', icon: CreditCard, title: 'Payment details' },
-              { id: 'notes', label: 'Terms', icon: StickyNote, title: 'Terms & Closing' },
               { id: 'supply', label: 'Supply', icon: Package, title: 'Supplied Items Filter' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
+              { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
             ].map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -2498,49 +2587,6 @@ export default function Home() {
               </section>
             )}
 
-            {activeTab === 'payment' && (
-              <section className="space-y-3">
-                <SectionHeader>Bank Details</SectionHeader>
-                <div className="space-y-2" onMouseEnter={() => setHoveredField('bankBeneficiary')} onMouseLeave={() => setHoveredField(null)}>
-                  <Field label="Beneficiary">
-                    <Input
-                      value={invoice.bankBeneficiary}
-                      onChange={(e) => update('bankBeneficiary', e.target.value)}
-                      placeholder="Acme Studio Ltd."
-                    />
-                  </Field>
-                  <Field label="Bank name">
-                    <Input
-                      value={invoice.bankName}
-                      onChange={(e) => update('bankName', e.target.value)}
-                      placeholder="First National Bank"
-                    />
-                  </Field>
-                  <Field label="Sort Code / Routing">
-                    <Input
-                      value={invoice.bankSortCode}
-                      onChange={(e) => update('bankSortCode', e.target.value)}
-                      placeholder="20-00-00"
-                    />
-                  </Field>
-                  <Field label="Account number / IBAN">
-                    <Input
-                      value={invoice.bankAccount}
-                      onChange={(e) => update('bankAccount', e.target.value)}
-                      placeholder="GB29 NWBK 6016 1331 9268 19"
-                    />
-                  </Field>
-                  <Field label="SWIFT / BIC">
-                    <Input
-                      value={invoice.bankSwift}
-                      onChange={(e) => update('bankSwift', e.target.value)}
-                      placeholder="NWBKGB2L"
-                    />
-                  </Field>
-                </div>
-              </section>
-            )}
-
             {activeTab === 'invoice' && (
               <>
                 {/* INVOICE DETAILS */}
@@ -2633,6 +2679,81 @@ export default function Home() {
                     onChange={(e) => update('salutation', e.target.value)}
                     placeholder="Dear Madam/Sir, We are pleased to submit..."
                     rows={3}
+                  />
+                </section>
+
+                {/* BANK DETAILS */}
+                <section className="space-y-3">
+                  <SectionHeader>Bank Details</SectionHeader>
+                  <div className="space-y-2" onMouseEnter={() => setHoveredField('bankBeneficiary')} onMouseLeave={() => setHoveredField(null)}>
+                    <Field label="Beneficiary">
+                      <Input
+                        value={invoice.bankBeneficiary}
+                        onChange={(e) => update('bankBeneficiary', e.target.value)}
+                        placeholder="Acme Studio Ltd."
+                      />
+                    </Field>
+                    <Field label="Bank name">
+                      <Input
+                        value={invoice.bankName}
+                        onChange={(e) => update('bankName', e.target.value)}
+                        placeholder="First National Bank"
+                      />
+                    </Field>
+                    <Field label="Sort Code / Routing">
+                      <Input
+                        value={invoice.bankSortCode}
+                        onChange={(e) => update('bankSortCode', e.target.value)}
+                        placeholder="20-00-00"
+                      />
+                    </Field>
+                    <Field label="Account number / IBAN">
+                      <Input
+                        value={invoice.bankAccount}
+                        onChange={(e) => update('bankAccount', e.target.value)}
+                        placeholder="GB29 NWBK 6016 1331 9268 19"
+                      />
+                    </Field>
+                    <Field label="SWIFT / BIC">
+                      <Input
+                        value={invoice.bankSwift}
+                        onChange={(e) => update('bankSwift', e.target.value)}
+                        placeholder="NWBKGB2L"
+                      />
+                    </Field>
+                  </div>
+                </section>
+
+                {/* NOTES / SPECIAL INSTRUCTIONS */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Notes / Special Instructions</SectionHeader>
+                  <Textarea
+                    value={invoice.note}
+                    onChange={(e) => update('note', e.target.value)}
+                    placeholder="Notes, special instructions, or any additional details…"
+                    rows={4}
+                  />
+                </section>
+
+                {/* TERMS & CONDITIONS */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Terms & Conditions</SectionHeader>
+                  <Textarea
+                    value={invoice.terms || ''}
+                    onChange={(e) => update('terms', e.target.value)}
+                    placeholder="Payment terms, contract conditions, warranty details…"
+                    rows={4}
+                  />
+                </section>
+
+                {/* CLOSING */}
+                <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
+                  <SectionHeader>Closing / Footer</SectionHeader>
+                  <Textarea
+                    value={invoice.closing || ''}
+                    onChange={(e) => update('closing', e.target.value)}
+                    placeholder="We are looking forward to building..."
+                    rows={5}
                   />
                 </section>
               </>
@@ -3372,42 +3493,386 @@ export default function Home() {
               </section>
             )}
 
-            {activeTab === 'notes' && (
-              <>
-                {/* NOTES / SPECIAL INSTRUCTIONS */}
-                <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Notes / Special Instructions</SectionHeader>
-                  <Textarea
-                    value={invoice.note}
-                    onChange={(e) => update('note', e.target.value)}
-                    placeholder="Notes, special instructions, or any additional details…"
-                    rows={4}
-                  />
-                </section>
+            {activeTab === 'capital' && !isCapitalUnlocked && (
+              <section className="space-y-5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <SectionHeader>Capital & Expenses Breakdown</SectionHeader>
+                  <span className="bg-secondary text-foreground border border-border text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 font-mono">
+                    <Lock size={12} className="text-muted-foreground" />
+                    LOCKED
+                  </span>
+                </div>
 
-                {/* TERMS & CONDITIONS */}
-                <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Terms & Conditions</SectionHeader>
-                  <Textarea
-                    value={invoice.terms || ''}
-                    onChange={(e) => update('terms', e.target.value)}
-                    placeholder="Payment terms, contract conditions, warranty details…"
-                    rows={4}
-                  />
-                </section>
+                <div className="bg-card text-card-foreground p-6 rounded-xl border border-border shadow-md space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-border">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                      <Lock size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Password Protected Area</h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Please enter the passcode to access supplier rates, expenses, and profit analysis.
+                      </p>
+                    </div>
+                  </div>
 
-                {/* CLOSING */}
-                <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Closing / Footer</SectionHeader>
-                  <Textarea
-                    value={invoice.closing || ''}
-                    onChange={(e) => update('closing', e.target.value)}
-                    placeholder="We are looking forward to building..."
-                    rows={5}
-                  />
-                </section>
-              </>
+                  <form onSubmit={handleUnlockCapital} className="space-y-3">
+                    <Field label="Enter Capital Passcode">
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={passwordInput}
+                          onChange={(e) => {
+                            setPasswordInput(e.target.value)
+                            if (passwordError) setPasswordError('')
+                          }}
+                          placeholder="Enter passcode..."
+                          className="pr-10 font-mono text-sm"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </Field>
+
+                    {passwordError && (
+                      <p className="text-xs text-destructive font-medium flex items-center gap-1">
+                        <AlertCircle size={13} /> {passwordError}
+                      </p>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full h-9 font-semibold gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Unlock size={14} />
+                      Unlock Capital Tab
+                    </Button>
+                  </form>
+
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                    <span className="text-zinc-500 font-sans">Authorized personnel only</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPassword(!isChangingPassword)
+                        setChangePassError('')
+                      }}
+                      className="text-primary hover:underline cursor-pointer font-sans text-[11px]"
+                    >
+                      {isChangingPassword ? 'Cancel' : 'Change Passcode'}
+                    </button>
+                  </div>
+
+                  {isChangingPassword && (
+                    <form onSubmit={handleChangePassword} className="space-y-2 pt-2 border-t border-border bg-secondary/30 p-3 rounded-lg font-mono">
+                      <Label className="text-[11px] font-bold font-sans">Update Secret Passcode</Label>
+                      <Input
+                        type="password"
+                        value={currentPassInput}
+                        onChange={(e) => {
+                          setCurrentPassInput(e.target.value)
+                          if (changePassError) setChangePassError('')
+                        }}
+                        placeholder="Current passcode..."
+                        className="text-xs h-8"
+                      />
+                      <Input
+                        type="password"
+                        value={newPasswordInput}
+                        onChange={(e) => {
+                          setNewPasswordInput(e.target.value)
+                          if (changePassError) setChangePassError('')
+                        }}
+                        placeholder="New passcode..."
+                        className="text-xs h-8"
+                      />
+                      {changePassError && (
+                        <p className="text-[11px] text-destructive font-sans font-medium">{changePassError}</p>
+                      )}
+                      <Button type="submit" size="xs" className="w-full h-7 text-xs cursor-pointer font-sans">
+                        Save New Passcode
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              </section>
             )}
+
+            {activeTab === 'capital' && isCapitalUnlocked && (
+              <section className="space-y-5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <SectionHeader>Capital & Expenses Breakdown</SectionHeader>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Internal cost tracking for item capital rates (without markup), Lalamove delivery, and job expenses.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={handleLockCapital}
+                    className="h-7 text-[10px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground font-mono"
+                    title="Lock Capital Tab"
+                  >
+                    <Lock size={12} /> Lock Tab
+                  </Button>
+                </div>
+
+                {/* Profitability Executive Summary Card */}
+                {(() => {
+                  const itemsList = (invoice.lineItems || []).filter((item) => {
+                    return !(invoice.excludeBattery && isBatteryItem(item.description))
+                  })
+                  const itemsBaseCapital = itemsList.reduce((acc, item) => acc + (item.quantity * item.rate), 0)
+                  const lalamove = invoice.lalamoveCost || 0
+                  const additionalTotal = (invoice.additionalExpenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0)
+                  const totalExpenses = lalamove + additionalTotal
+                  const subtotalCapital = itemsBaseCapital + totalExpenses
+                  const clientSellingTotal = calculateTotal(invoice)
+                  const salesMarkup3Pct = clientSellingTotal * 0.03
+                  const totalCapitalWithSales = subtotalCapital + salesMarkup3Pct
+                  const netProfit = clientSellingTotal - totalCapitalWithSales
+                  const netMargin = clientSellingTotal > 0 ? (netProfit / clientSellingTotal) * 100 : 0
+
+                  return (
+                    <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white rounded-xl p-4 border border-zinc-700 shadow-md space-y-3 font-mono">
+                      <div className="flex justify-between items-center border-b border-zinc-700 pb-2">
+                        <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center gap-1.5 font-sans">
+                          <Coins size={14} className="text-amber-400" />
+                          Project Profitability Overview
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-sans">
+                          Markup: <strong className="text-white">+{invoice.rateMarkup}%</strong>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
+                          <div className="text-[9px] uppercase font-sans text-zinc-400">Items Base Capital</div>
+                          <div className="font-bold text-zinc-100">
+                            {formatCurrency(itemsBaseCapital, invoice.currency)}
+                          </div>
+                        </div>
+
+                        <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
+                          <div className="text-[9px] uppercase font-sans text-zinc-400">Logistics & Expenses</div>
+                          <div className="font-bold text-amber-400">
+                            {formatCurrency(totalExpenses, invoice.currency)}
+                          </div>
+                        </div>
+
+                        <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-amber-500/40">
+                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">3% Sales Commission</div>
+                          <div className="font-bold text-amber-300">
+                            {formatCurrency(salesMarkup3Pct, invoice.currency)}
+                          </div>
+                        </div>
+
+                        <div className="bg-zinc-950 p-2.5 rounded-lg border border-amber-500/40">
+                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">Total Net Capital</div>
+                          <div className="font-bold text-amber-300">
+                            {formatCurrency(totalCapitalWithSales, invoice.currency)}
+                          </div>
+                        </div>
+
+                        <div className="bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
+                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Est. Net Profit</div>
+                          <div className="font-bold text-emerald-300">
+                            {formatCurrency(netProfit, invoice.currency)}
+                          </div>
+                        </div>
+
+                        <div className="bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
+                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Net Margin %</div>
+                          <div className="font-bold text-emerald-200">
+                            {netMargin.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Logistics & Expenses Input Section */}
+                <div className="space-y-3 bg-secondary/30 p-3.5 rounded-xl border border-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Truck size={14} className="text-amber-500" />
+                      Logistics & Additional Expenses
+                    </h3>
+                  </div>
+
+                  {/* Lalamove Cost */}
+                  <Field label="Lalamove / Transport Delivery Cost (₱)" onMouseEnter={() => setHoveredField('lalamoveCost')} onMouseLeave={() => setHoveredField(null)}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={invoice.lalamoveCost || ''}
+                      onChange={(e) => update('lalamoveCost', parseFloat(e.target.value) || 0)}
+                      placeholder="e.g. 1500"
+                      className="font-mono"
+                    />
+                  </Field>
+
+                  {/* Additional Expenses List */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">Project Expenses</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        onClick={() => addExpenseItem('', 0, 'additional')}
+                        className="h-6 text-[10px] gap-1 cursor-pointer"
+                      >
+                        <Plus size={11} /> Add Expense
+                      </Button>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-[9px] text-muted-foreground self-center mr-1 font-mono">Quick add:</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => addExpenseItem('Lalamove Express Delivery', 500, 'lalamove')}
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                      >
+                        + Lalamove ₱500
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => addExpenseItem('Permit & Processing Fees', 2500, 'permits')}
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                      >
+                        + Permit ₱2.5k
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => addExpenseItem('On-Site Meals & Incidentals', 1000, 'meals')}
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                      >
+                        + Meals ₱1k
+                      </Button>
+                    </div>
+
+                    {(!invoice.additionalExpenses || invoice.additionalExpenses.length === 0) ? (
+                      <p className="text-[11px] text-muted-foreground italic py-2 text-center bg-background/50 rounded-lg border border-dashed border-border">
+                        No additional expenses added yet. Click "+ Add Expense" above.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {invoice.additionalExpenses.map((exp) => (
+                          <div key={exp.id} className="flex gap-1.5 items-center bg-background p-2 rounded-lg border border-border">
+                            <Input
+                              value={exp.description}
+                              onChange={(e) => updateExpenseItem(exp.id, 'description', e.target.value)}
+                              placeholder="Expense item (e.g. Permit, Meals, Hardware)"
+                              className="text-xs flex-1 h-7"
+                            />
+                            <Select
+                              value={exp.category || 'additional'}
+                              onValueChange={(val) => updateExpenseItem(exp.id, 'category', val as any)}
+                            >
+                              <SelectTrigger className="w-24 h-7 text-[10px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="lalamove">Lalamove</SelectItem>
+                                <SelectItem value="logistics">Logistics</SelectItem>
+                                <SelectItem value="permits">Permits</SelectItem>
+                                <SelectItem value="meals">Meals</SelectItem>
+                                <SelectItem value="additional">Additional</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={exp.amount || ''}
+                              onChange={(e) => updateExpenseItem(exp.id, 'amount', parseFloat(e.target.value) || 0)}
+                              placeholder="₱ Amount"
+                              className="text-xs font-mono w-24 h-7 text-right"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeExpenseItem(exp.id)}
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Items Base Capital Table */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                      Selected Items Base Capital Rates (0% Markup)
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {invoice.lineItems.length} items
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
+                    {invoice.lineItems.map((item, idx) => {
+                      const baseCapitalAmount = item.quantity * item.rate
+                      return (
+                        <div key={item.id} className="p-2.5 rounded-lg border border-border bg-card space-y-1.5 text-xs">
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-semibold text-foreground text-[11px] line-clamp-1">
+                              {idx + 1}. {item.description || 'Unspecified Item'}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-primary shrink-0">
+                              Cap: {formatCurrency(baseCapitalAmount, invoice.currency)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-muted-foreground">Qty: </span>
+                              <span className="font-mono font-bold">{item.quantity} {item.unit}</span>
+                            </div>
+                            <div className="col-span-2 flex items-center justify-end gap-1.5">
+                              <span className="text-muted-foreground">Base Rate: </span>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={item.rate || ''}
+                                onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                                className="h-6 w-24 text-right font-mono text-[10px] px-1.5"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+
+
 
             {activeTab === 'supply' && (
               <section className="space-y-5 animate-in fade-in duration-200">
@@ -3846,7 +4311,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto relative overflow-hidden flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
+      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto relative overflow-y-auto flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
         {/* Floating background themed characters (screen only, hidden on print) */}
         {THEME_CHARACTERS[invoice.theme] && (
           <>
@@ -3865,6 +4330,13 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             checkedItems={checkedChecklistItems}
             previousTab={previousTab}
             onToggleCheck={(id) => setCheckedChecklistItems(prev => ({ ...prev, [id]: !prev[id] }))}
+            onPagesChange={setTotalPages}
+          />
+        ) : activeTab === 'capital' ? (
+          <MGCapitalPreview
+            invoice={invoice}
+            hoveredField={hoveredField}
+            isUnlocked={isCapitalUnlocked}
             onPagesChange={setTotalPages}
           />
         ) : (

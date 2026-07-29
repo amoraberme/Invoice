@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type Invoice, type LineItem, newLineItem, defaultInvoice } from './types'
+import { type Invoice, type LineItem, type ExpenseItem, newLineItem, newExpenseItem, defaultInvoice } from './types'
 import { loadInvoice, saveInvoice } from './store'
 import { generateDocumentId, addDays } from './utils'
 
@@ -33,6 +33,20 @@ export function useMGInvoice() {
                 unit: item?.unit && item.unit !== 'undefined' ? String(item.unit) : '',
                 quantity: !isNaN(qty) ? qty : 1,
                 rate: !isNaN(rt) ? rt : 0,
+              }
+            })
+            continue
+          }
+
+          if (key === 'additionalExpenses') {
+            const rawExp = Array.isArray(savedObj.additionalExpenses) ? savedObj.additionalExpenses : []
+            sanitized.additionalExpenses = (rawExp as Record<string, unknown>[]).map((exp, idx) => {
+              const amt = exp?.amount !== undefined && exp?.amount !== null ? parseFloat(String(exp.amount)) : 0
+              return {
+                id: typeof exp?.id === 'string' ? exp.id : `exp-${idx}-${Date.now()}`,
+                description: exp?.description && exp.description !== 'undefined' ? String(exp.description) : '',
+                amount: !isNaN(amt) ? amt : 0,
+                category: (exp?.category as ExpenseItem['category']) || 'additional',
               }
             })
             continue
@@ -97,7 +111,7 @@ export function useMGInvoice() {
             numVal = 28
           }
           (overrides as unknown as Record<string, number>)[field] = numVal
-        } else if (field !== 'lineItems') {
+        } else if (field !== 'lineItems' && field !== 'additionalExpenses') {
           if (value !== 'undefined') {
             if (field === 'note' && (value.includes('\n\nPlease be advised') || !value.includes('preliminary estimates'))) {
               if (!value || value.includes('All items are subject to availability')) {
@@ -130,7 +144,7 @@ export function useMGInvoice() {
     // Start from current params so non-invoice params (e.g. print=true) are preserved
     const params = new URLSearchParams(window.location.search)
     for (const key of Object.keys(defaultInvoice) as (keyof Invoice)[]) {
-      if (key === 'lineItems') continue
+      if (key === 'lineItems' || key === 'additionalExpenses') continue
       const value = invoice[key]
       const def = defaultInvoice[key]
       if (
@@ -193,6 +207,29 @@ export function useMGInvoice() {
     }))
   }, [])
 
+  const addExpenseItem = useCallback((desc = '', amount = 0, category: ExpenseItem['category'] = 'additional') => {
+    setInvoice((prev) => ({
+      ...prev,
+      additionalExpenses: [...(prev.additionalExpenses || []), newExpenseItem(desc, amount, category)],
+    }))
+  }, [])
+
+  const updateExpenseItem = useCallback((id: string, field: keyof ExpenseItem, value: any) => {
+    setInvoice((prev) => ({
+      ...prev,
+      additionalExpenses: (prev.additionalExpenses || []).map((exp) =>
+        exp.id === id ? { ...exp, [field]: value } : exp,
+      ),
+    }))
+  }, [])
+
+  const removeExpenseItem = useCallback((id: string) => {
+    setInvoice((prev) => ({
+      ...prev,
+      additionalExpenses: (prev.additionalExpenses || []).filter((exp) => exp.id !== id),
+    }))
+  }, [])
+
   const setInvoiceWrapped = useCallback((val: Invoice | ((prev: Invoice) => Invoice)) => {
     setInvoice((prev) => {
       const next = typeof val === 'function' ? val(prev) : val
@@ -207,5 +244,16 @@ export function useMGInvoice() {
     })
   }, [])
 
-  return { invoice, loaded, update, updateItem, addItem, removeItem, setInvoice: setInvoiceWrapped }
+  return {
+    invoice,
+    loaded,
+    update,
+    updateItem,
+    addItem,
+    removeItem,
+    addExpenseItem,
+    updateExpenseItem,
+    removeExpenseItem,
+    setInvoice: setInvoiceWrapped,
+  }
 }

@@ -443,5 +443,29 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   return result
 }
 
+export function calculateSubtotal(invoice: Invoice): number {
+  const rateMarkup = invoice.rateMarkup || 0
+  const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems || [])
+  return displayItems.reduce((sum, item) => {
+    const isCondensedItem = item.id.startsWith('condensed-')
+    if (isCondensedItem) {
+      return sum + item.quantity * item.rate
+    }
+    if (invoice.excludeBattery && isBatteryItem(item.description)) {
+      return sum
+    }
+    const isLabor = isLaborItem(item.description)
+    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+    const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
+    return sum + item.quantity * adjustedRate
+  }, 0)
+}
+
+export function calculateTotal(invoice: Invoice): number {
+  const subtotal = calculateSubtotal(invoice)
+  const vat = subtotal * ((invoice.vatRate || 0) / 100)
+  return subtotal + vat
+}
+
 
 

@@ -18,6 +18,8 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   isCondensed: false,
   withBrandName: true,
   theme: 'light',
+  lalamoveCost: 0,
+  additionalExpenses: [],
   bankBeneficiary: '',
   bankName: '',
   bankSortCode: '',

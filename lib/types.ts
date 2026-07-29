@@ -6,6 +6,13 @@ export interface LineItem {
   unit: string
 }
 
+export interface ExpenseItem {
+  id: string
+  description: string
+  amount: number
+  category?: 'lalamove' | 'logistics' | 'permits' | 'meals' | 'additional' | 'other'
+}
+
 export interface Invoice {
   fromName: string
   fromEmail: string
@@ -26,6 +33,8 @@ export interface Invoice {
   withBrandName: boolean
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
+  lalamoveCost: number
+  additionalExpenses: ExpenseItem[]
   bankBeneficiary: string
   bankName: string
   bankSortCode: string
@@ -49,6 +58,11 @@ export function newLineItem(): LineItem {
   return { id, description: '', quantity: 1, rate: 0, unit: '' }
 }
 
+export function newExpenseItem(description = '', amount = 0, category: ExpenseItem['category'] = 'additional'): ExpenseItem {
+  const id = `exp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return { id, description, amount, category }
+}
+
 export const defaultInvoice: Invoice = {
   fromName: 'MG SOLAR',
   fromEmail: 'charlotte.mgtrading@gmail.com',
@@ -69,6 +83,8 @@ export const defaultInvoice: Invoice = {
   withBrandName: true,
   theme: 'light',
   lineItems: [],
+  lalamoveCost: 0,
+  additionalExpenses: [],
   bankBeneficiary: '',
   bankName: '',
   bankSortCode: '',
