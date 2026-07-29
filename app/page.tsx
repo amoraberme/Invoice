@@ -2648,9 +2648,9 @@ export default function Home() {
                       type="number"
                       min="-100"
                       max="1000"
-                      value={invoice.rateMarkup || ''}
-                      onChange={(e) => update('rateMarkup', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
+                      value={invoice.rateMarkup ?? ''}
+                      onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                      placeholder="28"
                     />
                   </Field>
                   <Field label="Labor Adjustment" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>

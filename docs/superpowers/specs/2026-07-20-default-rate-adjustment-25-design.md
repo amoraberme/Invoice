@@ -1,9 +1,9 @@
-# Design Spec: Default Rate Adjustment (Markup) to 25%
+# Design Spec: Default Rate Adjustment (Markup) to 28%
 
-Change the default rate markup/adjustment percentage from 0% to 25%.
+Change the default rate markup/adjustment percentage from 0% to 28%.
 
 ## Context
-The application supports a "Rate Adjustment %" (internally `rateMarkup`) to apply a markup to all line items. Currently, this defaults to `0` in both `defaultInvoice` and `BASE_INVOICE` (used for samples). The user wants the default rate adjustment to be 25%.
+The application supports a "Rate Adjustment %" (internally `rateMarkup`) to apply a markup to all line items. Currently, this defaults to `28` in both `defaultInvoice` and `BASE_INVOICE` (used for samples). The user wants the default rate adjustment to be 28%.
 
 ## Proposed Changes
 
@@ -13,7 +13,7 @@ Update `defaultInvoice`:
  export const defaultInvoice: Invoice = {
    ...
 -  rateMarkup: 0,
-+  rateMarkup: 25,
++  rateMarkup: 28,
    ...
  }
 ```
@@ -24,12 +24,12 @@ Update `BASE_INVOICE`:
  const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
    ...
 -  rateMarkup: 0,
-+  rateMarkup: 25,
++  rateMarkup: 28,
    ...
  }
 ```
 
 ## Verification Plan
 1. Reset database/clear IndexedDB or load a fresh invoice.
-2. Verify that the "Rate Adjustment %" input field defaults to `25`.
-3. Verify that the preview displays the 25% markup rate adjustment correctly on line items.
+2. Verify that the "Rate Adjustment %" input field defaults to `28`.
+3. Verify that the preview displays the 28% markup rate adjustment correctly on line items.

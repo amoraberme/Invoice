@@ -45,7 +45,11 @@ export function useMGInvoice() {
             ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal === true || savedVal === 'true'
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
-            ;(sanitized as unknown as Record<string, unknown>)[key] = !isNaN(parsed) ? parsed : defaultVal
+            let numVal = !isNaN(parsed) ? parsed : defaultVal
+            if (key === 'rateMarkup' && (numVal === 25 || savedVal === undefined || savedVal === null || savedVal === '25')) {
+              numVal = 28
+            }
+            ;(sanitized as unknown as Record<string, unknown>)[key] = numVal
           } else if (key === 'note') {
             const currentNote = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
             if (currentNote.includes('\n\nPlease be advised') || !currentNote.includes('preliminary estimates')) {
@@ -87,7 +91,12 @@ export function useMGInvoice() {
         if (typeof defaultInvoice[field] === 'boolean') {
           (overrides as unknown as Record<string, boolean>)[field] = value === 'true'
         } else if (typeof defaultInvoice[field] === 'number') {
-          (overrides as unknown as Record<string, number>)[field] = parseFloat(value) || 0
+          let numVal = parseFloat(value)
+          if (isNaN(numVal)) numVal = defaultInvoice[field] as number
+          if (field === 'rateMarkup' && numVal === 25) {
+            numVal = 28
+          }
+          (overrides as unknown as Record<string, number>)[field] = numVal
         } else if (field !== 'lineItems') {
           if (value !== 'undefined') {
             if (field === 'note' && (value.includes('\n\nPlease be advised') || !value.includes('preliminary estimates'))) {
