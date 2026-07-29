@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem } from '@/lib/types'
 import { CURRENCIES } from '@/lib/constants'
@@ -1550,15 +1550,7 @@ export default function Home() {
       inverterPrice = brandPrices.solis
     }
 
-    items.push({
-      id: `boq-1-${now}`,
-      description: inverterDesc,
-      quantity: 1,
-      rate: inverterPrice,
-      unit: 'PC'
-    })
-
-    // 2. Solar Panels
+    // 1. Solar Panels
     items.push({
       id: `boq-2-${now}`,
       description: `Tongwei Panel 625W (7.82ft x 3.72ft)`,
@@ -1567,7 +1559,16 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 20. Battery (included for Hybrid setup, excludeBattery flag toggles display/totals)
+    // 2. Inverter
+    items.push({
+      id: `boq-1-${now}`,
+      description: inverterDesc,
+      quantity: 1,
+      rate: inverterPrice,
+      unit: 'PC'
+    })
+
+    // 3. Battery (included for Hybrid setup, excludeBattery flag toggles display/totals)
     if (systemType === 'hybrid') {
       items.push({
         id: `boq-20-${now}`,
@@ -2705,6 +2706,17 @@ export default function Home() {
                       title={invoice.withBrandName !== false ? "Brand names included in item descriptions. Click to hide." : "Brand names hidden in item descriptions. Click to show."}
                     >
                       {invoice.withBrandName !== false ? "🏷️ [With Brand]" : "🚫 [Without Brand]"}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => update('lineItems', sortLineItems(invoice.lineItems))}
+                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      title="Sort items into standard order: Panels -> Inverter -> Battery -> Materials -> Electrical -> Services"
+                    >
+                      ⚡ Auto-Sort
                     </Button>
 
                     {systemType === 'hybrid' && (

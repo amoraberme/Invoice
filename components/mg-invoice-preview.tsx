@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription, sortLineItems } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -56,7 +56,7 @@ export function MGInvoicePreview({
   }, [])
 
   const rateMarkup = invoice.rateMarkup || 0
-  const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : invoice.lineItems
+  const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems)
   const subtotal = displayItems.reduce((sum, item) => {
     const isCondensedItem = item.id.startsWith('condensed-')
     if (isCondensedItem) {

@@ -70,6 +70,16 @@ export function isLaborItem(description: string): boolean {
 
 export function isBatteryItem(description: string): boolean {
   const d = (description || '').toLowerCase()
+  if (
+    d.includes('cable') ||
+    d.includes('wire') ||
+    d.includes('breaker') ||
+    d.includes('rack') ||
+    d.includes('mccb') ||
+    d.includes('switch')
+  ) {
+    return false
+  }
   return (
     d.includes('battery') ||
     d.includes('dyness') ||
@@ -82,6 +92,110 @@ export function isBatteryItem(description: string): boolean {
     d.includes('51.2v') ||
     d.includes('lifepo4')
   )
+}
+
+export function getItemCategoryRank(description: string): number {
+  const d = (description || '').toLowerCase().trim()
+  if (!d) return 999
+
+  const isLabor = isLaborItem(description)
+
+  // 1. Solar Panels
+  if (
+    d.includes('panel') ||
+    d.includes('module') ||
+    d.includes('ja solar') ||
+    d.includes('tongwei') ||
+    d.includes('solar panel') ||
+    d.includes('pv module')
+  ) {
+    return 1
+  }
+
+  // 2. Inverters
+  if (
+    d.includes('inverter') ||
+    d.includes('anern') ||
+    d.includes('solis') ||
+    d.includes('goodwe') ||
+    d.includes('hypontech') ||
+    d.includes('solax') ||
+    d.includes('foxess') ||
+    d.includes('sunways') ||
+    d.includes('deye') ||
+    d.includes('growatt') ||
+    d.includes('sungrow') ||
+    d.includes('victron')
+  ) {
+    return 2
+  }
+
+  // 3. Batteries
+  if (isBatteryItem(description)) {
+    return 3
+  }
+
+  // 4. Mounting Structure & Materials
+  if (
+    d.includes('railing') ||
+    d.includes('rail') ||
+    d.includes('clamp') ||
+    d.includes('l foot') ||
+    d.includes('l-foot') ||
+    d.includes('mid clamp') ||
+    d.includes('end clamp') ||
+    d.includes('mounting') ||
+    d.includes('structure') ||
+    d.includes('hardware') ||
+    d.includes('rack') ||
+    d.includes('bracket')
+  ) {
+    return 4
+  }
+
+  // 5. Electrical Protection & Cabling
+  if (
+    d.includes('wire') ||
+    d.includes('cable') ||
+    d.includes('breaker') ||
+    d.includes('mcb') ||
+    d.includes('spd') ||
+    d.includes('mccb') ||
+    d.includes('flexcon') ||
+    d.includes('flexible hose') ||
+    d.includes('mc4') ||
+    d.includes('raceway') ||
+    d.includes('conduit') ||
+    d.includes('ats') ||
+    d.includes('switch') ||
+    d.includes('lug') ||
+    d.includes('terminal') ||
+    d.includes('box') ||
+    d.includes('electrical') ||
+    d.includes('combiner')
+  ) {
+    return 5
+  }
+
+  // 6. Labor & Services
+  if (isLabor) {
+    return 6
+  }
+
+  // 7. Other
+  return 7
+}
+
+export function sortLineItems(items: LineItem[]): LineItem[] {
+  if (!items || items.length === 0) return []
+  return [...items].sort((a, b) => {
+    const rankA = getItemCategoryRank(a.description)
+    const rankB = getItemCategoryRank(b.description)
+    if (rankA !== rankB) {
+      return rankA - rankB
+    }
+    return 0
+  })
 }
 
 export function stripBrandName(description: string): string {
