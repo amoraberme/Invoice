@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem } from '@/lib/types'
 import { CURRENCIES } from '@/lib/constants'
@@ -915,19 +915,6 @@ export default function Home() {
   const prevFloorRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
-
-  const isLaborItem = (desc: string) => {
-    const d = (desc || '').toLowerCase().trim()
-    return (
-      d.includes('labor') ||
-      d.includes('installation') ||
-      d.includes('commissioning') ||
-      d.includes('delivery') ||
-      d.includes('freight') ||
-      d.includes('service') ||
-      d === 'labor and installation'
-    )
-  }
 
   const TAB_LABEL_MAP: Record<string, string> = {
     ocr: 'kW Set Up',
@@ -2738,11 +2725,7 @@ export default function Home() {
 
                   {/* Item rows */}
                   {invoice.lineItems
-                    .filter((item) => {
-                      const descLower = item.description.toLowerCase()
-                      const isBatteryRelated = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
-                      return !(invoice.excludeBattery && isBatteryRelated)
-                    })
+                    .filter((item) => !(invoice.excludeBattery && isBatteryItem(item.description)))
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
                       const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar')
@@ -2760,7 +2743,7 @@ export default function Home() {
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
 
                       const isBatteryAccessory = descLower.includes('mccb') || descLower.includes('cable') || descLower.includes('breaker')
-                      const isBatteryItem = !isBatteryAccessory && (descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v'))
+                      const isBatteryItemRow = !isBatteryAccessory && isBatteryItem(item.description)
 
                       let genixPrice = 85000
                       if (descLower.includes('200ah')) {
@@ -2816,12 +2799,12 @@ export default function Home() {
                               />
                               {invoice.rateMarkup !== 0 && (
                                 <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
-                                  (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                                  (invoice.excludeLaborMarkup && isLaborItem(item.description))
                                     ? 'Labor is excluded from rate markup'
                                     : `Base: ${item.rate} + ${invoice.rateMarkup}%`
                                 }>
                                   {formatCurrency(
-                                    (invoice.excludeLaborMarkup && item.description.toLowerCase().trim() === 'labor and installation')
+                                    (invoice.excludeLaborMarkup && isLaborItem(item.description))
                                       ? item.rate
                                       : item.rate * (1 + invoice.rateMarkup / 100),
                                     invoice.currency
@@ -3104,7 +3087,7 @@ export default function Home() {
                             </div>
                           )}
 
-                          {isBatteryItem && (() => {
+                          {isBatteryItemRow && (() => {
                             let capKey: '100Ah' | '200Ah' | '314Ah' | '261kW' = '314Ah'
                             if (descLower.includes('261') || descLower.includes('power')) {
                               capKey = '261kW'

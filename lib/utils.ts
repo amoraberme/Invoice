@@ -55,6 +55,35 @@ export function addDays(dateStr: string, days: number): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+export function isLaborItem(description: string): boolean {
+  const d = (description || '').toLowerCase().trim()
+  return (
+    d.includes('labor') ||
+    d.includes('installation') ||
+    d.includes('commissioning') ||
+    d.includes('delivery') ||
+    d.includes('freight') ||
+    d.includes('service') ||
+    d === 'labor and installation'
+  )
+}
+
+export function isBatteryItem(description: string): boolean {
+  const d = (description || '').toLowerCase()
+  return (
+    d.includes('battery') ||
+    d.includes('dyness') ||
+    d.includes('genix') ||
+    d.includes('cesc') ||
+    d.includes('314ah') ||
+    d.includes('200ah') ||
+    d.includes('100ah') ||
+    d.includes('102.4v') ||
+    d.includes('51.2v') ||
+    d.includes('lifepo4')
+  )
+}
+
 export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   const rateMarkup = invoice.rateMarkup || 0
 
@@ -69,70 +98,26 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   }
 
   const validItems = (invoice.lineItems || []).filter((item) => {
-    const descLower = (item.description || '').toLowerCase()
-    const isBatteryItem =
-      descLower.includes('battery') ||
-      descLower.includes('dyness') ||
-      descLower.includes('genix') ||
-      descLower.includes('cesc') ||
-      descLower.includes('314ah') ||
-      descLower.includes('200ah') ||
-      descLower.includes('100ah') ||
-      descLower.includes('102.4v')
-    return !(invoice.excludeBattery && isBatteryItem)
+    return !(invoice.excludeBattery && isBatteryItem(item.description))
   })
 
   for (const item of validItems) {
     const descLower = (item.description || '').toLowerCase().trim()
-    const isLabor = descLower === 'labor and installation' || descLower.includes('labor') || descLower.includes('installation')
+    const isLabor = isLaborItem(item.description)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
     const effectiveRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     const itemAmount = item.quantity * effectiveRate
 
     let categoryKey = 'other'
 
-    if (
-      descLower.includes('panel') ||
-      descLower.includes('module') ||
-      descLower.includes('ja solar') ||
-      descLower.includes('tongwei') ||
-      descLower.includes('solar panel')
-    ) {
-      categoryKey = 'panels'
-    } else if (
-      descLower.includes('inverter') ||
-      descLower.includes('anern') ||
-      descLower.includes('solis') ||
-      descLower.includes('goodwe') ||
-      descLower.includes('hypontech') ||
-      descLower.includes('solax') ||
-      descLower.includes('foxess') ||
-      descLower.includes('sunways')
-    ) {
-      categoryKey = 'inverter'
-    } else if (
-      descLower.includes('battery') ||
-      descLower.includes('dyness') ||
-      descLower.includes('genix') ||
-      descLower.includes('cesc') ||
-      descLower.includes('314ah') ||
-      descLower.includes('200ah') ||
-      descLower.includes('100ah') ||
-      descLower.includes('102.4v')
-    ) {
-      categoryKey = 'battery'
-    } else if (
-      descLower.includes('labor') ||
-      descLower.includes('installation') ||
-      descLower.includes('services') ||
-      descLower.includes('freight') ||
-      descLower.includes('delivery') ||
-      descLower.includes('engineering') ||
-      descLower.includes('commissioning')
-    ) {
+    // Priority 1: Services (Labor, Installation, Commissioning, Freight, Delivery, Engineering)
+    if (isLabor) {
       categoryKey = 'services'
-    } else if (
+    }
+    // Priority 2: Mounting Rails / Structure / Hardware
+    else if (
       descLower.includes('railing') ||
+      descLower.includes('rail') ||
       descLower.includes('clamp') ||
       descLower.includes('l foot') ||
       descLower.includes('l-foot') ||
@@ -140,10 +125,14 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('end clamp') ||
       descLower.includes('mounting') ||
       descLower.includes('structure') ||
-      descLower.includes('hardware')
+      descLower.includes('hardware') ||
+      descLower.includes('rack') ||
+      descLower.includes('bracket')
     ) {
       categoryKey = 'materials'
-    } else if (
+    }
+    // Priority 3: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner)
+    else if (
       descLower.includes('wire') ||
       descLower.includes('cable') ||
       descLower.includes('breaker') ||
@@ -160,9 +149,53 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('lug') ||
       descLower.includes('terminal') ||
       descLower.includes('box') ||
-      descLower.includes('electrical')
+      descLower.includes('electrical') ||
+      descLower.includes('combiner')
     ) {
       categoryKey = 'electrical'
+    }
+    // Priority 4: Main Equipment - Solar Panels
+    else if (
+      descLower.includes('panel') ||
+      descLower.includes('module') ||
+      descLower.includes('ja solar') ||
+      descLower.includes('tongwei') ||
+      descLower.includes('solar panel') ||
+      descLower.includes('pv module')
+    ) {
+      categoryKey = 'panels'
+    }
+    // Priority 5: Main Equipment - Inverter
+    else if (
+      descLower.includes('inverter') ||
+      descLower.includes('anern') ||
+      descLower.includes('solis') ||
+      descLower.includes('goodwe') ||
+      descLower.includes('hypontech') ||
+      descLower.includes('solax') ||
+      descLower.includes('foxess') ||
+      descLower.includes('sunways') ||
+      descLower.includes('deye') ||
+      descLower.includes('growatt') ||
+      descLower.includes('sungrow') ||
+      descLower.includes('victron')
+    ) {
+      categoryKey = 'inverter'
+    }
+    // Priority 6: Main Equipment - Battery
+    else if (
+      descLower.includes('battery') ||
+      descLower.includes('dyness') ||
+      descLower.includes('genix') ||
+      descLower.includes('cesc') ||
+      descLower.includes('314ah') ||
+      descLower.includes('200ah') ||
+      descLower.includes('100ah') ||
+      descLower.includes('102.4v') ||
+      descLower.includes('51.2v') ||
+      descLower.includes('lifepo4')
+    ) {
+      categoryKey = 'battery'
     }
 
     const grp = groups[categoryKey]
@@ -178,10 +211,10 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
 
   for (const key of categoryOrder) {
     const grp = groups[key]
-    if (grp.count > 0 && grp.totalAmount > 0) {
+    if (grp.count > 0) {
       const qty = (key === 'panels' || key === 'inverter' || key === 'battery') && grp.totalQty > 0 ? grp.totalQty : 1
       const unit = key === 'panels' ? 'PCS' : (key === 'inverter' || key === 'battery') ? 'PC' : 'LOT'
-      const rate = grp.totalAmount / qty
+      const rate = qty > 0 ? grp.totalAmount / qty : 0
 
       result.push({
         id: `condensed-${key}`,

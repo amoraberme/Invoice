@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, Fragment } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, cn } from '@/lib/utils'
+import { formatDate, cn, isLaborItem, isBatteryItem } from '@/lib/utils'
 import { Check } from 'lucide-react'
 
 interface MGChecklistPreviewProps {
@@ -13,19 +13,6 @@ interface MGChecklistPreviewProps {
   previousTab?: string
   onToggleCheck?: (id: string) => void
   onPagesChange?: (count: number) => void
-}
-
-const isLaborItem = (desc: string) => {
-  const d = (desc || '').toLowerCase().trim()
-  return (
-    d.includes('labor') ||
-    d.includes('installation') ||
-    d.includes('commissioning') ||
-    d.includes('delivery') ||
-    d.includes('freight') ||
-    d.includes('service') ||
-    d === 'labor and installation'
-  )
 }
 
 const getChecklistCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'other'; label: string } => {
@@ -125,9 +112,7 @@ export function MGChecklistPreview({
   // Filter checklist items (exclude labor and excluded battery)
   const checklistItems = invoice.lineItems.filter(item => {
     if (isLaborItem(item.description)) return false
-    const descLower = (item.description || '').toLowerCase()
-    const isBattery = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah')
-    if (invoice.excludeBattery && isBattery) return false
+    if (invoice.excludeBattery && isBatteryItem(item.description)) return false
     return true
   })
 

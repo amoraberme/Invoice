@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -60,12 +60,10 @@ export function MGInvoicePreview({
     if (isCondensedItem) {
       return sum + item.quantity * item.rate
     }
-    const descLower = (item.description || '').toLowerCase()
-    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
-    if (invoice.excludeBattery && isBatteryItem) {
+    if (invoice.excludeBattery && isBatteryItem(item.description)) {
       return sum
     }
-    const isLabor = item.description.toLowerCase().trim() === 'labor and installation'
+    const isLabor = isLaborItem(item.description)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
     const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     return sum + item.quantity * adjustedRate
@@ -148,11 +146,7 @@ export function MGInvoicePreview({
     
     const itemsToPlace = inv.isCondensed
       ? getCondensedLineItems(inv)
-      : [...inv.lineItems].filter(item => {
-          const descLower = (item.description || '').toLowerCase()
-          const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
-          return !(inv.excludeBattery && isBatteryItem)
-        })
+      : [...inv.lineItems].filter(item => !(inv.excludeBattery && isBatteryItem(item.description)))
     
     while (itemsToPlace.length > 0) {
       const item = itemsToPlace[0]
@@ -437,7 +431,7 @@ export function MGInvoicePreview({
                     </div>
                     {page.items.map((item) => {
                       const isCondensedItem = item.id.startsWith('condensed-')
-                      const isLabor = !isCondensedItem && item.description.toLowerCase().trim() === 'labor and installation'
+                      const isLabor = !isCondensedItem && isLaborItem(item.description)
                       const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
                       const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
                       return (
