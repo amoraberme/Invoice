@@ -273,10 +273,10 @@ export function MGInvoicePreview({
       ref={canvasRef}
       className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
-      {/* Quotation Format Pill Toggle */}
+      {/* with Brand Name Pill Toggle */}
       <div className="mb-4 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border shadow-xs z-10 select-none">
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          Quotation Format:
+          with Brand Name:
         </span>
         <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
           <button

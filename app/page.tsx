@@ -1071,7 +1071,7 @@ export default function Home() {
             const price = defaultBrand.getPrice(kw)!
             return {
               ...item,
-              description: `Inverter ${kw}kW On-Grid`,
+              description: `${defaultBrand.name} Inverter ${kw}kW On-Grid`,
               rate: price
             }
           }
@@ -1079,7 +1079,7 @@ export default function Home() {
           const brandPrices = getInverterBrandPrices(kw)
           return {
             ...item,
-            description: `Inverter ${kw}kW Hybrid`,
+            description: `Solis Inverter ${kw}kW Hybrid`,
             rate: brandPrices.solis
           }
         }
@@ -1104,7 +1104,7 @@ export default function Home() {
 
         updatedItems.push({
           id: `boq-20-${Date.now()}`,
-          description: `Battery 314Ah (51.2V)`,
+          description: `Genix Battery 51.2V 314Ah`,
           quantity: batteryQty,
           rate: 88000.00,
           unit: 'PC'
@@ -1141,7 +1141,7 @@ export default function Home() {
 
           updatedItems.splice(insertIdx, 0, {
             id: `boq-20-${Date.now()}`,
-            description: `Battery 314Ah (51.2V)`,
+            description: `Genix Battery 51.2V 314Ah`,
             quantity: batteryQty,
             rate: 88000.00,
             unit: 'PC'
@@ -1537,16 +1537,16 @@ export default function Home() {
     if (systemType === 'ongrid') {
       const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
       if (defaultBrand) {
-        inverterDesc = `Inverter ${inverterKw}kW On-Grid`
+        inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW On-Grid`
         inverterPrice = defaultBrand.getPrice(inverterKw)!
       } else {
         const brandPrices = getInverterBrandPrices(inverterKw)
-        inverterDesc = `Inverter ${inverterKw}kW Hybrid`
+        inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
         inverterPrice = brandPrices.solis
       }
     } else {
       const brandPrices = getInverterBrandPrices(inverterKw)
-      inverterDesc = `Inverter ${inverterKw}kW Hybrid`
+      inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
       inverterPrice = brandPrices.solis
     }
 
@@ -1561,7 +1561,7 @@ export default function Home() {
     // 2. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Panel 625W (7.82ft x 3.72ft)`,
+      description: `Tongwei Panel 625W (7.82ft x 3.72ft)`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
@@ -1571,7 +1571,7 @@ export default function Home() {
     if (systemType === 'hybrid') {
       items.push({
         id: `boq-20-${now}`,
-        description: `Battery 314Ah (51.2V)`,
+        description: `Genix Battery 51.2V 314Ah`,
         quantity: batteryQty,
         rate: 88000.00,
         unit: 'PC'
@@ -2869,7 +2869,7 @@ export default function Home() {
                             const applyPanelSelection = (brandObj: PanelBrandOption, option: PanelOption) => {
                               setSelectedPanelBrands(prev => ({ ...prev, [item.id]: brandObj.id }))
                               const dims = getPanelDimensions(option.wattage)
-                              updateItem(item.id, 'description', `Panel ${option.wattage} (${dims})`)
+                              updateItem(item.id, 'description', `${brandObj.name} Panel ${option.wattage} (${dims})`)
                               updateItem(item.id, 'rate', option.rate)
                             }
 
@@ -3018,7 +3018,7 @@ export default function Home() {
                                         onClick={() => {
                                           if (!isApplicable) return
                                           updateItem(item.id, 'rate', brandPrice)
-                                          updateItem(item.id, 'description', `Inverter ${itemKw}kW On-Grid`)
+                                          updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW On-Grid`)
                                         }}
                                         className={cn(
                                           "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
@@ -3058,7 +3058,7 @@ export default function Home() {
                                         onClick={() => {
                                           if (!isApplicable) return
                                           updateItem(item.id, 'rate', brandPrice)
-                                          updateItem(item.id, 'description', `Inverter ${itemKw}kW Hybrid`)
+                                          updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW Hybrid`)
                                         }}
                                         className={cn(
                                           "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
@@ -3107,9 +3107,9 @@ export default function Home() {
                             }
 
                             const getGenixData = (cap: typeof capKey) => {
-                              if (cap === '200Ah') return { desc: 'Battery 51.2V 200Ah', rate: 65000 }
-                              if (cap === '100Ah') return { desc: 'Battery 51.2V 100Ah', rate: 38000 }
-                              return { desc: 'Battery 51.2V 314Ah', rate: 85000 }
+                              if (cap === '200Ah') return { desc: 'Genix Battery 51.2V 200Ah', rate: 65000 }
+                              if (cap === '100Ah') return { desc: 'Genix Battery 51.2V 100Ah', rate: 38000 }
+                              return { desc: 'Genix Battery 51.2V 314Ah', rate: 85000 }
                             }
 
                             const getDynessData = (cap: typeof capKey) => {
@@ -3118,8 +3118,8 @@ export default function Home() {
                             }
 
                             const getCescData = (cap: typeof capKey) => {
-                              if (cap === '261kW') return { desc: 'Battery 261 kW Power System', rate: 2400000 }
-                              return { desc: 'Battery 51.2V 314Ah', rate: 88000 }
+                              if (cap === '261kW') return { desc: 'CESC Battery 261 kW Power System', rate: 2400000 }
+                              return { desc: 'CESC Battery 51.2V 314Ah', rate: 88000 }
                             }
 
                             const applySelection = (newDesc: string, newRate: number) => {

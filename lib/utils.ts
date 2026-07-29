@@ -84,10 +84,80 @@ export function isBatteryItem(description: string): boolean {
   )
 }
 
+export function formatBrandItemDescription(description: string): string {
+  const d = (description || '').trim()
+  if (!d) return ''
+  const lower = d.toLowerCase()
+
+  // Panel check
+  if (lower.includes('panel') || lower.includes('module')) {
+    const hasBrand =
+      lower.includes('tongwei') ||
+      lower.includes('ja solar') ||
+      lower.includes('ja') ||
+      lower.includes('runergy') ||
+      lower.includes('jinko') ||
+      lower.includes('gokin') ||
+      lower.includes('longi') ||
+      lower.includes('ian')
+    if (!hasBrand) {
+      if (lower.startsWith('panel')) {
+        return `Tongwei ${d}`
+      }
+      return `Tongwei Panel ${d.replace(/^panel\s*/i, '')}`
+    }
+  }
+
+  // Inverter check
+  if (lower.includes('inverter')) {
+    const hasBrand =
+      lower.includes('solis') ||
+      lower.includes('anern') ||
+      lower.includes('goodwe') ||
+      lower.includes('hypontech') ||
+      lower.includes('solax') ||
+      lower.includes('foxess') ||
+      lower.includes('sunways') ||
+      lower.includes('sungrow') ||
+      lower.includes('deye') ||
+      lower.includes('growatt') ||
+      lower.includes('victron')
+    if (!hasBrand) {
+      if (lower.startsWith('inverter')) {
+        return `Solis ${d}`
+      }
+      return `Solis Inverter ${d.replace(/^inverter\s*/i, '')}`
+    }
+  }
+
+  // Battery check
+  if (
+    lower.includes('battery') &&
+    !lower.includes('cable') &&
+    !lower.includes('breaker') &&
+    !lower.includes('rack') &&
+    !lower.includes('mccb') &&
+    !lower.includes('switch')
+  ) {
+    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc')
+    if (!hasBrand) {
+      if (lower.startsWith('battery')) {
+        return `Genix ${d}`
+      }
+      return `Genix Battery ${d.replace(/^battery\s*/i, '')}`
+    }
+  }
+
+  return d
+}
+
 export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   const rateMarkup = invoice.rateMarkup || 0
 
-  const groups: Record<string, { title: string; unit: string; totalAmount: number; totalQty: number; count: number }> = {
+  const groups: Record<
+    string,
+    { title: string; primaryDescription?: string; unit: string; totalAmount: number; totalQty: number; count: number }
+  > = {
     panels: { title: 'Solar Panels', unit: 'PCS', totalAmount: 0, totalQty: 0, count: 0 },
     inverter: { title: 'Inverter', unit: 'PC', totalAmount: 0, totalQty: 0, count: 0 },
     battery: { title: 'Battery', unit: 'PC', totalAmount: 0, totalQty: 0, count: 0 },
@@ -102,8 +172,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   })
 
   for (const item of validItems) {
-    const descLower = (item.description || '').toLowerCase().trim()
-    const isLabor = isLaborItem(item.description)
+    const formattedDesc = formatBrandItemDescription(item.description)
+    const descLower = formattedDesc.toLowerCase().trim()
+    const isLabor = isLaborItem(formattedDesc)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
     const effectiveRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     const itemAmount = item.quantity * effectiveRate
@@ -202,6 +273,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     grp.totalAmount += itemAmount
     if (categoryKey === 'panels' || categoryKey === 'inverter' || categoryKey === 'battery') {
       grp.totalQty += item.quantity
+      if (!grp.primaryDescription) {
+        grp.primaryDescription = formattedDesc
+      }
     }
     grp.count += 1
   }
@@ -216,9 +290,14 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       const unit = key === 'panels' ? 'PCS' : (key === 'inverter' || key === 'battery') ? 'PC' : 'LOT'
       const rate = qty > 0 ? grp.totalAmount / qty : 0
 
+      const desc =
+        (key === 'panels' || key === 'inverter' || key === 'battery') && grp.primaryDescription
+          ? grp.primaryDescription
+          : grp.title
+
       result.push({
         id: `condensed-${key}`,
-        description: grp.title,
+        description: desc,
         quantity: qty,
         rate: rate,
         unit: unit,
