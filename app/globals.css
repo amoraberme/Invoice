@@ -243,6 +243,60 @@
   }
 }
 
+/* Custom Modern Sleek Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(130, 130, 130, 0.3);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(130, 130, 130, 0.55);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(130, 130, 130, 0.75);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(130, 130, 130, 0.3) transparent;
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-thumb,
+.theme-dark ::-webkit-scrollbar-thumb,
+.theme-spiderman ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+.theme-dark ::-webkit-scrollbar-thumb:hover,
+.theme-spiderman ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 /* High contrast screen overrides to theme the document page preview */
 @media screen {
   .print-page {

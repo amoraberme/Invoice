@@ -140,7 +140,7 @@ export function MGChecklistPreview({
   return (
     <main
       ref={canvasRef}
-      className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-6 print:block print:bg-white print:overflow-visible print:py-0"
+      className="w-full bg-[#EBEBEB] dark:bg-zinc-900 flex flex-col items-center py-6 print:block print:bg-white print:overflow-visible print:py-0"
     >
       {/* Format Header Pill (Screen only) */}
       <div className="mb-3 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1 rounded-full border border-border shadow-xs z-10 select-none">
@@ -153,7 +153,7 @@ export function MGChecklistPreview({
       </div>
 
       {/* Single Page Wrapper */}
-      <div className="print:mb-0">
+      <div className="w-full flex justify-center mb-6 print:block print:m-0 print:p-0">
         <div 
           style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
           className="print-wrapper"

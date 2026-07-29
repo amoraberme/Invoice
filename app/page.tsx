@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, Lock, Unlock, Key, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem } from '@/lib/types'
@@ -928,84 +928,7 @@ export default function Home() {
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
 
-  // Capital Passcode Protection State
-  const [capitalPassword, setCapitalPassword] = useState<string>('Mg.cap2026')
-  const [isCapitalUnlocked, setIsCapitalUnlocked] = useState<boolean>(false)
-  const [passwordInput, setPasswordInput] = useState<string>('')
-  const [passwordError, setPasswordError] = useState<string>('')
-  const [showPassword, setShowPassword] = useState<boolean>(false)
-  const [isChangingPassword, setIsChangingPassword] = useState<boolean>(false)
-  const [currentPassInput, setCurrentPassInput] = useState<string>('')
-  const [newPasswordInput, setNewPasswordInput] = useState<string>('')
-  const [changePassError, setChangePassError] = useState<string>('')
 
-  // Load custom saved password from localStorage (if any), always default to locked on load/refresh
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedPass = localStorage.getItem('mg_capital_password')
-      if (savedPass) setCapitalPassword(savedPass)
-    }
-  }, [])
-
-  // 5-minute inactivity auto-lock timer (300,000 ms)
-  useEffect(() => {
-    if (!isCapitalUnlocked) return
-
-    let timer: NodeJS.Timeout
-
-    const resetInactivityTimer = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        setIsCapitalUnlocked(false)
-      }, 5 * 60 * 1000) // 5 minutes
-    }
-
-    resetInactivityTimer()
-
-    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
-    events.forEach((evt) => window.addEventListener(evt, resetInactivityTimer, { passive: true }))
-
-    return () => {
-      clearTimeout(timer)
-      events.forEach((evt) => window.removeEventListener(evt, resetInactivityTimer))
-    }
-  }, [isCapitalUnlocked])
-
-  const handleUnlockCapital = (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (passwordInput === capitalPassword || passwordInput === 'Mg.cap2026') {
-      setIsCapitalUnlocked(true)
-      setPasswordError('')
-      setPasswordInput('')
-    } else {
-      setPasswordError('Incorrect passcode. Access denied.')
-    }
-  }
-
-  const handleLockCapital = () => {
-    setIsCapitalUnlocked(false)
-  }
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (currentPassInput !== capitalPassword && currentPassInput !== 'Mg.cap2026') {
-      setChangePassError('Current passcode is incorrect.')
-      return
-    }
-    if (!newPasswordInput.trim()) {
-      setChangePassError('New passcode cannot be empty.')
-      return
-    }
-    const nextPass = newPasswordInput.trim()
-    setCapitalPassword(nextPass)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mg_capital_password', nextPass)
-    }
-    setIsChangingPassword(false)
-    setNewPasswordInput('')
-    setCurrentPassInput('')
-    setChangePassError('')
-  }
 
   const TAB_LABEL_MAP: Record<string, string> = {
     ocr: 'kW Set Up',
@@ -3493,136 +3416,13 @@ export default function Home() {
               </section>
             )}
 
-            {activeTab === 'capital' && !isCapitalUnlocked && (
+            {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
+                <div>
                   <SectionHeader>Capital & Expenses Breakdown</SectionHeader>
-                  <span className="bg-secondary text-foreground border border-border text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 font-mono">
-                    <Lock size={12} className="text-muted-foreground" />
-                    LOCKED
-                  </span>
-                </div>
-
-                <div className="bg-card text-card-foreground p-6 rounded-xl border border-border shadow-md space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-border">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                      <Lock size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm text-foreground">Password Protected Area</h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        Please enter the passcode to access supplier rates, expenses, and profit analysis.
-                      </p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleUnlockCapital} className="space-y-3">
-                    <Field label="Enter Capital Passcode">
-                      <div className="relative">
-                        <Input
-                          type={showPassword ? 'text' : 'password'}
-                          value={passwordInput}
-                          onChange={(e) => {
-                            setPasswordInput(e.target.value)
-                            if (passwordError) setPasswordError('')
-                          }}
-                          placeholder="Enter passcode..."
-                          className="pr-10 font-mono text-sm"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                        >
-                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                        </button>
-                      </div>
-                    </Field>
-
-                    {passwordError && (
-                      <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                        <AlertCircle size={13} /> {passwordError}
-                      </p>
-                    )}
-
-                    <Button
-                      type="submit"
-                      className="w-full h-9 font-semibold gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      <Unlock size={14} />
-                      Unlock Capital Tab
-                    </Button>
-                  </form>
-
-                  <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground font-mono">
-                    <span className="text-zinc-500 font-sans">Authorized personnel only</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsChangingPassword(!isChangingPassword)
-                        setChangePassError('')
-                      }}
-                      className="text-primary hover:underline cursor-pointer font-sans text-[11px]"
-                    >
-                      {isChangingPassword ? 'Cancel' : 'Change Passcode'}
-                    </button>
-                  </div>
-
-                  {isChangingPassword && (
-                    <form onSubmit={handleChangePassword} className="space-y-2 pt-2 border-t border-border bg-secondary/30 p-3 rounded-lg font-mono">
-                      <Label className="text-[11px] font-bold font-sans">Update Secret Passcode</Label>
-                      <Input
-                        type="password"
-                        value={currentPassInput}
-                        onChange={(e) => {
-                          setCurrentPassInput(e.target.value)
-                          if (changePassError) setChangePassError('')
-                        }}
-                        placeholder="Current passcode..."
-                        className="text-xs h-8"
-                      />
-                      <Input
-                        type="password"
-                        value={newPasswordInput}
-                        onChange={(e) => {
-                          setNewPasswordInput(e.target.value)
-                          if (changePassError) setChangePassError('')
-                        }}
-                        placeholder="New passcode..."
-                        className="text-xs h-8"
-                      />
-                      {changePassError && (
-                        <p className="text-[11px] text-destructive font-sans font-medium">{changePassError}</p>
-                      )}
-                      <Button type="submit" size="xs" className="w-full h-7 text-xs cursor-pointer font-sans">
-                        Save New Passcode
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {activeTab === 'capital' && isCapitalUnlocked && (
-              <section className="space-y-5 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <SectionHeader>Capital & Expenses Breakdown</SectionHeader>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Internal cost tracking for item capital rates (without markup), Lalamove delivery, and job expenses.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    onClick={handleLockCapital}
-                    className="h-7 text-[10px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground font-mono"
-                    title="Lock Capital Tab"
-                  >
-                    <Lock size={12} /> Lock Tab
-                  </Button>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Internal cost tracking for item capital rates (without markup), Lalamove delivery, and job expenses.
+                  </p>
                 </div>
 
                 {/* Profitability Executive Summary Card */}
@@ -3654,6 +3454,20 @@ export default function Home() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="col-span-2 bg-blue-950/70 p-3 rounded-lg border border-blue-500/40 flex justify-between items-center">
+                          <div>
+                            <div className="text-[9.5px] uppercase font-sans text-blue-300 font-bold tracking-wider">
+                              Quotation Selling Value (Client Price)
+                            </div>
+                            <div className="text-[10px] text-zinc-300 font-sans">
+                              Grand Total billed to client ({invoice.rateMarkup}% markup + VAT)
+                            </div>
+                          </div>
+                          <div className="font-extrabold text-base text-blue-200">
+                            {formatCurrency(clientSellingTotal, invoice.currency)}
+                          </div>
+                        </div>
+
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
                           <div className="text-[9px] uppercase font-sans text-zinc-400">Items Base Capital</div>
                           <div className="font-bold text-zinc-100">
@@ -3725,13 +3539,20 @@ export default function Home() {
                   {/* Additional Expenses List */}
                   <div className="space-y-2 pt-2 border-t border-border">
                     <div className="flex justify-between items-center">
-                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">Project Expenses</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase">Project Expenses</Label>
+                        <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                          ({(invoice.additionalExpenses || []).length}/7 Max)
+                        </span>
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
                         size="xs"
+                        disabled={(invoice.additionalExpenses || []).length >= 7}
                         onClick={() => addExpenseItem('', 0, 'additional')}
-                        className="h-6 text-[10px] gap-1 cursor-pointer"
+                        className="h-6 text-[10px] gap-1 cursor-pointer disabled:opacity-50"
+                        title={(invoice.additionalExpenses || []).length >= 7 ? "Maximum limit of 7 expenses reached" : "Add new project expense"}
                       >
                         <Plus size={11} /> Add Expense
                       </Button>
@@ -3744,8 +3565,9 @@ export default function Home() {
                         type="button"
                         variant="ghost"
                         size="xs"
+                        disabled={(invoice.additionalExpenses || []).length >= 7}
                         onClick={() => addExpenseItem('Lalamove Express Delivery', 500, 'lalamove')}
-                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer disabled:opacity-50"
                       >
                         + Lalamove ₱500
                       </Button>
@@ -3753,8 +3575,9 @@ export default function Home() {
                         type="button"
                         variant="ghost"
                         size="xs"
+                        disabled={(invoice.additionalExpenses || []).length >= 7}
                         onClick={() => addExpenseItem('Permit & Processing Fees', 2500, 'permits')}
-                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer disabled:opacity-50"
                       >
                         + Permit ₱2.5k
                       </Button>
@@ -3762,8 +3585,9 @@ export default function Home() {
                         type="button"
                         variant="ghost"
                         size="xs"
+                        disabled={(invoice.additionalExpenses || []).length >= 7}
                         onClick={() => addExpenseItem('On-Site Meals & Incidentals', 1000, 'meals')}
-                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer"
+                        className="h-5 px-1.5 text-[9px] bg-secondary hover:bg-secondary/80 cursor-pointer disabled:opacity-50"
                       >
                         + Meals ₱1k
                       </Button>
@@ -4311,7 +4135,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-secondary/30 min-h-0 print:block print:h-auto relative overflow-y-auto flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 print:block print:h-auto relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
         {/* Floating background themed characters (screen only, hidden on print) */}
         {THEME_CHARACTERS[invoice.theme] && (
           <>
@@ -4336,7 +4160,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           <MGCapitalPreview
             invoice={invoice}
             hoveredField={hoveredField}
-            isUnlocked={isCapitalUnlocked}
             onPagesChange={setTotalPages}
           />
         ) : (

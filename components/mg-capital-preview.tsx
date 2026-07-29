@@ -1,23 +1,78 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { type Invoice } from '@/lib/types'
+import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { formatDate, formatCurrency, cn, isBatteryItem, calculateTotal } from '@/lib/utils'
-
-import { Lock, ShieldCheck } from 'lucide-react'
 
 interface MGCapitalPreviewProps {
   invoice: Invoice
   hoveredField?: string | null
-  isUnlocked?: boolean
   onPagesChange?: (count: number) => void
+}
+
+interface CapitalVirtualPage {
+  items: LineItem[]
+  showTop: boolean
+  showTable1Subtotal: boolean
+  showTable2: boolean
+  showFinancialSummary: boolean
+  showBottom: boolean
+}
+
+function paginateCapital(inv: Invoice): CapitalVirtualPage[] {
+  const items = (inv.lineItems || []).filter((item) => {
+    return !(inv.excludeBattery && isBatteryItem(item.description))
+  })
+
+  const additionalCount = (inv.additionalExpenses || []).length
+
+  // Check if everything can fit cleanly on 1 page (up to 7 items with minimal expenses)
+  if (items.length <= 7 && additionalCount <= 2) {
+    return [{
+      items,
+      showTop: true,
+      showTable1Subtotal: true,
+      showTable2: true,
+      showFinancialSummary: true,
+      showBottom: true,
+    }]
+  }
+
+  // Otherwise: Fill Page 1 cleanly (up to 18 items) to eliminate empty whitespace
+  let page1Count = Math.min(items.length, 18)
+
+  // Avoid leaving just 1 orphaned item on Page 2 if possible
+  if (items.length - page1Count === 1 && page1Count > 1) {
+    page1Count -= 1
+  }
+
+  const page1Items = items.slice(0, page1Count)
+  const page2Items = items.slice(page1Count)
+
+  return [
+    {
+      items: page1Items,
+      showTop: true,
+      showTable1Subtotal: false,
+      showTable2: false,
+      showFinancialSummary: false,
+      showBottom: true,
+    },
+    {
+      items: page2Items,
+      showTop: false,
+      showTable1Subtotal: true,
+      showTable2: true,
+      showFinancialSummary: true,
+      showBottom: true,
+    }
+  ]
 }
 
 export function MGCapitalPreview({
   invoice,
   hoveredField,
-  isUnlocked = true,
   onPagesChange,
 }: MGCapitalPreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -35,10 +90,6 @@ export function MGCapitalPreview({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-
-  useEffect(() => {
-    onPagesChange?.(1)
-  }, [onPagesChange])
 
   // Filter line items based on excludeBattery preference
   const items = (invoice.lineItems || []).filter((item) => {
@@ -70,6 +121,13 @@ export function MGCapitalPreview({
   const netProfit = clientGrandTotal - totalCapitalWithSalesMarkup
   const netProfitMarginPct = clientGrandTotal > 0 ? (netProfit / clientGrandTotal) * 100 : 0
 
+  const virtualPages = paginateCapital(invoice)
+  const totalPages = virtualPages.length
+
+  useEffect(() => {
+    onPagesChange?.(totalPages)
+  }, [totalPages, onPagesChange])
+
   const getHighlightClass = (field: string) => {
     const isHovered = hoveredField === field || 
       (field === 'sender' && ['fromName', 'fromEmail', 'fromPhone', 'fromAddress'].includes(hoveredField || '')) ||
@@ -80,320 +138,349 @@ export function MGCapitalPreview({
       : 'transition-all duration-200'
   }
 
-  if (!isUnlocked) {
-    return (
-      <div ref={canvasRef} className="w-full flex flex-col items-center py-6 select-none print:py-0 print:w-full">
-        <div
-          className="bg-white text-[#111111] shadow-2xl rounded-sm print:shadow-none print:rounded-none relative overflow-hidden font-sans border border-[#E5E5E5] p-12 flex flex-col items-center justify-center text-center space-y-6"
-          style={{
-            width: `${PAPER_W}px`,
-            minHeight: `${PAPER_H}px`,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
-            marginBottom: `-${PAPER_H * (1 - scale)}px`,
-          }}
-        >
-          <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center border-2 border-zinc-300 shadow-inner">
-            <Lock className="w-10 h-10 text-zinc-800" />
-          </div>
-
-          <div className="space-y-2 max-w-md">
-            <span className="bg-zinc-900 text-white text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded">
-              RESTRICTED ACCESS
-            </span>
-            <h2 className="text-2xl font-bold text-[#111111] tracking-tight">
-              Capital & Expense Worksheet Locked
-            </h2>
-            <p className="text-xs text-[#666666] leading-relaxed">
-              This document contains confidential supplier cost rates, logistics breakdown, and net profit calculations. Enter the passcode in the Capital tab to unlock access.
-            </p>
-          </div>
-
-          <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg max-w-sm w-full space-y-1 font-mono text-xs text-zinc-600">
-            <div className="flex items-center justify-center gap-1.5 font-bold text-zinc-800">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Password Protected Area
-            </div>
-            <p className="text-[11px] text-zinc-500">
-              Authorized personnel only
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div ref={canvasRef} className="w-full flex flex-col items-center py-6 select-none print:py-0 print:w-full">
-      <div
-        className="bg-white text-[#111111] shadow-2xl rounded-sm print:shadow-none print:rounded-none relative overflow-hidden font-sans border border-[#E5E5E5] print:border-none p-12 flex flex-col justify-between"
-        style={{
-          width: `${PAPER_W}px`,
-          minHeight: `${PAPER_H}px`,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top center',
-          marginBottom: `-${PAPER_H * (1 - scale)}px`,
-        }}
-      >
-        <div>
-          {/* Header matching Quotation Proposal design */}
-          <div className="flex justify-between items-start mb-8 border-b border-[#E5E5E5] pb-6">
-            <div className={cn("space-y-1 p-1", getHighlightClass('sender'))}>
-              <h1 className="text-[26px] font-extrabold text-[#111111] tracking-tight">
-                {invoice.fromName || '—'}
-              </h1>
-              {invoice.fromEmail && (
-                <p className="text-[12px] text-[#888888]">{invoice.fromEmail}</p>
-              )}
-              {invoice.fromPhone && (
-                <p className="text-[12px] text-[#888888]">{invoice.fromPhone}</p>
-              )}
-              {invoice.fromAddress && (
-                <p className="text-[12px] text-[#888888] max-w-xs">{invoice.fromAddress}</p>
-              )}
-              <div className="pt-2">
-                <span className="text-[10px] font-bold tracking-wider uppercase bg-[#111111] text-white px-2 py-0.5 rounded-xs">
-                  INTERNAL CAPITAL & EXPENSES WORKSHEET
-                </span>
-              </div>
-            </div>
+    <main
+      ref={canvasRef}
+      className="w-full bg-[#EBEBEB] dark:bg-zinc-900 flex flex-col items-center py-6 select-none print:py-0 print:w-full"
+    >
+      {/* Format Header Pill (Screen only) */}
+      <div className="mb-3 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1 rounded-full border border-border shadow-xs z-10 select-none">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          Capital Preview Mode:
+        </span>
+        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 font-mono">
+          💰 Capital & Expenses Worksheet ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
+        </span>
+      </div>
 
-            <div className={cn("text-right flex flex-col items-end p-1", getHighlightClass('invoiceNumber'))}>
-              <img
-                src="/mg.png"
-                alt="INVOICE"
-                className="h-[140px] w-auto object-contain mb-1"
-              />
-              {invoice.invoiceNumber && (
-                <p className="text-[12px] font-mono text-[#888888] mt-1">{invoice.invoiceNumber}</p>
-              )}
-            </div>
-          </div>
+      {virtualPages.map((page, pageIdx) => (
+        <div key={pageIdx} className="w-full flex justify-center mb-6 print:block print:m-0 print:p-0">
+          <div 
+            style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
+            className="print-wrapper"
+          >
+            <div
+              className="bg-white text-[#111111] shadow-2xl rounded-sm print:shadow-none print:rounded-none relative overflow-hidden font-sans border border-[#E5E5E5] print:border-none p-10 flex flex-col justify-between print-page print:!transform-none"
+              style={{
+                width: `${PAPER_W}px`,
+                height: `${PAPER_H}px`,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+            <div>
+              {/* Header (First Page Only) */}
+              {page.showTop && (
+                <div className="flex justify-between items-start mb-6 border-b border-[#E5E5E5] pb-4">
+                  <div className={cn("space-y-1 p-1", getHighlightClass('sender'))}>
+                    <h1 className="text-[24px] font-extrabold text-[#111111] tracking-tight">
+                      {invoice.fromName || '—'}
+                    </h1>
+                    {invoice.fromEmail && (
+                      <p className="text-[11px] text-[#888888]">{invoice.fromEmail}</p>
+                    )}
+                    {invoice.fromPhone && (
+                      <p className="text-[11px] text-[#888888]">{invoice.fromPhone}</p>
+                    )}
+                    {invoice.fromAddress && (
+                      <p className="text-[11px] text-[#888888] max-w-xs">{invoice.fromAddress}</p>
+                    )}
+                    <div className="pt-1.5">
+                      <span className="text-[9.5px] font-bold tracking-wider uppercase bg-[#111111] text-white px-2 py-0.5 rounded-xs">
+                        INTERNAL CAPITAL & EXPENSES WORKSHEET
+                      </span>
+                    </div>
+                  </div>
 
-          {/* Client Info & Dates */}
-          <div className="flex justify-between items-start mb-6">
-            <div className={cn("max-w-xs p-1", getHighlightClass('client'))}>
-              <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
-                Client Target
-              </p>
-              <p className="font-bold text-[15px] text-[#111111] tracking-tight">
-                {invoice.toName || '—'}
-              </p>
-              {invoice.toEmail && (
-                <p className="text-[12px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
-              )}
-              {invoice.toAddress && (
-                <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
-              )}
-            </div>
-
-            <div className="flex gap-8">
-              {invoice.issueDate && (
-                <div className="text-right p-1">
-                  <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                    Issue Date
-                  </p>
-                  <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
-                    {formatDate(invoice.issueDate)}
-                  </p>
+                  <div className={cn("text-right flex flex-col items-end p-1", getHighlightClass('invoiceNumber'))}>
+                    <span className="text-[11px] font-black tracking-widest uppercase bg-[#111111] text-white px-3 py-1 rounded-xs inline-block shadow-xs">
+                      CAPITAL & EXPENSES
+                    </span>
+                    <p className="text-[9.5px] text-[#888888] font-bold tracking-wider uppercase mt-1">CONFIDENTIAL INTERNAL SHEET</p>
+                    {invoice.invoiceNumber && (
+                      <p className="text-[11px] font-mono text-[#888888] mt-1">Ref: {invoice.invoiceNumber}</p>
+                    )}
+                  </div>
                 </div>
               )}
-              {invoice.salesName && (
-                <div className="text-right p-1">
-                  <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                    Prepared By
-                  </p>
-                  <p className="text-[12px] font-medium text-[#111111]">
-                    {invoice.salesName}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Subject Line */}
-          {invoice.subject && (
-            <div className="mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2 p-1">
-              <span className="text-[12px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
-              <span className="text-[12px] font-bold text-[#111111]">{invoice.subject}</span>
-            </div>
-          )}
-
-          {/* Table 1: Base Line Items Capital (0% Markup) */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-[11px] font-bold text-[#111111] tracking-[0.07em] uppercase">
-                1. Selected Items Base Capital (0% Markup)
-              </h2>
-              <span className="text-[10px] text-[#888888]">
-                {items.length} Line Items
-              </span>
-            </div>
-
-            <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-              <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                Description
-              </span>
-              <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                Unit
-              </span>
-              <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                Qty
-              </span>
-              <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                Capital Rate
-              </span>
-              <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                Capital Amount
-              </span>
-            </div>
-
-            {items.length === 0 ? (
-              <div className="py-4 text-center text-[#888888] text-[12px]">No items selected.</div>
-            ) : (
-              items.map((item) => {
-                const capitalAmount = item.quantity * item.rate
-                return (
-                  <div key={item.id} className="flex py-3 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1">
-                    <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4 font-medium">
-                      {item.description || '—'}
+              {/* Header (Page 2 Only) */}
+              {!page.showTop && (
+                <div className="flex justify-between items-center mb-5 border-b border-[#111111] pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-extrabold text-[#111111] uppercase tracking-wide">
+                      {invoice.fromName || 'MG SOLAR'}
                     </span>
-                    <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                      {item.unit || '—'}
-                    </span>
-                    <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                      {item.quantity || '—'}
-                    </span>
-                    <span className="w-28 shrink-0 text-[13px] text-[#555555] text-right font-mono">
-                      {formatCurrency(item.rate, invoice.currency)}
-                    </span>
-                    <span className="w-32 shrink-0 text-[13px] font-bold text-[#111111] text-right font-mono">
-                      {formatCurrency(capitalAmount, invoice.currency)}
+                    <span className="text-[10px] text-[#888888] font-mono">
+                      • INTERNAL CAPITAL & EXPENSES WORKSHEET
                     </span>
                   </div>
-                )
-              })
+                  <div className="text-right">
+                    <span className="text-[10px] font-black tracking-widest uppercase bg-[#111111] text-white px-2.5 py-1 rounded-xs inline-block font-mono">
+                      PAGE 2 OF {totalPages}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Client Info & Dates (First Page Only) */}
+              {page.showTop && (
+                <div className="flex justify-between items-start mb-5">
+                  <div className={cn("max-w-xs p-1", getHighlightClass('client'))}>
+                    <p className="text-[9.5px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                      Client Target
+                    </p>
+                    <p className="font-bold text-[14px] text-[#111111] tracking-tight">
+                      {invoice.toName || '—'}
+                    </p>
+                    {invoice.toEmail && (
+                      <p className="text-[11px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
+                    )}
+                    {invoice.toAddress && (
+                      <p className="text-[11px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-8">
+                    {invoice.issueDate && (
+                      <div className="text-right p-1">
+                        <p className="text-[9.5px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                          Issue Date
+                        </p>
+                        <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
+                          {formatDate(invoice.issueDate)}
+                        </p>
+                      </div>
+                    )}
+                    {invoice.salesName && (
+                      <div className="text-right p-1">
+                        <p className="text-[9.5px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                          Prepared By
+                        </p>
+                        <p className="text-[11.5px] font-medium text-[#111111]">
+                          {invoice.salesName}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Subject Line (First Page Only) */}
+              {page.showTop && invoice.subject && (
+                <div className="mb-4 pb-2 border-b border-[#E5E5E5]/50 flex gap-2 p-1">
+                  <span className="text-[11.5px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
+                  <span className="text-[11.5px] font-bold text-[#111111]">{invoice.subject}</span>
+                </div>
+              )}
+
+              {/* Table 1: Base Line Items Capital */}
+              {page.items.length > 0 && (
+                <div className="mb-5">
+                  <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-[11px] font-bold text-[#111111] tracking-[0.07em] uppercase">
+                      1. Selected Items Base Capital (0% Markup) {totalPages > 1 && `(${page.showTop ? 'Part 1' : 'Part 2'})`}
+                    </h2>
+                    <span className="text-[10px] text-[#888888] font-mono">
+                      Page {pageIdx + 1} of {totalPages}
+                    </span>
+                  </div>
+
+                  <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                    <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                      Description
+                    </span>
+                    <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                      Unit
+                    </span>
+                    <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                      Qty
+                    </span>
+                    <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                      Capital Rate
+                    </span>
+                    <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                      Capital Amount
+                    </span>
+                  </div>
+
+                  {page.items.map((item) => {
+                    const capitalAmount = item.quantity * item.rate
+                    return (
+                      <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                        <span className="flex-1 text-[11.5px] text-[#111111] break-words whitespace-pre-wrap pr-4 font-medium leading-snug">
+                          {item.description || '—'}
+                        </span>
+                        <span className="w-16 shrink-0 text-[11.5px] text-[#888888] text-center">
+                          {item.unit || '—'}
+                        </span>
+                        <span className="w-14 shrink-0 text-[11.5px] text-[#888888] text-center">
+                          {item.quantity || '—'}
+                        </span>
+                        <span className="w-28 shrink-0 text-[11.5px] text-[#555555] text-right font-mono">
+                          {formatCurrency(item.rate, invoice.currency)}
+                        </span>
+                        <span className="w-32 shrink-0 text-[11.5px] font-bold text-[#111111] text-right font-mono">
+                          {formatCurrency(capitalAmount, invoice.currency)}
+                        </span>
+                      </div>
+                    )
+                  })}
+
+                  {page.showTable1Subtotal && (
+                    <div className="flex justify-between items-center py-2 px-1 bg-[#F9F9F9] border-b border-[#111111] font-mono text-[11px] mt-1">
+                      <span className="font-bold text-[#111111] uppercase tracking-wider">
+                        Items Base Capital Subtotal:
+                      </span>
+                      <span className="font-bold text-[#111111]">
+                        {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Table 2: Logistics & Project Expenses */}
+              {page.showTable2 && (
+                <div className="mb-5">
+                  <h2 className="text-[11px] font-bold text-[#111111] tracking-[0.07em] uppercase mb-2">
+                    2. Logistics & Project Expenses
+                  </h2>
+
+                  <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                    <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                      Expense Description
+                    </span>
+                    <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                      Category
+                    </span>
+                    <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                      Amount
+                    </span>
+                  </div>
+
+                  {/* Lalamove */}
+                  <div className={cn("flex py-2 border-b border-[#E5E5E5] items-center px-1", getHighlightClass('lalamoveCost'))}>
+                    <span className="flex-1 text-[11.5px] text-[#111111] font-medium">
+                      Lalamove / Transport & Delivery Fee
+                    </span>
+                    <span className="w-28 shrink-0 text-[10px] text-[#555555] text-center uppercase font-bold">
+                      Logistics
+                    </span>
+                    <span className="w-32 shrink-0 text-[11.5px] font-bold text-[#111111] text-right font-mono">
+                      {formatCurrency(lalamove, invoice.currency)}
+                    </span>
+                  </div>
+
+                  {/* Additional Expenses */}
+                  {additionalExpList.map((exp) => (
+                    <div key={exp.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-center px-1", getHighlightClass(exp.id))}>
+                      <span className="flex-1 text-[11.5px] text-[#111111]">
+                        {exp.description || 'Additional Expense'}
+                      </span>
+                      <span className="w-28 shrink-0 text-[10px] text-[#555555] text-center uppercase font-semibold">
+                        {exp.category || 'Additional'}
+                      </span>
+                      <span className="w-32 shrink-0 text-[11.5px] font-bold text-[#111111] text-right font-mono">
+                        {formatCurrency(exp.amount || 0, invoice.currency)}
+                      </span>
+                    </div>
+                  ))}
+
+                  <div className="flex justify-between items-center py-2 px-1 bg-[#F9F9F9] border-b border-[#111111] font-mono text-[11px] mt-1">
+                    <span className="font-bold text-[#111111] uppercase tracking-wider">
+                      Logistics & Expenses Subtotal:
+                    </span>
+                    <span className="font-bold text-[#111111]">
+                      {formatCurrency(totalExpenses, invoice.currency)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Financial Totals & 3% Sales Markup Analysis (Flat Ultra-Compact 3-Column Layout) */}
+              {page.showFinancialSummary && (
+                <div className="w-full border border-[#111111] px-2.5 py-1.5 bg-[#FDFDFD] font-mono text-[10.5px] mb-3">
+                  <div className="text-[9.5px] font-bold text-[#111111] uppercase tracking-wider mb-1 pb-0.5 border-b border-[#E5E5E5] flex justify-between items-center">
+                    <span>Financial Summary & Capital Profitability Analysis</span>
+                    <span className="text-[8.5px] text-[#888888] font-normal font-sans">Markup: +{invoice.rateMarkup}%</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {/* Row 1: Base Capital, Expenses, Subtotal Capital */}
+                    <div className="bg-[#F5F5F5] px-1.5 py-1 rounded-xs border border-[#E5E5E5]">
+                      <div className="text-[8px] uppercase text-[#777777] font-semibold tracking-wider font-sans">Base Items Capital</div>
+                      <div className="text-[11px] font-bold text-[#111111] font-mono mt-0.5">
+                        {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                      </div>
+                    </div>
+
+                    <div className="bg-[#F5F5F5] px-1.5 py-1 rounded-xs border border-[#E5E5E5]">
+                      <div className="text-[8px] uppercase text-[#777777] font-semibold tracking-wider font-sans">Logistics & Expenses</div>
+                      <div className="text-[11px] font-bold text-[#111111] font-mono mt-0.5">
+                        {formatCurrency(totalExpenses, invoice.currency)}
+                      </div>
+                    </div>
+
+                    <div className="bg-[#F5F5F5] px-1.5 py-1 rounded-xs border border-[#111111]">
+                      <div className="text-[8px] uppercase text-[#111111] font-bold tracking-wider font-sans">Subtotal Capital Cost</div>
+                      <div className="text-[11px] font-extrabold text-[#111111] font-mono mt-0.5">
+                        {formatCurrency(subtotalCapitalCost, invoice.currency)}
+                      </div>
+                    </div>
+
+                    {/* Row 2: Quotation Selling Price, 3% Sales Commission, Total Net Capital */}
+                    <div className="bg-[#008B4C]/5 px-1.5 py-1 rounded-xs border border-[#008B4C]/30">
+                      <div className="text-[8px] uppercase text-[#008B4C] font-bold tracking-wider font-sans">Quotation Selling Price</div>
+                      <div className="text-[11px] font-extrabold text-[#008B4C] font-mono mt-0.5">
+                        {formatCurrency(clientGrandTotal, invoice.currency)}
+                      </div>
+                    </div>
+
+                    <div className="bg-[#D97706]/5 px-1.5 py-1 rounded-xs border border-[#D97706]/30">
+                      <div className="text-[8px] uppercase text-[#D97706] font-bold tracking-wider font-sans">3% Sales Commission</div>
+                      <div className="text-[11px] font-bold text-[#D97706] font-mono mt-0.5">
+                        + {formatCurrency(salesMarkup3Pct, invoice.currency)}
+                      </div>
+                    </div>
+
+                    <div className="bg-[#111111] text-white px-1.5 py-1 rounded-xs">
+                      <div className="text-[8px] uppercase text-zinc-300 font-bold tracking-wider font-sans">Total Net Capital Cost</div>
+                      <div className="text-[11px] font-black font-mono mt-0.5 text-white">
+                        {formatCurrency(totalCapitalWithSalesMarkup, invoice.currency)}
+                      </div>
+                    </div>
+
+                    {/* Row 3: NET GROSS PROFIT (Full Width 3 Columns) */}
+                    <div className="col-span-3 bg-[#008B4C]/10 border border-[#008B4C] px-2 py-1 rounded-xs flex justify-between items-center mt-0.5">
+                      <div className="text-[9.5px] font-black text-[#008B4C] uppercase tracking-wider font-sans">
+                        NET GROSS PROFIT MARGIN:
+                      </div>
+                      <div className="text-[12.5px] font-black text-[#008B4C] font-mono">
+                        {formatCurrency(netProfit, invoice.currency)} ({netProfitMarginPct.toFixed(1)}%)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Notes */}
+            {page.showBottom && (
+              <div className="pt-3 border-t border-[#E5E5E5] flex justify-between items-end text-[9.5px] text-[#888888]">
+                <div>
+                  <p className="font-semibold text-[#111111]">CONFIDENTIAL INTERNAL COST SHEET</p>
+                  <p>Calculated with 0% Base Capital Rates + 3% Sales Commission deducted from selling total.</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono">Page {pageIdx + 1} of {totalPages} • {invoice.invoiceNumber}</p>
+                </div>
+              </div>
             )}
-
-            <div className="flex justify-between items-center py-2.5 px-1 bg-[#F9F9F9] border-b border-[#111111] font-mono text-[12px]">
-              <span className="font-bold text-[#111111] uppercase tracking-wider">
-                Items Base Capital Subtotal:
-              </span>
-              <span className="font-bold text-[#111111]">
-                {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
-              </span>
-            </div>
-          </div>
-
-          {/* Table 2: Logistics & Project Expenses */}
-          <div className="mb-8">
-            <h2 className="text-[11px] font-bold text-[#111111] tracking-[0.07em] uppercase mb-2">
-              2. Logistics & Project Expenses
-            </h2>
-
-            <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-              <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                Expense Description
-              </span>
-              <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                Category
-              </span>
-              <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                Amount
-              </span>
-            </div>
-
-            {/* Lalamove */}
-            <div className={cn("flex py-3 border-b border-[#E5E5E5] items-center px-1", getHighlightClass('lalamoveCost'))}>
-              <span className="flex-1 text-[13px] text-[#111111] font-medium">
-                Lalamove / Transport & Delivery Fee
-              </span>
-              <span className="w-28 shrink-0 text-[11px] text-[#555555] text-center uppercase font-bold">
-                Logistics
-              </span>
-              <span className="w-32 shrink-0 text-[13px] font-bold text-[#111111] text-right font-mono">
-                {formatCurrency(lalamove, invoice.currency)}
-              </span>
-            </div>
-
-            {/* Additional Expenses */}
-            {additionalExpList.map((exp) => (
-              <div key={exp.id} className="flex py-3 border-b border-[#E5E5E5] items-center px-1">
-                <span className="flex-1 text-[13px] text-[#111111]">
-                  {exp.description || 'Additional Expense'}
-                </span>
-                <span className="w-28 shrink-0 text-[11px] text-[#555555] text-center uppercase font-semibold">
-                  {exp.category || 'Additional'}
-                </span>
-                <span className="w-32 shrink-0 text-[13px] font-bold text-[#111111] text-right font-mono">
-                  {formatCurrency(exp.amount || 0, invoice.currency)}
-                </span>
-              </div>
-            ))}
-
-            <div className="flex justify-between items-center py-2.5 px-1 bg-[#F9F9F9] border-b border-[#111111] font-mono text-[12px]">
-              <span className="font-bold text-[#111111] uppercase tracking-wider">
-                Logistics & Expenses Subtotal:
-              </span>
-              <span className="font-bold text-[#111111]">
-                {formatCurrency(totalExpenses, invoice.currency)}
-              </span>
-            </div>
-          </div>
-
-          {/* Financial Totals & 3% Sales Markup Analysis */}
-          <div className="flex justify-end mb-8">
-            <div className="w-96 space-y-2 border border-[#111111] p-4 bg-[#FDFDFD] font-mono text-[12px]">
-              <div className="flex justify-between items-center text-[#555555]">
-                <span>Base Items Capital:</span>
-                <span>{formatCurrency(itemsBaseCapitalTotal, invoice.currency)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-[#555555]">
-                <span>Logistics & Expenses:</span>
-                <span>{formatCurrency(totalExpenses, invoice.currency)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-[#111111] font-bold pt-1 border-t border-[#E5E5E5]">
-                <span>Subtotal Capital Cost:</span>
-                <span>{formatCurrency(subtotalCapitalCost, invoice.currency)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-[#008B4C] font-semibold pt-1 border-t border-[#E5E5E5]">
-                <span>Quotation Selling Price:</span>
-                <span>{formatCurrency(clientGrandTotal, invoice.currency)}</span>
-              </div>
-
-              {/* 3% Sales Markup Deduction */}
-              <div className="flex justify-between items-center text-[#D97706] font-semibold">
-                <span>3% Sales Commission:</span>
-                <span>+ {formatCurrency(salesMarkup3Pct, invoice.currency)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-[#111111] font-extrabold text-[13px] pt-2 border-t-2 border-[#111111]">
-                <span>Total Net Capital Cost:</span>
-                <span>{formatCurrency(totalCapitalWithSalesMarkup, invoice.currency)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-[#008B4C] font-extrabold text-[14px] bg-[#008B4C]/10 p-2 rounded-xs mt-2">
-                <span>NET GROSS PROFIT:</span>
-                <span>{formatCurrency(netProfit, invoice.currency)} ({netProfitMarginPct.toFixed(1)}%)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Notes */}
-        <div className="pt-6 border-t border-[#E5E5E5] flex justify-between items-end text-[10px] text-[#888888]">
-          <div>
-            <p className="font-semibold text-[#111111]">CONFIDENTIAL INTERNAL COST SHEET</p>
-            <p>Calculated with 0% Base Capital Rates + 3% Sales Commission deducted from selling total.</p>
-          </div>
-          <div className="text-right">
-            <p className="font-mono">{invoice.invoiceNumber}</p>
           </div>
         </div>
       </div>
-    </div>
+      ))}
+    </main>
   )
 }

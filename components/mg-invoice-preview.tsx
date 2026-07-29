@@ -273,7 +273,7 @@ export function MGInvoicePreview({
   return (
     <main
       ref={canvasRef}
-      className="flex-1 w-full bg-[#EBEBEB] overflow-auto flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
+      className="w-full bg-[#EBEBEB] dark:bg-zinc-900 flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0"
     >
       {/* Floating Controls Toolbar: Format & Brand Name Single Toggles */}
       <div className="mb-4 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-4 py-1.5 rounded-full border border-border shadow-xs z-10 select-none flex-wrap justify-center">
@@ -311,7 +311,7 @@ export function MGInvoicePreview({
       </div>
       {virtualPages.map((page, pageIndex) => {
         return (
-          <div key={pageIndex} className={cn("mb-8 last:mb-0 print:mb-0", pageIndex < totalPages - 1 && "print-break")}>
+          <div key={pageIndex} className={cn("w-full flex justify-center mb-8 last:mb-0 print:block print:m-0 print:p-0", pageIndex < totalPages - 1 && "print-break")}>
             {/* Scale wrapper — occupies the visual space of the scaled paper */}
             <div 
               style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 

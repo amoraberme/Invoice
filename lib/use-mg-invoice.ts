@@ -208,10 +208,14 @@ export function useMGInvoice() {
   }, [])
 
   const addExpenseItem = useCallback((desc = '', amount = 0, category: ExpenseItem['category'] = 'additional') => {
-    setInvoice((prev) => ({
-      ...prev,
-      additionalExpenses: [...(prev.additionalExpenses || []), newExpenseItem(desc, amount, category)],
-    }))
+    setInvoice((prev) => {
+      const current = prev.additionalExpenses || []
+      if (current.length >= 7) return prev
+      return {
+        ...prev,
+        additionalExpenses: [...current, newExpenseItem(desc, amount, category)],
+      }
+    })
   }, [])
 
   const updateExpenseItem = useCallback((id: string, field: keyof ExpenseItem, value: any) => {
