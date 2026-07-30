@@ -282,28 +282,28 @@ export function MGChecklistPreview({
             {/* BOTTOM SIGNATURE BLOCK (GUARANTEED ON SINGLE PAGE) */}
             <div className="pt-3 border-t border-[#111111]/20 space-y-3">
               <div className="grid grid-cols-3 gap-5 text-[9px] font-mono text-[#333333]">
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div>PREPARED / DISPATCHED BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111]">
+                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
                     {invoice.salesName || 'Warehouse Logistics'}
                   </div>
                   <div className="text-[8px] text-[#777777]">Signature & Date</div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div>INSPECTED / PACKED BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111]">
-                    ___________________________
+                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                    &nbsp;
                   </div>
                   <div className="text-[8px] text-[#777777]">Quality Inspector</div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div>VERIFIED ON SITE BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111]">
-                    ___________________________
+                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                    &nbsp;
                   </div>
-                  <div className="text-[8px] text-[#777777]">Technician / Customer</div>
+                  <div className="text-[8px] text-[#777777]">Installer</div>
                 </div>
               </div>
 

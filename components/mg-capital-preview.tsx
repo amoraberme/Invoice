@@ -297,10 +297,10 @@ export function MGCapitalPreview({
                       Qty
                     </span>
                     <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                      Capital Rate
+                      Capital Rate (0%)
                     </span>
                     <span className="w-32 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                      Capital Amount
+                      Capital Amount (0%)
                     </span>
                   </div>
 
@@ -330,7 +330,7 @@ export function MGCapitalPreview({
                   {page.showTable1Subtotal && (
                     <div className="flex justify-between items-center py-2 px-1 bg-[#F9F9F9] border-b border-[#111111] font-mono text-[11px] mt-1">
                       <span className="font-bold text-[#111111] uppercase tracking-wider">
-                        Items Base Capital Subtotal:
+                        Items Base Capital Subtotal (0% Markup):
                       </span>
                       <span className="font-bold text-[#111111]">
                         {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
@@ -402,14 +402,14 @@ export function MGCapitalPreview({
               {page.showFinancialSummary && (
                 <div className="w-full border border-[#111111] px-2.5 py-1.5 bg-[#FDFDFD] font-mono text-[10.5px] mb-3">
                   <div className="text-[9.5px] font-bold text-[#111111] uppercase tracking-wider mb-1 pb-0.5 border-b border-[#E5E5E5] flex justify-between items-center">
-                    <span>Financial Summary & Capital Profitability Analysis</span>
-                    <span className="text-[8.5px] text-[#888888] font-normal font-sans">Markup: +{invoice.rateMarkup}%</span>
+                    <span>Financial Summary & Capital Profitability Analysis (0% Base vs +{invoice.rateMarkup}% Client Markup)</span>
+                    <span className="text-[8.5px] text-[#888888] font-normal font-sans">Client Markup: +{invoice.rateMarkup}%</span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-1.5">
                     {/* Row 1: Base Capital, Expenses, Subtotal Capital */}
                     <div className="bg-[#F5F5F5] px-1.5 py-1 rounded-xs border border-[#E5E5E5]">
-                      <div className="text-[8px] uppercase text-[#777777] font-semibold tracking-wider font-sans">Base Items Capital</div>
+                      <div className="text-[8px] uppercase text-[#777777] font-semibold tracking-wider font-sans">Base Items Capital (0% Markup)</div>
                       <div className="text-[11px] font-bold text-[#111111] font-mono mt-0.5">
                         {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
                       </div>
@@ -423,7 +423,7 @@ export function MGCapitalPreview({
                     </div>
 
                     <div className="bg-[#F5F5F5] px-1.5 py-1 rounded-xs border border-[#111111]">
-                      <div className="text-[8px] uppercase text-[#111111] font-bold tracking-wider font-sans">Subtotal Capital Cost</div>
+                      <div className="text-[8px] uppercase text-[#111111] font-bold tracking-wider font-sans">Subtotal Base Capital Cost</div>
                       <div className="text-[11px] font-extrabold text-[#111111] font-mono mt-0.5">
                         {formatCurrency(subtotalCapitalCost, invoice.currency)}
                       </div>
@@ -431,7 +431,7 @@ export function MGCapitalPreview({
 
                     {/* Row 2: Quotation Selling Price, 3% Sales Commission, Total Net Capital */}
                     <div className="bg-[#008B4C]/5 px-1.5 py-1 rounded-xs border border-[#008B4C]/30">
-                      <div className="text-[8px] uppercase text-[#008B4C] font-bold tracking-wider font-sans">Quotation Selling Price</div>
+                      <div className="text-[8px] uppercase text-[#008B4C] font-bold tracking-wider font-sans">Quotation Price (+{invoice.rateMarkup}% Markup)</div>
                       <div className="text-[11px] font-extrabold text-[#008B4C] font-mono mt-0.5">
                         {formatCurrency(clientGrandTotal, invoice.currency)}
                       </div>
@@ -470,7 +470,7 @@ export function MGCapitalPreview({
               <div className="pt-3 border-t border-[#E5E5E5] flex justify-between items-end text-[9.5px] text-[#888888]">
                 <div>
                   <p className="font-semibold text-[#111111]">CONFIDENTIAL INTERNAL COST SHEET</p>
-                  <p>Calculated with 0% Base Capital Rates + 3% Sales Commission deducted from selling total.</p>
+                  <p>Comparing 0% Base Capital Rates vs +{invoice.rateMarkup}% Client Selling Price (+ 3% Sales Commission deducted from selling total).</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono">Page {pageIdx + 1} of {totalPages} • {invoice.invoiceNumber}</p>

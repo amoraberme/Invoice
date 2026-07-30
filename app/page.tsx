@@ -1,10 +1,11 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal, calculateSubtotal } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { type LineItem, type ExpenseItem } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
+import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory } from '@/lib/store'
 import { CURRENCIES } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -928,7 +929,14 @@ export default function Home() {
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
 
+  // History Cache State
+  const [historyList, setHistoryList] = useState<InvoiceHistoryItem[]>([])
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<InvoiceHistoryItem | null>(null)
+  const [historyToast, setHistoryToast] = useState<string | null>(null)
 
+  useEffect(() => {
+    setHistoryList(getInvoiceHistory())
+  }, [])
 
   const TAB_LABEL_MAP: Record<string, string> = {
     ocr: 'kW Set Up',
@@ -939,6 +947,7 @@ export default function Home() {
     capital: 'Capital',
     supply: 'Supply Tab',
     checklist: 'Checklist',
+    history: 'History',
   }
 
   const handleTabSwitch = (newTab: string) => {
@@ -946,6 +955,9 @@ export default function Home() {
 
     if (activeTab !== 'checklist') {
       setPreviousTab(activeTab)
+    }
+    if (newTab !== 'history') {
+      setSelectedHistoryItem(null)
     }
 
     if (newTab === 'supply' && activeTab !== 'supply' && activeTab !== 'checklist') {
@@ -1844,6 +1856,8 @@ export default function Home() {
   useEffect(() => {
     if (!loaded || !autoPrint.current) return
     const timer = setTimeout(() => {
+      const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
+      setHistoryList(updatedHistory)
       const client = invoice.toName ? invoice.toName.trim() : 'Client'
       const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
       const parts = [client, quotationNumber].filter(Boolean)
@@ -1856,9 +1870,11 @@ export default function Home() {
       window.print()
     }, 450)
     return () => clearTimeout(timer)
-  }, [loaded, invoice.toName, invoice.invoiceNumber])
+  }, [loaded, invoice.toName, invoice.invoiceNumber, invoice])
 
   const handleDownload = () => {
+    const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
+    setHistoryList(updatedHistory)
     const client = invoice.toName ? invoice.toName.trim() : 'Client'
     const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
     const parts = [client, quotationNumber].filter(Boolean)
@@ -1964,6 +1980,7 @@ export default function Home() {
               { id: 'supply', label: 'Supply', icon: Package, title: 'Supplied Items Filter' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
+              { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
             ].map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -3437,7 +3454,7 @@ export default function Home() {
                 <div>
                   <SectionHeader>Capital & Expenses Breakdown</SectionHeader>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Internal cost tracking for item capital rates (without markup), Lalamove delivery, and job expenses.
+                    Internal cost tracking comparing 0% Base Capital Rates vs +{invoice.rateMarkup}% Client Markup, Lalamove delivery, and job expenses.
                   </p>
                 </div>
 
@@ -3447,6 +3464,9 @@ export default function Home() {
                     return !(invoice.excludeBattery && isBatteryItem(item.description))
                   })
                   const itemsBaseCapital = itemsList.reduce((acc, item) => acc + (item.quantity * item.rate), 0)
+                  const itemsSellingSubtotal = calculateSubtotal(invoice)
+                  const itemsMarkupGain = Math.max(0, itemsSellingSubtotal - itemsBaseCapital)
+
                   const lalamove = invoice.lalamoveCost || 0
                   const additionalTotal = (invoice.additionalExpenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0)
                   const totalExpenses = lalamove + additionalTotal
@@ -3462,21 +3482,21 @@ export default function Home() {
                       <div className="flex justify-between items-center border-b border-zinc-700 pb-2">
                         <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center gap-1.5 font-sans">
                           <Coins size={14} className="text-amber-400" />
-                          Project Profitability Overview
+                          Project Profitability Overview (0% Base vs +{invoice.rateMarkup}% Client Markup)
                         </span>
                         <span className="text-[10px] text-zinc-400 font-sans">
-                          Markup: <strong className="text-white">+{invoice.rateMarkup}%</strong>
+                          Client Markup: <strong className="text-white">+{invoice.rateMarkup}%</strong>
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="col-span-2 bg-blue-950/70 p-3 rounded-lg border border-blue-500/40 flex justify-between items-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="col-span-2 sm:col-span-3 bg-blue-950/70 p-3 rounded-lg border border-blue-500/40 flex justify-between items-center">
                           <div>
                             <div className="text-[9.5px] uppercase font-sans text-blue-300 font-bold tracking-wider">
-                              Quotation Selling Value (Client Price)
+                              Quotation Selling Value (+{invoice.rateMarkup}% Client Markup)
                             </div>
                             <div className="text-[10px] text-zinc-300 font-sans">
-                              Grand Total billed to client ({invoice.rateMarkup}% markup + VAT)
+                              Grand Total billed to client (+{invoice.rateMarkup}% markup applied to items + VAT)
                             </div>
                           </div>
                           <div className="font-extrabold text-base text-blue-200">
@@ -3485,45 +3505,54 @@ export default function Home() {
                         </div>
 
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
-                          <div className="text-[9px] uppercase font-sans text-zinc-400">Items Base Capital</div>
-                          <div className="font-bold text-zinc-100">
+                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold">Items Base Capital (0% Markup)</div>
+                          <div className="font-bold text-zinc-100 mt-0.5">
                             {formatCurrency(itemsBaseCapital, invoice.currency)}
                           </div>
                         </div>
 
+                        <div className="bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-500/30">
+                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Rate Markup Margin (+{invoice.rateMarkup}%)</div>
+                          <div className="font-bold text-emerald-300 mt-0.5">
+                            +{formatCurrency(itemsMarkupGain, invoice.currency)}
+                          </div>
+                        </div>
+
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
-                          <div className="text-[9px] uppercase font-sans text-zinc-400">Logistics & Expenses</div>
-                          <div className="font-bold text-amber-400">
+                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold">Logistics & Expenses</div>
+                          <div className="font-bold text-amber-400 mt-0.5">
                             {formatCurrency(totalExpenses, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-amber-500/40">
                           <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">3% Sales Commission</div>
-                          <div className="font-bold text-amber-300">
+                          <div className="font-bold text-amber-300 mt-0.5">
                             {formatCurrency(salesMarkup3Pct, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-zinc-950 p-2.5 rounded-lg border border-amber-500/40">
-                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">Total Net Capital</div>
-                          <div className="font-bold text-amber-300">
+                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">Total Net Capital Cost</div>
+                          <div className="font-bold text-amber-300 mt-0.5">
                             {formatCurrency(totalCapitalWithSales, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
                           <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Est. Net Profit</div>
-                          <div className="font-bold text-emerald-300">
+                          <div className="font-bold text-emerald-300 mt-0.5">
                             {formatCurrency(netProfit, invoice.currency)}
                           </div>
                         </div>
 
-                        <div className="bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
-                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Net Margin %</div>
-                          <div className="font-bold text-emerald-200">
-                            {netMargin.toFixed(1)}%
-                          </div>
+                        <div className="col-span-2 sm:col-span-3 bg-emerald-950/90 p-2.5 rounded-lg border border-emerald-500/60 flex justify-between items-center">
+                          <span className="text-[10px] uppercase font-sans text-emerald-300 font-bold tracking-wider">
+                            NET GROSS PROFIT MARGIN (% OF SELLING PRICE):
+                          </span>
+                          <span className="font-extrabold text-sm text-emerald-200">
+                            {formatCurrency(netProfit, invoice.currency)} ({netMargin.toFixed(1)}%)
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -4136,6 +4165,149 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                 })()}
               </section>
             )}
+
+            {activeTab === 'history' && (
+              <section className="space-y-4 animate-in fade-in duration-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <SectionHeader>Exported PDF History Cache</SectionHeader>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Local browser history cache saved automatically whenever you click Download PDF.
+                    </p>
+                  </div>
+                  {historyList.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to clear all PDF export history?')) {
+                          const empty = clearInvoiceHistory()
+                          setHistoryList(empty)
+                          setSelectedHistoryItem(null)
+                        }
+                      }}
+                      className="text-[10px] text-destructive hover:bg-destructive/10 h-7 border-destructive/30 cursor-pointer"
+                    >
+                      <Trash2 size={11} className="mr-1" /> Clear All
+                    </Button>
+                  )}
+                </div>
+
+                {historyToast && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in duration-200">
+                    <CheckCircle2 size={14} className="shrink-0" />
+                    <span className="font-medium">{historyToast}</span>
+                  </div>
+                )}
+
+                {historyList.length === 0 ? (
+                  <div className="bg-card p-6 text-center rounded-xl border border-dashed border-border space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
+                      <History size={18} />
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">No Export History Recorded Yet</h4>
+                    <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+                      Every time you click <strong className="text-foreground">"PDF"</strong> to download or print a quotation, a full setup snapshot is automatically saved here for quick restoration.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[580px] overflow-y-auto pr-1">
+                    {historyList.map((hist) => {
+                      const isSelected = selectedHistoryItem?.id === hist.id
+                      return (
+                        <div
+                          key={hist.id}
+                          className={cn(
+                            "p-3 rounded-xl border transition-all duration-200 space-y-2 text-xs",
+                            isSelected
+                              ? "border-primary bg-primary/5 shadow-xs"
+                              : "border-border bg-card hover:border-zinc-400 dark:hover:border-zinc-700"
+                          )}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <span className="font-mono font-bold text-foreground text-xs block">
+                                {hist.invoiceNumber}
+                              </span>
+                              <span className="text-[10.5px] text-muted-foreground block line-clamp-1">
+                                Client: <strong className="text-foreground">{hist.toName}</strong>
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-mono font-extrabold text-primary text-xs block">
+                                {formatCurrency(hist.grandTotal, hist.currency)}
+                              </span>
+                              <span className="text-[9.5px] font-mono text-muted-foreground flex items-center justify-end gap-1 mt-0.5">
+                                <Clock size={10} />
+                                {hist.savedAt}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 border-t border-border/60 gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+                              <span>{hist.itemCount} items</span>
+                              <span>•</span>
+                              <span>+{hist.invoice.rateMarkup}% Markup</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                type="button"
+                                variant={isSelected ? "default" : "outline"}
+                                size="xs"
+                                onClick={() => {
+                                  setSelectedHistoryItem(hist)
+                                  setActiveView('preview')
+                                }}
+                                className="h-6 text-[10px] gap-1 cursor-pointer"
+                                title="Preview this history snapshot on canvas"
+                              >
+                                <Eye size={11} /> {isSelected ? "Previewing" : "Preview"}
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="xs"
+                                onClick={() => {
+                                  setInvoice(hist.invoice)
+                                  setSelectedHistoryItem(null)
+                                  setHistoryToast(`Applied setup from history (${hist.invoiceNumber})`)
+                                  setTimeout(() => setHistoryToast(null), 4000)
+                                }}
+                                className="h-6 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                                title="Apply this saved setup to active workspace editor"
+                              >
+                                <RotateCcw size={11} /> Apply Setup
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  const updated = deleteHistoryItem(hist.id)
+                                  setHistoryList(updated)
+                                  if (selectedHistoryItem?.id === hist.id) {
+                                    setSelectedHistoryItem(null)
+                                  }
+                                }}
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                                title="Delete history snapshot"
+                              >
+                                <Trash2 size={11} />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
 
           {/* Download button */}
@@ -4163,9 +4335,46 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             </div>
           </>
         )}
+
+        {/* History Snapshot Preview Banner */}
+        {selectedHistoryItem && (
+          <div className="mt-4 mb-2 print:hidden flex flex-wrap items-center justify-between gap-3 bg-white/95 dark:bg-[#1A1A1A]/95 text-foreground backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg z-20 max-w-2xl w-full select-none animate-in fade-in duration-200 border border-border">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <Clock size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>
+                Previewing History Snapshot: <strong className="font-mono font-bold text-foreground">{selectedHistoryItem.invoiceNumber}</strong> ({selectedHistoryItem.savedAt})
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                size="xs"
+                onClick={() => {
+                  setInvoice(selectedHistoryItem.invoice)
+                  setSelectedHistoryItem(null)
+                  setHistoryToast(`Applied setup from history (${selectedHistoryItem.invoiceNumber})`)
+                  setTimeout(() => setHistoryToast(null), 4000)
+                }}
+                className="h-7 text-[11px] bg-[#111111] text-white hover:bg-black/90 dark:bg-primary dark:text-primary-foreground font-bold cursor-pointer gap-1 shadow-xs"
+              >
+                <RotateCcw size={12} /> Apply Setup
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setSelectedHistoryItem(null)}
+                className="h-7 text-[11px] text-muted-foreground hover:text-foreground border-border cursor-pointer"
+              >
+                Close Preview
+              </Button>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'checklist' ? (
           <MGChecklistPreview
-            invoice={invoice}
+            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
             hoveredField={hoveredField}
             checkedItems={checkedChecklistItems}
             previousTab={previousTab}
@@ -4174,20 +4383,20 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           />
         ) : activeTab === 'capital' ? (
           <MGCapitalPreview
-            invoice={invoice}
+            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
             hoveredField={hoveredField}
             onPagesChange={setTotalPages}
           />
         ) : (
           <MGInvoicePreview
-            invoice={invoice}
+            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
             hoveredField={hoveredField}
             onOpenCheatsheet={() => setCheatsheetOpen(true)}
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
           />
-        )}
+        ) }
       </div>
     </div>
 

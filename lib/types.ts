@@ -55,6 +55,17 @@ export interface Invoice {
   ceoPosition?: string
 }
 
+export interface InvoiceHistoryItem {
+  id: string
+  savedAt: string
+  invoiceNumber: string
+  toName: string
+  grandTotal: number
+  currency: string
+  itemCount: number
+  invoice: Invoice
+}
+
 export function newLineItem(): LineItem {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   return { id, description: '', quantity: 1, rate: 0, unit: '' }
