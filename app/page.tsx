@@ -3039,8 +3039,8 @@ export default function Home() {
                                         className={cn(
                                           "flex items-center justify-center p-1.5 rounded-lg border transition-all cursor-pointer select-none min-h-[34px]",
                                           isSelected
-                                            ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/60 ring-2 ring-amber-500/40 shadow-sm"
-                                            : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100"
+                                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
                                         )}
                                         title={`${b.name} Solar Panels`}
                                       >
@@ -3068,7 +3068,7 @@ export default function Home() {
                                           "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
                                           isWattageSelected
                                             ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
                                         )}
                                         title={`${opt.wattage} - ₱${opt.rate.toLocaleString('en-US', { minimumFractionDigits: 2 })} each`}
                                       >
@@ -3174,7 +3174,7 @@ export default function Home() {
                                             ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
                                             : isSelected
                                               ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
-                                              : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100 cursor-pointer"
+                                              : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100 cursor-pointer"
                                         )}
                                         title={
                                           isApplicable
@@ -3214,7 +3214,7 @@ export default function Home() {
                                             ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
                                             : isSelected
                                               ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
-                                              : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] opacity-75 hover:opacity-100 cursor-pointer"
+                                              : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100 cursor-pointer"
                                         )}
                                         title={
                                           isApplicable
@@ -3289,8 +3289,8 @@ export default function Home() {
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
                                       activeBrand === 'genix'
-                                        ? "bg-green-50 dark:bg-green-950/40 border-green-500/60 ring-2 ring-green-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                        ? "bg-green-500/15 border-green-500 ring-2 ring-green-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
                                     )}
                                     title="Genix Green Battery"
                                   >
@@ -3307,8 +3307,8 @@ export default function Home() {
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
                                       activeBrand === 'dyness'
-                                        ? "bg-blue-50 dark:bg-blue-950/40 border-blue-500/60 ring-2 ring-blue-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                        ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
                                     )}
                                     title="Dyness Battery"
                                   >
@@ -3325,8 +3325,8 @@ export default function Home() {
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
                                       activeBrand === 'cesc'
-                                        ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/40 shadow-sm"
-                                        : "bg-white dark:bg-[#222222] border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5] opacity-75 hover:opacity-100"
+                                        ? "bg-purple-500/15 border-purple-500 ring-2 ring-purple-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
                                     )}
                                     title="CESC Battery"
                                   >
