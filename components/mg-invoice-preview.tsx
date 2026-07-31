@@ -133,7 +133,7 @@ export function MGInvoicePreview({
     const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 20
 
     // Available content height inside A4 borders with a safety buffer to prevent browser clipping
-    const PAGE_MAX_H = 980
+    const PAGE_MAX_H = 1000
     
     let currentItems: LineItem[] = []
     let currentPageHeight = topSectionHeight + tableHeaderHeight
@@ -144,9 +144,9 @@ export function MGInvoicePreview({
       const lines = desc.split('\n')
       let itemLines = 0
       for (const line of lines) {
-        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 35))
+        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 45))
       }
-      return 30 + itemLines * 19
+      return 18 + itemLines * 16
     }
     
     const itemsToPlace = inv.isCondensed
@@ -159,7 +159,7 @@ export function MGInvoicePreview({
       
       // If page is empty (just header/tableHeader), always accept the item
       const isPageEmpty = currentItems.length === 0
-      const maxItems = isFirstPage ? 12 : 18
+      const maxItems = isFirstPage ? 14 : 20
       
       if (isPageEmpty || (currentPageHeight + itemHeight <= PAGE_MAX_H && currentItems.length < maxItems)) {
         currentItems.push(item)
@@ -441,7 +441,7 @@ export function MGInvoicePreview({
                       const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
                       const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
                       return (
-                        <div key={item.id} className={cn("flex py-3.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                        <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
                             {displayDesc || '—'}
                           </span>
