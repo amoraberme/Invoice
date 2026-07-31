@@ -144,6 +144,7 @@ export function getItemCategoryRank(description: string): number {
     d.includes('l-foot') ||
     d.includes('mid clamp') ||
     d.includes('end clamp') ||
+    d.includes('splice') ||
     d.includes('mounting') ||
     d.includes('structure') ||
     d.includes('hardware') ||

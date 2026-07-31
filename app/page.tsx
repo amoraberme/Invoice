@@ -459,7 +459,7 @@ function extractLineItemsFromText(text: string) {
     13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
     14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
     15: { desc: "DC MCB 63A", qty: "2 pcs", price: "₱300.00", total: "₱600.00" },
-    16: { desc: "DC MCCB for battery 250A 1pc £1,500.00", qty: "1pc", price: "₱1,500.00", total: "₱1,500.00" },
+    16: { desc: "DC MCCB for battery 250A 1pc ₱2,300.00", qty: "1pc", price: "₱2,300.00", total: "₱2,300.00" },
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
     19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
@@ -758,6 +758,7 @@ const SOLAR_PRICES = {
   MidClamp: 32.00,
   EndClamp: 32.00,
   LFoot: 50.00,
+  SpliceConnector: 55.00,
   FlexconHDPE: 215.00,
   ACwire: 190.00,
   PVwire: 170.00,
@@ -768,7 +769,7 @@ const SOLAR_PRICES = {
   ACSPD: 400.00,
   DCSPD: 400.00,
   DCMCB: 300.00,
-  DCMCCB: 1500.00,
+  DCMCCB: 2300.00,
   Raceway: 1000.00,
   ATS: 1300.00,
   TerminalLugs: 30.00,
@@ -798,7 +799,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Tongwei',
     logo: '/TW.svg',
     options: [
-      { wattage: '620W', rate: 4960 },
+      { wattage: '620W', rate: 5456 },
       { wattage: '625W', rate: 5000 },
       { wattage: '630W', rate: 5544 },
       { wattage: '720W', rate: 6336 },
@@ -2877,7 +2878,7 @@ export default function Home() {
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
                       const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar')
-                      const isTongweiSelected = item.rate === 4960
+                      const isTongweiSelected = item.rate === 5456
 
                       const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways')
                       const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
@@ -2997,7 +2998,7 @@ export default function Home() {
                                 activeBrandId = 'jinko'
                               } else if (item.rate === 6500) {
                                 activeBrandId = 'longi'
-                              } else if ([4960, 5000, 5544, 6336, 6380, 6424].includes(item.rate)) {
+                              } else if ([5456, 5000, 5544, 6336, 6380, 6424].includes(item.rate)) {
                                 activeBrandId = 'tongwei'
                               } else if ([6400, 6300, 6900].includes(item.rate)) {
                                 activeBrandId = 'ja'
