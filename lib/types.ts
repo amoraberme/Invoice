@@ -81,27 +81,105 @@ export const defaultInvoice: Invoice = {
   fromEmail: 'charlotte.mgtrading@gmail.com',
   fromPhone: '+(63) 928 1655 179',
   fromAddress: 'Mintcor Townhomes, 55 Main Dr, Muntinlupa, 1770 Metro Manila',
-  toName: '',
-  toEmail: '',
-  toAddress: '',
-  invoiceNumber: 'MG-QT-260709095802',
-  issueDate: '2026-05-04',
+  toName: 'Commercial Client',
+  toEmail: 'client@company.com',
+  toAddress: 'Industrial Zone, Metro Manila',
+  invoiceNumber: 'MG-QT-100KW-2026',
+  issueDate: new Date().toISOString().slice(0, 10),
   dueDate: '',
   currency: 'PHP',
   vatRate: 0,
-  rateMarkup: 28,
+  rateMarkup: 30,
   excludeLaborMarkup: false,
   excludeBattery: false,
   isCondensed: false,
   withBrandName: true,
   theme: 'light',
-  lineItems: [],
+  lineItems: [
+    {
+      id: 'item-100k-1',
+      description: 'GoodWe GW100K-HT 100kW 3-Phase HV Solar Inverter',
+      quantity: 1,
+      rate: 220000.00,
+      unit: 'PC'
+    },
+    {
+      id: 'item-100k-2',
+      description: 'Gokin 650W Tier-1 Bifacial N-Type Solar Panels (154 pcs / 100.1 kWp)',
+      quantity: 154,
+      rate: 6500.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'item-100k-3',
+      description: 'Heavy Duty Aluminum Mounting Rails 3.5m & Splice Connectors',
+      quantity: 88,
+      rate: 950.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'item-100k-4',
+      description: 'Mid & End Clamp Assemblies + L-Foot Roof Mount Hooks',
+      quantity: 340,
+      rate: 55.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'item-100k-5',
+      description: 'Suntree 18-String PV Combiner Box with 1000V DC Fuses & Isolator',
+      quantity: 2,
+      rate: 12500.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'item-100k-6',
+      description: '1000V 3P DC SPD & 250A DC MCCB Protection Enclosure',
+      quantity: 4,
+      rate: 3885.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'item-100k-7',
+      description: '400V 3-Phase AC Breaker (200A) & AC Surge Protective Device',
+      quantity: 1,
+      rate: 10700.00,
+      unit: 'SET'
+    },
+    {
+      id: 'item-100k-8',
+      description: '6mm2 TUV Dual-Core Solar PV Cable (400 meters)',
+      quantity: 4,
+      rate: 4800.00,
+      unit: 'ROLL'
+    },
+    {
+      id: 'item-100k-9',
+      description: '50mm2 3-Phase AC Power Output Cable & Heavy Duty Conduits',
+      quantity: 120,
+      rate: 450.00,
+      unit: 'M'
+    },
+    {
+      id: 'item-100k-10',
+      description: 'GoodWe SEC1000 Smart Energy Controller & 3-Phase Meter with CTs',
+      quantity: 1,
+      rate: 28000.00,
+      unit: 'SET'
+    },
+    {
+      id: 'item-100k-11',
+      description: 'System Engineering, Structural Mounting & Grid-Tie Commissioning',
+      quantity: 1,
+      rate: 150000.00,
+      unit: 'LOT'
+    }
+  ],
   lalamoveCost: 0,
   additionalExpenses: [],
-  bankBeneficiary: '',
-  bankName: '',
+  bankBeneficiary: 'M&G Non-Specialized Wholesale Trading',
+  bankName: 'BDO / BPI',
   bankSortCode: '',
-  bankAccount: '',
+  bankAccount: '1234-5678-9012',
   bankSwift: '',
   note: 'All items are subject to availability.\nAny additional requests or changes may affect pricing and timeline.\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.',
   salesPerson: 'charlotte',
@@ -110,8 +188,8 @@ export const defaultInvoice: Invoice = {
   salesCompany: 'M&G Non-Specialized Wholesale Trading',
   salesContact: '+(63) 928 1655 179',
   salesEmail: 'charlotte.mgtrading@gmail.com',
-  subject: '',
-  salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the following item based on your requirement.',
+  subject: '100kW Commercial Solar PV System Proposal (30% Margin)',
+  salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the 100kW Commercial Solar System based on your requirement.',
   closing: 'We are looking forward to building a long-term relationship as your reliable supplier.',
   ceoName: 'Mary Grace E. Santos',
   ceoPosition: 'Chief Executive Officer',

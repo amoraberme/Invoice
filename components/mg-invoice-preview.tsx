@@ -292,7 +292,7 @@ export function MGInvoicePreview({
           )}
           title={invoice.isCondensed ? "Currently in Condensed mode. Click to switch to Comprehensive view." : "Currently in Comprehensive mode. Click to switch to Condensed view."}
         >
-          {invoice.isCondensed ? "📦 [Condensed]" : "📋 [Comprehensive]"}
+          {invoice.isCondensed ? "[Condensed]" : "[Comprehensive]"}
         </button>
 
         <div className="h-4 w-[1px] bg-border hidden sm:block" />
@@ -309,7 +309,7 @@ export function MGInvoicePreview({
           )}
           title={invoice.withBrandName !== false ? "Brand names included. Click to hide brand names." : "Brand names hidden. Click to show brand names."}
         >
-          {invoice.withBrandName !== false ? "🏷️ [With Brand]" : "🚫 [Without Brand]"}
+          {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
         </button>
       </div>
       {virtualPages.map((page, pageIndex) => {

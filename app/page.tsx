@@ -6,7 +6,6 @@ import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sor
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory } from '@/lib/store'
-import { CURRENCIES } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -131,12 +130,12 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
   
-  const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 6)
+  const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
   const extraQty = floorNum >= 2 ? 3 : 0
   
   const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
   const newMidClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
-  const newEndClampQty = panelQty <= 0 ? 0 : 2 * rows
+  const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
   const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
   
   let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
@@ -924,6 +923,7 @@ export default function Home() {
   const [systemType, setSystemType] = useState<'hybrid' | 'ongrid'>('hybrid')
   const [supplySearchQuery, setSupplySearchQuery] = useState('')
   const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
+  const [isSupplyMode, setIsSupplyMode] = useState(false)
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
@@ -945,9 +945,40 @@ export default function Home() {
     invoice: 'Details',
     items: 'Line Items',
     capital: 'Capital',
-    supply: 'Supply Tab',
     checklist: 'Checklist',
     history: 'History',
+  }
+
+  const handleToggleSupplyMode = () => {
+    setIsSupplyMode((prev) => {
+      const nextState = !prev
+      if (nextState) {
+        const currentLaborItems = invoice.lineItems.filter((item) => isLaborItem(item.description))
+        savedLaborItemsRef.current = currentLaborItems
+        savedSubjectRef.current = invoice.subject
+
+        const remainingItems = invoice.lineItems.filter((item) => !isLaborItem(item.description))
+        setInvoice((p) => ({
+          ...p,
+          subject: 'Supply of Solar System Materials',
+          lineItems: remainingItems,
+        }))
+      } else {
+        const laborToRestore = savedLaborItemsRef.current
+        const subjectToRestore = savedSubjectRef.current
+
+        setInvoice((p) => {
+          const currentNonLabor = p.lineItems.filter((item) => !isLaborItem(item.description))
+          const combined = [...currentNonLabor, ...laborToRestore]
+          return {
+            ...p,
+            subject: subjectToRestore !== null ? subjectToRestore : p.subject,
+            lineItems: combined,
+          }
+        })
+      }
+      return nextState
+    })
   }
 
   const handleTabSwitch = (newTab: string) => {
@@ -958,35 +989,6 @@ export default function Home() {
     }
     if (newTab !== 'history') {
       setSelectedHistoryItem(null)
-    }
-
-    if (newTab === 'supply' && activeTab !== 'supply' && activeTab !== 'checklist') {
-      const currentLaborItems = invoice.lineItems.filter((item) => isLaborItem(item.description))
-      savedLaborItemsRef.current = currentLaborItems
-      savedSubjectRef.current = invoice.subject
-
-      const remainingItems = invoice.lineItems.filter((item) => !isLaborItem(item.description))
-      setInvoice((prev) => ({
-        ...prev,
-        subject: 'Supply of Solar System Materials',
-        lineItems: remainingItems,
-      }))
-    } else if (activeTab === 'supply' && newTab !== 'supply' && newTab !== 'checklist') {
-      const laborToRestore = savedLaborItemsRef.current
-      const subjectToRestore = savedSubjectRef.current
-
-      setInvoice((prev) => {
-        const currentNonLabor = prev.lineItems.filter((item) => !isLaborItem(item.description))
-        const combined = [...currentNonLabor, ...laborToRestore]
-        return {
-          ...prev,
-          subject: subjectToRestore !== null ? subjectToRestore : prev.subject,
-          lineItems: combined,
-        }
-      })
-
-      savedLaborItemsRef.current = []
-      savedSubjectRef.current = null
     }
 
     setActiveTab(newTab)
@@ -1391,7 +1393,7 @@ export default function Home() {
           panelQty = item.quantity
         }
       }
-      const rows = panelQty <= 6 ? 1 : 2
+      const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
 
       const updatedItems: LineItem[] = []
 
@@ -1531,7 +1533,7 @@ export default function Home() {
     } else if (preset === 'balance') {
       panelQty = Math.max(4, Math.round(maxPanels * 0.75))
     }
-    const rows = panelQty <= 0 ? 0 : (panelQty <= 6 ? 1 : 2)
+    const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
     let batteryQty = 1
     if (systemKw < 12) {
       batteryQty = 1
@@ -1627,8 +1629,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 5. End Clamps (N_end = 2 * N_rows)
-    const endClampQty = panelQty <= 0 ? 0 : 2 * rows
+    // 5. End Clamps (N_end = 4 * N_rows)
+    const endClampQty = panelQty <= 0 ? 0 : 4 * rows
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -1974,10 +1976,8 @@ export default function Home() {
             {[
               { id: 'ocr', label: 'kW Set Up', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
-              { id: 'client', label: 'Client', icon: Users, title: 'Client (To)' },
-              { id: 'invoice', label: 'Details', icon: FileText, title: 'Invoice Details, Bank & Terms' },
-              { id: 'items', label: 'Items', icon: List, title: 'Line Items' },
-              { id: 'supply', label: 'Supply', icon: Package, title: 'Supplied Items Filter' },
+              { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details, Bank & Terms' },
+              { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
               { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
@@ -2144,7 +2144,7 @@ export default function Home() {
                         calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
                       }
                       
-                      const calculatedRows = calculatedPanelQty <= 6 ? 1 : 2
+                      const calculatedRows = calculatedPanelQty <= 0 ? 0 : Math.ceil(calculatedPanelQty / 2)
                       let laborCost = 50000
                       if (kw >= 16) laborCost = 120000
                       else if (kw >= 8) laborCost = 55000
@@ -2499,36 +2499,35 @@ export default function Home() {
               </>
             )}
 
-            {activeTab === 'client' && (
-              <section className="space-y-3">
-                <SectionHeader>Bill To</SectionHeader>
-                <div className="space-y-2" onMouseEnter={() => setHoveredField('toName')} onMouseLeave={() => setHoveredField(null)}>
-                  <Field label="Client name">
-                    <Input
-                      value={invoice.toName}
-                      onChange={(e) => update('toName', e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Email">
-                    <Input
-                      type="email"
-                      value={invoice.toEmail}
-                      onChange={(e) => update('toEmail', e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Address">
-                    <Textarea
-                      value={invoice.toAddress}
-                      onChange={(e) => update('toAddress', e.target.value)}
-                      rows={2}
-                    />
-                  </Field>
-                </div>
-              </section>
-            )}
-
-            {activeTab === 'invoice' && (
+            {(activeTab === 'invoice' || activeTab === 'client') && (
               <>
+                {/* CLIENT DETAILS (BILL TO) */}
+                <section className="space-y-3">
+                  <SectionHeader>Client Details (Bill To)</SectionHeader>
+                  <div className="space-y-2" onMouseEnter={() => setHoveredField('toName')} onMouseLeave={() => setHoveredField(null)}>
+                    <Field label="Client name">
+                      <Input
+                        value={invoice.toName}
+                        onChange={(e) => update('toName', e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Email">
+                      <Input
+                        type="email"
+                        value={invoice.toEmail}
+                        onChange={(e) => update('toEmail', e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Address">
+                      <Textarea
+                        value={invoice.toAddress}
+                        onChange={(e) => update('toAddress', e.target.value)}
+                        rows={2}
+                      />
+                    </Field>
+                  </div>
+                </section>
+
                 {/* INVOICE DETAILS */}
                 <section className="space-y-3">
                   <SectionHeader>Invoice Details</SectionHeader>
@@ -2570,36 +2569,37 @@ export default function Home() {
                         />
                       </Field>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label="Validity" onMouseEnter={() => setHoveredField('dueDate')} onMouseLeave={() => setHoveredField(null)}>
-                        <DatePicker
-                          value={invoice.dueDate}
-                          onChange={(v) => update('dueDate', v)}
-                          placeholder="No validity date"
-                        />
-                      </Field>
-                      <Field label="Currency">
-                        <Select value={invoice.currency} onValueChange={(v) => update('currency', v)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CURRENCIES.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    </div>
-                    <Field label="VAT %" onMouseEnter={() => setHoveredField('vatRate')} onMouseLeave={() => setHoveredField(null)}>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={invoice.vatRate || ''}
-                        onChange={(e) => update('vatRate', parseFloat(e.target.value) || 0)}
-                        placeholder="0"
+                    <Field label="Validity" onMouseEnter={() => setHoveredField('dueDate')} onMouseLeave={() => setHoveredField(null)}>
+                      <DatePicker
+                        value={invoice.dueDate}
+                        onChange={(v) => update('dueDate', v)}
+                        placeholder="No validity date"
                       />
+                    </Field>
+                    <Field label="12% VAT" onMouseEnter={() => setHoveredField('vatRate')} onMouseLeave={() => setHoveredField(null)}>
+                      <div 
+                        onClick={() => update('vatRate', (invoice.vatRate || 0) > 0 ? 0 : 12)}
+                        className="flex items-center justify-between bg-secondary/60 hover:bg-secondary/90 transition-all p-2 rounded-[8px] border border-border cursor-pointer select-none"
+                      >
+                        <span className="text-[11px] font-bold text-foreground">
+                          {(invoice.vatRate || 0) > 0 ? "12% VAT Enabled" : "No VAT (0%)"}
+                        </span>
+                        <button
+                          type="button"
+                          className={cn(
+                            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                            (invoice.vatRate || 0) > 0 ? "bg-primary" : "bg-muted-foreground/30"
+                          )}
+                          title="Toggle 12% VAT"
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-md ring-0 transition duration-200 ease-in-out",
+                              (invoice.vatRate || 0) > 0 ? "translate-x-4" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
                     </Field>
                     <Field label="Subject" onMouseEnter={() => setHoveredField('subject')} onMouseLeave={() => setHoveredField(null)}>
                       <Input
@@ -2755,45 +2755,18 @@ export default function Home() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Button
                       type="button"
-                      variant={invoice.isCondensed ? "default" : "outline"}
+                      variant={isSupplyMode ? "default" : "outline"}
                       size="sm"
-                      onClick={() => update('isCondensed', !invoice.isCondensed)}
+                      onClick={handleToggleSupplyMode}
                       className={cn(
                         "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 flex items-center gap-1",
-                        invoice.isCondensed
-                          ? "bg-black text-white hover:bg-black/90 border-black"
+                        isSupplyMode
+                          ? "bg-[#111111] text-white hover:bg-black/90 border-black"
                           : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
                       )}
-                      title={invoice.isCondensed ? "Currently in Condensed mode. Click to switch to Comprehensive itemized view." : "Currently in Comprehensive mode. Click to switch to Condensed breakdown (Solar Panels, Inverter, Battery, Materials, Electrical, Services)."}
+                      title={isSupplyMode ? "Currently in Supply Only mode (labor items hidden). Click to return to Full Quotation view." : "Click to toggle Supply Only mode (filters physical supply items & hides labor)."}
                     >
-                      {invoice.isCondensed ? "📦 [Condensed]" : "📋 [Comprehensive]"}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant={invoice.withBrandName !== false ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => update('withBrandName', invoice.withBrandName === false)}
-                      className={cn(
-                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 flex items-center gap-1",
-                        invoice.withBrandName !== false
-                          ? "bg-black text-white hover:bg-black/90 border-black"
-                          : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
-                      )}
-                      title={invoice.withBrandName !== false ? "Brand names included in item descriptions. Click to hide." : "Brand names hidden in item descriptions. Click to show."}
-                    >
-                      {invoice.withBrandName !== false ? "🏷️ [With Brand]" : "🚫 [Without Brand]"}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => update('lineItems', sortLineItems(invoice.lineItems))}
-                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
-                      title="Sort items into standard order: Panels -> Inverter -> Battery -> Materials -> Electrical -> Services"
-                    >
-                      ⚡ Auto-Sort
+                      {isSupplyMode ? "📦 [Supply Only: ON]" : "📦 [Supply Only]"}
                     </Button>
 
                     {systemType === 'hybrid' && (
@@ -2816,6 +2789,63 @@ export default function Home() {
                   </div>
                 </div>
 
+                {isSupplyMode && (
+                  <div className="p-3 bg-secondary/50 rounded-[12px] border border-border space-y-2.5 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Package size={13} /> Supply Only Mode Active
+                      </span>
+                      <span className="text-[9px] font-semibold text-muted-foreground">
+                        Labor items filtered out
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+                      <div className="relative flex-1">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={supplySearchQuery}
+                          onChange={(e) => setSupplySearchQuery(e.target.value)}
+                          placeholder="Filter supplied items by name…"
+                          className="pl-7 h-7 text-[11px]"
+                        />
+                        {supplySearchQuery && (
+                          <button
+                            onClick={() => setSupplySearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-[10px] font-bold cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                        {[
+                          { id: 'all', label: 'All' },
+                          { id: 'equipment', label: 'Equipment' },
+                          { id: 'mounting', label: 'Mounting' },
+                          { id: 'electrical', label: 'Electrical' },
+                          { id: 'grounding', label: 'Grounding' },
+                        ].map(cat => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setSupplyCategoryFilter(cat.id as any)}
+                            className={cn(
+                              "px-2 py-0.5 rounded-[6px] text-[9px] font-bold transition-all cursor-pointer whitespace-nowrap border select-none",
+                              supplyCategoryFilter === cat.id
+                                ? "bg-foreground text-background border-foreground shadow-xs"
+                                : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+                            )}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5 pt-2">
                   {/* Column headers */}
                   <div className="flex gap-2 px-1">
@@ -2830,7 +2860,20 @@ export default function Home() {
 
                   {/* Item rows */}
                   {invoice.lineItems
-                    .filter((item) => !(invoice.excludeBattery && isBatteryItem(item.description)))
+                    .filter((item) => {
+                      if (invoice.excludeBattery && isBatteryItem(item.description)) return false
+                      if (isSupplyMode) {
+                        if (isLaborItem(item.description)) return false
+                        const matchesSearch = !supplySearchQuery || item.description.toLowerCase().includes(supplySearchQuery.toLowerCase())
+                        if (!matchesSearch) return false
+                        const cat = getSupplyCategory(item.description)
+                        if (supplyCategoryFilter === 'equipment' && cat.key !== 'equipment') return false
+                        if (supplyCategoryFilter === 'mounting' && cat.key !== 'mounting') return false
+                        if (supplyCategoryFilter === 'electrical' && cat.key !== 'electrical') return false
+                        if (supplyCategoryFilter === 'grounding' && cat.key !== 'grounding') return false
+                      }
+                      return true
+                    })
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
                       const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar')
@@ -3743,219 +3786,7 @@ export default function Home() {
 
 
 
-            {activeTab === 'supply' && (
-              <section className="space-y-5 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <SectionHeader>Supplied Items Filter</SectionHeader>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      View and filter physical items being supplied (equipment, mounting structure, and electrical hardware).
-                    </p>
-                  </div>
-                </div>
 
-                {/* 1. Financial & Category Summary Cards for Supply */}
-                {(() => {
-                  const rateMarkup = invoice.rateMarkup || 0
-                  let goodsSubtotal = 0
-                  let goodsCount = 0
-                  let equipmentCount = 0
-                  let hardwareCount = 0
-                  let groundingCount = 0
-
-                  invoice.lineItems.forEach(item => {
-                    const descLower = (item.description || '').toLowerCase()
-                    const isLabor = isLaborItem(item.description)
-                    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah') || descLower.includes('102.4v')
-                    
-                    if (isLabor) return
-                    if (invoice.excludeBattery && isBatteryItem) return
-
-                    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
-                    const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
-                    const lineTotal = item.quantity * adjustedRate
-
-                    goodsSubtotal += lineTotal
-                    goodsCount += 1
-
-                    const cat = getSupplyCategory(item.description)
-                    if (cat.key === 'equipment') equipmentCount += 1
-                    else if (cat.key === 'grounding') groundingCount += 1
-                    else hardwareCount += 1
-                  })
-
-                  return (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3 rounded-[12px] bg-primary/10 border border-primary/20 space-y-1">
-                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider block">Total Supplied Value</span>
-                        <span className="text-sm font-bold text-primary block font-mono">{formatCurrency(goodsSubtotal, invoice.currency)}</span>
-                        <span className="text-[10px] text-primary/80">{goodsCount} supplied item(s)</span>
-                      </div>
-
-                      <div className="p-3 rounded-[12px] bg-secondary/40 border border-border space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Major Equipment</span>
-                        <span className="text-sm font-bold text-foreground block font-mono">{equipmentCount}</span>
-                        <span className="text-[10px] text-muted-foreground">Panels, Inverters, Batteries</span>
-                      </div>
-
-                      <div className="p-3 rounded-[12px] bg-secondary/40 border border-border space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Hardware & Electrical</span>
-                        <span className="text-sm font-bold text-foreground block font-mono">{hardwareCount}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">Structure, Cables & Wiring</span>
-                      </div>
-
-                      <div className="p-3 rounded-[12px] bg-teal-500/10 border border-teal-500/20 space-y-1">
-                        <span className="text-[9px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider block">Grounding Systems</span>
-                        <span className="text-sm font-bold text-foreground block font-mono">{groundingCount}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">Lugs, Wire, Rod & Clamp</span>
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* 2. Category Filter Chips & Search Bar */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
-                    <div className="relative flex-1">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={supplySearchQuery}
-                        onChange={(e) => setSupplySearchQuery(e.target.value)}
-                        placeholder="Filter supplied items by name…"
-                        className="pl-8 h-9 text-xs"
-                      />
-                      {supplySearchQuery && (
-                        <button
-                          onClick={() => setSupplySearchQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                      {[
-                        { id: 'all', label: 'All Supplied Items' },
-                        { id: 'equipment', label: 'Equipment' },
-                        { id: 'mounting', label: 'Mounting' },
-                        { id: 'electrical', label: 'Electrical' },
-                        { id: 'grounding', label: 'Grounding' },
-                      ].map(cat => (
-                        <button
-                          key={cat.id}
-                          onClick={() => setSupplyCategoryFilter(cat.id as any)}
-                          className={cn(
-                            "px-2.5 py-1 rounded-[8px] text-[10px] font-semibold transition-all cursor-pointer whitespace-nowrap border select-none",
-                            supplyCategoryFilter === cat.id
-                              ? "bg-foreground text-background border-foreground font-bold shadow-xs"
-                              : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
-                          )}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3. Supplied Items Table */}
-                  <div className="border border-border rounded-[14px] overflow-hidden bg-card shadow-xs">
-                    <div className="bg-secondary/50 px-4 py-2.5 border-b border-border flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      <span>Supplied Item</span>
-                      <span>Category & Pricing</span>
-                    </div>
-
-                    <div className="divide-y divide-border max-h-[460px] overflow-y-auto">
-                      {(() => {
-                        const filtered = invoice.lineItems.filter(item => {
-                          const descLower = (item.description || '').toLowerCase().trim()
-                          const isLabor = isLaborItem(item.description)
-                          if (isLabor) return false // Pure supply view - filter out labor items
-
-                          const matchesSearch = !supplySearchQuery || item.description.toLowerCase().includes(supplySearchQuery.toLowerCase())
-                          const cat = getSupplyCategory(item.description)
-                          
-                          if (!matchesSearch) return false
-                          if (supplyCategoryFilter === 'all') return true
-                          if (supplyCategoryFilter === 'equipment') return cat.key === 'equipment'
-                          if (supplyCategoryFilter === 'mounting') return cat.key === 'mounting'
-                          if (supplyCategoryFilter === 'electrical') return cat.key === 'electrical'
-                          if (supplyCategoryFilter === 'grounding') return cat.key === 'grounding'
-                          return true
-                        })
-
-                        if (filtered.length === 0) {
-                          return (
-                            <div className="p-8 text-center text-muted-foreground space-y-2">
-                              <Package size={24} className="mx-auto text-muted-foreground/50" />
-                              <p className="text-xs font-semibold">No supplied items match the current filter.</p>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => { setSupplySearchQuery(''); setSupplyCategoryFilter('all'); }}
-                                className="text-[11px] h-7 cursor-pointer"
-                              >
-                                Clear Filters
-                              </Button>
-                            </div>
-                          )
-                        }
-
-                        const rateMarkup = invoice.rateMarkup || 0
-
-                        return filtered.map(item => {
-                          const catInfo = getSupplyCategory(item.description)
-                          const shouldApplyMarkup = true
-                          const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
-                          const lineTotal = item.quantity * adjustedRate
-
-                          return (
-                            <div key={item.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-secondary/20">
-                              <div className="space-y-1 flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className={cn("px-2 py-0.5 rounded-[6px] text-[9px] font-bold uppercase tracking-wider border", catInfo.badgeColor)}>
-                                    {catInfo.label}
-                                  </span>
-                                </div>
-                                <p className="text-xs font-semibold text-foreground break-words font-mono">
-                                  {item.description || 'Untitled Line Item'}
-                                </p>
-                                <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono">
-                                  <span>Qty: {item.quantity} {item.unit}</span>
-                                  <span>•</span>
-                                  <span>Rate: {formatCurrency(adjustedRate, invoice.currency)}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
-                                <div className="text-right font-mono">
-                                  <span className="text-xs font-bold text-foreground block">
-                                    {formatCurrency(lineTotal, invoice.currency)}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground block">
-                                    {item.quantity} x {formatCurrency(adjustedRate, invoice.currency)}
-                                  </span>
-                                </div>
-
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => removeItem(item.id)}
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-[8px] cursor-pointer"
-                                  title="Remove item from quotation"
-                                >
-                                  <Trash2 size={13} />
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
 
             {activeTab === 'checklist' && (
               <section className="space-y-5 animate-in fade-in duration-200">
@@ -3985,7 +3816,7 @@ export default function Home() {
                   }
 
                   const handleCopyChecklist = () => {
-                    const sourceName = previousTab === 'supply' ? 'Supply Materials' : 'Full Quotation'
+                    const sourceName = isSupplyMode ? 'Supply Materials' : 'Full Quotation'
                     const dateStr = new Date().toLocaleDateString()
                     let txt = `SOLAR SYSTEM DISPATCH CHECKLIST (${sourceName})
 Date: ${dateStr}
@@ -4396,7 +4227,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
           />
-        ) }
+        )}
       </div>
     </div>
 
