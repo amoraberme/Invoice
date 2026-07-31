@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-const PANEL_WATTAGE = 625
+const PANEL_WATTAGE = 620
 const PANEL_WIDTH_FT = 3.72
 
 const FLOOR_BASE_METERS: Record<number, number> = {
@@ -137,6 +137,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   const newMidClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
   const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
   const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
+  const newSpliceConnectorQty = panelQty <= 0 ? 0 : Math.max(0, newRailingQty - (2 * rows))
   
   let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
   if (newMc4Qty % 2 !== 0 && newMc4Qty > 0) newMc4Qty += 1
@@ -167,6 +168,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       if (item.quantity !== newLFootQty) {
         changed = true
         return { ...item, quantity: newLFootQty }
+      }
+    } else if (descLower === 'splice connector' || descLower === 'splice' || descLower.includes('splice connector') || descLower.includes('splice jumper')) {
+      if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 55) {
+        changed = true
+        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: item.rate || 55 }
       }
     } else if (descLower.startsWith('mc4') || descLower.includes('mc4')) {
       if (item.quantity !== newMc4Qty) {
@@ -261,6 +267,20 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
     }
     return item
   })
+
+  const hasSplice = items.some(it => it.description.toLowerCase().includes('splice'))
+  if (!hasSplice && panelQty > 0) {
+    changed = true
+    const lFootIdx = items.findIndex(it => it.description.toLowerCase().includes('l foot'))
+    const insertIdx = lFootIdx !== -1 ? lFootIdx + 1 : items.length
+    items.splice(insertIdx, 0, {
+      id: `boq-splice-${Date.now()}`,
+      description: 'Splice Connector',
+      quantity: newSpliceConnectorQty,
+      rate: 55,
+      unit: 'PCS'
+    })
+  }
   
   return { updated: changed, items }
 }
@@ -435,7 +455,7 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 }
 
 function getPanelDimensions(wattageStr: string): string {
-  const num = parseInt(wattageStr.replace(/\D/g, ''), 10) || 625
+  const num = parseInt(wattageStr.replace(/\D/g, ''), 10) || 620
   if (num >= 720) {
     return '7.82ft x 4.28ft'
   }
@@ -445,7 +465,7 @@ function getPanelDimensions(wattageStr: string): string {
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
-    2: { desc: "Panel 625W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱6,300.00", total: "₱63,000.00" },
+    2: { desc: "Tongwei Panel 620W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱5,456.00", total: "₱54,560.00" },
     3: { desc: "Railings 2.4m", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
@@ -465,7 +485,8 @@ function extractLineItemsFromText(text: string) {
     19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
     20: { desc: "Battery 314Ah (51.2V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
-    22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" }
+    22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" },
+    23: { desc: "Splice Connector", qty: "10 pcs", price: "₱55.00", total: "₱550.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -474,7 +495,7 @@ function extractLineItemsFromText(text: string) {
   const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -499,6 +520,8 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 5;
       } else if (lowerLine.includes('l foot')) {
         targetIndex = 6;
+      } else if (lowerLine.includes('splice connector') || lowerLine.includes('splice')) {
+        targetIndex = 23;
       } else if (lowerLine.includes('flexcon') || lowerLine.includes('hdpe')) {
         targetIndex = 7;
       } else if (lowerLine.includes('ac wire')) {
@@ -753,7 +776,7 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
 
 const SOLAR_PRICES = {
   Inverter: 68000.00,
-  Panel: 6300.00,
+  Panel: 5456.00,
   Railing: 470.00,
   MidClamp: 32.00,
   EndClamp: 32.00,
@@ -1581,7 +1604,7 @@ export default function Home() {
     // 1. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Tongwei Panel 625W (7.82ft x 3.72ft)`,
+      description: `Tongwei Panel 620W (7.82ft x 3.72ft)`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
@@ -1647,6 +1670,16 @@ export default function Home() {
       description: `L Foot`,
       quantity: lFootQty,
       rate: prices.LFoot,
+      unit: 'PCS'
+    })
+
+    // 6.5. Splice Connector
+    const spliceConnectorQty = panelQty <= 0 ? 0 : Math.max(0, railingQty - (2 * rows))
+    items.push({
+      id: `boq-splice-${now}`,
+      description: `Splice Connector`,
+      quantity: spliceConnectorQty,
+      rate: prices.SpliceConnector || 55,
       unit: 'PCS'
     })
 
@@ -3003,11 +3036,11 @@ export default function Home() {
                               } else if ([6400, 6300, 6900].includes(item.rate)) {
                                 activeBrandId = 'ja'
                               } else {
-                                activeBrandId = 'ja'
+                                activeBrandId = 'tongwei'
                               }
                             }
 
-                            const activeBrandObj = SOLAR_PANEL_BRANDS.find(b => b.id === activeBrandId) || SOLAR_PANEL_BRANDS[1]
+                            const activeBrandObj = SOLAR_PANEL_BRANDS.find(b => b.id === activeBrandId) || SOLAR_PANEL_BRANDS[0]
 
                             let activeWattage = currentWattage
                             if (!activeWattage) {
