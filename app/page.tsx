@@ -21,12 +21,14 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
+import { SheetPreviewModal } from '@/components/SheetPreviewModal'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+
 
 const PANEL_WATTAGE = 620
 const PANEL_WIDTH_FT = 3.72
@@ -920,7 +922,9 @@ export default function Home() {
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [goodweModalOpen, setGoodweModalOpen] = useState(true)
+  const [sheetPreviewOpen, setSheetPreviewOpen] = useState(false)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -4528,28 +4532,49 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       </span>
                     </div>
                   </div>
-                  <a
-                    href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                    download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                    className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Download
-                  </a>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setSheetPreviewOpen(true)}
+                      className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs cursor-pointer select-none border-none h-auto"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Preview
+                    </Button>
+                    <a
+                      href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                      download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                      className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <a
-              href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-              download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-              className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download Sheet (.xlsx)
-            </a>
+          <div className="flex items-center justify-between pt-2 border-t border-border gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setSheetPreviewOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none h-auto"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Preview Sheet
+              </Button>
+              <a
+                href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download (.xlsx)
+              </a>
+            </div>
             <Button 
               onClick={() => setGoodweModalOpen(false)}
               className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer"
@@ -4559,6 +4584,14 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Interactive In-Browser Sheet Preview Modal */}
+      <SheetPreviewModal
+        open={sheetPreviewOpen}
+        onOpenChange={setSheetPreviewOpen}
+        theme={invoice.theme}
+      />
+
     </div>
   )
 }
