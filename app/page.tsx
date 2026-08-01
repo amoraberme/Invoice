@@ -919,7 +919,121 @@ export default function Home() {
 
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
+  const [goodweModalOpen, setGoodweModalOpen] = useState(true)
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date()
+      let target = new Date(now.getFullYear(), now.getMonth(), 25, 0, 0, 0)
+      if (now.getTime() >= target.getTime()) {
+        target = new Date(now.getFullYear(), now.getMonth() + 1, 25, 0, 0, 0)
+      }
+      const diffMs = target.getTime() - now.getTime()
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((diffMs / (1000 * 60)) % 60)
+      const seconds = Math.floor((diffMs / 1000) % 60)
+      setCountdown({ days, hours, minutes, seconds })
+    }
+    updateCountdown()
+    const timer = setInterval(updateCountdown, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const getUrgencyConfig = (days: number) => {
+    if (days > 10) {
+      return {
+        badgeBg: 'bg-emerald-500/15 dark:bg-emerald-500/25',
+        badgeText: 'text-emerald-800 dark:text-emerald-300 font-extrabold',
+        badgeBorder: 'border-emerald-500/50 hover:border-emerald-500/80',
+        pingBg: 'bg-emerald-400',
+        dotBg: 'bg-emerald-500',
+        boxBg: 'bg-emerald-500/10 border-emerald-500/30',
+        boxText: 'text-emerald-700 dark:text-emerald-300',
+        timerNum: 'text-emerald-700 dark:text-emerald-400',
+        shakeClass: '',
+        statusText: '🟢 Pricelist Active & Good',
+        themeGradient: 'from-emerald-500/15 via-teal-500/15 to-emerald-500/15',
+      }
+    } else if (days > 3) {
+      return {
+        badgeBg: 'bg-amber-500/15 dark:bg-amber-500/25',
+        badgeText: 'text-amber-800 dark:text-amber-300 font-extrabold',
+        badgeBorder: 'border-amber-500/50 hover:border-amber-500/80',
+        pingBg: 'bg-amber-400',
+        dotBg: 'bg-amber-500',
+        boxBg: 'bg-amber-500/10 border-amber-500/30',
+        boxText: 'text-amber-700 dark:text-amber-300',
+        timerNum: 'text-amber-700 dark:text-amber-400',
+        shakeClass: '',
+        statusText: '🟡 Approaching 25th Update',
+        themeGradient: 'from-amber-500/15 via-orange-500/15 to-amber-500/15',
+      }
+    } else if (days > 0) {
+      return {
+        badgeBg: 'bg-rose-500/20 dark:bg-rose-500/30',
+        badgeText: 'text-rose-800 dark:text-rose-200 font-extrabold',
+        badgeBorder: 'border-rose-500/70 hover:border-rose-500',
+        pingBg: 'bg-rose-400',
+        dotBg: 'bg-rose-500',
+        boxBg: 'bg-rose-500/15 border-rose-500/40',
+        boxText: 'text-rose-700 dark:text-rose-300',
+        timerNum: 'text-rose-700 dark:text-rose-400',
+        shakeClass: '',
+        statusText: '🔴 UPDATE DUE IN A FEW DAYS!',
+        themeGradient: 'from-rose-500/20 via-red-500/20 to-rose-500/20',
+      }
+    } else {
+      return {
+        badgeBg: 'bg-rose-600 text-white font-black',
+        badgeText: 'text-white font-black',
+        badgeBorder: 'border-rose-600',
+        pingBg: 'bg-rose-300',
+        dotBg: 'bg-white',
+        boxBg: 'bg-rose-500/25 border-rose-600',
+        boxText: 'text-rose-800 dark:text-rose-200 font-bold',
+        timerNum: 'text-rose-600 dark:text-rose-400 font-black',
+        shakeClass: 'animate-bounce duration-300',
+        statusText: '⚠️ UPDATE DUE TODAY!',
+        themeGradient: 'from-rose-600 via-red-600 to-rose-600 text-white',
+      }
+    }
+  }
+
+  const urgency = getUrgencyConfig(countdown.days)
+
+
+  const THEME_EMOJIS: Record<string, string> = {
+    light: '☀️',
+    dark: '🌙',
+    barbie: '💖',
+    spiderman: '🕷️',
+    minion: '🍌',
+    violet: '🔮',
+  }
+
+
+
+  const THEME_NAMES: Record<string, string> = {
+    light: 'Light',
+    dark: 'Dark',
+    barbie: 'Barbie',
+    spiderman: 'Spidey',
+    minion: 'Minion',
+    violet: 'Violet',
+  }
+
+  const cycleTheme = () => {
+    const themeList = ['light', 'dark', 'barbie', 'spiderman', 'minion', 'violet'] as const
+    const currentTheme = invoice.theme || 'light'
+    const currentIndex = themeList.indexOf(currentTheme as any)
+    const nextTheme = themeList[(currentIndex + 1) % themeList.length]
+    update('theme', nextTheme)
+  }
+
   const [hoveredField, setHoveredField] = useState<string | null>(null)
+
   const [activeTab, setActiveTab] = useState<string>('ocr')
   const [previousTab, setPreviousTab] = useState<string>('items')
   const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({})
@@ -1942,64 +2056,81 @@ export default function Home() {
   return (
     <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:bg-white print:block print:h-auto print:overflow-visible", `theme-${invoice.theme || 'light'}`)}>
       {/* Mobile Header */}
-      <div className="flex lg:hidden items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0 print:hidden gap-2">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-[15px] text-foreground tracking-tight shrink-0">MG Invoice</span>
-          {THEME_CHARACTERS[invoice.theme] && (
-            <span className="text-sm animate-bounce" style={{ animationDuration: '2.5s' }}>
-              {THEME_CHARACTERS[invoice.theme]}
+      <div className="flex lg:hidden items-center justify-between px-2.5 py-2 bg-card border-b border-border shrink-0 print:hidden gap-1 overflow-hidden">
+
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-bold text-[13px] text-foreground tracking-tight shrink-0">MG Invoice</span>
+          <button
+            onClick={cycleTheme}
+
+            className="h-6 w-6 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
+            title={`Current Theme: ${THEME_NAMES[invoice.theme || 'light']} (Click to switch)`}
+          >
+            {THEME_EMOJIS[invoice.theme || 'light']}
+          </button>
+
+
+          <button
+            onClick={() => setGoodweModalOpen(true)}
+            className={cn(
+              "flex items-center gap-1 border rounded-full px-1.5 py-0.5 text-[9px] font-mono cursor-pointer transition-all shrink-0 select-none",
+              urgency.badgeBg,
+              urgency.badgeText,
+              urgency.badgeBorder,
+              urgency.shakeClass
+            )}
+            title="Goodwe 25th Update Reminder"
+          >
+            <span className="flex h-1.5 w-1.5 relative shrink-0">
+              <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
+              <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", urgency.dotBg)}></span>
             </span>
-          )}
-          <select
-            value={invoice.theme || 'light'}
-            onChange={(e) => update('theme', e.target.value as any)}
-            className="text-[10px] font-bold bg-secondary border border-border text-foreground rounded-[6px] px-1.5 py-0.5 outline-none cursor-pointer transition-all select-none"
-          >
-            <option value="light">☀️ Light</option>
-            <option value="dark">🌙 Dark</option>
-            <option value="barbie">💖 Barbie</option>
-            <option value="spiderman">🕷️ Spidey</option>
-            <option value="minion">🍌 Minion</option>
-            <option value="violet">🔮 Violet</option>
-          </select>
-        </div>
-        
-        {/* Toggle */}
-        <div className="flex bg-secondary p-0.5 rounded-[8px] border border-border gap-0.5 shrink-0">
-          <button
-            onClick={() => setActiveView('edit')}
-            className={cn(
-              "px-2.5 py-1.5 rounded-[6px] text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
-              activeView === 'edit'
-                ? "bg-[#111111] text-white shadow-sm"
-                : "text-[#555555] hover:text-[#111111]"
-            )}
-          >
-            Edit
+            <span className="font-extrabold shrink-0">⚡ 25th: {countdown.days}d</span>
           </button>
-          <button
-            onClick={() => setActiveView('preview')}
-            className={cn(
-              "px-2.5 py-1.5 rounded-[6px] text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
-              activeView === 'preview'
-                ? "bg-[#111111] text-white shadow-sm"
-                : "text-[#555555] hover:text-[#111111]"
-            )}
-          >
-            Preview ({totalPages})
-          </button>
+
         </div>
 
-        {/* PDF Download */}
-        <Button
-          onClick={handleDownload}
-          size="sm"
-          className="h-8 px-2.5 rounded-[6px] text-[10px] sm:text-xs font-semibold gap-1 cursor-pointer flex items-center shrink-0"
-        >
-          <Download size={12} strokeWidth={2.5} />
-          PDF
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Toggle */}
+          <div className="flex bg-secondary p-0.5 rounded-[6px] border border-border gap-0.5 shrink-0">
+            <button
+              onClick={() => setActiveView('edit')}
+              className={cn(
+                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
+                activeView === 'edit'
+                  ? "bg-[#111111] text-white shadow-xs"
+                  : "text-[#555555] hover:text-[#111111]"
+              )}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setActiveView('preview')}
+              className={cn(
+                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
+                activeView === 'preview'
+                  ? "bg-[#111111] text-white shadow-xs"
+                  : "text-[#555555] hover:text-[#111111]"
+              )}
+            >
+              Preview ({totalPages})
+            </button>
+          </div>
+
+          {/* PDF Download */}
+          <Button
+            onClick={handleDownload}
+            size="sm"
+            className="h-6 px-1.5 rounded-[6px] text-[10px] font-semibold gap-1 cursor-pointer flex items-center shrink-0"
+          >
+            <Download size={10} strokeWidth={2.5} />
+            PDF
+          </Button>
+        </div>
       </div>
+
+
+
 
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
@@ -2043,31 +2174,47 @@ export default function Home() {
           {/* Right form layout */}
           <div className="flex-1 flex flex-col min-h-0 lg:h-full min-w-0">
             {/* Logo & Theme Picker (Desktop only) */}
-            <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+            <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0 gap-3">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
-                {THEME_CHARACTERS[invoice.theme] && (
-                  <span className="text-lg animate-bounce" style={{ animationDuration: '2.5s' }}>
-                    {THEME_CHARACTERS[invoice.theme]}
-                  </span>
+              </div>
+
+
+              {/* Countdown for Goodwe Pricelist update on the 25th */}
+              <button
+                onClick={() => setGoodweModalOpen(true)}
+                className={cn(
+                  "flex items-center gap-2 border rounded-full px-3 py-1 transition-all shadow-xs cursor-pointer group text-xs font-mono select-none",
+                  urgency.badgeBg,
+                  urgency.badgeText,
+                  urgency.badgeBorder,
+                  urgency.shakeClass
                 )}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-1">Theme</span>
-                <select
-                  value={invoice.theme || 'light'}
-                  onChange={(e) => update('theme', e.target.value as any)}
-                  className="text-[11px] font-bold bg-secondary border border-border text-foreground rounded-[6px] px-2 py-1 outline-none cursor-pointer hover:bg-secondary/85 transition-all select-none"
-                >
-                  <option value="light">☀️ Light</option>
-                  <option value="dark">🌙 Dark</option>
-                  <option value="barbie">💖 Barbie</option>
-                  <option value="spiderman">🕷️ Spidey</option>
-                  <option value="minion">🍌 Minion</option>
-                  <option value="violet">🔮 Violet</option>
-                </select>
-              </div>
+                title="Click for Goodwe Pricelist Update Reminder"
+              >
+                <span className="flex h-2 w-2 relative shrink-0">
+                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
+                  <span className={cn("relative inline-flex rounded-full h-2 w-2", urgency.dotBg)}></span>
+                </span>
+                <span className="font-extrabold text-[11px] tracking-tight">
+                  ⚡ Goodwe 25th Update:
+                </span>
+                <span className="font-mono text-[11px] font-extrabold">
+                  {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+                </span>
+              </button>
+
+
+              <button
+                onClick={cycleTheme}
+                className="h-8 w-8 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-base transition-all active:scale-90 hover:scale-105 cursor-pointer select-none shrink-0 shadow-2xs"
+                title={`Theme: ${THEME_NAMES[invoice.theme || 'light']} (Click to switch)`}
+              >
+                {THEME_EMOJIS[invoice.theme || 'light']}
+              </button>
+
             </div>
+
 
           {/* Scrollable active tab form content */}
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
@@ -4190,6 +4337,8 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
       <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 print:block print:h-auto relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
         {/* Floating background themed characters (screen only, hidden on print) */}
+
+
         {THEME_CHARACTERS[invoice.theme] && (
           <>
             <div className="absolute left-8 top-12 text-[140px] pointer-events-none select-none opacity-[0.06] animate-bounce duration-5000 print:hidden">
@@ -4307,6 +4456,111 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Goodwe Pricelist Update Reminder Modal */}
+      <Dialog open={goodweModalOpen} onOpenChange={setGoodweModalOpen}>
+        <DialogContent className={cn("max-w-md font-mono p-6 rounded-[20px] border-2 shadow-2xl transition-all bg-card text-card-foreground", `theme-${invoice.theme || 'light'}`, urgency.badgeBorder)}>
+
+          <DialogHeader className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-foreground">
+                <Sparkles className="w-4 h-4 animate-pulse text-amber-500" />
+                <span className={cn("text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border", urgency.badgeBg, urgency.badgeText, urgency.badgeBorder)}>
+                  {urgency.statusText}
+                </span>
+              </div>
+            </div>
+            <DialogTitle className="text-lg font-black tracking-tight text-foreground flex items-center gap-2 pt-1">
+              ⚡ Goodwe Pricelist Reminder
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2">
+            {/* Live Countdown Box with Dynamic Color & High Contrast */}
+            <div className={cn("border-2 rounded-xl p-4 text-center transition-all", urgency.boxBg, urgency.shakeClass)}>
+              <span className="text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-foreground">
+                Countdown to 25th of Month Update:
+              </span>
+              <div className="grid grid-cols-4 gap-2 font-mono">
+                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-xl font-black", urgency.timerNum)}>{countdown.days}</span>
+                  <span className="text-[9px] text-foreground font-extrabold uppercase">Days</span>
+                </div>
+                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.hours).padStart(2, '0')}</span>
+                  <span className="text-[9px] text-foreground font-extrabold uppercase">Hours</span>
+                </div>
+                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.minutes).padStart(2, '0')}</span>
+                  <span className="text-[9px] text-foreground font-extrabold uppercase">Mins</span>
+                </div>
+                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.seconds).padStart(2, '0')}</span>
+                  <span className="text-[9px] text-foreground font-extrabold uppercase">Secs</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Reminder Details */}
+            <div className="space-y-3 text-xs leading-relaxed text-foreground bg-card p-4 rounded-xl border-2 border-border shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span className="font-medium">
+                  <strong className="font-extrabold text-foreground">Monthly Schedule:</strong> Official Goodwe dealer price lists are published on the <strong className="font-black underline">25th of every month</strong>.
+                </span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <RefreshCw className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
+                <span className="font-medium">
+                  <strong className="font-extrabold text-foreground">Action Required:</strong> Please cross-reference inverter, panel, and accessory prices against the latest August 1 sheet before issuing quotes.
+                </span>
+              </div>
+              <div className="flex flex-col gap-2 pt-2 border-t-2 border-border">
+                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-black text-foreground truncate">
+                        GEPC Aug 1 Pricelist Sheet
+                      </span>
+                      <span className="text-[9px] text-muted-foreground font-mono truncate">
+                        GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
+                      </span>
+                    </div>
+                  </div>
+                  <a
+                    href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                    download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                    className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <a
+              href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+              download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+              className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Sheet (.xlsx)
+            </a>
+            <Button 
+              onClick={() => setGoodweModalOpen(false)}
+              className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer"
+            >
+              Close Reminder
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
+
