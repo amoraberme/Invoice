@@ -21,13 +21,13 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
-import { SheetPreviewModal } from '@/components/SheetPreviewModal'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+
 
 
 const PANEL_WATTAGE = 620
@@ -922,8 +922,8 @@ export default function Home() {
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [goodweModalOpen, setGoodweModalOpen] = useState(true)
-  const [sheetPreviewOpen, setSheetPreviewOpen] = useState(false)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
 
 
   useEffect(() => {
@@ -4463,7 +4463,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
       {/* Goodwe Pricelist Update Reminder Modal */}
       <Dialog open={goodweModalOpen} onOpenChange={setGoodweModalOpen}>
-        <DialogContent className={cn("max-w-md font-mono p-6 rounded-[20px] border-2 shadow-2xl transition-all bg-card text-card-foreground", `theme-${invoice.theme || 'light'}`, urgency.badgeBorder)}>
+        <DialogContent className={cn("max-w-md w-[94vw] sm:w-full font-mono p-4 sm:p-6 rounded-[20px] border-2 shadow-2xl transition-all bg-card text-card-foreground overflow-hidden", `theme-${invoice.theme || 'light'}`, urgency.badgeBorder)}>
 
           <DialogHeader className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -4474,126 +4474,90 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                 </span>
               </div>
             </div>
-            <DialogTitle className="text-lg font-black tracking-tight text-foreground flex items-center gap-2 pt-1">
-              ⚡ Goodwe Pricelist Reminder
+            <DialogTitle className="text-base sm:text-lg font-black tracking-tight text-foreground flex items-center gap-2 pt-1">
+              ⚡ Pricelist Update Reminder
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 my-2">
+          <div className="space-y-3.5 my-1.5">
             {/* Live Countdown Box with Dynamic Color & High Contrast */}
-            <div className={cn("border-2 rounded-xl p-4 text-center transition-all", urgency.boxBg, urgency.shakeClass)}>
-              <span className="text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-foreground">
+            <div className={cn("border-2 rounded-xl p-3 sm:p-4 text-center transition-all", urgency.boxBg, urgency.shakeClass)}>
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-foreground">
                 Countdown to 25th of Month Update:
               </span>
-              <div className="grid grid-cols-4 gap-2 font-mono">
-                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-xl font-black", urgency.timerNum)}>{countdown.days}</span>
-                  <span className="text-[9px] text-foreground font-extrabold uppercase">Days</span>
+              <div className="grid grid-cols-4 gap-1 sm:gap-2 font-mono">
+                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{countdown.days}</span>
+                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Days</span>
                 </div>
-                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.hours).padStart(2, '0')}</span>
-                  <span className="text-[9px] text-foreground font-extrabold uppercase">Hours</span>
+                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.hours).padStart(2, '0')}</span>
+                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Hours</span>
                 </div>
-                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.minutes).padStart(2, '0')}</span>
-                  <span className="text-[9px] text-foreground font-extrabold uppercase">Mins</span>
+                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.minutes).padStart(2, '0')}</span>
+                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Mins</span>
                 </div>
-                <div className="bg-card border-2 border-border rounded-lg p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-xl font-black", urgency.timerNum)}>{String(countdown.seconds).padStart(2, '0')}</span>
-                  <span className="text-[9px] text-foreground font-extrabold uppercase">Secs</span>
+                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.seconds).padStart(2, '0')}</span>
+                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Secs</span>
                 </div>
               </div>
             </div>
 
             {/* Reminder Details */}
-            <div className="space-y-3 text-xs leading-relaxed text-foreground bg-card p-4 rounded-xl border-2 border-border shadow-xs">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0 mt-0.5" />
+            <div className="space-y-2.5 text-xs leading-relaxed text-foreground bg-card p-3 sm:p-4 rounded-xl border-2 border-border shadow-xs">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                 <span className="font-medium">
-                  <strong className="font-extrabold text-foreground">Monthly Schedule:</strong> Official Goodwe dealer price lists are published on the <strong className="font-black underline">25th of every month</strong>.
+                  <strong className="font-extrabold text-foreground">Internal Reminder:</strong> Price list review and update target is scheduled for the <strong className="font-black underline">25th of every month</strong>.
                 </span>
               </div>
-              <div className="flex items-start gap-2.5">
-                <RefreshCw className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
+
+              <div className="flex items-start gap-2">
+                <RefreshCw className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <span className="font-medium">
                   <strong className="font-extrabold text-foreground">Action Required:</strong> Please cross-reference inverter, panel, and accessory prices against the latest August 1 sheet before issuing quotes.
                 </span>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t-2 border-border">
-                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-black text-foreground truncate">
-                        GEPC Aug 1 Pricelist Sheet
-                      </span>
-                      <span className="text-[9px] text-muted-foreground font-mono truncate">
-                        GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setSheetPreviewOpen(true)}
-                      className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs cursor-pointer select-none border-none h-auto"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Preview
-                    </Button>
-                    <a
-                      href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                      download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                      className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] rounded-md px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Download
-                    </a>
+                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      GEPC Aug 1 Pricelist Sheet
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
+                    </span>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-border gap-2 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                onClick={() => setSheetPreviewOpen(true)}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none h-auto"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                Preview Sheet
-              </Button>
-              <a
-                href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3.5 py-2 transition-all shadow-xs cursor-pointer select-none"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download (.xlsx)
-              </a>
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 border-t border-border gap-2">
+            <a
+              href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+              download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+              className="inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-4 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Sheet (.xlsx)
+            </a>
             <Button 
               onClick={() => setGoodweModalOpen(false)}
-              className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer"
+              className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer w-full sm:w-auto"
             >
               Close Reminder
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Interactive In-Browser Sheet Preview Modal */}
-      <SheetPreviewModal
-        open={sheetPreviewOpen}
-        onOpenChange={setSheetPreviewOpen}
-        theme={invoice.theme}
-      />
-
     </div>
   )
 }
+
 
 
