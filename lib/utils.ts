@@ -175,7 +175,10 @@ export function getItemCategoryRank(description: string): number {
     d.includes('box') ||
     d.includes('electrical') ||
     d.includes('combiner') ||
-    d.includes('splice')
+    d.includes('splice') ||
+    d.includes('moulding') ||
+    d.includes('molding') ||
+    d.includes('pvc moulding')
   ) {
     return 5
   }
@@ -363,7 +366,10 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('electrical') ||
       descLower.includes('combiner') ||
       descLower.includes('splice connector') ||
-      descLower.includes('splice')
+      descLower.includes('splice') ||
+      descLower.includes('moulding') ||
+      descLower.includes('molding') ||
+      descLower.includes('pvc moulding')
     ) {
       categoryKey = 'electrical'
     }

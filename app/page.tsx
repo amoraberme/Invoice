@@ -271,6 +271,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         changed = true
         return { ...item, description: 'PU Sealant', rate: 400 }
       }
+    } else if (descLower === 'pvc moulding' || descLower.includes('moulding') || descLower.includes('molding')) {
+      if (item.description !== 'PVC Moulding' || item.quantity !== 5 || item.rate !== 449 || item.unit !== 'M') {
+        changed = true
+        return { ...item, description: 'PVC Moulding', quantity: 5, rate: 449, unit: 'M' }
+      }
     }
     return item
   })
@@ -300,6 +305,20 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       quantity: 1,
       rate: 400,
       unit: 'PC'
+    })
+  }
+
+  const hasMoulding = items.some(it => it.description.toLowerCase().includes('moulding') || it.description.toLowerCase().includes('molding'))
+  if (!hasMoulding && panelQty > 0) {
+    changed = true
+    const sealantIdx = items.findIndex(it => it.description.toLowerCase().includes('sealant'))
+    const insertIdx = sealantIdx !== -1 ? sealantIdx + 1 : items.length
+    items.splice(insertIdx, 0, {
+      id: `boq-moulding-${Date.now()}`,
+      description: 'PVC Moulding',
+      quantity: 5,
+      rate: 449,
+      unit: 'M'
     })
   }
   
@@ -508,7 +527,8 @@ function extractLineItemsFromText(text: string) {
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" },
     23: { desc: "Splice Connector", qty: "10 pcs", price: "₱55.00", total: "₱550.00" },
-    24: { desc: "PU Sealant", qty: "1pc", price: "₱400.00", total: "₱400.00" }
+    24: { desc: "PU Sealant", qty: "1pc", price: "₱400.00", total: "₱400.00" },
+    25: { desc: "PVC Moulding 5m", qty: "5m", price: "₱449.00", total: "₱2,245.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -517,7 +537,7 @@ function extractLineItemsFromText(text: string) {
   const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -578,6 +598,8 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 22;
       } else if (lowerLine.includes('pu sealant') || lowerLine.includes('sealant')) {
         targetIndex = 24;
+      } else if (lowerLine.includes('pvc moulding') || lowerLine.includes('moulding') || lowerLine.includes('molding')) {
+        targetIndex = 25;
       }
 
       if (targetIndex && SOLAR_EXACT_MAPPING[targetIndex]) {
@@ -827,6 +849,7 @@ const SOLAR_PRICES = {
   GroundingLugs: 50.00,
   GroundWire: 1300.00,
   PuSealant: 400.00,
+  PvcMoulding: 449.00,
 };
 
 interface PanelOption {
@@ -1832,6 +1855,15 @@ export default function Home() {
       quantity: 1,
       rate: prices.PuSealant || 400,
       unit: 'PC'
+    })
+
+    // 6.7. PVC Moulding (Always 5m)
+    items.push({
+      id: `boq-moulding-${now}`,
+      description: `PVC Moulding`,
+      quantity: 5,
+      rate: prices.PvcMoulding || 449,
+      unit: 'M'
     })
 
     // 7. Flexcon HDPE Hose (Conduit length L_conduit = (L_DC + L_AC) * 1.15)
