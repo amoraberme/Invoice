@@ -1271,21 +1271,6 @@ export default function Home() {
       return { key: 'equipment', label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' }
     }
     if (
-      d.includes('railing') ||
-      d.includes('clamp') ||
-      d.includes('l foot') ||
-      d.includes('l-foot') ||
-      d.includes('clip lock') ||
-      d.includes('clip-lock') ||
-      d.includes('mid clamp') ||
-      d.includes('end clamp') ||
-      d.includes('mounting') ||
-      d.includes('structure') ||
-      d.includes('hardware')
-    ) {
-      return { key: 'mounting', label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' }
-    }
-    if (
       d.includes('wire') ||
       d.includes('cable') ||
       d.includes('breaker') ||
@@ -1300,9 +1285,24 @@ export default function Home() {
       d.includes('ats') ||
       d.includes('terminal') ||
       d.includes('lug') ||
-      d.includes('splice')
+      d.includes('splice') ||
+      d.includes('clip lock') ||
+      d.includes('clip-lock')
     ) {
       return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
+    }
+    if (
+      d.includes('railing') ||
+      d.includes('clamp') ||
+      d.includes('l foot') ||
+      d.includes('l-foot') ||
+      d.includes('mid clamp') ||
+      d.includes('end clamp') ||
+      d.includes('mounting') ||
+      d.includes('structure') ||
+      d.includes('hardware')
+    ) {
+      return { key: 'mounting', label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' }
     }
     return { key: 'other', label: 'Supplied Item', badgeColor: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' }
   }

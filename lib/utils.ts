@@ -352,26 +352,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     if (isLabor) {
       categoryKey = 'services'
     }
-    // Priority 2: Mounting Rails / Structure / Hardware
-    else if (
-      descLower.includes('railing') ||
-      descLower.includes('rail') ||
-      descLower.includes('clamp') ||
-      descLower.includes('l foot') ||
-      descLower.includes('l-foot') ||
-      descLower.includes('mid clamp') ||
-      descLower.includes('end clamp') ||
-      descLower.includes('mounting') ||
-      descLower.includes('structure') ||
-      descLower.includes('hardware') ||
-      descLower.includes('rack') ||
-      descLower.includes('bracket') ||
-      descLower.includes('sealant') ||
-      descLower.includes('pu sealant')
-    ) {
-      categoryKey = 'materials'
-    }
-    // Priority 3: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice)
+    // Priority 2: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice, Clip lock)
     else if (
       descLower.includes('wire') ||
       descLower.includes('cable') ||
@@ -395,9 +376,30 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('splice') ||
       descLower.includes('moulding') ||
       descLower.includes('molding') ||
-      descLower.includes('pvc moulding')
+      descLower.includes('pvc moulding') ||
+      descLower.includes('clip lock') ||
+      descLower.includes('clip-lock')
     ) {
       categoryKey = 'electrical'
+    }
+    // Priority 3: Mounting Rails / Structure / Hardware
+    else if (
+      descLower.includes('railing') ||
+      descLower.includes('rail') ||
+      descLower.includes('clamp') ||
+      descLower.includes('l foot') ||
+      descLower.includes('l-foot') ||
+      descLower.includes('mid clamp') ||
+      descLower.includes('end clamp') ||
+      descLower.includes('mounting') ||
+      descLower.includes('structure') ||
+      descLower.includes('hardware') ||
+      descLower.includes('rack') ||
+      descLower.includes('bracket') ||
+      descLower.includes('sealant') ||
+      descLower.includes('pu sealant')
+    ) {
+      categoryKey = 'materials'
     }
     // Priority 4: Main Equipment - Solar Panels
     else if (
