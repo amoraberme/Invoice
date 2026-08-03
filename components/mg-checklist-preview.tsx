@@ -53,6 +53,8 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('clamp') ||
     d.includes('l foot') ||
     d.includes('l-foot') ||
+    d.includes('clip lock') ||
+    d.includes('clip-lock') ||
     d.includes('mid clamp') ||
     d.includes('end clamp') ||
     d.includes('mounting') ||

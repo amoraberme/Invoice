@@ -176,7 +176,19 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         changed = true
         return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 55 }
       }
-    } else if (descLower.startsWith('mc4') || descLower.includes('mc4')) {
+    } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
+      const setsOf2Pcs = inverterKw >= 16 ? 1 + Math.floor((inverterKw - 16) / 4) : 0
+      const targetQty = setsOf2Pcs * 2
+      if (item.quantity !== targetQty || item.rate !== 550 || item.description !== 'MC4 2 String') {
+        changed = true
+        return { ...item, description: 'MC4 2 String', quantity: targetQty, rate: 550, unit: 'PCS' }
+      }
+    } else if (descLower.includes('clip lock') || descLower.includes('clip-lock')) {
+      if (item.description !== 'Clip lock 3/4' || item.rate !== 180 || item.unit !== 'SET') {
+        changed = true
+        return { ...item, description: 'Clip lock 3/4', rate: 180, unit: 'SET' }
+      }
+    } else if ((descLower.startsWith('mc4') || descLower.includes('mc4')) && !descLower.includes('2 string') && !descLower.includes('2-string') && !descLower.includes('2string')) {
       if (item.quantity !== newMc4Qty) {
         changed = true
         return { ...item, quantity: newMc4Qty }
@@ -319,6 +331,24 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       quantity: 5,
       rate: 449,
       unit: 'M'
+    })
+  }
+
+  const hasMc42String = items.some(it => {
+    const d = it.description.toLowerCase()
+    return d.includes('mc4 2 string') || d.includes('mc4 2-string') || d.includes('mc4 2string')
+  })
+  if (!hasMc42String && inverterKw >= 16) {
+    changed = true
+    const mc4Idx = items.findIndex(it => it.description.toLowerCase().includes('mc4'))
+    const insertIdx = mc4Idx !== -1 ? mc4Idx + 1 : items.length
+    const setsOf2Pcs = 1 + Math.floor((inverterKw - 16) / 4)
+    items.splice(insertIdx, 0, {
+      id: `boq-mc4-2string-${Date.now()}`,
+      description: 'MC4 2 String',
+      quantity: setsOf2Pcs * 2,
+      rate: 550,
+      unit: 'PCS'
     })
   }
   
@@ -528,7 +558,9 @@ function extractLineItemsFromText(text: string) {
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" },
     23: { desc: "Splice Connector", qty: "10 pcs", price: "₱55.00", total: "₱550.00" },
     24: { desc: "PU Sealant", qty: "1pc", price: "₱400.00", total: "₱400.00" },
-    25: { desc: "PVC Moulding 5m", qty: "5m", price: "₱449.00", total: "₱2,245.00" }
+    25: { desc: "PVC Moulding 5m", qty: "5m", price: "₱449.00", total: "₱2,245.00" },
+    26: { desc: "Clip lock 3/4", qty: "1 Set", price: "₱180.00", total: "₱180.00" },
+    27: { desc: "MC4 2 String", qty: "2 pcs", price: "₱550.00", total: "₱1,100.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -537,7 +569,7 @@ function extractLineItemsFromText(text: string) {
   const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4 2 String|MC4|Clip lock|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -564,12 +596,16 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 6;
       } else if (lowerLine.includes('splice connector') || lowerLine.includes('splice')) {
         targetIndex = 23;
+      } else if (lowerLine.includes('clip lock') || lowerLine.includes('clip-lock')) {
+        targetIndex = 26;
       } else if (lowerLine.includes('flexcon') || lowerLine.includes('hdpe')) {
         targetIndex = 7;
       } else if (lowerLine.includes('ac wire')) {
         targetIndex = 8;
       } else if (lowerLine.includes('pv wire')) {
         targetIndex = 9;
+      } else if (lowerLine.includes('mc4 2 string') || lowerLine.includes('mc4 2-string') || lowerLine.includes('mc4 2string')) {
+        targetIndex = 27;
       } else if (lowerLine.includes('mc4')) {
         targetIndex = 10;
       } else if (lowerLine.includes('breaker box') || lowerLine.includes('metal enclosure') || (lowerLine.includes('breaker') && lowerLine.includes('1pc') && lowerLine.includes('1,000'))) {
@@ -833,6 +869,8 @@ const SOLAR_PRICES = {
   PVwire: 170.00,
   DCwire: 200.00,
   MC4: 80.00,
+  ClipLock34: 180.00,
+  MC4_2String: 1100.00,
   BreakerBox: 1000.00,
   ACMCB: 350.00,
   ACSPD: 400.00,
@@ -1223,6 +1261,8 @@ export default function Home() {
       d.includes('clamp') ||
       d.includes('l foot') ||
       d.includes('l-foot') ||
+      d.includes('clip lock') ||
+      d.includes('clip-lock') ||
       d.includes('mid clamp') ||
       d.includes('end clamp') ||
       d.includes('mounting') ||
@@ -1904,6 +1944,19 @@ export default function Home() {
       rate: prices.MC4,
       unit: 'PCS'
     })
+
+    // 10.5. MC4 2 String (Starts at 16kW, 2pcs for 16kW, 4pcs for 20kW, 6pcs for 24kW, etc.)
+    if (inverterKw >= 16) {
+      const setsOf2Pcs = 1 + Math.floor((inverterKw - 16) / 4)
+      const mc42StringPcs = setsOf2Pcs * 2
+      items.push({
+        id: `boq-mc4-2string-${now}`,
+        description: `MC4 2 String`,
+        quantity: mc42StringPcs,
+        rate: 550.00,
+        unit: 'PCS'
+      })
+    }
 
     // 11. Breaker Box / Metal Enclosure
     items.push({
@@ -3017,6 +3070,62 @@ export default function Home() {
                       title={isSupplyMode ? "Currently in Supply Only mode (labor items hidden). Click to return to Full Quotation view." : "Click to toggle Supply Only mode (filters physical supply items & hides labor)."}
                     >
                       {isSupplyMode ? "📦 [Supply Only: ON]" : "📦 [Supply Only]"}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        addItem()
+                        setTimeout(() => {
+                          setInvoice(prev => {
+                            const lastIdx = prev.lineItems.length - 1
+                            if (lastIdx < 0) return prev
+                            const updated = [...prev.lineItems]
+                            updated[lastIdx] = {
+                              ...updated[lastIdx],
+                              description: 'Clip lock 3/4',
+                              quantity: 1,
+                              unit: 'SET',
+                              rate: 180,
+                            }
+                            return { ...prev, lineItems: updated }
+                          })
+                        }, 50)
+                      }}
+                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      title="Quick add Clip lock 3/4 (1 Set @ ₱180.00)"
+                    >
+                      + Clip lock 3/4 ₱180
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        addItem()
+                        setTimeout(() => {
+                          setInvoice(prev => {
+                            const lastIdx = prev.lineItems.length - 1
+                            if (lastIdx < 0) return prev
+                            const updated = [...prev.lineItems]
+                            updated[lastIdx] = {
+                              ...updated[lastIdx],
+                              description: 'MC4 2 String',
+                              quantity: 2,
+                              unit: 'PCS',
+                              rate: 550,
+                            }
+                            return { ...prev, lineItems: updated }
+                          })
+                        }, 50)
+                      }}
+                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      title="Quick add MC4 2 String (2pcs set @ ₱1,100.00)"
+                    >
+                      + MC4 2 String ₱1.1k
                     </Button>
 
                     {systemType === 'hybrid' && (
