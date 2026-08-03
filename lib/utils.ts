@@ -148,7 +148,9 @@ export function getItemCategoryRank(description: string): number {
     d.includes('structure') ||
     d.includes('hardware') ||
     d.includes('rack') ||
-    d.includes('bracket')
+    d.includes('bracket') ||
+    d.includes('sealant') ||
+    d.includes('pu sealant')
   ) {
     return 4
   }
@@ -334,7 +336,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('structure') ||
       descLower.includes('hardware') ||
       descLower.includes('rack') ||
-      descLower.includes('bracket')
+      descLower.includes('bracket') ||
+      descLower.includes('sealant') ||
+      descLower.includes('pu sealant')
     ) {
       categoryKey = 'materials'
     }

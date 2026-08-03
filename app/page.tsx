@@ -266,6 +266,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         changed = true
         return { ...item, description: breakers.dcMcb }
       }
+    } else if (descLower === 'pu sealant' || descLower.includes('pu sealant') || descLower.includes('sealant')) {
+      if (item.description !== 'PU Sealant' || item.rate !== 400) {
+        changed = true
+        return { ...item, description: 'PU Sealant', rate: 400 }
+      }
     }
     return item
   })
@@ -281,6 +286,20 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       quantity: newSpliceConnectorQty,
       rate: 55,
       unit: 'PCS'
+    })
+  }
+
+  const hasSealant = items.some(it => it.description.toLowerCase().includes('sealant'))
+  if (!hasSealant && panelQty > 0) {
+    changed = true
+    const spliceIdx = items.findIndex(it => it.description.toLowerCase().includes('splice'))
+    const insertIdx = spliceIdx !== -1 ? spliceIdx + 1 : items.length
+    items.splice(insertIdx, 0, {
+      id: `boq-sealant-${Date.now()}`,
+      description: 'PU Sealant',
+      quantity: 1,
+      rate: 400,
+      unit: 'PC'
     })
   }
   
@@ -488,7 +507,8 @@ function extractLineItemsFromText(text: string) {
     20: { desc: "Battery 314Ah (51.2V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" },
-    23: { desc: "Splice Connector", qty: "10 pcs", price: "₱55.00", total: "₱550.00" }
+    23: { desc: "Splice Connector", qty: "10 pcs", price: "₱55.00", total: "₱550.00" },
+    24: { desc: "PU Sealant", qty: "1pc", price: "₱400.00", total: "₱400.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -497,7 +517,7 @@ function extractLineItemsFromText(text: string) {
   const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -556,6 +576,8 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 21;
       } else if (lowerLine.includes('battery cable')) {
         targetIndex = 22;
+      } else if (lowerLine.includes('pu sealant') || lowerLine.includes('sealant')) {
+        targetIndex = 24;
       }
 
       if (targetIndex && SOLAR_EXACT_MAPPING[targetIndex]) {
@@ -804,6 +826,7 @@ const SOLAR_PRICES = {
   GroundRod: 1500.00,
   GroundingLugs: 50.00,
   GroundWire: 1300.00,
+  PuSealant: 400.00,
 };
 
 interface PanelOption {
@@ -1800,6 +1823,15 @@ export default function Home() {
       quantity: spliceConnectorQty,
       rate: prices.SpliceConnector || 55,
       unit: 'PCS'
+    })
+
+    // 6.6. PU Sealant
+    items.push({
+      id: `boq-sealant-${now}`,
+      description: `PU Sealant`,
+      quantity: 1,
+      rate: prices.PuSealant || 400,
+      unit: 'PC'
     })
 
     // 7. Flexcon HDPE Hose (Conduit length L_conduit = (L_DC + L_AC) * 1.15)
