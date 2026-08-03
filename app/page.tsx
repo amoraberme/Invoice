@@ -21,7 +21,6 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
-import { MGWorkmanshipPreview } from '@/components/mg-workmanship-preview'
 import {
   Dialog,
   DialogContent,
@@ -1089,7 +1088,6 @@ export default function Home() {
     items: 'Line Items',
     capital: 'Capital',
     checklist: 'Checklist',
-    workmanship: 'Warranty',
     history: 'History',
   }
 
@@ -2151,7 +2149,6 @@ export default function Home() {
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details, Bank & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
-              { id: 'workmanship', label: 'Warranty', icon: ShieldCheck, title: 'Solar System Workmanship Warranty Agreement' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
               { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
             ].map((tab) => {
@@ -4186,176 +4183,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               </section>
             )}
 
-            {activeTab === 'workmanship' && (
-              <section className="space-y-4 animate-in fade-in duration-200">
-                <div>
-                  <SectionHeader>Solar Workmanship Warranty Parameters</SectionHeader>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Configure party details, technical lead accreditation, turnover date, and defect response timelines under RA 386 &amp; Philippine Electrical Code.
-                  </p>
-                </div>
 
-                <div className="space-y-4">
-                  {/* Technical Lead / Certified Installer */}
-                  <div className="p-4 rounded-[16px] bg-card border border-border space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <ShieldCheck size={14} className="text-blue-500" />
-                      Certified Solar Installer / Technical Lead
-                    </h4>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="installerName" className="text-xs font-medium">Installer / Lead Name</Label>
-                      <Input
-                        id="installerName"
-                        value={invoice.installerName || ''}
-                        onChange={(e) => update('installerName', e.target.value)}
-                        placeholder="Engr. Marco Santos"
-                        className="bg-background"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="installerAccreditation" className="text-xs font-medium">Accreditation / License Details</Label>
-                      <Input
-                        id="installerAccreditation"
-                        value={invoice.installerAccreditation || ''}
-                        onChange={(e) => update('installerAccreditation', e.target.value)}
-                        placeholder="PRC Reg. No. 0084920 / Certified Solar PV Technical Lead"
-                        className="bg-background font-mono text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="installerPhone" className="text-xs font-medium">Installer Contact Phone</Label>
-                      <Input
-                        id="installerPhone"
-                        value={invoice.installerPhone || ''}
-                        onChange={(e) => update('installerPhone', e.target.value)}
-                        placeholder="+(63) 928 1655 179"
-                        className="bg-background"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Installation Site & Dates */}
-                  <div className="p-4 rounded-[16px] bg-card border border-border space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <Building size={14} className="text-emerald-500" />
-                      Installation Site &amp; Turnover Date
-                    </h4>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="installationAddress" className="text-xs font-medium">Installation Property Address</Label>
-                      <Textarea
-                        id="installationAddress"
-                        value={invoice.installationAddress || invoice.toAddress || ''}
-                        onChange={(e) => update('installationAddress', e.target.value)}
-                        placeholder="Complete property address of installation site"
-                        rows={2}
-                        className="bg-background text-xs"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="warrantyStartDate" className="text-xs font-medium">Turnover / Start Date</Label>
-                        <Input
-                          id="warrantyStartDate"
-                          type="date"
-                          value={invoice.warrantyStartDate || invoice.issueDate || ''}
-                          onChange={(e) => update('warrantyStartDate', e.target.value)}
-                          className="bg-background text-xs"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="warrantyDuration" className="text-xs font-medium">Warranty Duration</Label>
-                        <Input
-                          id="warrantyDuration"
-                          value={invoice.warrantyDuration || '1 Year (365 Days)'}
-                          onChange={(e) => update('warrantyDuration', e.target.value)}
-                          placeholder="1 Year (365 Days)"
-                          className="bg-background text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Defect Notice & Response Timeline */}
-                  <div className="p-4 rounded-[16px] bg-card border border-border space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <Clock size={14} className="text-amber-500" />
-                      Defect Notice &amp; Repair Timeline
-                    </h4>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="defectNoticeDays" className="text-xs font-medium">Notice (Days)</Label>
-                        <Input
-                          id="defectNoticeDays"
-                          type="number"
-                          value={invoice.defectNoticeDays ?? 5}
-                          onChange={(e) => update('defectNoticeDays', parseInt(e.target.value) || 5)}
-                          className="bg-background text-xs"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="repairResponseMinDays" className="text-xs font-medium font-mono">Min Repair (Days)</Label>
-                        <Input
-                          id="repairResponseMinDays"
-                          type="number"
-                          value={invoice.repairResponseMinDays ?? 7}
-                          onChange={(e) => update('repairResponseMinDays', parseInt(e.target.value) || 7)}
-                          className="bg-background text-xs"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="repairResponseMaxDays" className="text-xs font-medium font-mono">Max Repair (Days)</Label>
-                        <Input
-                          id="repairResponseMaxDays"
-                          type="number"
-                          value={invoice.repairResponseMaxDays ?? 14}
-                          onChange={(e) => update('repairResponseMaxDays', parseInt(e.target.value) || 14)}
-                          className="bg-background text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contractor Signatory Details */}
-                  <div className="p-4 rounded-[16px] bg-card border border-border space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <FileText size={14} className="text-purple-500" />
-                      Contractor Authorized Signatory
-                    </h4>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="ceoName" className="text-xs font-medium">Signatory Full Name</Label>
-                      <Input
-                        id="ceoName"
-                        value={invoice.ceoName || invoice.salesName || ''}
-                        onChange={(e) => update('ceoName', e.target.value)}
-                        placeholder="Mary Grace E. Santos"
-                        className="bg-background text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="ceoPosition" className="text-xs font-medium">Signatory Official Position</Label>
-                      <Input
-                        id="ceoPosition"
-                        value={invoice.ceoPosition || ''}
-                        onChange={(e) => update('ceoPosition', e.target.value)}
-                        placeholder="Chief Executive Officer / Authorized Signatory"
-                        className="bg-background text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
 
             {activeTab === 'history' && (
               <section className="space-y-4 animate-in fade-in duration-200">
@@ -4576,12 +4404,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           />
         ) : activeTab === 'capital' ? (
           <MGCapitalPreview
-            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
-            hoveredField={hoveredField}
-            onPagesChange={setTotalPages}
-          />
-        ) : activeTab === 'workmanship' ? (
-          <MGWorkmanshipPreview
             invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
             hoveredField={hoveredField}
             onPagesChange={setTotalPages}
