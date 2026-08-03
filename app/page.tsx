@@ -476,7 +476,7 @@ function extractLineItemsFromText(text: string) {
     8: { desc: "AC Wire #6 AWG 14mm", qty: "5m", price: "₱190.00", total: "₱950.00" },
     9: { desc: "DC/PV Wire #6 AWG 14mm", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
-    11: { desc: "Breaker box 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
+    11: { desc: "Breaker box / Metal Enclosure 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     12: { desc: "AC MCB 63A", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
     13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
     14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
@@ -532,7 +532,7 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 9;
       } else if (lowerLine.includes('mc4')) {
         targetIndex = 10;
-      } else if (lowerLine.includes('breaker box') || (lowerLine.includes('breaker') && lowerLine.includes('1pc') && lowerLine.includes('1,000'))) {
+      } else if (lowerLine.includes('breaker box') || lowerLine.includes('metal enclosure') || (lowerLine.includes('breaker') && lowerLine.includes('1pc') && lowerLine.includes('1,000'))) {
         targetIndex = 11;
       } else if (lowerLine.includes('ac mcb')) {
         targetIndex = 12;
@@ -1841,10 +1841,10 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 11. Breaker Box
+    // 11. Breaker Box / Metal Enclosure
     items.push({
       id: `boq-11-${now}`,
-      description: `Breaker box`,
+      description: `Breaker box / Metal Enclosure`,
       quantity: 1,
       rate: prices.BreakerBox,
       unit: 'PC'
