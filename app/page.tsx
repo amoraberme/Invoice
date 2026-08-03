@@ -334,6 +334,20 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
     })
   }
 
+  const hasClipLock = items.some(it => it.description.toLowerCase().includes('clip lock') || it.description.toLowerCase().includes('clip-lock'))
+  if (!hasClipLock && panelQty > 0) {
+    changed = true
+    const lFootIdx = items.findIndex(it => it.description.toLowerCase().includes('l foot'))
+    const insertIdx = lFootIdx !== -1 ? lFootIdx + 1 : items.length
+    items.splice(insertIdx, 0, {
+      id: `boq-cliplock-${Date.now()}`,
+      description: 'Clip lock 3/4',
+      quantity: 1,
+      rate: 180,
+      unit: 'SET'
+    })
+  }
+
   const hasMc42String = items.some(it => {
     const d = it.description.toLowerCase()
     return d.includes('mc4 2 string') || d.includes('mc4 2-string') || d.includes('mc4 2string')
@@ -1876,6 +1890,15 @@ export default function Home() {
       quantity: lFootQty,
       rate: prices.LFoot,
       unit: 'PCS'
+    })
+
+    // 6.1. Clip lock 3/4
+    items.push({
+      id: `boq-cliplock-${now}`,
+      description: `Clip lock 3/4`,
+      quantity: 1,
+      rate: prices.ClipLock34 || 180.00,
+      unit: 'SET'
     })
 
     // 6.5. Splice Connector
