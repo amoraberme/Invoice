@@ -55,7 +55,6 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('l-foot') ||
     d.includes('mid clamp') ||
     d.includes('end clamp') ||
-    d.includes('splice') ||
     d.includes('mounting') ||
     d.includes('structure') ||
     d.includes('hardware')
@@ -76,7 +75,8 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('conduit') ||
     d.includes('ats') ||
     d.includes('terminal') ||
-    d.includes('lug')
+    d.includes('lug') ||
+    d.includes('splice')
   ) {
     return { key: 'electrical', label: 'Electrical & Cabling' }
   }

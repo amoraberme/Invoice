@@ -174,7 +174,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
     } else if (descLower === 'splice connector' || descLower === 'splice' || descLower.includes('splice connector') || descLower.includes('splice jumper')) {
       if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 55) {
         changed = true
-        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: item.rate || 55 }
+        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 55 }
       }
     } else if (descLower.startsWith('mc4') || descLower.includes('mc4')) {
       if (item.quantity !== newMc4Qty) {
@@ -1199,7 +1199,8 @@ export default function Home() {
       d.includes('conduit') ||
       d.includes('ats') ||
       d.includes('terminal') ||
-      d.includes('lug')
+      d.includes('lug') ||
+      d.includes('splice')
     ) {
       return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
     }

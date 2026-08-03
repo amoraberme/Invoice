@@ -144,7 +144,6 @@ export function getItemCategoryRank(description: string): number {
     d.includes('l-foot') ||
     d.includes('mid clamp') ||
     d.includes('end clamp') ||
-    d.includes('splice') ||
     d.includes('mounting') ||
     d.includes('structure') ||
     d.includes('hardware') ||
@@ -173,7 +172,8 @@ export function getItemCategoryRank(description: string): number {
     d.includes('terminal') ||
     d.includes('box') ||
     d.includes('electrical') ||
-    d.includes('combiner')
+    d.includes('combiner') ||
+    d.includes('splice')
   ) {
     return 5
   }
@@ -338,7 +338,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     ) {
       categoryKey = 'materials'
     }
-    // Priority 3: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner)
+    // Priority 3: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice)
     else if (
       descLower.includes('wire') ||
       descLower.includes('cable') ||
@@ -357,7 +357,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('terminal') ||
       descLower.includes('box') ||
       descLower.includes('electrical') ||
-      descLower.includes('combiner')
+      descLower.includes('combiner') ||
+      descLower.includes('splice connector') ||
+      descLower.includes('splice')
     ) {
       categoryKey = 'electrical'
     }
