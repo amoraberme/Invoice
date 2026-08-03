@@ -13,6 +13,7 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   currency: 'PHP',
   vatRate: 0,
   rateMarkup: 28,
+  laborPricePerWatt: 6,
   excludeLaborMarkup: false,
   excludeBattery: false,
   isCondensed: false,

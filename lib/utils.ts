@@ -55,6 +55,32 @@ export function addDays(dateStr: string, days: number): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+export function extractPanelInfoFromLineItems(lineItems: { description: string; quantity: number }[]): { panelQty: number; panelWattage: number; totalWatts: number } {
+  let panelQty = 0
+  let panelWattage = 620
+
+  if (!Array.isArray(lineItems)) {
+    return { panelQty: 0, panelWattage: 620, totalWatts: 0 }
+  }
+
+  for (const item of lineItems) {
+    const desc = (item?.description || '').toLowerCase()
+    if (desc.includes('panel') || desc.includes('module')) {
+      panelQty += item.quantity || 0
+      const match = item.description.match(/(\d{3,4})\s*w/i)
+      if (match) {
+        panelWattage = parseInt(match[1], 10)
+      }
+    }
+  }
+
+  return {
+    panelQty,
+    panelWattage,
+    totalWatts: panelQty * panelWattage
+  }
+}
+
 export function isLaborItem(description: string): boolean {
   const d = (description || '').toLowerCase().trim()
   return (

@@ -27,6 +27,7 @@ export interface Invoice {
   currency: string
   vatRate: number
   rateMarkup: number
+  laborPricePerWatt: number
   excludeLaborMarkup: boolean
   excludeBattery: boolean
   isCondensed: boolean
@@ -90,6 +91,7 @@ export const defaultInvoice: Invoice = {
   currency: 'PHP',
   vatRate: 0,
   rateMarkup: 30,
+  laborPricePerWatt: 6,
   excludeLaborMarkup: false,
   excludeBattery: false,
   isCondensed: false,

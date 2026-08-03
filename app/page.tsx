@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal, calculateSubtotal } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory } from '@/lib/store'
@@ -1429,24 +1429,47 @@ export default function Home() {
 
   useEffect(() => {
     if (!loaded) return
-    const panelItem = invoice.lineItems.find(it => it.description.toLowerCase().includes('panel'))
-    const panelQty = panelItem ? panelItem.quantity : 0
+    const { panelQty, totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems)
     const floor = selectedFloor || 1
-    
+    const pricePerWatt = invoice.laborPricePerWatt ?? 6
+    const expectedLaborRate = Math.round(totalWatts * pricePerWatt)
+
+    let currentItems = invoice.lineItems
+    let itemsModified = false
+
     if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null) {
       if (panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current) {
-        const { updated, items } = recalculateBoqAccessories(invoice.lineItems, floor)
+        const { updated, items } = recalculateBoqAccessories(currentItems, floor)
         if (updated) {
-          setInvoice(prev => ({
-            ...prev,
-            lineItems: items
-          }))
+          currentItems = items
+          itemsModified = true
         }
       }
     }
+
+    if (totalWatts > 0) {
+      const updatedWithLabor = currentItems.map((item) => {
+        if (isLaborItem(item.description) && item.rate !== expectedLaborRate) {
+          itemsModified = true
+          return { ...item, rate: expectedLaborRate }
+        }
+        return item
+      })
+      if (itemsModified) {
+        currentItems = updatedWithLabor
+      }
+    }
+
+    if (itemsModified) {
+      setInvoice((prev) => ({
+        ...prev,
+        lineItems: currentItems
+      }))
+    }
+
     prevPanelQtyRef.current = panelQty
     prevFloorRef.current = floor
-  }, [invoice.lineItems, selectedFloor, loaded, setInvoice])
+  }, [invoice.lineItems, invoice.laborPricePerWatt, selectedFloor, loaded, setInvoice])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
@@ -2110,12 +2133,9 @@ export default function Home() {
     })
 
     // 23. Labor and Installation
-    let laborRate = 50000
-    if (systemKw >= 16) {
-      laborRate = 120000
-    } else if (systemKw >= 8) {
-      laborRate = 55000
-    }
+    const totalPanelWatts = panelQty * PANEL_WATTAGE
+    const pricePerWatt = invoice.laborPricePerWatt ?? 6
+    const laborRate = Math.round(totalPanelWatts * pricePerWatt)
     items.push({
       id: `boq-23-${now}`,
       description: `Labor and Installation`,
@@ -2454,9 +2474,26 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-                    Generate a complete BOQ ({systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'}) according to system capacity sizing rules.
-                  </p>
+                  <div className="flex items-center justify-between mb-3 bg-secondary/40 p-2 rounded-[10px] border border-border">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-foreground">Labor Price / Watt</span>
+                      <span className="text-[8px] text-muted-foreground">Rate used for labor cost (Total Watts × ₱/W)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-muted-foreground">₱</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={invoice.laborPricePerWatt ?? 6}
+                        onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                        className="w-14 h-7 text-xs font-bold text-center bg-card border-border rounded-[6px]"
+                        placeholder="6"
+                      />
+                      <span className="text-[9px] font-bold text-muted-foreground">/W</span>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
@@ -2471,12 +2508,12 @@ export default function Home() {
                       }
                       
                       const calculatedRows = calculatedPanelQty <= 0 ? 0 : Math.ceil(calculatedPanelQty / 2)
-                      let laborCost = 50000
-                      if (kw >= 16) laborCost = 120000
-                      else if (kw >= 8) laborCost = 55000
+                      const totalWatts = calculatedPanelQty * PANEL_WATTAGE
+                      const pricePerWatt = invoice.laborPricePerWatt ?? 6
+                      const laborCost = Math.round(totalWatts * pricePerWatt)
                       
                       const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
-                      const laborDesc = `Labor: ₱${(laborCost / 1000)}k`
+                      const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
 
                       const isSelected = activeKwSetup === kw
                       const panelDescColor = isSelected ? "text-primary-foreground/75" : "text-muted-foreground"
@@ -3046,7 +3083,7 @@ export default function Home() {
                 <SectionHeader>Line Items</SectionHeader>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Rate Adjustment %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
+                  <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
                     <Input
                       type="number"
                       min="-100"
@@ -3056,23 +3093,19 @@ export default function Home() {
                       placeholder="28"
                     />
                   </Field>
-                  <Field label="Labor Adjustment" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
-                    <Button
-                      type="button"
-                      variant={invoice.excludeLaborMarkup ? "outline" : "default"}
-                      onClick={() => update('excludeLaborMarkup', !invoice.excludeLaborMarkup)}
-                      className={cn(
-                        "w-full h-9 text-[9px] font-bold rounded-[8px] transition-all cursor-pointer select-none tracking-wider",
-                        invoice.excludeLaborMarkup
-                          ? "bg-[#FAFAFA] border-[#E5E5E5] text-[#888888] hover:bg-[#EBEBEB]"
-                          : "bg-[#111111] text-white hover:bg-black/90"
-                      )}
-                      title={invoice.excludeLaborMarkup ? "Labor & Installation is excluded from rate markup" : "Labor & Installation is included in rate markup"}
-                    >
-                      {invoice.excludeLaborMarkup ? "EXCLUDE LABOR" : "INCLUDE LABOR"}
-                    </Button>
+                  <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={invoice.laborPricePerWatt ?? 6}
+                      onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                      placeholder="6"
+                    />
                   </Field>
                 </div>
+
+
 
                 <div className="flex justify-between items-center pt-2 border-t border-[#E5E5E5] mt-1 gap-2 flex-wrap">
                   <span className="text-[10px] font-bold text-[#888888] tracking-wider uppercase">
@@ -3093,62 +3126,6 @@ export default function Home() {
                       title={isSupplyMode ? "Currently in Supply Only mode (labor items hidden). Click to return to Full Quotation view." : "Click to toggle Supply Only mode (filters physical supply items & hides labor)."}
                     >
                       {isSupplyMode ? "📦 [Supply Only: ON]" : "📦 [Supply Only]"}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        addItem()
-                        setTimeout(() => {
-                          setInvoice(prev => {
-                            const lastIdx = prev.lineItems.length - 1
-                            if (lastIdx < 0) return prev
-                            const updated = [...prev.lineItems]
-                            updated[lastIdx] = {
-                              ...updated[lastIdx],
-                              description: 'Clip lock 3/4',
-                              quantity: 1,
-                              unit: 'SET',
-                              rate: 180,
-                            }
-                            return { ...prev, lineItems: updated }
-                          })
-                        }, 50)
-                      }}
-                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
-                      title="Quick add Clip lock 3/4 (1 Set @ ₱180.00)"
-                    >
-                      + Clip lock 3/4 ₱180
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        addItem()
-                        setTimeout(() => {
-                          setInvoice(prev => {
-                            const lastIdx = prev.lineItems.length - 1
-                            if (lastIdx < 0) return prev
-                            const updated = [...prev.lineItems]
-                            updated[lastIdx] = {
-                              ...updated[lastIdx],
-                              description: 'MC4 2 String',
-                              quantity: 2,
-                              unit: 'PCS',
-                              rate: 550,
-                            }
-                            return { ...prev, lineItems: updated }
-                          })
-                        }, 50)
-                      }}
-                      className="h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
-                      title="Quick add MC4 2 String (2pcs set @ ₱1,100.00)"
-                    >
-                      + MC4 2 String ₱1.1k
                     </Button>
 
                     {systemType === 'hybrid' && (
@@ -3853,6 +3830,28 @@ export default function Home() {
                                       </button>
                                     </>
                                   )}
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {isLaborItem(item.description) && (() => {
+                            const { panelQty, panelWattage, totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems)
+                            const pricePerWatt = invoice.laborPricePerWatt ?? 6
+                            return (
+                              <div className="flex items-center justify-between text-[9px] text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md mt-1 font-mono gap-1 flex-wrap">
+                                <span>⚡ Labor Breakdown: {panelQty} panels × {panelWattage}W = {totalWatts.toLocaleString()}W</span>
+                                <div className="flex items-center gap-1">
+                                  <span>@ ₱</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    value={invoice.laborPricePerWatt ?? 6}
+                                    onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                    className="w-11 h-4.5 text-[9px] font-bold text-center bg-white dark:bg-black text-amber-900 dark:text-amber-100 rounded border border-amber-500/40 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  />
+                                  <span>/ W = ₱{(totalWatts * pricePerWatt).toLocaleString()}</span>
                                 </div>
                               </div>
                             )
