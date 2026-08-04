@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory } from '@/lib/store'
@@ -1359,14 +1359,14 @@ export default function Home() {
 
     if (type === 'ongrid') {
       // Remove battery rows when switching to On-Grid
-      updatedItems = updatedItems.filter(item => !item.description.toLowerCase().includes('battery'))
+      updatedItems = updatedItems.filter(item => !isBatteryItem(item.description))
     } else {
       // Ensure only one single battery line item exists with proper quantity when switching to Hybrid
-      const batteryItems = updatedItems.filter(item => item.description.toLowerCase().includes('battery'))
+      const batteryItems = updatedItems.filter(item => isBatteryUnit(item.description))
       if (batteryItems.length > 1) {
         // Keep only the first battery item and remove extra duplicate battery rows
         const firstId = batteryItems[0].id
-        updatedItems = updatedItems.filter(item => !item.description.toLowerCase().includes('battery') || item.id === firstId)
+        updatedItems = updatedItems.filter(item => !isBatteryUnit(item.description) || item.id === firstId)
       } else if (batteryItems.length === 0) {
         let batteryQty = 1
         if (activeKwSetup >= 12 && activeKwSetup < 24) batteryQty = 2
@@ -1396,10 +1396,7 @@ export default function Home() {
 
       if (!nextExclude) {
         // User is INCLUDING battery: make sure at least one battery item exists
-        const hasBattery = updatedItems.some(item => {
-          const d = item.description.toLowerCase()
-          return d.includes('battery') || d.includes('dyness') || d.includes('genix') || d.includes('cesc')
-        })
+        const hasBattery = updatedItems.some(item => isBatteryUnit(item.description))
 
         if (!hasBattery) {
           let batteryQty = 1
@@ -3249,8 +3246,7 @@ export default function Home() {
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
 
-                      const isBatteryAccessory = descLower.includes('mccb') || descLower.includes('cable') || descLower.includes('breaker')
-                      const isBatteryItemRow = !isBatteryAccessory && isBatteryItem(item.description)
+                      const isBatteryItemRow = isBatteryUnit(item.description)
 
                       let genixPrice = 85000
                       if (descLower.includes('200ah')) {
@@ -4176,9 +4172,7 @@ export default function Home() {
                 {/* 2. Progress & Bulk Action Toolbar */}
                 {(() => {
                   const activeChecklistItems = invoice.lineItems.filter(item => {
-                    const descLower = (item.description || '').toLowerCase()
-                    const isBatteryItem = descLower.includes('battery') || descLower.includes('dyness') || descLower.includes('genix') || descLower.includes('cesc') || descLower.includes('314ah') || descLower.includes('200ah') || descLower.includes('100ah')
-                    if (invoice.excludeBattery && isBatteryItem) return false
+                    if (invoice.excludeBattery && isBatteryItem(item.description)) return false
                     return true
                   })
 

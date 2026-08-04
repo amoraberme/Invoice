@@ -94,7 +94,7 @@ export function isLaborItem(description: string): boolean {
   )
 }
 
-export function isBatteryItem(description: string): boolean {
+export function isBatteryUnit(description: string): boolean {
   const d = (description || '').toLowerCase()
   if (
     d.includes('cable') ||
@@ -102,7 +102,9 @@ export function isBatteryItem(description: string): boolean {
     d.includes('breaker') ||
     d.includes('rack') ||
     d.includes('mccb') ||
-    d.includes('switch')
+    d.includes('switch') ||
+    d.includes('enclosure') ||
+    d.includes('cabinet')
   ) {
     return false
   }
@@ -117,6 +119,15 @@ export function isBatteryItem(description: string): boolean {
     d.includes('102.4v') ||
     d.includes('51.2v') ||
     d.includes('lifepo4')
+  )
+}
+
+export function isBatteryItem(description: string): boolean {
+  const d = (description || '').toLowerCase()
+  if (isBatteryUnit(d)) return true
+  return (
+    d.includes('battery') ||
+    d.includes('mccb')
   )
 }
 
@@ -157,7 +168,7 @@ export function getItemCategoryRank(description: string): number {
   }
 
   // 3. Batteries
-  if (isBatteryItem(description)) {
+  if (isBatteryUnit(description)) {
     return 3
   }
 
@@ -430,18 +441,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       categoryKey = 'inverter'
     }
     // Priority 6: Main Equipment - Battery
-    else if (
-      descLower.includes('battery') ||
-      descLower.includes('dyness') ||
-      descLower.includes('genix') ||
-      descLower.includes('cesc') ||
-      descLower.includes('314ah') ||
-      descLower.includes('200ah') ||
-      descLower.includes('100ah') ||
-      descLower.includes('102.4v') ||
-      descLower.includes('51.2v') ||
-      descLower.includes('lifepo4')
-    ) {
+    else if (isBatteryUnit(formattedDesc)) {
       categoryKey = 'battery'
     }
 
