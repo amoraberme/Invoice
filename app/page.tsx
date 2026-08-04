@@ -1166,6 +1166,7 @@ export default function Home() {
   const [isSupplyMode, setIsSupplyMode] = useState(false)
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
+  const prevPricePerWattRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
 
@@ -1444,16 +1445,25 @@ export default function Home() {
       }
     }
 
-    if (totalWatts > 0) {
-      const updatedWithLabor = currentItems.map((item) => {
-        if (isLaborItem(item.description) && item.rate !== expectedLaborRate) {
-          itemsModified = true
-          return { ...item, rate: expectedLaborRate }
-        }
-        return item
-      })
-      if (itemsModified) {
-        currentItems = updatedWithLabor
+    const systemParamsChanged = (
+      (prevPanelQtyRef.current !== null && panelQty !== prevPanelQtyRef.current) ||
+      (prevFloorRef.current !== null && floor !== prevFloorRef.current) ||
+      (prevPricePerWattRef.current !== null && pricePerWatt !== prevPricePerWattRef.current)
+    )
+
+    const laborItem = currentItems.find(item => isLaborItem(item.description))
+
+    if (systemParamsChanged && totalWatts > 0) {
+      if (laborItem && laborItem.rate !== expectedLaborRate) {
+        currentItems = currentItems.map(item =>
+          isLaborItem(item.description) ? { ...item, rate: expectedLaborRate } : item
+        )
+        itemsModified = true
+      }
+    } else if (laborItem && totalWatts > 0) {
+      const calculatedPricePerWatt = Number((laborItem.rate / totalWatts).toFixed(2))
+      if (calculatedPricePerWatt !== pricePerWatt && calculatedPricePerWatt >= 0) {
+        update('laborPricePerWatt', calculatedPricePerWatt)
       }
     }
 
@@ -1466,7 +1476,8 @@ export default function Home() {
 
     prevPanelQtyRef.current = panelQty
     prevFloorRef.current = floor
-  }, [invoice.lineItems, invoice.laborPricePerWatt, selectedFloor, loaded, setInvoice])
+    prevPricePerWattRef.current = pricePerWatt
+  }, [invoice.lineItems, invoice.laborPricePerWatt, selectedFloor, loaded, setInvoice, update])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
@@ -2482,7 +2493,8 @@ export default function Home() {
                         type="number"
                         min="0"
                         step="0.5"
-                        value={invoice.laborPricePerWatt ?? 6}
+                        value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                         className="w-14 h-7 text-xs font-bold text-center bg-card border-border rounded-[6px]"
                         placeholder="6"
@@ -3085,7 +3097,8 @@ export default function Home() {
                       type="number"
                       min="-100"
                       max="1000"
-                      value={invoice.rateMarkup ?? ''}
+                      value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? '')}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       placeholder="28"
                     />
@@ -3095,7 +3108,8 @@ export default function Home() {
                       type="number"
                       min="0"
                       step="0.5"
-                      value={invoice.laborPricePerWatt ?? 6}
+                      value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       placeholder="6"
                     />
@@ -3288,16 +3302,19 @@ export default function Home() {
                               className="w-10 px-0 text-center"
                               type="number"
                               min="0"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              value={item.quantity === 0 ? '' : item.quantity}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                              placeholder="0"
                             />
                             <div className="flex flex-col items-end w-[72px] shrink-0">
                               <Input
                                 className="w-full px-2 text-right"
                                 type="number"
                                 min="0"
-                                value={item.rate}
-                                onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                                value={item.rate === 0 ? '' : item.rate}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => updateItem(item.id, 'rate', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                 placeholder="0"
                               />
                               {invoice.rateMarkup !== 0 && (
@@ -3843,7 +3860,8 @@ export default function Home() {
                                     type="number"
                                     min="0"
                                     step="0.5"
-                                    value={invoice.laborPricePerWatt ?? 6}
+                                    value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
+                                    onFocus={(e) => e.target.select()}
                                     onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                     className="w-11 h-4.5 text-[9px] font-bold text-center bg-white dark:bg-black text-amber-900 dark:text-amber-100 rounded border border-amber-500/40 focus:outline-none focus:ring-1 focus:ring-amber-500"
                                   />
@@ -3994,8 +4012,9 @@ export default function Home() {
                       type="number"
                       min="0"
                       step="50"
-                      value={invoice.lalamoveCost || ''}
-                      onChange={(e) => update('lalamoveCost', parseFloat(e.target.value) || 0)}
+                      value={invoice.lalamoveCost === 0 ? '' : (invoice.lalamoveCost || '')}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => update('lalamoveCost', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       placeholder="e.g. 1500"
                       className="font-mono"
                     />
@@ -4091,8 +4110,9 @@ export default function Home() {
                             <Input
                               type="number"
                               min="0"
-                              value={exp.amount || ''}
-                              onChange={(e) => updateExpenseItem(exp.id, 'amount', parseFloat(e.target.value) || 0)}
+                              value={exp.amount === 0 ? '' : (exp.amount || '')}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => updateExpenseItem(exp.id, 'amount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                               placeholder="₱ Amount"
                               className="text-xs font-mono w-24 h-7 text-right"
                             />
@@ -4147,8 +4167,9 @@ export default function Home() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={item.rate || ''}
-                                onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                                value={item.rate === 0 ? '' : (item.rate || '')}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => updateItem(item.id, 'rate', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                 className="h-6 w-24 text-right font-mono text-[10px] px-1.5"
                               />
                             </div>
