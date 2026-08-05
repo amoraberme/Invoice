@@ -4,6 +4,9 @@ export interface LineItem {
   quantity: number
   rate: number
   unit: string
+  pricingMode?: 'Meters' | 'Roll'
+  meterPrice?: number
+  rollPrice?: number
 }
 
 export interface ExpenseItem {
@@ -152,14 +155,20 @@ export const defaultInvoice: Invoice = {
       description: '6mm2 TUV Dual-Core Solar PV Cable (400 meters)',
       quantity: 4,
       rate: 4800.00,
-      unit: 'ROLL'
+      unit: 'ROLL',
+      pricingMode: 'Roll',
+      meterPrice: 12.00,
+      rollPrice: 4800.00
     },
     {
       id: 'item-100k-9',
       description: '50mm2 3-Phase AC Power Output Cable & Heavy Duty Conduits',
       quantity: 120,
-      rate: 450.00,
-      unit: 'M'
+      rate: 700.00,
+      unit: 'M',
+      pricingMode: 'Meters',
+      meterPrice: 700.00,
+      rollPrice: 63000.00
     },
     {
       id: 'item-100k-10',

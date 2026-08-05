@@ -248,11 +248,21 @@ export function useMGInvoice() {
     })
   }, [])
 
+  const updateItemFields = useCallback((id: string, fields: Partial<LineItem>) => {
+    setInvoice((prev) => ({
+      ...prev,
+      lineItems: prev.lineItems.map((item) =>
+        item.id === id ? { ...item, ...fields } : item,
+      ),
+    }))
+  }, [])
+
   return {
     invoice,
     loaded,
     update,
     updateItem,
+    updateItemFields,
     addItem,
     removeItem,
     addExpenseItem,

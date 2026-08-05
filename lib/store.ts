@@ -149,3 +149,178 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
   }
   return []
 }
+
+export interface PriceListItem {
+  code: string
+  name: string
+  keywords: string[]
+  meterPrice: number
+  rollPrice: number
+  meterUnit: string
+  rollUnit: string
+}
+
+export const SOLAR_PRICELIST_2026: PriceListItem[] = [
+  {
+    code: 'SOL-123',
+    name: '10mm Battery Cable',
+    keywords: ['battery cable 10mm', '10mm battery cable', '10mm cable'],
+    meterPrice: 300,
+    rollPrice: 23000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-124',
+    name: '16mm Battery Cable',
+    keywords: ['battery cable 16mm', '16mm battery cable', '16mm cable'],
+    meterPrice: 400,
+    rollPrice: 33000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-125',
+    name: '25mm Battery Cable',
+    keywords: ['battery cable 25mm', '25mm battery cable', '25mm cable'],
+    meterPrice: 500,
+    rollPrice: 43000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-126',
+    name: '35mm Battery Cable',
+    keywords: ['battery cable 35mm', '35mm battery cable', '35mm cable'],
+    meterPrice: 600,
+    rollPrice: 53000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-127',
+    name: '50mm Battery Cable / 50mm2 AC Output Cable',
+    keywords: ['battery cable 50mm', '50mm battery cable', '50mm cable', '50mm2 3-phase ac power output cable', '50mm2 ac power', '50mm2'],
+    meterPrice: 700,
+    rollPrice: 63000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-128',
+    name: '70mm Battery Cable',
+    keywords: ['battery cable 70mm', '70mm battery cable', '70mm cable'],
+    meterPrice: 950,
+    rollPrice: 83000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-038',
+    name: '1x4mm Solar Wire',
+    keywords: ['1x4mm solar wire', '4mm solar wire', '4mm2 solar pv cable', '4mm solar cable', '1x4mm'],
+    meterPrice: 44,
+    rollPrice: 4400,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-039',
+    name: '1x6mm Solar Wire / 6mm2 TUV Cable',
+    keywords: ['1x6mm solar wire', '6mm solar wire', '6mm2 tuv dual-core solar pv cable', '6mm2 solar cable', '6mm2 tuv', '6mm solar cable', '1x6mm'],
+    meterPrice: 12,
+    rollPrice: 4800,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-040',
+    name: '2x4mm Twin Core Solar Wire',
+    keywords: ['2x4mm solar wire', '2x4mm twin core', '2x4mm'],
+    meterPrice: 94,
+    rollPrice: 9400,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-041',
+    name: '2x6mm Twin Core Solar Wire',
+    keywords: ['2x6mm solar wire', '2x6mm twin core', '2x6mm'],
+    meterPrice: 134,
+    rollPrice: 12800,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-047',
+    name: 'HDPE Pipe 20mm',
+    keywords: ['hdpe pipe 20mm', '20mm hdpe', '20mm diameter conduit'],
+    meterPrice: 34.5,
+    rollPrice: 6900,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-048',
+    name: 'HDPE Pipe 25mm',
+    keywords: ['hdpe pipe 25mm', '25mm hdpe', '25mm diameter conduit'],
+    meterPrice: 36.0,
+    rollPrice: 7200,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-049',
+    name: 'HDPE Pipe 32mm',
+    keywords: ['hdpe pipe 32mm', '32mm hdpe', '32mm diameter conduit'],
+    meterPrice: 40.0,
+    rollPrice: 8000,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+  {
+    code: 'SOL-050',
+    name: 'HDPE Pipe 40mm',
+    keywords: ['hdpe pipe 40mm', '40mm hdpe', '40mm diameter conduit'],
+    meterPrice: 42.5,
+    rollPrice: 8500,
+    meterUnit: 'Meters',
+    rollUnit: 'Roll',
+  },
+]
+
+export function getItemPricingInfo(
+  description: string,
+  itemState?: { meterPrice?: number; rollPrice?: number }
+) {
+  if (itemState?.meterPrice !== undefined && itemState?.rollPrice !== undefined) {
+    return {
+      supportsRollPricing: true,
+      meterPrice: itemState.meterPrice,
+      rollPrice: itemState.rollPrice,
+      meterUnit: 'Meters',
+      rollUnit: 'Roll',
+    }
+  }
+
+  if (!description) return null
+  const descLower = description.toLowerCase()
+
+  const match = SOLAR_PRICELIST_2026.find((item) =>
+    item.keywords.some((kw) => descLower.includes(kw))
+  )
+
+  if (match) {
+    return {
+      supportsRollPricing: true,
+      code: match.code,
+      name: match.name,
+      meterPrice: match.meterPrice,
+      rollPrice: match.rollPrice,
+      meterUnit: match.meterUnit,
+      rollUnit: match.rollUnit,
+    }
+  }
+
+  return null
+}

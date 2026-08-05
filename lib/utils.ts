@@ -131,6 +131,12 @@ export function isBatteryItem(description: string): boolean {
   )
 }
 
+export function isAtsItem(description: string): boolean {
+  if (!description) return false
+  const d = description.toLowerCase()
+  return d.includes('automatic transfer') || d.includes('transfer switch') || d.includes('ats')
+}
+
 export function getItemCategoryRank(description: string): number {
   const d = (description || '').toLowerCase().trim()
   if (!d) return 999

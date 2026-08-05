@@ -2,10 +2,10 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
-import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory } from '@/lib/store'
+import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -699,27 +699,28 @@ function extractLineItemsFromText(text: string) {
 }
 
 const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; goodwe: number }> = {
-  3: { anern: 14000, solis: 41000, goodwe: 35000 },
-  4: { anern: 14000, solis: 41000, goodwe: 35000 },
-  5: { anern: 16500, solis: 41000, goodwe: 45000 },
-  6: { anern: 18000, solis: 44000, goodwe: 47000 },
-  8: { anern: 25000, solis: 60000, goodwe: 62000 },
-  10: { anern: 28000, solis: 68000, goodwe: 74000 },
-  12: { anern: 32500, solis: 82000, goodwe: 78000 },
-  16: { anern: 45000, solis: 113000, goodwe: 150000 },
-  18: { anern: 55000, solis: 135000, goodwe: 150000 },
-  20: { anern: 65000, solis: 150000, goodwe: 150000 },
-  30: { anern: 95000, solis: 217000, goodwe: 140000 },
-  50: { anern: 160000, solis: 217000, goodwe: 170000 },
-  60: { anern: 200000, solis: 237000, goodwe: 220000 },
-  75: { anern: 250000, solis: 290000, goodwe: 260000 },
-  125: { anern: 350000, solis: 580000, goodwe: 400000 },
+  3: { anern: 14000, solis: 40000, goodwe: 35000 },
+  4: { anern: 14000, solis: 40000, goodwe: 35000 },
+  5: { anern: 16500, solis: 40000, goodwe: 45000 },
+  6: { anern: 18000, solis: 46500, goodwe: 47000 },
+  8: { anern: 25000, solis: 63000, goodwe: 62000 },
+  9: { anern: 28000, solis: 101000, goodwe: 74000 },
+  10: { anern: 28000, solis: 70000, goodwe: 74000 },
+  12: { anern: 32500, solis: 83000, goodwe: 78000 },
+  16: { anern: 45000, solis: 98000, goodwe: 150000 },
+  18: { anern: 55000, solis: 101000, goodwe: 150000 },
+  20: { anern: 65000, solis: 101000, goodwe: 150000 },
+  30: { anern: 95000, solis: 240000, goodwe: 140000 },
+  50: { anern: 160000, solis: 310000, goodwe: 170000 },
+  60: { anern: 200000, solis: 488000, goodwe: 220000 },
+  75: { anern: 250000, solis: 560000, goodwe: 260000 },
+  125: { anern: 350000, solis: 550000, goodwe: 400000 },
 }
 
 function getInverterBrandPrices(kw: number) {
   const keys = Object.keys(INVERTER_BRAND_PRICES_MAP).map(Number).sort((a, b) => a - b)
   const matchedKw = keys.find(k => k >= kw) || keys[keys.length - 1]
-  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 82000, goodwe: 78000 }
+  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 83000, goodwe: 78000 }
 }
 
 interface OnGridBrandInfo {
@@ -747,9 +748,15 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
     name: 'Solis',
     logo: '/solis.svg',
     getPrice: (kw: number) => {
-      if (kw >= 3 && kw <= 5) return 25600
-      if (kw === 6) return 40000
-      if (kw === 10) return 71000
+      if (kw === 6) return 25000
+      if (kw === 10) return 39500
+      if (kw === 50) return 193000
+      if (kw === 60) return 202000
+      if (kw === 75) return 216000
+      if (kw === 100) return 200000
+      if (kw === 150) return 250000
+      if (kw === 200) return 288000
+      if (kw >= 3 && kw <= 5) return 25000
       return null
     }
   },
@@ -990,6 +997,7 @@ export default function Home() {
     loaded,
     update,
     updateItem,
+    updateItemFields,
     addItem,
     removeItem,
     addExpenseItem,
@@ -1359,8 +1367,8 @@ export default function Home() {
     })
 
     if (type === 'ongrid') {
-      // Remove battery rows when switching to On-Grid
-      updatedItems = updatedItems.filter(item => !isBatteryItem(item.description))
+      // Remove battery and ATS rows when switching to On-Grid
+      updatedItems = updatedItems.filter(item => !isBatteryItem(item.description) && !isAtsItem(item.description))
     } else {
       // Ensure only one single battery line item exists with proper quantity when switching to Hybrid
       const batteryItems = updatedItems.filter(item => isBatteryUnit(item.description))
@@ -2075,14 +2083,16 @@ export default function Home() {
       unit: 'PC'
     })
 
-    // 18. ATS
-    items.push({
-      id: `boq-18-${now}`,
-      description: breakers.ats,
-      quantity: 1,
-      rate: prices.ATS,
-      unit: 'PC'
-    })
+    // 18. ATS (Included for Hybrid systems; On-Grid does not require an Automatic Transfer Switch)
+    if (systemType !== 'ongrid') {
+      items.push({
+        id: `boq-18-${now}`,
+        description: breakers.ats,
+        quantity: 1,
+        rate: prices.ATS,
+        unit: 'PC'
+      })
+    }
 
     // 19. Terminal Lugs
     items.push({
@@ -3283,6 +3293,8 @@ export default function Home() {
                       const isDynessSelected = item.rate === dynessPrice
                       const isCescSelected = item.rate === cescPrice || (!isGenixSelected && !isDynessSelected)
 
+                      const pricingInfo = getItemPricingInfo(item.description, item)
+
                       return (
                         <div key={item.id} className="flex flex-col gap-1 p-1.5 rounded-lg hover:bg-[#F9F9F9] dark:hover:bg-[#1A1A1A] transition-colors border border-transparent hover:border-[#E5E5E5] dark:hover:border-[#333333]" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
                           <div className="flex gap-2 items-start">
@@ -3342,6 +3354,57 @@ export default function Home() {
                               <Trash2 size={13} />
                             </Button>
                           </div>
+
+                          {pricingInfo && (
+                            <div className="flex items-center gap-1.5 mt-1 px-2 py-1 bg-secondary/40 rounded-md border border-border/60 text-[9px] animate-in fade-in duration-150">
+                              <span className="font-bold text-muted-foreground mr-0.5 tracking-wide uppercase text-[8.5px]">
+                                Unit Pricing:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateItemFields(item.id, {
+                                    unit: pricingInfo.meterUnit || 'Meters',
+                                    rate: pricingInfo.meterPrice,
+                                    pricingMode: 'Meters',
+                                    meterPrice: pricingInfo.meterPrice,
+                                    rollPrice: pricingInfo.rollPrice,
+                                  })
+                                }}
+                                className={cn(
+                                  "px-2 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer select-none flex items-center gap-1",
+                                  (item.pricingMode === 'Meters' || (!item.pricingMode && (item.unit || '').toLowerCase().includes('m')))
+                                    ? "bg-foreground text-background shadow-xs font-black"
+                                    : "bg-background text-muted-foreground hover:text-foreground border border-border"
+                                )}
+                                title={`Apply Meters rate: ₱${pricingInfo.meterPrice}/m`}
+                              >
+                                📏 Meters (₱{pricingInfo.meterPrice})
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateItemFields(item.id, {
+                                    unit: pricingInfo.rollUnit || 'Roll',
+                                    rate: pricingInfo.rollPrice,
+                                    pricingMode: 'Roll',
+                                    meterPrice: pricingInfo.meterPrice,
+                                    rollPrice: pricingInfo.rollPrice,
+                                  })
+                                }}
+                                className={cn(
+                                  "px-2 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer select-none flex items-center gap-1",
+                                  (item.pricingMode === 'Roll' || (!item.pricingMode && (item.unit || '').toLowerCase().includes('roll')))
+                                    ? "bg-foreground text-background shadow-xs font-black"
+                                    : "bg-background text-muted-foreground hover:text-foreground border border-border"
+                                )}
+                                title={`Apply Roll rate: ₱${pricingInfo.rollPrice}`}
+                              >
+                                📦 Roll (₱{pricingInfo.rollPrice.toLocaleString()})
+                              </button>
+                            </div>
+                          )}
 
                           {isPanelItem && (() => {
                             const wattMatch = item.description.match(/(\d{3})\s*w/i)
@@ -4745,20 +4808,42 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     </span>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      Angel Solar X Updated Price List (June 2026)
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      Angel Solar X Updated Price List June 2026.xlsx
+                    </span>
+                  </div>
+                </div>
               </div>
 
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 border-t border-border gap-2">
-            <a
-              href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-              download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-              className="inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-4 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download Sheet (.xlsx)
-            </a>
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <a
+                href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                className="inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
+              >
+                <Download className="w-3.5 h-3.5" />
+                GEPC Aug 1 Sheet (.xlsx)
+              </a>
+              <a
+                href="/Angel Solar X Updated Price List June 2026.xlsx"
+                download="Angel Solar X Updated Price List June 2026.xlsx"
+                className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Angel Solar June 2026 (.xlsx)
+              </a>
+            </div>
             <Button 
               onClick={() => setGoodweModalOpen(false)}
               className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer w-full sm:w-auto"

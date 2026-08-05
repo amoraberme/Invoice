@@ -42,6 +42,7 @@ next-env.d.ts
 
 # scratch and temp files
 scratch/
+scratch_catalog.json
 eng.traineddata
 reso/
 
