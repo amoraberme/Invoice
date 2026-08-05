@@ -275,9 +275,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         return { ...item, description: breakers.acSpd }
       }
     } else if (descLower === 'dc spd' || descLower.startsWith('dc spd')) {
-      if (item.description !== breakers.dcSpd) {
+      const targetDesc = breakers.dcSpd
+      const targetRate = targetDesc.includes('600V') ? 500 : 650
+      if (item.description !== targetDesc || item.rate !== targetRate) {
         changed = true
-        return { ...item, description: breakers.dcSpd }
+        return { ...item, description: targetDesc, rate: targetRate }
       }
     } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
       if (item.description !== breakers.dcMcb) {
@@ -901,7 +903,7 @@ const SOLAR_PRICES = {
   BreakerBox: 500.00,
   ACMCB: 250.00,
   ACSPD: 500.00,
-  DCSPD: 500.00,
+  DCSPD: 650.00,
   DCMCB: 350.00,
   DCMCCB: 1400.00,
   Raceway: 360.00,
@@ -2089,11 +2091,12 @@ export default function Home() {
     })
 
     // 14. DC SPD
+    const dcSpdRate = breakers.dcSpd.includes('600V') ? 500 : 650
     items.push({
       id: `boq-14-${now}`,
       description: breakers.dcSpd,
       quantity: 2,
-      rate: prices.DCSPD,
+      rate: dcSpdRate,
       unit: 'PCS'
     })
 
