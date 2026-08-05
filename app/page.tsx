@@ -1971,7 +1971,7 @@ export default function Home() {
       id: `boq-splice-${now}`,
       description: `Splice Connector`,
       quantity: spliceConnectorQty,
-      rate: prices.SpliceConnector || 55,
+      rate: prices.SpliceConnector || 90,
       unit: 'PCS'
     })
 
