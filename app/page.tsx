@@ -699,28 +699,28 @@ function extractLineItemsFromText(text: string) {
 }
 
 const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; goodwe: number }> = {
-  3: { anern: 14000, solis: 40000, goodwe: 35000 },
-  4: { anern: 14000, solis: 40000, goodwe: 35000 },
-  5: { anern: 16500, solis: 40000, goodwe: 45000 },
-  6: { anern: 18000, solis: 46500, goodwe: 47000 },
-  8: { anern: 25000, solis: 63000, goodwe: 62000 },
-  9: { anern: 28000, solis: 101000, goodwe: 74000 },
-  10: { anern: 28000, solis: 70000, goodwe: 74000 },
-  12: { anern: 32500, solis: 83000, goodwe: 78000 },
-  16: { anern: 45000, solis: 98000, goodwe: 150000 },
-  18: { anern: 55000, solis: 101000, goodwe: 150000 },
-  20: { anern: 65000, solis: 101000, goodwe: 150000 },
-  30: { anern: 95000, solis: 240000, goodwe: 140000 },
-  50: { anern: 160000, solis: 310000, goodwe: 170000 },
-  60: { anern: 200000, solis: 488000, goodwe: 220000 },
-  75: { anern: 250000, solis: 560000, goodwe: 260000 },
-  125: { anern: 350000, solis: 550000, goodwe: 400000 },
+  3: { anern: 14000, solis: 37000, goodwe: 35000 },
+  4: { anern: 14000, solis: 37000, goodwe: 35000 },
+  5: { anern: 16500, solis: 37000, goodwe: 45000 },
+  6: { anern: 18000, solis: 44000, goodwe: 47000 },
+  8: { anern: 25000, solis: 59000, goodwe: 62000 },
+  9: { anern: 28000, solis: 97000, goodwe: 74000 },
+  10: { anern: 28000, solis: 67000, goodwe: 74000 },
+  12: { anern: 32500, solis: 79000, goodwe: 78000 },
+  16: { anern: 45000, solis: 92000, goodwe: 150000 },
+  18: { anern: 55000, solis: 97000, goodwe: 150000 },
+  20: { anern: 65000, solis: 97000, goodwe: 150000 },
+  30: { anern: 95000, solis: 226000, goodwe: 140000 },
+  50: { anern: 160000, solis: 288000, goodwe: 170000 },
+  60: { anern: 200000, solis: 458000, goodwe: 220000 },
+  75: { anern: 250000, solis: 515000, goodwe: 260000 },
+  125: { anern: 350000, solis: 500000, goodwe: 400000 },
 }
 
 function getInverterBrandPrices(kw: number) {
   const keys = Object.keys(INVERTER_BRAND_PRICES_MAP).map(Number).sort((a, b) => a - b)
   const matchedKw = keys.find(k => k >= kw) || keys[keys.length - 1]
-  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 83000, goodwe: 78000 }
+  return INVERTER_BRAND_PRICES_MAP[matchedKw] || { anern: 32500, solis: 79000, goodwe: 78000 }
 }
 
 interface OnGridBrandInfo {
@@ -748,15 +748,15 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
     name: 'Solis',
     logo: '/solis.svg',
     getPrice: (kw: number) => {
-      if (kw === 6) return 25000
-      if (kw === 10) return 39500
-      if (kw === 50) return 193000
-      if (kw === 60) return 202000
-      if (kw === 75) return 216000
-      if (kw === 100) return 200000
-      if (kw === 150) return 250000
-      if (kw === 200) return 288000
-      if (kw >= 3 && kw <= 5) return 25000
+      if (kw === 6) return 23000
+      if (kw === 10) return 37500
+      if (kw === 50) return 184000
+      if (kw === 60) return 193000
+      if (kw === 75) return 206000
+      if (kw === 100) return 188000
+      if (kw === 150) return 235000
+      if (kw === 200) return 272000
+      if (kw >= 3 && kw <= 5) return 23000
       return null
     }
   },
