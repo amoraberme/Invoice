@@ -550,7 +550,7 @@ function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
     2: { desc: "Tongwei Panel 620W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱5,456.00", total: "₱54,560.00" },
-    3: { desc: "Railings 2.4m", qty: "20 pcs", price: "₱520.00", total: "₱10,400.00" },
+    3: { desc: "Railings 2.4m", qty: "20 pcs", price: "₱490.00", total: "₱9,800.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
     6: { desc: "L Foot 25 pes.", qty: "25 pes", price: "₱75.00", total: "₱1,875.00" },
@@ -880,7 +880,7 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
 const SOLAR_PRICES = {
   Inverter: 67000.00,
   Panel: 5456.00,
-  Railing: 470.00,
+  Railing: 490.00,
   MidClamp: 55.00,
   EndClamp: 55.00,
   LFoot: 90.00,

@@ -288,6 +288,15 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
     rollUnit: 'Roll',
   },
   {
+    code: 'SOL-031',
+    name: 'Solar Railing 2.4m',
+    keywords: ['railings 2.4m', 'solar railing 2.4m', 'solar railing', 'railing 2.4m', 'railings', 'railing'],
+    meterPrice: 490,
+    rollPrice: 490,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
     code: 'SOL-001',
     name: 'Jinko 620W Solar Panel',
     keywords: ['jinko 620w', 'jinko panel 620w', 'jinko 620'],
