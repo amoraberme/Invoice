@@ -960,8 +960,9 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Jinko',
     logo: '/jinko.svg',
     options: [
-      { wattage: '640W', rate: 7700 },
-      { wattage: '725W', rate: 7700 },
+      { wattage: '620W', rate: 5750 },
+      { wattage: '640W', rate: 5950 },
+      { wattage: '650W', rate: 6050 },
     ],
   },
   {
@@ -994,7 +995,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Seraphim',
     logo: '/Seraphim.svg',
     options: [
-      { wattage: '630W', rate: 5600 },
+      { wattage: '630W', rate: 5500 },
     ],
   },
   {
@@ -1002,7 +1003,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Trina Solar',
     logo: '/TrinaSolar.svg',
     options: [
-      { wattage: '620W', rate: 5750 },
+      { wattage: '620W', rate: 5700 },
     ],
   },
   {
@@ -1010,7 +1011,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Lesso',
     logo: '/Lesso.svg',
     options: [
-      { wattage: '630W', rate: 5600 },
+      { wattage: '630W', rate: 5500 },
     ],
   },
 ]
