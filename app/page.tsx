@@ -3379,57 +3379,6 @@ export default function Home() {
                             </Button>
                           </div>
 
-                          {pricingInfo && (
-                            <div className="flex items-center gap-1.5 mt-1 px-2 py-1 bg-secondary/40 rounded-md border border-border/60 text-[9px] animate-in fade-in duration-150">
-                              <span className="font-bold text-muted-foreground mr-0.5 tracking-wide uppercase text-[8.5px]">
-                                Unit Pricing:
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateItemFields(item.id, {
-                                    unit: pricingInfo.meterUnit || 'Meters',
-                                    rate: pricingInfo.meterPrice,
-                                    pricingMode: 'Meters',
-                                    meterPrice: pricingInfo.meterPrice,
-                                    rollPrice: pricingInfo.rollPrice,
-                                  })
-                                }}
-                                className={cn(
-                                  "px-2 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer select-none flex items-center gap-1",
-                                  (item.pricingMode === 'Meters' || (!item.pricingMode && (item.unit || '').toLowerCase().includes('m')))
-                                    ? "bg-foreground text-background shadow-xs font-black"
-                                    : "bg-background text-muted-foreground hover:text-foreground border border-border"
-                                )}
-                                title={`Apply Meters rate: ₱${pricingInfo.meterPrice}/m`}
-                              >
-                                📏 Meters (₱{pricingInfo.meterPrice})
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateItemFields(item.id, {
-                                    unit: pricingInfo.rollUnit || 'Roll',
-                                    rate: pricingInfo.rollPrice,
-                                    pricingMode: 'Roll',
-                                    meterPrice: pricingInfo.meterPrice,
-                                    rollPrice: pricingInfo.rollPrice,
-                                  })
-                                }}
-                                className={cn(
-                                  "px-2 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer select-none flex items-center gap-1",
-                                  (item.pricingMode === 'Roll' || (!item.pricingMode && (item.unit || '').toLowerCase().includes('roll')))
-                                    ? "bg-foreground text-background shadow-xs font-black"
-                                    : "bg-background text-muted-foreground hover:text-foreground border border-border"
-                                )}
-                                title={`Apply Roll rate: ₱${pricingInfo.rollPrice}`}
-                              >
-                                📦 Roll (₱{pricingInfo.rollPrice.toLocaleString()})
-                              </button>
-                            </div>
-                          )}
-
                           {isPanelItem && (() => {
                             const wattMatch = item.description.match(/(\d{3})\s*w/i)
                             const currentWattage = wattMatch ? `${wattMatch[1]}W` : null
