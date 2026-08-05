@@ -172,9 +172,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         return { ...item, quantity: newLFootQty }
       }
     } else if (descLower === 'splice connector' || descLower === 'splice' || descLower.includes('splice connector') || descLower.includes('splice jumper')) {
-      if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 55) {
+      if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 90) {
         changed = true
-        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 55 }
+        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 90 }
       }
     } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
       const setsOf2Pcs = inverterKw >= 16 ? 1 + Math.floor((inverterKw - 16) / 4) : 0
@@ -301,7 +301,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       id: `boq-splice-${Date.now()}`,
       description: 'Splice Connector',
       quantity: newSpliceConnectorQty,
-      rate: 55,
+      rate: 90,
       unit: 'PCS'
     })
   }
@@ -878,33 +878,33 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
 ]
 
 const SOLAR_PRICES = {
-  Inverter: 68000.00,
+  Inverter: 67000.00,
   Panel: 5456.00,
   Railing: 470.00,
-  MidClamp: 32.00,
-  EndClamp: 32.00,
-  LFoot: 50.00,
-  SpliceConnector: 55.00,
-  FlexconHDPE: 215.00,
+  MidClamp: 55.00,
+  EndClamp: 55.00,
+  LFoot: 90.00,
+  SpliceConnector: 90.00,
+  FlexconHDPE: 39.50,
   ACwire: 190.00,
-  PVwire: 170.00,
-  DCwire: 200.00,
-  MC4: 80.00,
+  PVwire: 63.00,
+  DCwire: 63.00,
+  MC4: 40.00,
   ClipLock34: 180.00,
-  MC4_2String: 1100.00,
-  BreakerBox: 1000.00,
-  ACMCB: 350.00,
-  ACSPD: 400.00,
-  DCSPD: 400.00,
-  DCMCB: 300.00,
-  DCMCCB: 2300.00,
-  Raceway: 1000.00,
-  ATS: 1300.00,
-  TerminalLugs: 30.00,
+  MC4_2String: 550.00,
+  BreakerBox: 500.00,
+  ACMCB: 250.00,
+  ACSPD: 500.00,
+  DCSPD: 500.00,
+  DCMCB: 350.00,
+  DCMCCB: 1400.00,
+  Raceway: 360.00,
+  ATS: 1600.00,
+  TerminalLugs: 70.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 600.00,
-  GroundRod: 1500.00,
+  GroundRod: 600.00,
   GroundingLugs: 50.00,
   GroundWire: 1300.00,
   PuSealant: 400.00,
