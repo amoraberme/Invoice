@@ -251,7 +251,7 @@ export function stripBrandName(description: string): string {
   if (!description) return ''
   const d = description.trim()
 
-  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC)\s+/i
+  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC)\s+/i
 
   return d.replace(brandRegex, '').trim()
 }
@@ -282,7 +282,10 @@ export function formatBrandItemDescription(description: string): string {
       lower.includes('jinko') ||
       lower.includes('gokin') ||
       lower.includes('longi') ||
-      lower.includes('ian')
+      lower.includes('ian') ||
+      lower.includes('seraphim') ||
+      lower.includes('trina') ||
+      lower.includes('lesso')
     if (!hasBrand) {
       if (lower.startsWith('panel')) {
         return `Tongwei ${d}`

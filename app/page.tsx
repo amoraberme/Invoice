@@ -989,6 +989,30 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
       { wattage: '670W', rate: 6400 },
     ],
   },
+  {
+    id: 'seraphim',
+    name: 'Seraphim',
+    logo: '/Seraphim.svg',
+    options: [
+      { wattage: '630W', rate: 5600 },
+    ],
+  },
+  {
+    id: 'trina',
+    name: 'Trina Solar',
+    logo: '/TrinaSolar.svg',
+    options: [
+      { wattage: '620W', rate: 5750 },
+    ],
+  },
+  {
+    id: 'lesso',
+    name: 'Lesso',
+    logo: '/Lesso.svg',
+    options: [
+      { wattage: '630W', rate: 5600 },
+    ],
+  },
 ]
 
 export default function Home() {

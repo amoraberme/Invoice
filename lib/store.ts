@@ -287,6 +287,33 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
     meterUnit: 'Meters',
     rollUnit: 'Roll',
   },
+  {
+    code: 'SOL-004',
+    name: 'Trina 620W Solar Panel',
+    keywords: ['trina 620w', 'trina solar 620w', 'trina panel', 'trina 620'],
+    meterPrice: 5750,
+    rollPrice: 5750,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'SOL-005',
+    name: 'Seraphim 630W Solar Panel',
+    keywords: ['seraphim 630w', 'seraphim panel', 'seraphim 630'],
+    meterPrice: 5600,
+    rollPrice: 5600,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'SOL-006',
+    name: 'Lesso 630W Solar Panel',
+    keywords: ['lesso 630w', 'lesso panel', 'lesso 630'],
+    meterPrice: 5600,
+    rollPrice: 5600,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
 ]
 
 export function getItemPricingInfo(
