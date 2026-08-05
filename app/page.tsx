@@ -286,6 +286,15 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         changed = true
         return { ...item, description: breakers.dcMcb }
       }
+    } else if (descLower.includes('dc mccb') || descLower.includes('mccb for battery')) {
+      const targetDesc = breakers.dcMccb
+      const ampMatch = targetDesc.match(/(\d+)\s*A/i)
+      const amp = ampMatch ? parseInt(ampMatch[1], 10) : breakers.dcMccbAmp
+      const targetRate = amp <= 250 ? 1400 : (amp <= 400 ? 3800 : 4500)
+      if (item.description !== targetDesc || item.rate !== targetRate) {
+        changed = true
+        return { ...item, description: targetDesc, rate: targetRate }
+      }
     } else if (descLower === 'pu sealant' || descLower.includes('pu sealant') || descLower.includes('sealant')) {
       if (item.description !== 'PU Sealant' || item.rate !== 400) {
         changed = true
@@ -2110,11 +2119,13 @@ export default function Home() {
     })
 
     // 16. DC MCCB
+    const dcMccbAmp = breakers.dcMccbAmp
+    const dcMccbRate = dcMccbAmp <= 250 ? 1400 : (dcMccbAmp <= 400 ? 3800 : 4500)
     items.push({
       id: `boq-16-${now}`,
       description: breakers.dcMccb,
       quantity: 1,
-      rate: prices.DCMCCB,
+      rate: dcMccbRate,
       unit: 'PC'
     })
 
