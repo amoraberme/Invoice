@@ -238,9 +238,14 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('ac cable')
     ) {
       const targetDesc = wireInfo.acWire
-      if (item.description !== targetDesc) {
+      let targetRate = item.rate
+      if (targetDesc.includes('AWG #8') || targetDesc.includes('10mm²')) targetRate = 300
+      else if (targetDesc.includes('14mm²') || targetDesc.includes('#6')) targetRate = 400
+      else if (targetDesc.includes('22mm²') || targetDesc.includes('#4')) targetRate = 500
+
+      if (item.description !== targetDesc || item.rate !== targetRate) {
         changed = true
-        return { ...item, description: targetDesc }
+        return { ...item, description: targetDesc, rate: targetRate }
       }
     } else if (
       descLower === 'dc' ||
@@ -254,9 +259,10 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('dc cable')
     ) {
       const targetDesc = wireInfo.dcCable
-      if (item.description !== targetDesc) {
+      const targetRate = targetDesc.includes('4mm²') ? 42 : 63
+      if (item.description !== targetDesc || item.rate !== targetRate) {
         changed = true
-        return { ...item, description: targetDesc }
+        return { ...item, description: targetDesc, rate: targetRate }
       }
     } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb')) {
       if (item.description !== breakers.acMcb) {
@@ -2004,20 +2010,30 @@ export default function Home() {
     })
 
     // 8. AC Wire
+    let acRate = prices.ACwire
+    if (wireInfo.acWire.includes('AWG #8') || wireInfo.acWire.includes('10mm²')) {
+      acRate = 300 // SOL-123 Battery Cable / Wire 10mm² (AWG #8)
+    } else if (wireInfo.acWire.includes('14mm²') || wireInfo.acWire.includes('#6')) {
+      acRate = 400 // SOL-124 Battery Cable / Wire 16mm² (AWG #6)
+    } else if (wireInfo.acWire.includes('22mm²') || wireInfo.acWire.includes('#4')) {
+      acRate = 500 // SOL-125 Battery Cable / Wire 25mm² (AWG #4)
+    }
+
     items.push({
       id: `boq-8-${now}`,
       description: wireInfo.acWire,
       quantity: runLength,
-      rate: prices.ACwire,
+      rate: acRate,
       unit: 'M'
     })
 
     // 9. DC/PV Wire
+    const dcRate = wireInfo.dcCable.includes('4mm²') ? 42 : 63 // SOL-038 (4mm²: ₱42/m) vs SOL-039 (6mm²: ₱63/m)
     items.push({
       id: `boq-dc-${now}`,
       description: wireInfo.dcCable,
       quantity: runLength,
-      rate: prices.DCwire,
+      rate: dcRate,
       unit: 'M'
     })
 
