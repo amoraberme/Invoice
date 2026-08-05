@@ -387,6 +387,15 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
     rollUnit: 'PCS',
   },
   {
+    code: 'SOL-153',
+    name: 'Ground Rod w/ Clamp 3 Meters',
+    keywords: ['ground rod w/ clamp 3 meters', 'ground rod 3 meters', 'ground rod', 'grounding rod 1500mm', '1500mm grounding rod'],
+    meterPrice: 750,
+    rollPrice: 750,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
     code: 'SOL-001',
     name: 'Jinko 620W Solar Panel',
     keywords: ['jinko 620w', 'jinko panel 620w', 'jinko 620'],

@@ -226,9 +226,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         }
       }
     } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
-      if (item.description !== 'Ground Rod w/ Clamp 3 Meters') {
+      if (item.description !== 'Ground Rod w/ Clamp 3 Meters' || item.rate !== 750) {
         changed = true
-        return { ...item, description: 'Ground Rod w/ Clamp 3 Meters' }
+        return { ...item, description: 'Ground Rod w/ Clamp 3 Meters', rate: 750 }
       }
     } else if (
       descLower === 'ac' ||
@@ -921,7 +921,7 @@ const SOLAR_PRICES = {
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 600.00,
-  GroundRod: 600.00,
+  GroundRod: 750.00,
   GroundingLugs: 50.00,
   GroundWire: 1300.00,
   PuSealant: 400.00,
@@ -2201,7 +2201,7 @@ export default function Home() {
       id: `boq-g3-${now}`,
       description: `Ground Rod w/ Clamp 3 Meters`,
       quantity: 1,
-      rate: prices.GroundRod || 1500,
+      rate: prices.GroundRod || 750,
       unit: 'PC'
     })
 
