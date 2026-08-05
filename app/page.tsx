@@ -500,6 +500,8 @@ function parseTechnicalSpec(text: string): ParsedSpec {
     if (lower.includes('carrier')) brand = 'Carrier';
     else if (lower.includes('anern')) brand = 'Anern';
     else if (lower.includes('ja solar') || lower.includes('jasolar')) brand = 'JA Solar';
+    else if (lower.includes('oliter')) brand = 'Oliter';
+    else if (lower.includes('alpsolar') || lower.includes('alp solar')) brand = 'Alpsolar';
     else if (lower.includes('daikin')) brand = 'Daikin';
     else if (lower.includes('dyness')) brand = 'Dyness';
     else if (lower.includes('mitsubishi')) brand = 'Mitsubishi';
@@ -597,10 +599,10 @@ function extractLineItemsFromText(text: string) {
   const lineItems: LineItem[] = [];
   const addedIndices = new Set<number>();
   
-  const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Inverter') || text.includes('Railings');
+  const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Oliter') || text.includes('Alpsolar') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4 2 String|MC4|Clip lock|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4 2 String|MC4|Clip lock|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Genix|CESC|Oliter|Alpsolar|AlpSolarr|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -657,7 +659,7 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 18;
       } else if (lowerLine.includes('terminal lugs') || (lowerLine.includes('lugs') && !lowerLine.includes('block'))) {
         targetIndex = 19;
-      } else if (lowerLine.includes('dyness') || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
+      } else if (lowerLine.includes('dyness') || lowerLine.includes('oliter') || lowerLine.includes('alpsolar') || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
         targetIndex = 20;
       } else if (lowerLine.includes('terminal block')) {
         targetIndex = 21;
@@ -1308,6 +1310,8 @@ export default function Home() {
       d.includes('inverter') ||
       d.includes('battery') ||
       d.includes('dyness') ||
+      d.includes('oliter') ||
+      d.includes('alpsolar') ||
       d.includes('ja solar') ||
       d.includes('tongwei') ||
       d.includes('solis') ||
@@ -3344,9 +3348,18 @@ export default function Home() {
                         cescPrice = 2400000
                       }
 
+                      let oliterPrice = 70000
+
+                      let alpsolarPrice = 93000
+                      if (descLower.includes('200ah') || descLower.includes('10.24kwh')) {
+                        alpsolarPrice = 70000
+                      }
+
                       const isGenixSelected = item.rate === genixPrice
                       const isDynessSelected = item.rate === dynessPrice
-                      const isCescSelected = item.rate === cescPrice || (!isGenixSelected && !isDynessSelected)
+                      const isOliterSelected = item.rate === oliterPrice || descLower.includes('oliter')
+                      const isAlpsolarSelected = item.rate === alpsolarPrice || descLower.includes('alpsolar')
+                      const isCescSelected = item.rate === cescPrice || (!isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
 
                       const pricingInfo = getItemPricingInfo(item.description, item)
 
@@ -3673,7 +3686,6 @@ export default function Home() {
                               )}
                             </div>
                           )}
-
                           {isBatteryItemRow && (() => {
                             let capKey: '100Ah' | '200Ah' | '314Ah' | '261kW' = '314Ah'
                             if (descLower.includes('261') || descLower.includes('power')) {
@@ -3684,8 +3696,12 @@ export default function Home() {
                               capKey = '100Ah'
                             }
 
-                            let activeBrand: 'genix' | 'dyness' | 'cesc' = 'cesc'
-                            if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
+                            let activeBrand: 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
+                            if (descLower.includes('oliter')) {
+                              activeBrand = 'oliter'
+                            } else if (descLower.includes('alpsolar') || descLower.includes('alp solar')) {
+                              activeBrand = 'alpsolar'
+                            } else if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
                               activeBrand = 'genix'
                             } else if (descLower.includes('dyness') || item.rate === 43000 || item.rate === 111000) {
                               activeBrand = 'dyness'
@@ -3707,6 +3723,15 @@ export default function Home() {
                             const getCescData = (cap: typeof capKey) => {
                               if (cap === '261kW') return { desc: 'CESC Battery 261 kW Power System', rate: 2400000 }
                               return { desc: 'CESC Battery 51.2V 314Ah', rate: 88000 }
+                            }
+
+                            const getOliterData = (cap: typeof capKey) => {
+                              return { desc: 'Oliter 10.24kWh 200Ah Lithium Battery', rate: 70000 }
+                            }
+
+                            const getAlpsolarData = (cap: typeof capKey) => {
+                              if (cap === '314Ah') return { desc: 'Alpsolar 16.07kWh 314Ah Lithium Battery', rate: 93000 }
+                              return { desc: 'Alpsolar 10.24kWh 200Ah Lithium Battery', rate: 70000 }
                             }
 
                             const applySelection = (newDesc: string, newRate: number) => {
@@ -3771,11 +3796,102 @@ export default function Home() {
                                   >
                                     <img src="/cesc.svg" alt="CESC" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const data = getOliterData('200Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'oliter'
+                                        ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                    )}
+                                    title="Oliter Battery"
+                                  >
+                                    <img src="/Oliter.svg" alt="Oliter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cap = capKey === '314Ah' ? '314Ah' : '200Ah'
+                                      const data = getAlpsolarData(cap)
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'alpsolar'
+                                        ? "bg-cyan-500/15 border-cyan-500 ring-2 ring-cyan-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                    )}
+                                    title="Alpsolar Battery"
+                                  >
+                                    <img src="/AlpSolarr.svg" alt="Alpsolar" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                  </button>
                                 </div>
 
                                 {/* 2. Available Capacity Buttons for Selected Brand */}
                                 <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-dotted border-[#E5E5E5] dark:border-[#333333]">
                                   <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Capacity:</span>
+
+                                  {/* Oliter Capacities */}
+                                  {activeBrand === 'oliter' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const data = getOliterData('200Ah')
+                                        applySelection(data.desc, data.rate)
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                      )}
+                                      title="200Ah - ₱70,000.00"
+                                    >
+                                      200Ah
+                                    </button>
+                                  )}
+
+                                  {/* Alpsolar Capacities */}
+                                  {activeBrand === 'alpsolar' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getAlpsolarData('200Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '200Ah' || capKey !== '314Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="200Ah - ₱70,000.00"
+                                      >
+                                        200Ah
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getAlpsolarData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '314Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="314Ah - ₱93,000.00"
+                                      >
+                                        314Ah
+                                      </button>
+                                    </>
+                                  )}
 
                                   {/* Genix Green Capacities */}
                                   {activeBrand === 'genix' && (

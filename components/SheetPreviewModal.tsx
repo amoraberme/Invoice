@@ -114,6 +114,9 @@ const PRICELIST_DATA: PriceCategory[] = [
     icon: Battery,
     warranty: 'Standard 5 Years Replacement Warranty',
     items: [
+      { code: 'SOL-028', name: 'Alpsolar 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
+      { code: 'SOL-029', name: 'Alpsolar 16.07kWh 314Ah Lithium Battery', srp: '₱95,000', installer: '₱93,000', wholesale: '₱93,000', subdealer: '₱89,000' },
+      { code: 'SOL-030', name: 'Oliter 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
       { code: 'LXA5.0-10', name: 'Goodwe Lynx Lithium Battery 5.12kWh 100Ah (51.2V)', srp: '₱45,000', installer: '₱42,000', wholesale: '₱40,000', subdealer: '₱38,000' },
       { code: 'GE14.3-BAT-LV-G10', name: 'Goodwe Lithium Battery 14.3kWh 280Ah (Wall/Floor)', srp: '₱120,000', installer: '₱110,000', wholesale: '₱107,000', subdealer: '₱105,000' },
       { code: 'GW16.1 BAT-LV-G10', name: 'Goodwe Lithium Battery 16.1kWh 314Ah (51.2V)', srp: '₱140,000', installer: '₱135,000', wholesale: '₱132,000', subdealer: '₱130,000' },

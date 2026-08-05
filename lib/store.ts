@@ -162,6 +162,33 @@ export interface PriceListItem {
 
 export const SOLAR_PRICELIST_2026: PriceListItem[] = [
   {
+    code: 'SOL-028',
+    name: 'Alpsolar 10.24kWh 200Ah Lithium Battery',
+    keywords: ['alpsolar 10.24kwh', 'alpsolar 200ah', 'alpsolar battery', 'alpsolar 10.24kwh 200ah'],
+    meterPrice: 70000,
+    rollPrice: 70000,
+    meterUnit: 'Unit',
+    rollUnit: 'Unit',
+  },
+  {
+    code: 'SOL-029',
+    name: 'Alpsolar 16.07kWh 314Ah Lithium Battery',
+    keywords: ['alpsolar 16.07kwh', 'alpsolar 314ah', 'alpsolar battery 314ah', 'alpsolar 16.07kwh 314ah'],
+    meterPrice: 93000,
+    rollPrice: 93000,
+    meterUnit: 'Unit',
+    rollUnit: 'Unit',
+  },
+  {
+    code: 'SOL-030',
+    name: 'Oliter 10.24kWh 200Ah Lithium Battery',
+    keywords: ['oliter 10.24kwh', 'oliter 200ah', 'oliter battery', 'oliter 10.24kwh 200ah'],
+    meterPrice: 70000,
+    rollPrice: 70000,
+    meterUnit: 'Unit',
+    rollUnit: 'Unit',
+  },
+  {
     code: 'SOL-123',
     name: '10mm Battery Cable',
     keywords: ['battery cable 10mm', '10mm battery cable', '10mm cable'],

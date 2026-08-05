@@ -113,6 +113,8 @@ export function isBatteryUnit(description: string): boolean {
     d.includes('dyness') ||
     d.includes('genix') ||
     d.includes('cesc') ||
+    d.includes('oliter') ||
+    d.includes('alpsolar') ||
     d.includes('314ah') ||
     d.includes('200ah') ||
     d.includes('100ah') ||
@@ -251,7 +253,7 @@ export function stripBrandName(description: string): string {
   if (!description) return ''
   const d = description.trim()
 
-  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC)\s+/i
+  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC|Oliter|Alpsolar|Alp\s+Solar|AlpSolarr)\s+/i
 
   return d.replace(brandRegex, '').trim()
 }
@@ -325,7 +327,7 @@ export function formatBrandItemDescription(description: string): string {
     !lower.includes('mccb') &&
     !lower.includes('switch')
   ) {
-    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc')
+    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar')
     if (!hasBrand) {
       if (lower.startsWith('battery')) {
         return `Genix ${d}`

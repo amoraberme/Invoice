@@ -35,6 +35,8 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('inverter') ||
     d.includes('battery') ||
     d.includes('dyness') ||
+    d.includes('oliter') ||
+    d.includes('alpsolar') ||
     d.includes('ja solar') ||
     d.includes('tongwei') ||
     d.includes('solis') ||
