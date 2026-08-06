@@ -949,7 +949,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     logo: '/TW.svg',
     options: [
       { wattage: '620W', rate: 5456 },
-      { wattage: '625W', rate: 5000 },
+      { wattage: '625W', rate: 5500 },
       { wattage: '630W', rate: 5544 },
       { wattage: '720W', rate: 6336 },
       { wattage: '725W', rate: 6380 },
@@ -1217,6 +1217,7 @@ export default function Home() {
   const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
   const [isSupplyMode, setIsSupplyMode] = useState(false)
   const prevPanelQtyRef = useRef<number | null>(null)
+  const prevTotalWattsRef = useRef<number | null>(null)
   const prevFloorRef = useRef<number | null>(null)
   const prevPricePerWattRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
@@ -1501,6 +1502,7 @@ export default function Home() {
 
     const systemParamsChanged = (
       (prevPanelQtyRef.current !== null && panelQty !== prevPanelQtyRef.current) ||
+      (prevTotalWattsRef.current !== null && totalWatts !== prevTotalWattsRef.current) ||
       (prevFloorRef.current !== null && floor !== prevFloorRef.current) ||
       (prevPricePerWattRef.current !== null && pricePerWatt !== prevPricePerWattRef.current)
     )
@@ -1529,6 +1531,7 @@ export default function Home() {
     }
 
     prevPanelQtyRef.current = panelQty
+    prevTotalWattsRef.current = totalWatts
     prevFloorRef.current = floor
     prevPricePerWattRef.current = pricePerWatt
   }, [invoice.lineItems, invoice.laborPricePerWatt, selectedFloor, loaded, setInvoice, update])
@@ -2133,14 +2136,6 @@ export default function Home() {
       unit: 'PC'
     })
 
-    // 17. Raceway
-    items.push({
-      id: `boq-17-${now}`,
-      description: `Cable raceway conduit 2 meters`,
-      quantity: 1,
-      rate: prices.Raceway,
-      unit: 'PC'
-    })
 
     // 18. ATS (Included for Hybrid systems; On-Grid does not require an Automatic Transfer Switch)
     if (systemType !== 'ongrid') {
@@ -3449,7 +3444,7 @@ export default function Home() {
                                 activeBrandId = 'jinko'
                               } else if (item.rate === 6500) {
                                 activeBrandId = 'longi'
-                              } else if ([5456, 5000, 5544, 6336, 6380, 6424].includes(item.rate)) {
+                              } else if ([5456, 5500, 5544, 6336, 6380, 6424].includes(item.rate)) {
                                 activeBrandId = 'tongwei'
                               } else if ([6400, 6300, 6900].includes(item.rate)) {
                                 activeBrandId = 'ja'
