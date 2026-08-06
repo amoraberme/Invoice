@@ -911,7 +911,7 @@ const SOLAR_PRICES = {
   MC4: 40.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
-  BreakerBox: 500.00,
+  BreakerBox: 1000.00,
   ACMCB: 250.00,
   ACSPD: 500.00,
   DCSPD: 650.00,
