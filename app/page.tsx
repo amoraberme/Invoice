@@ -56,6 +56,29 @@ function getWireSize(inverterKw: number): string {
   }
 }
 
+function getConduitDetails(inverterKw: number, runLength: number) {
+  let size = '25mm'
+  let rate = 6600
+  if (inverterKw <= 5) {
+    size = '25mm'
+    rate = 6600
+  } else if (inverterKw <= 10) {
+    size = '32mm'
+    rate = 9500
+  } else {
+    size = '40mm'
+    rate = 12400
+  }
+  const conduitLength = Math.ceil(runLength * 1.15)
+  const rolls = Math.max(1, Math.ceil(conduitLength / 100))
+  return {
+    description: `Flexible hose ${size}`,
+    rate,
+    quantity: rolls,
+    unit: 'ROLL'
+  }
+}
+
 function getDynamicBreakerRatings(systemKw: number) {
   // AC MCB Calculation: I_AC = ceil((P_target * 1000 / (230 * 0.9)) * 1.25)
   const iAcRaw = Math.ceil(((systemKw * 1000) / (230 * 0.9)) * 1.25)
@@ -151,7 +174,30 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   let changed = false
   const items = lineItems.map(item => {
     const descLower = item.description.toLowerCase().trim()
-    if (descLower === 'railings' || descLower === 'railing' || descLower.includes('railing')) {
+    if (
+      descLower === 'flexible hose' ||
+      descLower.startsWith('flexible hose') ||
+      descLower.includes('flexcon') ||
+      descLower.includes('hdpe') ||
+      (descLower.includes('hose') && !descLower.includes('battery'))
+    ) {
+      const details = getConduitDetails(inverterKw, runLength)
+      if (
+        item.description !== details.description ||
+        item.quantity !== details.quantity ||
+        item.rate !== details.rate ||
+        item.unit !== details.unit
+      ) {
+        changed = true
+        return {
+          ...item,
+          description: details.description,
+          quantity: details.quantity,
+          rate: details.rate,
+          unit: details.unit
+        }
+      }
+    } else if (descLower === 'railings' || descLower === 'railing' || descLower.includes('railing')) {
       if (item.quantity !== newRailingQty || item.description !== 'Railings 2.4m') {
         changed = true
         return { ...item, description: 'Railings 2.4m', quantity: newRailingQty }
@@ -1738,11 +1784,13 @@ export default function Home() {
             continue
           }
           hasHdpe = true
+          const details = getConduitDetails(inverterKw, runLength)
           updatedItems.push({
             ...item,
-            quantity: runLength,
-            unit: 'M',
-            description: `Flexible hose`
+            quantity: details.quantity,
+            rate: details.rate,
+            unit: details.unit,
+            description: details.description
           })
           continue
         }
@@ -1821,12 +1869,13 @@ export default function Home() {
 
       const now = Date.now()
       if (!hasHdpe) {
+        const details = getConduitDetails(inverterKw, runLength)
         updatedItems.push({
           id: `floor-hdpe-${now}`,
-          description: `Flexible hose`,
-          quantity: runLength,
-          rate: SOLAR_PRICES.FlexconHDPE,
-          unit: 'M'
+          description: details.description,
+          quantity: details.quantity,
+          rate: details.rate,
+          unit: details.unit
         })
       }
       if (!hasAc) {
@@ -2018,13 +2067,13 @@ export default function Home() {
     })
 
     // 7. Flexcon HDPE Hose (Conduit length L_conduit = (L_DC + L_AC) * 1.15)
-    const conduitLength = Math.ceil(runLength * 1.15)
+    const conduitDetails = getConduitDetails(inverterKw, runLength)
     items.push({
       id: `boq-7-${now}`,
-      description: `Flexible hose`,
-      quantity: conduitLength,
-      rate: prices.FlexconHDPE,
-      unit: 'M'
+      description: conduitDetails.description,
+      quantity: conduitDetails.quantity,
+      rate: conduitDetails.rate,
+      unit: conduitDetails.unit
     })
 
     // 8. AC Wire
