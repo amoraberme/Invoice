@@ -58,24 +58,23 @@ function getWireSize(inverterKw: number): string {
 
 function getConduitDetails(inverterKw: number, runLength: number) {
   let size = '25mm'
-  let rate = 6600
+  let rate = 66
   if (inverterKw <= 5) {
     size = '25mm'
-    rate = 6600
+    rate = 66
   } else if (inverterKw <= 10) {
     size = '32mm'
-    rate = 9500
+    rate = 95
   } else {
     size = '40mm'
-    rate = 12400
+    rate = 124
   }
   const conduitLength = Math.ceil(runLength * 1.15)
-  const rolls = Math.max(1, Math.ceil(conduitLength / 100))
   return {
     description: `Flexible hose ${size}`,
     rate,
-    quantity: rolls,
-    unit: 'ROLL'
+    quantity: conduitLength,
+    unit: 'M'
   }
 }
 
