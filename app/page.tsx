@@ -304,7 +304,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('dc cable')
     ) {
       const targetDesc = wireInfo.dcCable
-      const targetRate = targetDesc.includes('4mm²') ? 42 : 120
+      const targetRate = targetDesc.includes('4mm²') ? 42 : 125
       if (item.description !== targetDesc || item.rate !== targetRate) {
         changed = true
         return { ...item, description: targetDesc, rate: targetRate }
@@ -951,8 +951,8 @@ const SOLAR_PRICES = {
   SpliceConnector: 90.00,
   FlexconHDPE: 39.50,
   ACwire: 190.00,
-  PVwire: 120.00,
-  DCwire: 120.00,
+  PVwire: 125.00,
+  DCwire: 125.00,
   MC4: 40.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
@@ -2094,7 +2094,7 @@ export default function Home() {
     })
 
     // 9. DC/PV Wire
-    const dcRate = wireInfo.dcCable.includes('4mm²') ? 42 : 120 // SOL-038 (4mm²: ₱42/m) vs SOL-039 (6mm²: ₱120/m)
+    const dcRate = wireInfo.dcCable.includes('4mm²') ? 42 : 125 // SOL-038 (4mm²: ₱42/m) vs SOL-039 (6mm²: ₱125/m)
     items.push({
       id: `boq-dc-${now}`,
       description: wireInfo.dcCable,
