@@ -5326,11 +5326,10 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   <a
                     href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
                     download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                    className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border font-bold text-xs rounded-lg px-2.5 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
-                    title="Download GEPC Aug 1 Pricelist Sheet"
+                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-amber-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                    title="Download GEPC Aug 1 Pricelist Sheet (.xlsx)"
                   >
-                    <Download className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Download</span>
+                    <Download className="w-4 h-4" />
                   </a>
                 </div>
 
@@ -5349,11 +5348,10 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   <a
                     href="/Angel Solar X Updated Price List June 2026.xlsx"
                     download="Angel Solar X Updated Price List June 2026.xlsx"
-                    className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border font-bold text-xs rounded-lg px-2.5 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
-                    title="Download Angel Solar June 2026 Sheet"
+                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-emerald-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                    title="Download Angel Solar June 2026 Sheet (.xlsx)"
                   >
-                    <Download className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Download</span>
+                    <Download className="w-4 h-4" />
                   </a>
                 </div>
 
@@ -5372,11 +5370,10 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   <a
                     href="/Main QC pricelist.md"
                     download="Main QC pricelist.md"
-                    className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border font-bold text-xs rounded-lg px-2.5 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
-                    title="Download Main QC Pricelist Markdown"
+                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-blue-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                    title="Download Main QC Pricelist (.md)"
                   >
-                    <Download className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Download</span>
+                    <Download className="w-4 h-4" />
                   </a>
                 </div>
               </div>
