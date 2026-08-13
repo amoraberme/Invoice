@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem } from '@/lib/types'
@@ -2493,7 +2493,7 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full lg:w-[450px] min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:hidden", activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:hidden", activeTab === 'changelog' ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
@@ -4839,12 +4839,12 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             )}
 
             {activeTab === 'changelog' && (
-              <section className="space-y-4 animate-in fade-in duration-200">
-                <div className="flex justify-between items-start flex-wrap gap-2">
+              <section className="space-y-5 animate-in fade-in duration-200 max-w-5xl mx-auto w-full pb-8">
+                <div className="flex justify-between items-start flex-wrap gap-2 border-b border-border pb-3">
                   <div>
-                    <SectionHeader>Price & Quantity Changelog</SectionHeader>
+                    <SectionHeader>Developer & Catalog Price Changelog</SectionHeader>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Audit trail of item prices, quantity updates, unit changes, and material catalog adjustments.
+                      Structured change releases grouped by Set Date for item prices, quantity adjustments, and catalog updates.
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -4862,12 +4862,12 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       variant="outline"
                       size="xs"
                       onClick={() => {
-                        if (confirm('Reset changelog to default price & quantity adjustments?')) {
+                        if (confirm('Reset changelog to default set-by-date price & quantity adjustments?')) {
                           handleResetChangelog()
                         }
                       }}
                       className="text-[10px] h-7 text-muted-foreground hover:bg-secondary cursor-pointer"
-                      title="Reset changelog to initial seed entries"
+                      title="Reset changelog to initial set entries"
                     >
                       <RotateCcw size={11} className="mr-1" /> Reset
                     </Button>
@@ -4895,7 +4895,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                     <Input
                       type="text"
-                      placeholder="Search changelog items, notes, or batches..."
+                      placeholder="Search items, set dates, or developer notes..."
                       value={changelogSearch}
                       onChange={(e) => setChangelogSearch(e.target.value)}
                       className="pl-8 h-8 text-xs bg-background"
@@ -4920,7 +4920,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   </div>
                 </div>
 
-                {/* Changelog Entries List */}
+                {/* Grouped Changelog Sets by Date */}
                 {(() => {
                   const filtered = changelogList.filter((item) => {
                     if (changelogFilter !== 'all' && item.changeType !== changelogFilter) return false
@@ -4943,85 +4943,121 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
                           <RefreshCw size={18} />
                         </div>
-                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">No Changelog Entries Found</h4>
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">No Changelog Sets Found</h4>
                         <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
-                          No price or quantity logs match your search filter. Click <strong className="text-foreground">"Add Entry"</strong> or <strong className="text-foreground">"Reset"</strong> to populate.
+                          No price or quantity set matches your search filter. Click <strong className="text-foreground">"Add Entry"</strong> or <strong className="text-foreground">"Reset"</strong> to restore default set releases.
                         </p>
                       </div>
                     )
                   }
 
+                  // Group by Set Date / Batch
+                  const groupMap = new Map<string, ChangelogItem[]>()
+                  filtered.forEach((item) => {
+                    const key = item.batch || `Set Date: ${item.timestamp.split(',')[0]}`
+                    if (!groupMap.has(key)) {
+                      groupMap.set(key, [])
+                    }
+                    groupMap.get(key)!.push(item)
+                  })
+
+                  const sets = Array.from(groupMap.entries())
+
                   return (
-                    <div className="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
-                      {filtered.map((log) => {
-                        const isPrice = log.changeType === 'price'
-                        const isQty = log.changeType === 'quantity'
-                        const isAdd = log.changeType === 'addition'
+                    <div className="space-y-5">
+                      {sets.map(([setBatchName, items]) => (
+                        <div
+                          key={setBatchName}
+                          className="rounded-xl border border-border bg-card overflow-hidden shadow-xs space-y-0"
+                        >
+                          {/* Set Date Header Banner */}
+                          <div className="bg-secondary/70 px-4 py-2.5 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <Tag size={13} className="text-primary shrink-0" />
+                              <span className="font-bold text-xs text-foreground tracking-tight">
+                                {setBatchName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                {items.length} {items.length === 1 ? 'change' : 'changes'} in set
+                              </span>
+                            </div>
+                          </div>
 
-                        const badgeColor = isPrice
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                          : isQty
-                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
-                          : isAdd
-                          ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                          {/* Items Table for this Set */}
+                          <div className="divide-y divide-border/60">
+                            {items.map((log) => {
+                              const isPrice = log.changeType === 'price'
+                              const isQty = log.changeType === 'quantity'
+                              const isAdd = log.changeType === 'addition'
 
-                        return (
-                          <div
-                            key={log.id}
-                            className="p-3.5 rounded-xl border border-border bg-card hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 space-y-2 text-xs"
-                          >
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-foreground text-xs">
-                                    {log.itemDescription}
-                                  </span>
-                                  <span className={cn("text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border", badgeColor)}>
-                                    {log.fieldChanged || log.changeType}
-                                  </span>
-                                  {log.batch && (
-                                    <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-md border border-border">
-                                      {log.batch}
-                                    </span>
+                              const badgeColor = isPrice
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                : isQty
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                                : isAdd
+                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+
+                              return (
+                                <div
+                                  key={log.id}
+                                  className="p-3.5 hover:bg-secondary/30 transition-colors space-y-2 text-xs"
+                                >
+                                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-foreground text-xs">
+                                          {log.itemDescription}
+                                        </span>
+                                        <span className={cn("text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border", badgeColor)}>
+                                          {log.fieldChanged || log.changeType}
+                                        </span>
+                                        {log.unit && (
+                                          <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded border border-border">
+                                            {log.unit}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {/* Value comparison pill */}
+                                      <div className="flex items-center gap-2 bg-background px-2.5 py-1 rounded-lg border border-border text-[11px] font-mono">
+                                        <span className="text-muted-foreground line-through">
+                                          {log.oldValue}
+                                        </span>
+                                        <ArrowRight size={11} className="text-primary shrink-0" />
+                                        <span className="font-bold text-foreground">
+                                          {log.newValue}
+                                        </span>
+                                      </div>
+
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDeleteChangelogItem(log.id)}
+                                        className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                                        title="Delete log entry"
+                                      >
+                                        <Trash2 size={11} />
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {log.note && (
+                                    <p className="text-[11px] text-muted-foreground italic leading-relaxed pl-0.5">
+                                      {log.note}
+                                    </p>
                                   )}
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground font-mono">
-                                <Clock size={10} />
-                                {log.timestamp}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteChangelogItem(log.id)}
-                                  className="h-5 w-5 ml-1 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                                  title="Delete log entry"
-                                >
-                                  <Trash2 size={10} />
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Value comparison pill */}
-                            <div className="flex items-center gap-2 bg-secondary/40 p-2 rounded-lg border border-border/60 text-[11px] font-mono flex-wrap">
-                              <span className="text-muted-foreground line-through">
-                                {log.oldValue}
-                              </span>
-                              <ArrowRight size={12} className="text-primary shrink-0" />
-                              <span className="font-bold text-foreground">
-                                {log.newValue}
-                              </span>
-                            </div>
-
-                            {log.note && (
-                              <p className="text-[11px] text-muted-foreground italic leading-relaxed pt-0.5">
-                                {log.note}
-                              </p>
-                            )}
+                              )
+                            })}
                           </div>
-                        )
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )
                 })()}
@@ -5042,7 +5078,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 print:block print:h-auto relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center", activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col')}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 print:block print:h-auto relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center", activeTab === 'changelog' ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
         {/* Floating background themed characters (screen only, hidden on print) */}
 
 
