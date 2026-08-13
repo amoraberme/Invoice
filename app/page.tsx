@@ -5128,15 +5128,17 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
 
           {/* Download button */}
-          <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
-            <Button
-              onClick={handleDownload}
-              className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer"
-            >
-              <Download size={15} strokeWidth={2} />
-              Download PDF
-            </Button>
-          </div>
+          {activeTab !== 'changelog' && (
+            <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
+              <Button
+                onClick={handleDownload}
+                className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer"
+              >
+                <Download size={15} strokeWidth={2} />
+                Download PDF
+              </Button>
+            </div>
+          )}
         </div>
       </aside>
 
