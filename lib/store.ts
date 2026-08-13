@@ -152,6 +152,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 13, 2026 (Dev) ──
+  {
+    id: 'cl-dev-delivery-fees',
+    timestamp: 'Aug 13, 2026, 03:00 PM',
+    itemDescription: 'Delivery Fees',
+    changeType: 'addition',
+    fieldChanged: 'Feature Added',
+    oldValue: '—',
+    newValue: '₱5,000.00',
+    unit: 'LOT',
+    note: '[Dev] Feature Added: Delivery Fees ₱5,000 always included in Comprehensive and Condensed modes',
+    batch: 'August 13, 2026 Feature Update (Dev)'
+  },
   // ── SET DATE: AUGUST 13, 2026 (MsG) ──
   {
     id: 'cl-seed-trina',
@@ -477,8 +490,8 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasDeyeBess = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-deye-bess')
-        if (!hasDeyeBess) {
+        const hasDevDelivery = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-delivery-fees')
+        if (!hasDevDelivery) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }
