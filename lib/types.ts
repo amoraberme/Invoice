@@ -196,6 +196,13 @@ export const defaultInvoice: Invoice = {
       quantity: 1,
       rate: 150000.00,
       unit: 'LOT'
+    },
+    {
+      id: 'item-100k-12',
+      description: 'Delivery Fees',
+      quantity: 1,
+      rate: 5000.00,
+      unit: 'LOT'
     }
   ],
   lalamoveCost: 0,

@@ -644,7 +644,8 @@ function extractLineItemsFromText(text: string) {
     25: { desc: "PVC Moulding 5m", qty: "5m", price: "₱449.00", total: "₱2,245.00" },
     26: { desc: "Clip lock 3/4", qty: "1 Set", price: "₱180.00", total: "₱180.00" },
     27: { desc: "MC4 2 String", qty: "2 pcs", price: "₱550.00", total: "₱1,100.00" },
-    28: { desc: "Cable Tray", qty: "1 pc", price: "₱560.00", total: "₱560.00" }
+    28: { desc: "Cable Tray", qty: "1 pc", price: "₱560.00", total: "₱560.00" },
+    29: { desc: "Delivery Fees", qty: "1 Lot", price: "₱5,000.00", total: "₱5,000.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -1015,6 +1016,7 @@ const SOLAR_PRICES = {
   GroundWire: 5888 / 150,
   PuSealant: 400.00,
   PvcMoulding: 449.00,
+  DeliveryFees: 5000.00,
 };
 
 interface PanelOption {
@@ -2368,6 +2370,15 @@ export default function Home() {
       description: `Labor and Installation`,
       quantity: 1,
       rate: laborRate,
+      unit: 'LOT'
+    })
+
+    // 24. Delivery Fees
+    items.push({
+      id: `boq-delivery-${now}`,
+      description: `Delivery Fees`,
+      quantity: 1,
+      rate: prices.DeliveryFees || 5000.00,
       unit: 'LOT'
     })
 

@@ -353,6 +353,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     materials: { title: 'Materials', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
     electrical: { title: 'Electrical', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
     services: { title: 'Services', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
+    delivery: { title: 'Delivery Fees', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
     other: { title: 'Other Materials & Services', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
   }
 
@@ -370,8 +371,17 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
 
     let categoryKey = 'other'
 
-    // Priority 1: Services (Labor, Installation, Commissioning, Freight, Delivery, Engineering)
-    if (isLabor) {
+    // Priority 0: Standalone Delivery Fees
+    if (
+      descLower === 'delivery fees' ||
+      descLower === 'delivery fee' ||
+      descLower.startsWith('delivery fee') ||
+      descLower.includes('delivery fee')
+    ) {
+      categoryKey = 'delivery'
+    }
+    // Priority 1: Services (Labor, Installation, Commissioning, Freight, Engineering)
+    else if (isLabor) {
       categoryKey = 'services'
     }
     // Priority 2: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice, Clip lock)
@@ -467,7 +477,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     grp.count += 1
   }
 
-  const categoryOrder = ['panels', 'inverter', 'battery', 'materials', 'electrical', 'services', 'other']
+  const categoryOrder = ['panels', 'inverter', 'battery', 'materials', 'electrical', 'services', 'delivery', 'other']
   const result: LineItem[] = []
 
   for (const key of categoryOrder) {
