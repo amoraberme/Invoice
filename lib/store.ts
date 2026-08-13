@@ -162,8 +162,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: '₱2,250.00',
     newValue: '₱3,000.00',
     unit: 'PC',
-    note: 'Price updated from ₱2,250 to ₱3,000 per unit',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Price updated from ₱2,250 to ₱3,000 per unit',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-2',
@@ -174,8 +174,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: '—',
     newValue: '₱560.00',
     unit: 'PCS',
-    note: 'Added new item Cable Tray at ₱560 each to BOQ and electrical catalog',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Added new item Cable Tray at ₱560 each to BOQ and electrical catalog',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-3',
@@ -186,8 +186,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: '₱70.00',
     newValue: '₱40.00',
     unit: 'PCS',
-    note: 'Price reduced from ₱70 to ₱40 each',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Price reduced from ₱70 to ₱40 each',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-4',
@@ -198,8 +198,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: '₱400.00 / m',
     newValue: '₱99.33 / m',
     unit: 'M',
-    note: 'Updated rate per meter based on ₱14,900 per 150m roll',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Updated rate per meter based on ₱14,900 per 150m roll',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-5',
@@ -210,8 +210,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: '₱300.00 / m',
     newValue: '₱60.04 / m',
     unit: 'M',
-    note: 'Updated rate per meter from ₱300 to ₱60.04 based on ₱9,006 per 150m roll',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Updated rate per meter from ₱300 to ₱60.04 based on ₱9,006 per 150m roll',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-6',
@@ -222,8 +222,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: 'Ground Wire 30m @ ₱1,300.00 / ROLL',
     newValue: 'Ground Wire @ ₱39.25 / M, Qty: 50',
     unit: 'M',
-    note: 'Renamed from Ground Wire 30m to Ground Wire, unit from ROLL to M, rate to ₱39.25/m (₱5,888 per 150m roll), default qty set to 50',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Renamed from Ground Wire 30m to Ground Wire, unit from ROLL to M, rate to ₱39.25/m (₱5,888 per 150m roll), default qty set to 50',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-7',
@@ -234,8 +234,8 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: 'Dynamic (e.g. 35m)',
     newValue: '50m',
     unit: 'M',
-    note: 'Default quantity updated to 50 meters',
-    batch: 'Set Date: August 13, 2026 — Electrical & Wiring Update'
+    note: '[SysPrc] Default quantity updated to 50 meters',
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   // ── SET DATE: AUGUST 01, 2026 ──
   {
@@ -248,7 +248,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱5,456.00',
     unit: 'PCS',
     note: 'Updated to GEPC August 1 Tier 1 Subdealer rate matrix',
-    batch: 'Set Date: August 01, 2026 — GEPC Price Sheet Release'
+    batch: 'August 01, 2026 GEPC Price Sheet Release'
   },
   {
     id: 'cl-seed-9',
@@ -260,7 +260,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱78,000.00',
     unit: 'UNIT',
     note: 'Monthly promotional pricing adjustment',
-    batch: 'Set Date: August 01, 2026 — GEPC Price Sheet Release'
+    batch: 'August 01, 2026 GEPC Price Sheet Release'
   },
   // ── SET DATE: JUNE 15, 2026 ──
   {
@@ -273,7 +273,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱490.00',
     unit: 'PCS',
     note: 'Added heavy duty aluminum mounting rail item into hardware catalog',
-    batch: 'Set Date: June 15, 2026 — Angel Solar Hardware Release'
+    batch: 'June 15, 2026 Angel Solar Hardware Release'
   }
 ]
 
@@ -284,6 +284,11 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const firstSeed = parsed.find((i: ChangelogItem) => i.id === 'cl-seed-1')
+        if (firstSeed && !firstSeed.note?.includes('SysPrc')) {
+          localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
+          return INITIAL_CHANGELOG_SEED
+        }
         return parsed
       }
     }
