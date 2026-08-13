@@ -808,16 +808,16 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
     name: 'Deye',
     logo: '/deye.svg',
     getPrice: (kw: number) => {
-      if (kw === 3.6) return 16000
+      if (Math.abs(kw - 3.6) < 0.1) return 16000
       if (kw === 6) return 25000
       if (kw === 8) return 28000
-      if (kw === 10) return 35000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 35000
       if (kw === 20) return 80000
       if (kw === 30) return 100000
       if (kw === 50) return 150000
       if (kw === 60) return 180000
       if (kw === 100) return 200000
-      return 25000
+      return null
     }
   },
   {
@@ -916,7 +916,6 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
     name: 'Deye',
     logo: '/deye.svg',
     getPrice: (kw: number) => {
-      if (kw === 3.6) return 16000
       if (kw === 6) return 45000
       if (kw === 8) return 60000
       if (kw === 12) return 88000
@@ -925,7 +924,7 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
       if (kw === 30) return 250000
       if (kw === 50) return 280000
       if (kw === 80) return 300000
-      return 88000
+      return null
     }
   },
   {
@@ -1110,6 +1109,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Trina Solar',
     logo: '/TrinaSolar.svg',
     options: [
+      { wattage: '615W', rate: 6000 },
       { wattage: '620W', rate: 6200 },
     ],
   },
@@ -3883,6 +3883,10 @@ export default function Home() {
                               return { desc: 'CESC Battery 51.2V 314Ah', rate: 88000 }
                             }
 
+                            const getDeyeData = (cap: typeof capKey) => {
+                              return { desc: 'DEYE 51.2V 314AH Battery', rate: 125000 }
+                            }
+
                             const getOliterData = (cap: typeof capKey) => {
                               return { desc: 'Oliter 10.24kWh 200Ah Lithium Battery', rate: 70000 }
                             }
@@ -3975,7 +3979,8 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      applySelection('DEYE 51.2V 314AH Lithium Battery', 125000)
+                                      const data = getDeyeData('314Ah')
+                                      applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
                                       "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
@@ -4010,6 +4015,23 @@ export default function Home() {
                                 {/* 2. Available Capacity Buttons for Selected Brand */}
                                 <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-dotted border-[#E5E5E5] dark:border-[#333333]">
                                   <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Capacity:</span>
+
+                                  {/* DEYE Capacities */}
+                                  {activeBrand === 'deye' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const data = getDeyeData('314Ah')
+                                        applySelection(data.desc, data.rate)
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                      )}
+                                      title="314Ah - ₱125,000.00"
+                                    >
+                                      314Ah
+                                    </button>
+                                  )}
 
                                   {/* Oliter Capacities */}
                                   {activeBrand === 'oliter' && (
