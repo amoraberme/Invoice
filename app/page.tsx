@@ -4847,46 +4847,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       Structured change releases grouped by Set Date for item prices, quantity adjustments, and catalog updates.
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => setAddChangelogModalOpen(true)}
-                      className="text-[10px] h-7 border-primary/30 text-primary hover:bg-primary/10 font-medium cursor-pointer"
-                    >
-                      <Plus size={11} className="mr-1" /> Add Entry
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => {
-                        if (confirm('Reset changelog to default set-by-date price & quantity adjustments?')) {
-                          handleResetChangelog()
-                        }
-                      }}
-                      className="text-[10px] h-7 text-muted-foreground hover:bg-secondary cursor-pointer"
-                      title="Reset changelog to initial set entries"
-                    >
-                      <RotateCcw size={11} className="mr-1" /> Reset
-                    </Button>
-                    {changelogList.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to clear all changelog entries?')) {
-                            handleClearChangelog()
-                          }
-                        }}
-                        className="text-[10px] text-destructive hover:bg-destructive/10 h-7 border-destructive/30 cursor-pointer"
-                      >
-                        <Trash2 size={11} className="mr-1" /> Clear
-                      </Button>
-                    )}
-                  </div>
                 </div>
 
                 {/* Filter and Search Bar */}
