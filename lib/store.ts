@@ -152,7 +152,7 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
-  // ── SET DATE: AUGUST 13, 2026 ──
+  // ── SET DATE: AUGUST 13, 2026 (MsG) ──
   {
     id: 'cl-seed-trina',
     timestamp: 'Aug 13, 2026, 09:55 AM',
@@ -163,8 +163,9 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱6,200.00',
     unit: 'PCS',
     note: '[MsG] Price updated from ₱5,700 to ₱6,200 per unit',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price Adjustment (MsG)'
   },
+  // ── SET DATE: AUGUST 13, 2026 (SysPrc) ──
   {
     id: 'cl-seed-1',
     timestamp: 'Aug 13, 2026, 09:19 AM',
@@ -175,7 +176,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱3,000.00',
     unit: 'PC',
     note: '[SysPrc] Price updated from ₱2,250 to ₱3,000 per unit',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-2',
@@ -187,7 +188,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱560.00',
     unit: 'PCS',
     note: '[SysPrc] Added new item Cable Tray at ₱560 each to BOQ and electrical catalog',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-3',
@@ -199,7 +200,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱40.00',
     unit: 'PCS',
     note: '[SysPrc] Price reduced from ₱70 to ₱40 each',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-4',
@@ -211,7 +212,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱99.33 / m',
     unit: 'M',
     note: '[SysPrc] Updated rate per meter based on ₱14,900 per 150m roll',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-5',
@@ -223,7 +224,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '₱60.04 / m',
     unit: 'M',
     note: '[SysPrc] Updated rate per meter from ₱300 to ₱60.04 based on ₱9,006 per 150m roll',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-6',
@@ -235,7 +236,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: 'Ground Wire @ ₱39.25 / M, Qty: 50',
     unit: 'M',
     note: '[SysPrc] Renamed from Ground Wire 30m to Ground Wire, unit from ROLL to M, rate to ₱39.25/m (₱5,888 per 150m roll), default qty set to 50',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   {
     id: 'cl-seed-7',
@@ -247,7 +248,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: '50m',
     unit: 'M',
     note: '[SysPrc] Default quantity updated to 50 meters',
-    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc & MsG)'
+    batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
   },
   // ── SET DATE: AUGUST 01, 2026 ──
   {
@@ -296,8 +297,8 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasTrina = parsed.some((i: ChangelogItem) => i.id === 'cl-seed-trina')
-        if (!hasTrina) {
+        const trinaItem = parsed.find((i: ChangelogItem) => i.id === 'cl-seed-trina')
+        if (!trinaItem || trinaItem.batch?.includes('SysPrc & MsG')) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }
