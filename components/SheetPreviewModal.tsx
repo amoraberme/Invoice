@@ -64,7 +64,7 @@ const PRICELIST_DATA: PriceCategory[] = [
       { code: 'TWMNH-66HD630', name: 'TW (Tongwei) Bifacial Solar Panel 630W Tier 1', srp: '₱6,100', installer: '₱5,985', wholesale: '₱5,670', subdealer: '₱5,544' },
       { code: 'TWMHF-66HD720', name: 'TW (Tongwei) Bifacial Solar Panel 720W Tier 1', srp: '₱7,000', installer: '₱6,840', wholesale: '₱6,480', subdealer: '₱6,336' },
       { code: 'TWMNF-66HD725W', name: 'TW (Tongwei) Bifacial Solar Panel 725W Tier 1', srp: '₱7,000', installer: '₱6,887.50', wholesale: '₱6,525', subdealer: '₱6,380' },
-      { code: 'SOL-004', name: 'Trina Solar Monocrystalline Panel 620W Tier 1', srp: '₱5,750', installer: '₱5,700', wholesale: '₱5,650', subdealer: '₱5,650' },
+      { code: 'SOL-004', name: 'Trina Solar Monocrystalline Panel 620W Tier 1', srp: '₱6,300', installer: '₱6,200', wholesale: '₱6,150', subdealer: '₱6,150' },
       { code: 'SOL-005', name: 'Seraphim Monocrystalline Panel 630W Tier 1', srp: '₱5,600', installer: '₱5,500', wholesale: '₱5,500', subdealer: '₱5,500' },
       { code: 'SOL-006', name: 'Lesso Monocrystalline Panel 630W Tier 1', srp: '₱5,600', installer: '₱5,500', wholesale: '₱5,500', subdealer: '₱5,500' },
     ]

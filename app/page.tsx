@@ -1076,7 +1076,7 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Trina Solar',
     logo: '/TrinaSolar.svg',
     options: [
-      { wattage: '620W', rate: 5700 },
+      { wattage: '620W', rate: 6200 },
     ],
   },
   {
@@ -5008,9 +5008,21 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                   </div>
 
                                   {log.note && (
-                                    <p className="text-[11px] text-muted-foreground italic leading-relaxed pl-0.5">
-                                      {log.note}
-                                    </p>
+                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground leading-relaxed pl-0.5 pt-0.5 flex-wrap">
+                                      {log.note.includes('[MsG]') && (
+                                        <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-black text-[9.5px] px-1.5 py-0.5 rounded shrink-0">
+                                          MsG
+                                        </span>
+                                      )}
+                                      {log.note.includes('[SysPrc]') && (
+                                        <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 font-black text-[9.5px] px-1.5 py-0.5 rounded shrink-0">
+                                          SysPrc
+                                        </span>
+                                      )}
+                                      <span className="italic">
+                                        {log.note.replace(/\[MsG\]\s*/g, '').replace(/\[SysPrc\]\s*/g, '')}
+                                      </span>
+                                    </div>
                                   )}
                                 </div>
                               )
