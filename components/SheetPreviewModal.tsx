@@ -323,19 +323,19 @@ export function SheetPreviewModal({
             <a
               href={fileUrl}
               download={fileName}
-              className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
+              className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border font-bold text-xs rounded-lg px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 text-amber-500" />
               <span>Download (.xlsx)</span>
             </a>
 
             <a
               href="/Main QC pricelist.md"
               download="Main QC pricelist.md"
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
+              className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 text-foreground border border-border font-bold text-xs rounded-lg px-2.5 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Main QC Pricelist (.md)</span>
+              <Download className="w-3.5 h-3.5 text-blue-500" />
+              <span>Download (.md)</span>
             </a>
           </div>
         </div>
