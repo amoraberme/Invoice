@@ -5311,73 +5311,77 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                 </span>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t-2 border-border">
-                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <FileText className="w-4 h-4 text-amber-500 shrink-0" />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-black text-foreground truncate">
-                      GEPC Aug 1 Pricelist Sheet
-                    </span>
-                    <span className="text-[9px] text-muted-foreground font-mono truncate">
-                      GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
-                    </span>
+                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-black text-foreground truncate">
+                        GEPC Aug 1 Pricelist Sheet
+                      </span>
+                      <span className="text-[9px] text-muted-foreground font-mono truncate">
+                        GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
+                      </span>
+                    </div>
                   </div>
+                  <a
+                    href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                    download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                    className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download (.xlsx)</span>
+                  </a>
                 </div>
 
-                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-black text-foreground truncate">
-                      Angel Solar X Updated Price List (June 2026)
-                    </span>
-                    <span className="text-[9px] text-muted-foreground font-mono truncate">
-                      Angel Solar X Updated Price List June 2026.xlsx
-                    </span>
+                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-black text-foreground truncate">
+                        Angel Solar X Updated Price List (June 2026)
+                      </span>
+                      <span className="text-[9px] text-muted-foreground font-mono truncate">
+                        Angel Solar X Updated Price List June 2026.xlsx
+                      </span>
+                    </div>
                   </div>
+                  <a
+                    href="/Angel Solar X Updated Price List June 2026.xlsx"
+                    download="Angel Solar X Updated Price List June 2026.xlsx"
+                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download (.xlsx)</span>
+                  </a>
                 </div>
 
-                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-black text-foreground truncate">
-                      Main QC Pricelist (Updated May 11)
-                    </span>
-                    <span className="text-[9px] text-muted-foreground font-mono truncate">
-                      Main QC pricelist.md
-                    </span>
+                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-black text-foreground truncate">
+                        Main QC Pricelist (Updated May 11)
+                      </span>
+                      <span className="text-[9px] text-muted-foreground font-mono truncate">
+                        Main QC pricelist.md
+                      </span>
+                    </div>
                   </div>
+                  <a
+                    href="/Main QC pricelist.md"
+                    download="Main QC pricelist.md"
+                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs cursor-pointer select-none shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download (.md)</span>
+                  </a>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 border-t border-border gap-2">
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-              <a
-                href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                className="inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
-              >
-                <Download className="w-3.5 h-3.5" />
-                GEPC Aug 1 Sheet (.xlsx)
-              </a>
-              <a
-                href="/Angel Solar X Updated Price List June 2026.xlsx"
-                download="Angel Solar X Updated Price List June 2026.xlsx"
-                className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Angel Solar June 2026 (.xlsx)
-              </a>
-              <a
-                href="/Main QC pricelist.md"
-                download="Main QC pricelist.md"
-                className="inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Main QC Pricelist (.md)
-              </a>
-            </div>
+          <div className="flex items-center justify-end pt-2 border-t border-border gap-2">
             <Button 
               onClick={() => setGoodweModalOpen(false)}
               className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer w-full sm:w-auto"
