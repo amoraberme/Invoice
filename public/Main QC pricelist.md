@@ -1,0 +1,289 @@
+# MAIN QUEZON CITY - MAY/11/2026
+
+## COLUMN 1
+
+### Trina Solar Panel
+| Item | Price |
+| :--- | :--- |
+| SUNKET BI-FACIAL-600W | 5,800 |
+| TRINA-MONO-615W - N TYPE | 6,000 |
+| TRINA-MONO-620W - N TYPE | 6,200 |
+| AIKO ABC - 650W ULTRA LIGHT | 6,500 |
+| AIKO ABC - 650W BI-FACIAL | 6,600 |
+
+### Solar Homes 108B Mono
+| Item | Price |
+| :--- | :--- |
+| 100W 108B MONO | 2,000 |
+| 150W 108B MONO | 2,500 |
+| 200W 108B MONO | 3,000 |
+
+### ONE SOLAR LIFEPO4
+| Item | Price |
+| :--- | :--- |
+| HIGEE 12.8V120AH Power Wall | 12,000 |
+| HIGEE 25.6V120AH | 24,000 |
+| HIGEE 25.6V280AH | 55,000 |
+| HIGEE 51.2V 120AH | 45,000 |
+| LIPO4 51.2V 230AH | 88,000 |
+| LIPO4 51.2V 314AH | 105,000 |
+| DEYE 51.2V 314AH | 125,000 |
+
+### ONE SOLAR MPPT SOLAR CHARGER
+| Item | Price |
+| :--- | :--- |
+| 40A ONE MPPT - 12/24/48V | 4,500 |
+| 60A ONE MPPT - 12/24/48V | 6,500 |
+| 80A ONE MPPT - 12/24/48V | 7,500 |
+| 100A ONE MPPT - 12/24/48V | 8,500 |
+
+### Solar Home Deep Cycle Battery
+| Item | Price |
+| :--- | :--- |
+| SH-BATT-12V016AH | 950 |
+| SH-BATT-12V025AH | 1,650 |
+| SH-BATT-12V035AH | 3,000 |
+| SH-BATT-12V050AH | 3,500 |
+| SH-BATT-12V100AH | 7,000 |
+| SH-BATT-12V150AH | 9,500 |
+| SH-BATT-12V200AH | 13,000 |
+
+### BATTERY CABLE
+| Item | Price |
+| :--- | :--- |
+| 25mm2 30CM Long w/ LUG | 200 |
+| 16mm2 - 1M w/ LUG PAIR | 800 |
+| 25mm2 - 1M w/ LUG PAIR | 1,000 |
+| 35mm2 - 1M w/ LUG PAIR | 1,200 |
+| 50mm2 - 1M w/ LUG PAIR | 1,500 |
+| 70mm2 - 1M w/ LUG PAIR | 2,000 |
+
+### SOLAR PV CABLE - Call for Wholesale Price
+| Item | Price |
+| :--- | :--- |
+| TWIN 4mm2 | 100/METER |
+| TWIN 6mm2 | 140/METER |
+| THHN 3.5mm2 | 80 |
+| THHN 5.5mm2 | 80 |
+| THHN 8.0mm2 | 100 |
+
+### DIFFUL SURFACE AC/DC HYBRID PUMPS
+| Item | Price |
+| :--- | :--- |
+| DCPM221-14-72-750W-A/D | 16,000 |
+| DCPM50-17-110-1500-A/D | 18,000 |
+| DCPM60-20-300-2200-A/D | 29,000 |
+
+### DIFFUL SUBMERSIBLE AC/DC HYBRID PUMP
+| Item | Price |
+| :--- | :--- |
+| 3DPC6-125-200-1500-A/D | 18,000 |
+| 4DLR11.5-100-200-1500-A/D | 18,000 |
+| 4DCS30-36-300-2200-A/D | 20,000 |
+| 4DCS30-74-380/550-4000-A/D | 27,000 |
+| 4DCS30-96-380/520-5500-A/D | 35,000 |
+| 4DCS36-155-380/520-7500-A/D | 38,000 |
+| 6DCS65-120-380/520-11kW-A/D | 55,000 |
+| 6DCS95-126-380/520-15kw-A/D | 68,000 |
+
+### MC4 Accessories
+| Item | Price |
+| :--- | :--- |
+| MC4-PAIR 30A | 60 |
+| MC4-Y | 350 |
+| MC4-W | 450 |
+
+## COLUMN 2
+
+### HYBRID - ON GRID INVERTERS
+| Item | Price |
+| :--- | :--- |
+| DEYE 1P 6KW HYBRID 18/18A | 45,000 |
+| DEYE 1P 8KW HYBRID 28/26A | 60,000 |
+| DEYE 1P 12KW HYBRID | 88,000 |
+| DEYE 1P 16KW HYBRID | 135,000 |
+| DEYE 3P 12KW LV HYBRID LV BATT | 95,000 |
+| DEYE 3P 20kw LV HYBRID LV BATT | 150,000 |
+| DEYE 3P 30kw LV HYBRID HV BATT | 250,000 |
+| DEYE 3P 50kw 380V HYBRID HV BATT | 280,000 |
+| DEYE 3P 80kw 380V HYBRID HV BATT | 300,000 |
+| DEYE 1P-3.6KW GRID-TIE | 16,000 |
+| DEYE 1P-6.0KW GRID-TIE | 25,000 |
+| DEYE 1P-8.0KW GRID-TIE | 28,000 |
+| DEYE 1P-10.0KW GRID-TIE | 35,000 |
+| DEYE 3P-10KW LV - GRID TIE | 50,000 |
+| DEYE 3P-20KW LV - GRID TIE | 80,000 |
+| DEYE 3P-30KW LV - GRID TIE | 100,000 |
+| DEYE 3P-50KW LV - GRID TIE | 150,000 |
+| DEYE 3P-60KW LV - GRID TIE | 180,000 |
+| DEYE 3P-100KW 380V | 200,000 |
+| WIFI OR LIMITER 380V | 1,500 |
+| EASTRON 1P w/ 1 x CT 300A | 6,000 |
+| EASTRON 3P w/ 3 x CT 300A | 12,000 |
+| EASTRON 3P w/ 3 x CT 600A | 15,000 |
+| EASTRON 3P w/ 3 x CT 1000A | 21,000 |
+| DEYE HV 8K120AH = 40kWh | 495,000 |
+| DEYE HV 12X100AH = 60kWh | 715,000 |
+| HIGEE HV 8X314AH = 128kWh | 1,080,000 |
+| HIGEE HV 12X314AH = 193kWh | 1,560,000 |
+
+### DEYE AIRCON - HYBRID AC/DC
+| Item | Price |
+| :--- | :--- |
+| DEYE AIRCON - HYBRID AC/DC 1.5HP | 28,000 |
+| DEYE AIRCON - HYBRID AC/DC 2HP | 45,000 |
+| DEYE AIRCON - HYBRID AC/DC 3HP | 55,000 |
+
+### ONE SOLAR TOROIDAL INVERTER
+| Item | Price |
+| :--- | :--- |
+| 12V1000W OS WALL TYPE | 6,000 |
+| 24V1000W OS WALL TYPE | 6,000 |
+| 24V3000W OS WALL TYPE | 15,500 |
+| 48V6000W OS WALL TYPE | 26,000 |
+| 12V1200W HYBRID OFF-GRID 40A | 9,000 |
+| 24V3000W HYBRID OFF-GRID 60A | 19,500 |
+| 48V5000W HYBRID OFF-GRID 80A | 29,500 |
+
+### INTEGRATED SOLAR STREETLIGHT
+| Item | Price |
+| :--- | :--- |
+| ISA 100W | 1,000 |
+| ISA 200W | 1,500 |
+| ISA 300W | 2,000 |
+
+### SOLAR STREETLIGHT - Call for Wholesale Price
+| Item | Price |
+| :--- | :--- |
+| JDSSL 300W | 3,500 |
+| JDSSL 500W | 8,500 |
+| COBRA SSL 300W | 4,500 |
+
+### SOLAR FLOODLIGHT - Call for Wholesale Price
+| Item | Price |
+| :--- | :--- |
+| SFL 100W 10+1 | 2,000 |
+| SFL 200W 10+1 | 2,500 |
+| SFL 300W 10+1 | 3,000 |
+
+### PROJOY RAPID SHUT DOWN
+| Item | Price |
+| :--- | :--- |
+| SUNTREE RSD 40A X 2 | 7,500 |
+| SUNTREE RSD 40A X 4 | 11,000 |
+| SUNTREE RSD 40A X 6 | 15,000 |
+| SUNTREE RSD 40A X 8 | 20,000 |
+| SUNTREE RSD 40A X 10 | 23,000 |
+
+## COLUMN 3
+
+### AC SUNTREE MCB/MCCB
+| Item | Price |
+| :--- | :--- |
+| AC-2P-BREAKER-20A 32A 63A | 400 |
+| AC-4P-BREAKER-20A | 800 |
+| AC-2P-MTS-32A 63A | 600 |
+| AC-2P-MTS-80A | 800 |
+| AC-2P-SURGE-SPD | 600 |
+| AC-3P SURGE-SPD | 1,200 |
+| AC-4P-SISO-415V32A | 1,200 |
+| AC-2P ATS-690V-63A - MINI | 2,000 |
+| AC-2P ATS - MCCB S0BM - 125A | 6,000 |
+| AC-2P ATS - MCCB S0BM - 250A | 9,500 |
+| AC-2P MCCB 180A / 225A | 1500/2000 |
+| AC-2P MCCB 300A | 5,000 |
+| AC-3P MCCB 63A / 125A | 1500/2000 |
+| AC-3P MCCB 160A / 250A | 2500/3000 |
+| AC-3P MCCB 300A | 6,000 |
+| AC-4P MCCB 250A for 3P 380-400V | 3,500 |
+| ACT 1 T2 2P SPD 275V | 1,000 |
+| ACT 1 T2 4P SPD 420V | 1,800 |
+
+### DC SUNTREE MCB/MCCB
+| Item | Price |
+| :--- | :--- |
+| DC-2P-BR-550V-16A 20A - 50A | 700 |
+| DC-2P-BR-550V-63A | 750 |
+| DC-2P-BR-550V-80A | 800 |
+| DC-2P-BR-600V-125A | 1,000 |
+| DC-2P-SPD-500V | 1,000 |
+| DC-4P-SISO-1000V-32A | 1,200 |
+| DC-2P-MCCB-100V-160A | 2,500 |
+| DC-2P-MCCB-100V-225A | 3,000 |
+| DC-2P-MCCB-100V-300A | 4,000 |
+| DC-2P-MCCB-100V-320A | 4,500 |
+| DC-4P-SPD | 1,500 |
+| DC-3P-1500V-32A | 2,000 |
+| DC-4P-1000V-32A | 1,200 |
+| DC-FUSE | 400 |
+| DC T1 T2 SPD 2P - 600V | 1,500 |
+| DC T1 T2 SPD 3P - 1000V | 2,500 |
+
+### DISTRIBUTION BOX
+| Item | Price |
+| :--- | :--- |
+| DB-08WAY | 450 |
+| DB-12WAY | 500 |
+| DB-18WAY | 550 |
+| HT-12WAY NEW | 800 |
+| HT-18WAY NEW | 1,000 |
+
+### BATTERY COMBINER BOX
+| Item | Price |
+| :--- | :--- |
+| BATT COMBINER BOX 160A | 3,000 |
+| BATT COMBINER BOX 225A | 4,000 |
+| BATT COMBINER BOX 320A | 7,500 |
+| BATT COMBINER BOX 400A | 9,500 |
+| METAL ENCLOSURE 50X40X20 | 2,000 |
+| METAL ENCLOSURE 60X50X25 | 3,000 |
+
+### Cable Arrangement
+| Item | Price |
+| :--- | :--- |
+| CABLE TRAY 50*50 - 2METER | 400 |
+| HDPE FLEXCON - 100METER 32MM | 9,500 |
+| HDPE FLEXCON - 100METER 40MM | 13,000 |
+
+### Tester / Meter / Accessories
+| Item | Price |
+| :--- | :--- |
+| LIFEPO4 TESTER | 2,500 |
+| UNI-T-2100 | 2,500 |
+| UNI-T-2308 | 850 |
+| MC4-CRIMP | 500 |
+
+### Bracket System - Call for Wholesale Price
+| Item | Price |
+| :--- | :--- |
+| BR-RAIL-2.4M - THICK | 700 |
+| BR-L-ROOF | 80 |
+| BR-END-CLAMP-35MM | 50 |
+| BR-MID-CLAMP | 50 |
+| BR-TILE-ROOF | 280 |
+| BR-SPLICE | 80 |
+| BR-ROOF-CLAMP | 70 |
+| GROUNDING ROD 3METER 16MM | 1,200 |
+
+## BRANCHES & CONTACTS
+
+| Branch | Contact Numbers |
+| :--- | :--- |
+| **Quezon City** | 8256-5000 or 8256-6000<br>0947-725-5000 or 0948-350-8000 |
+| **Alabang** | 0947-666-7000 or 0908-670-5000 |
+| **Angeles** | 0920-622-9000<br>0949-653-8752 or 0985-277-3000 |
+| **CAINTA - PASIG** | 0970-905-5000 or 8696-5432 |
+| **CAVITE BACOOR** | 0908-670-5000 and 0981-380-9777<br>045-853-5548 |
+| **LAOAG - ILOCOS** | 0910-766-3000 |
+| **ISABELA - CAUAYAN** | 0985-277-5000 or 0981-590-5000 |
+| **LEGAZPI - BICOL** | NAGA - BICOL<br>0920-622-9000 |
+
+## SERVICE CENTER
+
+| Contact Number | Details | Location |
+| :--- | :--- | :--- |
+| 0981-655-9900 | One Solar | Quezon City |
+| 0965-280-8800 | Deye | Quezon City |
+| 0981-655-8800 | Deye | Quezon City |
+| 0951-7885500 | Deye | CEBU |
+| 0930-410-8380 | Deye | DAVAO |

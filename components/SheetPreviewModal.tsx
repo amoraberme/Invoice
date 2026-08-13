@@ -64,6 +64,7 @@ const PRICELIST_DATA: PriceCategory[] = [
       { code: 'TWMNH-66HD630', name: 'TW (Tongwei) Bifacial Solar Panel 630W Tier 1', srp: '₱6,100', installer: '₱5,985', wholesale: '₱5,670', subdealer: '₱5,544' },
       { code: 'TWMHF-66HD720', name: 'TW (Tongwei) Bifacial Solar Panel 720W Tier 1', srp: '₱7,000', installer: '₱6,840', wholesale: '₱6,480', subdealer: '₱6,336' },
       { code: 'TWMNF-66HD725W', name: 'TW (Tongwei) Bifacial Solar Panel 725W Tier 1', srp: '₱7,000', installer: '₱6,887.50', wholesale: '₱6,525', subdealer: '₱6,380' },
+      { code: 'TRINA-MONO-615W', name: 'Trina Solar Monocrystalline Panel 615W N-Type', srp: '₱6,100', installer: '₱6,000', wholesale: '₱5,950', subdealer: '₱5,900' },
       { code: 'SOL-004', name: 'Trina Solar Monocrystalline Panel 620W Tier 1', srp: '₱6,300', installer: '₱6,200', wholesale: '₱6,150', subdealer: '₱6,150' },
       { code: 'SOL-005', name: 'Seraphim Monocrystalline Panel 630W Tier 1', srp: '₱5,600', installer: '₱5,500', wholesale: '₱5,500', subdealer: '₱5,500' },
       { code: 'SOL-006', name: 'Lesso Monocrystalline Panel 630W Tier 1', srp: '₱5,600', installer: '₱5,500', wholesale: '₱5,500', subdealer: '₱5,500' },
@@ -75,6 +76,15 @@ const PRICELIST_DATA: PriceCategory[] = [
     icon: Zap,
     warranty: '5 Yrs Replacement / 10 Yrs when paired with Goodwe Battery',
     items: [
+      { code: 'DEYE-1P-6KW', name: 'DEYE 1P 6KW Hybrid Inverter 18/18A', srp: '₱47,000', installer: '₱45,000', wholesale: '₱44,000', subdealer: '₱43,500' },
+      { code: 'DEYE-1P-8KW', name: 'DEYE 1P 8KW Hybrid Inverter 28/26A', srp: '₱63,000', installer: '₱60,000', wholesale: '₱59,000', subdealer: '₱58,000' },
+      { code: 'DEYE-1P-12KW', name: 'DEYE 1P 12KW Hybrid Inverter', srp: '₱92,000', installer: '₱88,000', wholesale: '₱86,000', subdealer: '₱85,000' },
+      { code: 'DEYE-1P-16KW', name: 'DEYE 1P 16KW Hybrid Inverter', srp: '₱140,000', installer: '₱135,000', wholesale: '₱132,000', subdealer: '₱130,000' },
+      { code: 'DEYE-3P-12KW-LV', name: 'DEYE 3P 12KW Low Voltage Hybrid Inverter (LV Batt)', srp: '₱100,000', installer: '₱95,000', wholesale: '₱93,000', subdealer: '₱92,000' },
+      { code: 'DEYE-3P-20KW-LV', name: 'DEYE 3P 20KW Low Voltage Hybrid Inverter (LV Batt)', srp: '₱155,000', installer: '₱150,000', wholesale: '₱147,000', subdealer: '₱145,000' },
+      { code: 'DEYE-3P-30KW-LV', name: 'DEYE 3P 30KW Low Voltage Hybrid Inverter (HV Batt)', srp: '₱260,000', installer: '₱250,000', wholesale: '₱245,000', subdealer: '₱240,000' },
+      { code: 'DEYE-3P-50KW-380V', name: 'DEYE 3P 50KW 380V Hybrid Inverter (HV Batt)', srp: '₱290,000', installer: '₱280,000', wholesale: '₱275,000', subdealer: '₱270,000' },
+      { code: 'DEYE-3P-80KW-380V', name: 'DEYE 3P 80KW 380V Hybrid Inverter (HV Batt)', srp: '₱310,000', installer: '₱300,000', wholesale: '₱295,000', subdealer: '₱290,000' },
       { code: 'GW3000-ES-20', name: 'Goodwe Hybrid Inverter 3kW (1-Phase LV, No LCD)', srp: '—', installer: '₱38,000', wholesale: '₱35,000', subdealer: '₱35,000' },
       { code: 'GW6000-ES-C10', name: 'Goodwe Hybrid Inverter 6kW ES Uniq w/ LCD (1-Phase LV)', srp: '₱51,000', installer: '₱50,000', wholesale: '₱45,000', subdealer: '₱45,000' },
       { code: 'GW8000-ES-C10', name: 'Goodwe Hybrid Inverter 8kW ES Uniq w/ LCD (1-Phase LV)', srp: '₱73,500', installer: '₱67,000', wholesale: '₱65,000', subdealer: '₱62,000' },
@@ -91,6 +101,10 @@ const PRICELIST_DATA: PriceCategory[] = [
     icon: Radio,
     warranty: 'Standard 5 Years Replacement Warranty',
     items: [
+      { code: 'DEYE-1P-3.6KW-GT', name: 'DEYE 1P 3.6KW Grid-Tied Inverter', srp: '₱18,000', installer: '₱16,000', wholesale: '₱15,500', subdealer: '₱15,000' },
+      { code: 'DEYE-1P-6.0KW-GT', name: 'DEYE 1P 6.0KW Grid-Tied Inverter', srp: '₱27,000', installer: '₱25,000', wholesale: '₱24,000', subdealer: '₱23,500' },
+      { code: 'DEYE-1P-8.0KW-GT', name: 'DEYE 1P 8.0KW Grid-Tied Inverter', srp: '₱30,000', installer: '₱28,000', wholesale: '₱27,000', subdealer: '₱26,500' },
+      { code: 'DEYE-1P-10.0KW-GT', name: 'DEYE 1P 10.0KW Grid-Tied Inverter', srp: '₱37,000', installer: '₱35,000', wholesale: '₱34,000', subdealer: '₱33,500' },
       { code: 'GW1500-XS-30', name: 'Goodwe Grid Tied Inverter 1.5kW (1-Phase LV)', srp: '₱18,000', installer: '₱16,000', wholesale: '₱15,000', subdealer: '₱13,000' },
       { code: 'GW3000-XS-30', name: 'Goodwe Grid Tied Inverter 3kW (1-Phase LV)', srp: '₱20,000', installer: '₱19,000', wholesale: '₱18,000', subdealer: '₱16,000' },
       { code: 'GW6000-DNS-30', name: 'Goodwe Grid Tied Inverter 6kW (1-Phase LV)', srp: '₱28,000', installer: '₱25,000', wholesale: '₱24,000', subdealer: '₱22,000' },
@@ -114,6 +128,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     icon: Battery,
     warranty: 'Standard 5 Years Replacement Warranty',
     items: [
+      { code: 'DEYE-51.2V-314AH', name: 'DEYE 51.2V 314AH Lithium Battery (16.07kWh)', srp: '₱130,000', installer: '₱125,000', wholesale: '₱122,000', subdealer: '₱120,000' },
       { code: 'SOL-028', name: 'Alpsolar 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
       { code: 'SOL-029', name: 'Alpsolar 16.07kWh 314Ah Lithium Battery', srp: '₱95,000', installer: '₱93,000', wholesale: '₱93,000', subdealer: '₱89,000' },
       { code: 'SOL-030', name: 'Oliter 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
@@ -312,6 +327,15 @@ export function SheetPreviewModal({
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download (.xlsx)</span>
+            </a>
+
+            <a
+              href="/Main QC pricelist.md"
+              download="Main QC pricelist.md"
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3 py-1.5 transition-all shadow-xs shrink-0 cursor-pointer select-none"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Main QC Pricelist (.md)</span>
             </a>
           </div>
         </div>

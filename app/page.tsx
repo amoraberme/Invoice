@@ -804,6 +804,23 @@ interface OnGridBrandInfo {
 
 const ON_GRID_BRANDS: OnGridBrandInfo[] = [
   {
+    id: 'deye',
+    name: 'Deye',
+    logo: '/deye.svg',
+    getPrice: (kw: number) => {
+      if (kw === 3.6) return 16000
+      if (kw === 6) return 25000
+      if (kw === 8) return 28000
+      if (kw === 10) return 35000
+      if (kw === 20) return 80000
+      if (kw === 30) return 100000
+      if (kw === 50) return 150000
+      if (kw === 60) return 180000
+      if (kw === 100) return 200000
+      return 25000
+    }
+  },
+  {
     id: 'goodwe',
     name: 'GoodWe',
     logo: '/goodwe.svg',
@@ -894,6 +911,23 @@ interface HybridBrandInfo {
 }
 
 const HYBRID_BRANDS: HybridBrandInfo[] = [
+  {
+    id: 'deye',
+    name: 'Deye',
+    logo: '/deye.svg',
+    getPrice: (kw: number) => {
+      if (kw === 3.6) return 16000
+      if (kw === 6) return 45000
+      if (kw === 8) return 60000
+      if (kw === 12) return 88000
+      if (kw === 16) return 135000
+      if (kw === 20) return 150000
+      if (kw === 30) return 250000
+      if (kw === 50) return 280000
+      if (kw === 80) return 300000
+      return 88000
+    }
+  },
   {
     id: 'anern',
     name: 'Anern',
@@ -3472,11 +3506,16 @@ export default function Home() {
                         alpsolarPrice = 70000
                       }
 
+                      let deyePrice = 125000
+
+                      const isDeyeSelected = item.rate === deyePrice || descLower.includes('deye')
                       const isGenixSelected = item.rate === genixPrice
                       const isDynessSelected = item.rate === dynessPrice
                       const isOliterSelected = item.rate === oliterPrice || descLower.includes('oliter')
                       const isAlpsolarSelected = item.rate === alpsolarPrice || descLower.includes('alpsolar')
-                      const isCescSelected = item.rate === cescPrice || (!isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
+                      const isCescSelected = item.rate === cescPrice || (!isDeyeSelected && !isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
+
+                      const activeBrand: 'deye' | 'genix' | 'dyness' | 'oliter' | 'alpsolar' | 'cesc' = isDeyeSelected ? 'deye' : isGenixSelected ? 'genix' : isDynessSelected ? 'dyness' : isOliterSelected ? 'oliter' : isAlpsolarSelected ? 'alpsolar' : 'cesc'
 
                       const pricingInfo = getItemPricingInfo(item.description, item)
 
@@ -3813,8 +3852,10 @@ export default function Home() {
                               capKey = '100Ah'
                             }
 
-                            let activeBrand: 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
-                            if (descLower.includes('oliter')) {
+                            let activeBrand: 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
+                            if (descLower.includes('deye') || item.rate === 125000) {
+                              activeBrand = 'deye'
+                            } else if (descLower.includes('oliter')) {
                               activeBrand = 'oliter'
                             } else if (descLower.includes('alpsolar') || descLower.includes('alp solar')) {
                               activeBrand = 'alpsolar'
@@ -3929,6 +3970,22 @@ export default function Home() {
                                     title="Oliter Battery"
                                   >
                                     <img src="/Oliter.svg" alt="Oliter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      applySelection('DEYE 51.2V 314AH Lithium Battery', 125000)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'deye'
+                                        ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                    )}
+                                    title="DEYE Battery"
+                                  >
+                                    <img src="/deye.svg" alt="DEYE" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
                                   </button>
 
                                   <button
@@ -5255,6 +5312,18 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     </span>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                  <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      Main QC Pricelist (Updated May 11)
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      Main QC pricelist.md
+                    </span>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -5277,6 +5346,14 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               >
                 <Download className="w-3.5 h-3.5" />
                 Angel Solar June 2026 (.xlsx)
+              </a>
+              <a
+                href="/Main QC pricelist.md"
+                download="Main QC pricelist.md"
+                className="inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg px-3 py-2 transition-all shadow-xs cursor-pointer select-none w-full sm:w-auto"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Main QC Pricelist (.md)
               </a>
             </div>
             <Button 
