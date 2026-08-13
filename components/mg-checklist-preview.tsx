@@ -76,6 +76,8 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('hose') ||
     d.includes('mc4') ||
     d.includes('raceway') ||
+    d.includes('cable tray') ||
+    d.includes('tray') ||
     d.includes('conduit') ||
     d.includes('ats') ||
     d.includes('terminal') ||

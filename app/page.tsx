@@ -69,11 +69,10 @@ function getConduitDetails(inverterKw: number, runLength: number) {
     size = '40mm'
     rate = 124
   }
-  const conduitLength = Math.ceil(runLength * 1.15)
   return {
     description: `Flexible hose ${size}`,
     rate,
-    quantity: conduitLength,
+    quantity: 50,
     unit: 'M'
   }
 }
@@ -255,19 +254,20 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('equipment grounding') ||
       descLower.includes('grounding electrode')
     ) {
+      const groundWireRate = 5888 / 150
       if (
-        item.quantity !== newGcRolls ||
-        item.description !== 'Ground Wire 30m' ||
-        item.unit !== 'ROLL' ||
-        item.rate !== 1300
+        item.quantity !== 50 ||
+        item.description !== 'Ground Wire' ||
+        item.unit !== 'M' ||
+        item.rate !== groundWireRate
       ) {
         changed = true
         return {
           ...item,
-          description: 'Ground Wire 30m',
-          unit: 'ROLL',
-          quantity: newGcRolls,
-          rate: 1300
+          description: 'Ground Wire',
+          unit: 'M',
+          quantity: 50,
+          rate: groundWireRate
         }
       }
     } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
@@ -284,8 +284,8 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
     ) {
       const targetDesc = wireInfo.acWire
       let targetRate = item.rate
-      if (targetDesc.includes('AWG #8') || targetDesc.includes('10mm²')) targetRate = 300
-      else if (targetDesc.includes('14mm²') || targetDesc.includes('#6')) targetRate = 400
+      if (targetDesc.includes('AWG #8') || targetDesc.includes('10mm²')) targetRate = 60.04
+      else if (targetDesc.includes('14mm²') || targetDesc.includes('#6')) targetRate = 14900 / 150
       else if (targetDesc.includes('22mm²') || targetDesc.includes('#4')) targetRate = 500
 
       if (item.description !== targetDesc || item.rate !== targetRate) {
@@ -622,7 +622,7 @@ function extractLineItemsFromText(text: string) {
     8: { desc: "AC Wire #6 AWG 14mm", qty: "5m", price: "₱190.00", total: "₱950.00" },
     9: { desc: "DC/PV Wire #6 AWG 14mm", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
-    11: { desc: "Breaker box / Metal Enclosure 1pc 1,000.00", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
+    11: { desc: "Breaker box / Metal Enclosure 1pc 3,000.00", qty: "1pc", price: "₱3,000.00", total: "₱3,000.00" },
     12: { desc: "AC MCB 63A", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
     13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
     14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
@@ -630,7 +630,7 @@ function extractLineItemsFromText(text: string) {
     16: { desc: "DC MCCB for battery 250A 1pc ₱2,300.00", qty: "1pc", price: "₱2,300.00", total: "₱2,300.00" },
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
-    19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱30.00", total: "₱360.00" },
+    19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱40.00", total: "₱480.00" },
     20: { desc: "Battery 314Ah (51.2V) 1pc $109,000.00", qty: "1pc", price: "₱109,000.00", total: "₱109,000.00" },
     21: { desc: "Terminal Block", qty: "5 pcs", price: "₱160.00", total: "₱800.00" },
     22: { desc: "Battery Cable (Black & Red)", qty: "4m", price: "₱600.00", total: "₱2,400.00" },
@@ -638,7 +638,8 @@ function extractLineItemsFromText(text: string) {
     24: { desc: "PU Sealant", qty: "1pc", price: "₱400.00", total: "₱400.00" },
     25: { desc: "PVC Moulding 5m", qty: "5m", price: "₱449.00", total: "₱2,245.00" },
     26: { desc: "Clip lock 3/4", qty: "1 Set", price: "₱180.00", total: "₱180.00" },
-    27: { desc: "MC4 2 String", qty: "2 pcs", price: "₱550.00", total: "₱1,100.00" }
+    27: { desc: "MC4 2 String", qty: "2 pcs", price: "₱550.00", total: "₱1,100.00" },
+    28: { desc: "Cable Tray", qty: "1 pc", price: "₱560.00", total: "₱560.00" }
   };
 
   const lineItems: LineItem[] = [];
@@ -714,6 +715,8 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 24;
       } else if (lowerLine.includes('pvc moulding') || lowerLine.includes('moulding') || lowerLine.includes('molding')) {
         targetIndex = 25;
+      } else if (lowerLine.includes('cable tray') || lowerLine.includes('tray')) {
+        targetIndex = 28;
       }
 
       if (targetIndex && SOLAR_EXACT_MAPPING[targetIndex]) {
@@ -956,21 +959,22 @@ const SOLAR_PRICES = {
   MC4: 40.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
-  BreakerBox: 2250.00,
+  BreakerBox: 3000.00,
   ACMCB: 250.00,
   ACSPD: 500.00,
   DCSPD: 650.00,
   DCMCB: 350.00,
   DCMCCB: 1400.00,
   Raceway: 360.00,
+  CableTray: 560.00,
   ATS: 1600.00,
-  TerminalLugs: 70.00,
+  TerminalLugs: 40.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 600.00,
   GroundRod: 750.00,
   GroundingLugs: 50.00,
-  GroundWire: 1300.00,
+  GroundWire: 5888 / 150,
   PuSealant: 400.00,
   PvcMoulding: 449.00,
 };
@@ -1382,6 +1386,8 @@ export default function Home() {
       d.includes('hose') ||
       d.includes('mc4') ||
       d.includes('raceway') ||
+      d.includes('cable tray') ||
+      d.includes('tray') ||
       d.includes('conduit') ||
       d.includes('ats') ||
       d.includes('terminal') ||
@@ -2078,11 +2084,11 @@ export default function Home() {
     // 8. AC Wire
     let acRate = prices.ACwire
     if (wireInfo.acWire.includes('AWG #8') || wireInfo.acWire.includes('10mm²')) {
-      acRate = 300 // SOL-123 Battery Cable / Wire 10mm² (AWG #8)
+      acRate = 60.04 // SOL-123 Wire 10mm² (AWG #8: ₱60.04/m = ₱9,006/150m)
     } else if (wireInfo.acWire.includes('14mm²') || wireInfo.acWire.includes('#6')) {
-      acRate = 400 // SOL-124 Battery Cable / Wire 16mm² (AWG #6)
+      acRate = 14900 / 150 // SOL-124 Wire 16mm² (AWG #6: ₱14,900/150m)
     } else if (wireInfo.acWire.includes('22mm²') || wireInfo.acWire.includes('#4')) {
-      acRate = 500 // SOL-125 Battery Cable / Wire 25mm² (AWG #4)
+      acRate = 500 // SOL-125 Wire 25mm² (AWG #4)
     }
 
     items.push({
@@ -2234,14 +2240,12 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    const rawGcLen = Math.ceil((runLength + 5) * 1.15)
-    const gcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
     items.push({
       id: `boq-g2-${now}`,
-      description: wireInfo.groundWire,
-      quantity: gcRolls,
-      rate: prices.GroundWire || 1300,
-      unit: 'ROLL'
+      description: `Ground Wire`,
+      quantity: 50,
+      rate: prices.GroundWire || (5888 / 150),
+      unit: 'M'
     })
 
     items.push({
