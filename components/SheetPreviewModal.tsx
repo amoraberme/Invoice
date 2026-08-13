@@ -147,6 +147,10 @@ const PRICELIST_DATA: PriceCategory[] = [
     title: 'Wires, Cables & HDPE Conduits',
     icon: Cable,
     items: [
+      { code: 'SOL-170', name: 'Cable Tray', srp: '₱560', installer: '₱560', wholesale: '₱560', subdealer: '₱560' },
+      { code: 'SOL-124-AC', name: 'AC Wire #6 AWG 14mm²', srp: '₱14,900/150m', installer: '₱99.33/m', wholesale: '₱99.33/m', subdealer: '₱99.33/m' },
+      { code: 'SOL-123-AC', name: 'AC Wire AWG #8', srp: '₱9,006/150m', installer: '₱60.04/m', wholesale: '₱60.04/m', subdealer: '₱60.04/m' },
+      { code: 'SOL-152', name: 'Ground Wire', srp: '₱5,888/150m', installer: '₱39.25/m', wholesale: '₱39.25/m', subdealer: '₱39.25/m' },
       { code: 'ACC23', name: 'PV Cable 4mm² Single Core (100m Roll, Red/Black)', srp: '₱4,200', installer: '₱4,000', wholesale: '₱3,950', subdealer: '₱3,900' },
       { code: 'ACC21', name: 'PV Cable 6mm² Single Core (Red/Black, Per Meter)', srp: '₱65/m', installer: '₱60/m', wholesale: '₱58/m', subdealer: '₱57/m' },
       { code: 'ACC21-100', name: 'PV Cable 6mm² Single Core (100m Roll)', srp: '₱6,000', installer: '₱5,800', wholesale: '₱5,750', subdealer: '₱5,650' },
@@ -171,6 +175,8 @@ const PRICELIST_DATA: PriceCategory[] = [
     title: 'Breakers, SPDs & ATS',
     icon: Wrench,
     items: [
+      { code: 'SOL-092-B', name: 'Breaker box / Metal Enclosure', srp: '₱3,000', installer: '₱3,000', wholesale: '₱3,000', subdealer: '₱3,000' },
+      { code: 'SOL-110', name: 'Terminal Lugs', srp: '₱40', installer: '₱40', wholesale: '₱40', subdealer: '₱40' },
       { code: 'ACC25', name: 'YRO DC Breaker 2P 16A/800V', srp: '₱450', installer: '₱430', wholesale: '₱420', subdealer: '₱400' },
       { code: 'ACC26', name: 'YRO DC Breaker 2P 16A/550V', srp: '₱450', installer: '₱430', wholesale: '₱420', subdealer: '₱400' },
       { code: 'ACC27', name: 'YRO DC Breaker 2P 20A/550V', srp: '₱450', installer: '₱430', wholesale: '₱420', subdealer: '₱400' },

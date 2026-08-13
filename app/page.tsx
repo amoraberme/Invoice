@@ -242,6 +242,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
         changed = true
         return { ...item, quantity: newGroundLugQty, rate: item.rate === 0 ? 50 : item.rate }
       }
+    } else if (descLower === 'cable tray' || descLower.includes('cable tray') || descLower === 'tray') {
+      if (item.description !== 'Cable Tray' || item.rate !== 560) {
+        changed = true
+        return { ...item, description: 'Cable Tray', rate: 560 }
+      }
     } else if (
       descLower === 'grounding conductor' ||
       descLower === 'grounding connector' ||
@@ -2190,6 +2195,14 @@ export default function Home() {
       unit: 'PC'
     })
 
+    // 17. Cable Tray
+    items.push({
+      id: `boq-17-${now}`,
+      description: `Cable Tray`,
+      quantity: 1,
+      rate: prices.CableTray || 560,
+      unit: 'PCS'
+    })
 
     // 18. ATS (Included for Hybrid systems; On-Grid does not require an Automatic Transfer Switch)
     if (systemType !== 'ongrid') {
