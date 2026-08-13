@@ -1,11 +1,11 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem } from '@/lib/types'
-import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo } from '@/lib/store'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem } from '@/lib/types'
+import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -1282,9 +1282,64 @@ export default function Home() {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<InvoiceHistoryItem | null>(null)
   const [historyToast, setHistoryToast] = useState<string | null>(null)
 
+  // Changelog State
+  const [changelogList, setChangelogList] = useState<ChangelogItem[]>([])
+  const [changelogFilter, setChangelogFilter] = useState<'all' | 'price' | 'quantity' | 'addition' | 'system'>('all')
+  const [changelogSearch, setChangelogSearch] = useState('')
+  const [addChangelogModalOpen, setAddChangelogModalOpen] = useState(false)
+  const [newLogItem, setNewLogItem] = useState({
+    itemDescription: '',
+    changeType: 'price' as const,
+    fieldChanged: 'Unit Price',
+    oldValue: '',
+    newValue: '',
+    note: '',
+    batch: 'Manual Price Update'
+  })
+
   useEffect(() => {
     setHistoryList(getInvoiceHistory())
+    setChangelogList(getChangelogHistory())
   }, [])
+
+  const handleCreateChangelogEntry = () => {
+    if (!newLogItem.itemDescription.trim()) return
+    const updated = saveChangelogEntry({
+      itemDescription: newLogItem.itemDescription.trim(),
+      changeType: newLogItem.changeType,
+      fieldChanged: newLogItem.fieldChanged.trim() || 'Unit Price',
+      oldValue: newLogItem.oldValue.trim() || '—',
+      newValue: newLogItem.newValue.trim() || '—',
+      note: newLogItem.note.trim() || undefined,
+      batch: newLogItem.batch.trim() || 'Manual Update'
+    })
+    setChangelogList(updated)
+    setAddChangelogModalOpen(false)
+    setNewLogItem({
+      itemDescription: '',
+      changeType: 'price',
+      fieldChanged: 'Unit Price',
+      oldValue: '',
+      newValue: '',
+      note: '',
+      batch: 'Manual Price Update'
+    })
+  }
+
+  const handleDeleteChangelogItem = (id: string) => {
+    const updated = deleteChangelogItem(id)
+    setChangelogList(updated)
+  }
+
+  const handleResetChangelog = () => {
+    const reset = resetChangelogToInitial()
+    setChangelogList(reset)
+  }
+
+  const handleClearChangelog = () => {
+    const cleared = clearChangelogHistory()
+    setChangelogList(cleared)
+  }
 
   const TAB_LABEL_MAP: Record<string, string> = {
     ocr: 'kW Set Up',
@@ -1295,6 +1350,7 @@ export default function Home() {
     capital: 'Capital',
     checklist: 'Checklist',
     history: 'History',
+    changelog: 'Changelog',
   }
 
   const handleToggleSupplyMode = () => {
@@ -2448,6 +2504,7 @@ export default function Home() {
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
               { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
+              { id: 'changelog', label: 'Changelog', icon: RefreshCw, title: 'Price & Quantity Change Log' },
             ].map((tab) => {
               const Icon = tab.icon
               const active = activeTab === tab.id
@@ -4780,6 +4837,196 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                 )}
               </section>
             )}
+
+            {activeTab === 'changelog' && (
+              <section className="space-y-4 animate-in fade-in duration-200">
+                <div className="flex justify-between items-start flex-wrap gap-2">
+                  <div>
+                    <SectionHeader>Price & Quantity Changelog</SectionHeader>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Audit trail of item prices, quantity updates, unit changes, and material catalog adjustments.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setAddChangelogModalOpen(true)}
+                      className="text-[10px] h-7 border-primary/30 text-primary hover:bg-primary/10 font-medium cursor-pointer"
+                    >
+                      <Plus size={11} className="mr-1" /> Add Entry
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => {
+                        if (confirm('Reset changelog to default price & quantity adjustments?')) {
+                          handleResetChangelog()
+                        }
+                      }}
+                      className="text-[10px] h-7 text-muted-foreground hover:bg-secondary cursor-pointer"
+                      title="Reset changelog to initial seed entries"
+                    >
+                      <RotateCcw size={11} className="mr-1" /> Reset
+                    </Button>
+                    {changelogList.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to clear all changelog entries?')) {
+                            handleClearChangelog()
+                          }
+                        }}
+                        className="text-[10px] text-destructive hover:bg-destructive/10 h-7 border-destructive/30 cursor-pointer"
+                      >
+                        <Trash2 size={11} className="mr-1" /> Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search changelog items, notes, or batches..."
+                      value={changelogSearch}
+                      onChange={(e) => setChangelogSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-background"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-0.5">
+                    {(['all', 'price', 'quantity', 'addition', 'system'] as const).map((filterType) => (
+                      <button
+                        key={filterType}
+                        type="button"
+                        onClick={() => setChangelogFilter(filterType)}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-full border transition-all cursor-pointer capitalize whitespace-nowrap",
+                          changelogFilter === filterType
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/50 text-muted-foreground border-border hover:bg-secondary"
+                        )}
+                      >
+                        {filterType}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Changelog Entries List */}
+                {(() => {
+                  const filtered = changelogList.filter((item) => {
+                    if (changelogFilter !== 'all' && item.changeType !== changelogFilter) return false
+                    if (changelogSearch.trim()) {
+                      const q = changelogSearch.toLowerCase().trim()
+                      const desc = (item.itemDescription || '').toLowerCase()
+                      const note = (item.note || '').toLowerCase()
+                      const batch = (item.batch || '').toLowerCase()
+                      const field = (item.fieldChanged || '').toLowerCase()
+                      if (!desc.includes(q) && !note.includes(q) && !batch.includes(q) && !field.includes(q)) {
+                        return false
+                      }
+                    }
+                    return true
+                  })
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="bg-card p-6 text-center rounded-xl border border-dashed border-border space-y-2">
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
+                          <RefreshCw size={18} />
+                        </div>
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">No Changelog Entries Found</h4>
+                        <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+                          No price or quantity logs match your search filter. Click <strong className="text-foreground">"Add Entry"</strong> or <strong className="text-foreground">"Reset"</strong> to populate.
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
+                      {filtered.map((log) => {
+                        const isPrice = log.changeType === 'price'
+                        const isQty = log.changeType === 'quantity'
+                        const isAdd = log.changeType === 'addition'
+
+                        const badgeColor = isPrice
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : isQty
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                          : isAdd
+                          ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+
+                        return (
+                          <div
+                            key={log.id}
+                            className="p-3.5 rounded-xl border border-border bg-card hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 space-y-2 text-xs"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-foreground text-xs">
+                                    {log.itemDescription}
+                                  </span>
+                                  <span className={cn("text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border", badgeColor)}>
+                                    {log.fieldChanged || log.changeType}
+                                  </span>
+                                  {log.batch && (
+                                    <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-md border border-border">
+                                      {log.batch}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 text-[10px] text-muted-foreground font-mono">
+                                <Clock size={10} />
+                                {log.timestamp}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteChangelogItem(log.id)}
+                                  className="h-5 w-5 ml-1 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                                  title="Delete log entry"
+                                >
+                                  <Trash2 size={10} />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Value comparison pill */}
+                            <div className="flex items-center gap-2 bg-secondary/40 p-2 rounded-lg border border-border/60 text-[11px] font-mono flex-wrap">
+                              <span className="text-muted-foreground line-through">
+                                {log.oldValue}
+                              </span>
+                              <ArrowRight size={12} className="text-primary shrink-0" />
+                              <span className="font-bold text-foreground">
+                                {log.newValue}
+                              </span>
+                            </div>
+
+                            {log.note && (
+                              <p className="text-[11px] text-muted-foreground italic leading-relaxed pt-0.5">
+                                {log.note}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </section>
+            )}
           </div>
 
           {/* Download button */}
@@ -5030,6 +5277,122 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             >
               Close Reminder
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Custom Changelog Entry Dialog */}
+      <Dialog open={addChangelogModalOpen} onOpenChange={setAddChangelogModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-2">
+              <RefreshCw size={16} className="text-primary" />
+              Add Changelog Record
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <Label className="text-[11px] font-bold text-muted-foreground">Item Description</Label>
+              <Input
+                placeholder="e.g. Breaker Box / Cable Tray / AC Wire"
+                value={newLogItem.itemDescription}
+                onChange={(e) => setNewLogItem((p) => ({ ...p, itemDescription: e.target.value }))}
+                className="mt-1 h-8 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-[11px] font-bold text-muted-foreground">Change Type</Label>
+                <Select
+                  value={newLogItem.changeType}
+                  onValueChange={(val: any) => setNewLogItem((p) => ({ ...p, changeType: val }))}
+                >
+                  <SelectTrigger className="mt-1 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="price">Price Change</SelectItem>
+                    <SelectItem value="quantity">Quantity Change</SelectItem>
+                    <SelectItem value="addition">Item Addition</SelectItem>
+                    <SelectItem value="system">System / Specs</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-muted-foreground">Field Changed</Label>
+                <Input
+                  placeholder="e.g. Unit Price / Quantity"
+                  value={newLogItem.fieldChanged}
+                  onChange={(e) => setNewLogItem((p) => ({ ...p, fieldChanged: e.target.value }))}
+                  className="mt-1 h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-[11px] font-bold text-muted-foreground">Old Value</Label>
+                <Input
+                  placeholder="e.g. ₱2,250.00"
+                  value={newLogItem.oldValue}
+                  onChange={(e) => setNewLogItem((p) => ({ ...p, oldValue: e.target.value }))}
+                  className="mt-1 h-8 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold text-muted-foreground">New Value</Label>
+                <Input
+                  placeholder="e.g. ₱3,000.00"
+                  value={newLogItem.newValue}
+                  onChange={(e) => setNewLogItem((p) => ({ ...p, newValue: e.target.value }))}
+                  className="mt-1 h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-[11px] font-bold text-muted-foreground">Batch / Category Tag</Label>
+              <Input
+                placeholder="e.g. August 2026 Price Update"
+                value={newLogItem.batch}
+                onChange={(e) => setNewLogItem((p) => ({ ...p, batch: e.target.value }))}
+                className="mt-1 h-8 text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <Label className="text-[11px] font-bold text-muted-foreground">Notes / Rationale</Label>
+              <Textarea
+                placeholder="Details or reason for price/quantity adjustment..."
+                value={newLogItem.note}
+                onChange={(e) => setNewLogItem((p) => ({ ...p, note: e.target.value }))}
+                className="mt-1 text-xs h-16 resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setAddChangelogModalOpen(false)}
+                className="h-8 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                onClick={handleCreateChangelogEntry}
+                disabled={!newLogItem.itemDescription.trim()}
+                className="h-8 font-bold cursor-pointer"
+              >
+                Save Changelog Entry
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

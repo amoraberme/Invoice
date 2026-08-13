@@ -70,6 +70,19 @@ export interface InvoiceHistoryItem {
   invoice: Invoice
 }
 
+export interface ChangelogItem {
+  id: string
+  timestamp: string
+  itemDescription: string
+  changeType: 'price' | 'quantity' | 'unit' | 'addition' | 'deletion' | 'system'
+  fieldChanged: string
+  oldValue: string | number
+  newValue: string | number
+  unit?: string
+  note?: string
+  batch?: string
+}
+
 export function newLineItem(): LineItem {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   return { id, description: '', quantity: 1, rate: 0, unit: '' }

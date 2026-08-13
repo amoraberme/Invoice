@@ -1,10 +1,11 @@
-import type { Invoice, InvoiceHistoryItem } from './types'
+import type { Invoice, InvoiceHistoryItem, ChangelogItem } from './types'
 import { isBatteryItem } from './utils'
 
 const DB_NAME = 'mg-invoice-db'
 const STORE_NAME = 'data'
 const INVOICE_KEY = 'current-invoice'
 const HISTORY_KEY = 'mg-invoice-history'
+const CHANGELOG_KEY = 'mg-invoice-changelog'
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -148,6 +149,173 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
     console.error('Failed to clear invoice history', e)
   }
   return []
+}
+
+export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  {
+    id: 'cl-seed-1',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'Breaker box / Metal Enclosure',
+    changeType: 'price',
+    fieldChanged: 'Unit Price',
+    oldValue: '₱2,250.00',
+    newValue: '₱3,000.00',
+    unit: 'PC',
+    note: 'Price updated from ₱2,250 to ₱3,000 per unit',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-2',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'Cable Tray',
+    changeType: 'addition',
+    fieldChanged: 'Item Added',
+    oldValue: '—',
+    newValue: '₱560.00',
+    unit: 'PCS',
+    note: 'Added new item Cable Tray at ₱560 each to BOQ and electrical catalog',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-3',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'Terminal lugs',
+    changeType: 'price',
+    fieldChanged: 'Unit Price',
+    oldValue: '₱70.00',
+    newValue: '₱40.00',
+    unit: 'PCS',
+    note: 'Price reduced from ₱70 to ₱40 each',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-4',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'AC Wire #6 AWG 14mm²',
+    changeType: 'price',
+    fieldChanged: 'Unit Price (Per Meter)',
+    oldValue: '₱400.00 / m',
+    newValue: '₱99.33 / m',
+    unit: 'M',
+    note: 'Updated rate per meter based on ₱14,900 per 150m roll',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-5',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'AC Wire AWG #8',
+    changeType: 'price',
+    fieldChanged: 'Unit Price (Per Meter)',
+    oldValue: '₱300.00 / m',
+    newValue: '₱60.04 / m',
+    unit: 'M',
+    note: 'Updated rate per meter from ₱300 to ₱60.04 based on ₱9,006 per 150m roll',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-6',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'Ground Wire',
+    changeType: 'system',
+    fieldChanged: 'Description, Unit, Price & Qty',
+    oldValue: 'Ground Wire 30m @ ₱1,300.00 / ROLL',
+    newValue: 'Ground Wire @ ₱39.25 / M, Qty: 50',
+    unit: 'M',
+    note: 'Renamed from Ground Wire 30m to Ground Wire, unit from ROLL to M, rate to ₱39.25/m (₱5,888 per 150m roll), default qty set to 50',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  },
+  {
+    id: 'cl-seed-7',
+    timestamp: 'Aug 13, 2026, 09:19 AM',
+    itemDescription: 'Flexible hose',
+    changeType: 'quantity',
+    fieldChanged: 'Default Quantity',
+    oldValue: 'Dynamic (e.g. 35m)',
+    newValue: '50m',
+    unit: 'M',
+    note: 'Default quantity updated to 50 meters',
+    batch: 'August 13, 2026 Price & Catalog Adjustment'
+  }
+]
+
+export function getChangelogHistory(): ChangelogItem[] {
+  if (typeof window === 'undefined') return INITIAL_CHANGELOG_SEED
+  try {
+    const raw = localStorage.getItem(CHANGELOG_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load changelog from localStorage', e)
+  }
+  try {
+    localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
+  } catch {}
+  return INITIAL_CHANGELOG_SEED
+}
+
+export function saveChangelogEntry(entry: Omit<ChangelogItem, 'id' | 'timestamp'>): ChangelogItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const current = getChangelogHistory()
+    const now = new Date()
+    const formattedDate = now.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+    const newEntry: ChangelogItem = {
+      id: `cl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: formattedDate,
+      ...entry,
+    }
+
+    const updated = [newEntry, ...current].slice(0, 100)
+    localStorage.setItem(CHANGELOG_KEY, JSON.stringify(updated))
+    return updated
+  } catch (e) {
+    console.error('Failed to save changelog entry', e)
+    return getChangelogHistory()
+  }
+}
+
+export function deleteChangelogItem(id: string): ChangelogItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const current = getChangelogHistory()
+    const filtered = current.filter((item) => item.id !== id)
+    localStorage.setItem(CHANGELOG_KEY, JSON.stringify(filtered))
+    return filtered
+  } catch (e) {
+    console.error('Failed to delete changelog item', e)
+    return getChangelogHistory()
+  }
+}
+
+export function clearChangelogHistory(): ChangelogItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    localStorage.removeItem(CHANGELOG_KEY)
+  } catch (e) {
+    console.error('Failed to clear changelog history', e)
+  }
+  return []
+}
+
+export function resetChangelogToInitial(): ChangelogItem[] {
+  if (typeof window === 'undefined') return INITIAL_CHANGELOG_SEED
+  try {
+    localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
+  } catch (e) {
+    console.error('Failed to reset changelog', e)
+  }
+  return INITIAL_CHANGELOG_SEED
 }
 
 export interface PriceListItem {
