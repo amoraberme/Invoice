@@ -1571,9 +1571,7 @@ export default function Home() {
         const firstId = batteryItems[0].id
         updatedItems = updatedItems.filter(item => !isBatteryUnit(item.description) || item.id === firstId)
       } else if (batteryItems.length === 0) {
-        let batteryQty = 1
-        if (activeKwSetup >= 12 && activeKwSetup < 24) batteryQty = 2
-        else if (activeKwSetup >= 24) batteryQty = Math.ceil(activeKwSetup / 12)
+        const batteryQty = 1
 
         updatedItems.push({
           id: `boq-20-${Date.now()}`,
@@ -1602,9 +1600,7 @@ export default function Home() {
         const hasBattery = updatedItems.some(item => isBatteryUnit(item.description))
 
         if (!hasBattery) {
-          let batteryQty = 1
-          if (activeKwSetup >= 12 && activeKwSetup < 24) batteryQty = 2
-          else if (activeKwSetup >= 24) batteryQty = Math.ceil(activeKwSetup / 12)
+          const batteryQty = 1
 
           const panelIdx = updatedItems.findIndex(i => i.description.toLowerCase().includes('panel'))
           const insertIdx = panelIdx !== -1 ? panelIdx + 1 : 1
@@ -1853,14 +1849,7 @@ export default function Home() {
       panelQty = Math.max(4, Math.round(maxPanels * 0.75))
     }
     const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
-    let batteryQty = 1
-    if (systemKw < 12) {
-      batteryQty = 1
-    } else if (systemKw >= 12 && systemKw < 24) {
-      batteryQty = 2
-    } else {
-      batteryQty = Math.ceil(systemKw / 12)
-    }
+    const batteryQty = 1
 
     const prices = SOLAR_PRICES
 
