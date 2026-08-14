@@ -1281,6 +1281,27 @@ export default function Home() {
       return { ...prev, lineItems: updatedLineItems }
     })
   }
+
+  const handleUpdateLaborPricePerWatt = (newPricePerWatt: number) => {
+    const val = Math.max(0, newPricePerWatt)
+    setInvoice((prev) => {
+      const { totalWatts } = extractPanelInfoFromLineItems(prev.lineItems)
+      const expectedLaborRate = totalWatts > 0 ? Math.round(totalWatts * val) : 0
+      let foundLabor = false
+      const updatedLineItems = prev.lineItems.map((item) => {
+        if (isLaborItem(item.description)) {
+          foundLabor = true
+          return { ...item, rate: expectedLaborRate }
+        }
+        return item
+      })
+      return {
+        ...prev,
+        laborPricePerWatt: val,
+        lineItems: foundLabor ? updatedLineItems : prev.lineItems
+      }
+    })
+  }
   const [systemType, setSystemType] = useState<'hybrid' | 'ongrid'>('hybrid')
   const [supplySearchQuery, setSupplySearchQuery] = useState('')
   const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
@@ -1640,7 +1661,7 @@ export default function Home() {
         )
         itemsModified = true
       }
-    } else if (laborItem && totalWatts > 0) {
+    } else if (laborItem && totalWatts > 0 && prevPricePerWattRef.current === pricePerWatt) {
       const calculatedPricePerWatt = Number((laborItem.rate / totalWatts).toFixed(2))
       if (calculatedPricePerWatt !== pricePerWatt && calculatedPricePerWatt >= 0) {
         update('laborPricePerWatt', calculatedPricePerWatt)
@@ -3078,7 +3099,7 @@ export default function Home() {
                       step="0.5"
                       value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
                       onFocus={(e) => e.target.select()}
-                      onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                      onChange={(e) => handleUpdateLaborPricePerWatt(e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       placeholder="6"
                     />
                   </Field>
