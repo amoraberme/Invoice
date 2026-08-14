@@ -154,7 +154,43 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   // ── SET DATE: AUGUST 14, 2026 (Dev) ──
   {
-    id: 'cl-dev-header-controls-aug14_v7',
+    id: 'cl-dev-battery-1x-aug14_v8',
+    timestamp: 'Aug 14, 2026, 04:30 PM',
+    itemDescription: 'Fixed Battery System Rule',
+    changeType: 'system',
+    fieldChanged: 'Battery Quantity Rule',
+    oldValue: 'Scaled Battery Qty (1 to 2+)',
+    newValue: 'Always 1x Battery across all setups',
+    unit: 'PC',
+    note: '[Dev] Standardized battery quantity to strictly 1x (quantity: 1) across all system sizes and kW setups',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-labor-rate-aug14_v8',
+    timestamp: 'Aug 14, 2026, 04:25 PM',
+    itemDescription: 'Labor & Installation Rate Model',
+    changeType: 'system',
+    fieldChanged: 'Editor Table Rate Field',
+    oldValue: 'Price / Watt Input Value (5 / 6)',
+    newValue: 'Final Calculated Price (Total Watts × Price/Watt)',
+    unit: 'SET',
+    note: '[Dev] Set Labor and Installation rate field in BOQ editor to final calculated price with default Price/Watt = 6 (₱6.00/W)',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-logistics-fee-aug14_v8',
+    timestamp: 'Aug 14, 2026, 04:20 PM',
+    itemDescription: 'Delivery Fees & Logistics',
+    changeType: 'system',
+    fieldChanged: 'Logistics Classification',
+    oldValue: 'Per-Watt Labor Calculation',
+    newValue: 'Fixed Flat Logistics Fee',
+    unit: 'LOT',
+    note: '[Dev] Standardized Delivery Fees as a fixed flat logistics fee exempt from per-watt labor calculations',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-header-controls-aug14_v8',
     timestamp: 'Aug 14, 2026, 04:30 PM',
     itemDescription: 'UI & Header Control Layout',
     changeType: 'system',
@@ -166,7 +202,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   {
-    id: 'cl-dev-boq-editor-ui-aug14_v7',
+    id: 'cl-dev-boq-editor-ui-aug14_v8',
     timestamp: 'Aug 14, 2026, 04:20 PM',
     itemDescription: 'BOQ Editor Table UI',
     changeType: 'system',
@@ -178,7 +214,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   {
-    id: 'cl-dev-preview-layout-aug14_v7',
+    id: 'cl-dev-preview-layout-aug14_v8',
     timestamp: 'Aug 14, 2026, 04:25 PM',
     itemDescription: 'Document Preview Layout',
     changeType: 'system',
@@ -190,7 +226,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   {
-    id: 'cl-dev-cleanup-aug14_v7',
+    id: 'cl-dev-cleanup-aug14_v8',
     timestamp: 'Aug 14, 2026, 04:15 PM',
     itemDescription: 'Sidebar & Table Row Cleanup',
     changeType: 'system',
@@ -203,31 +239,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   },
   // ── SET DATE: AUGUST 14, 2026 (MsG - SysPrc) ──
   {
-    id: 'cl-sysprc-battery-1x-aug14_v7',
-    timestamp: 'Aug 14, 2026, 04:30 PM',
-    itemDescription: 'Fixed Battery System Rule',
-    changeType: 'system',
-    fieldChanged: 'Battery Quantity Rule',
-    oldValue: 'Scaled Battery Qty (1 to 2+)',
-    newValue: 'Always 1x Battery across all setups',
-    unit: 'PC',
-    note: '[SysPrc] Standardized battery quantity to strictly 1x (quantity: 1) across all system sizes and kW setups',
-    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
-  },
-  {
-    id: 'cl-sysprc-labor-rate-aug14_v7',
-    timestamp: 'Aug 14, 2026, 04:25 PM',
-    itemDescription: 'Labor & Installation Rate Model',
-    changeType: 'system',
-    fieldChanged: 'Editor Table Rate Field',
-    oldValue: 'Price / Watt Input Value (5 / 6)',
-    newValue: 'Final Calculated Price (Total Watts × Price/Watt)',
-    unit: 'SET',
-    note: '[SysPrc] Set Labor and Installation rate field in BOQ editor to final calculated price with default Price/Watt = 6 (₱6.00/W)',
-    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
-  },
-  {
-    id: 'cl-sysprc-formulas-aug14_v7',
+    id: 'cl-sysprc-formulas-aug14_v8',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Dynamic Quantity Formulas',
     changeType: 'system',
@@ -239,7 +251,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-wire-logic-aug14_v7',
+    id: 'cl-sysprc-wire-logic-aug14_v8',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Dynamic Size & Wire Logic',
     changeType: 'system',
@@ -251,7 +263,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-naming-pricing-aug14_v7',
+    id: 'cl-sysprc-naming-pricing-aug14_v8',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Naming Conventions & Pricing Overwrites',
     changeType: 'system',
@@ -263,7 +275,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-item-splitting-aug14_v7',
+    id: 'cl-sysprc-item-splitting-aug14_v8',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Item Splitting',
     changeType: 'system',
@@ -624,7 +636,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-sysprc-battery-1x-aug14_v7')
+        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-battery-1x-aug14_v8')
         if (!hasAug14LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
