@@ -320,7 +320,7 @@ export function MGCapitalPreview({
                           {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                         </span>
                         <span className="w-28 shrink-0 text-[11.5px] text-[#555555] text-right font-mono">
-                          {formatCurrency(item.rate, invoice.currency)}
+                          {isDeliveryOrLabor || item.rate === 0 ? '—' : formatCurrency(item.rate, invoice.currency)}
                         </span>
                         <span className="w-32 shrink-0 text-[11.5px] font-bold text-[#111111] text-right font-mono">
                           {formatCurrency(capitalAmount, invoice.currency)}

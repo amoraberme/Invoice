@@ -454,7 +454,7 @@ export function MGInvoicePreview({
                             {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                           </span>
                           <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
-                            {item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                            {isDeliveryOrLabor || item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                           </span>
                           <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
                             {item.rate === 0 ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
