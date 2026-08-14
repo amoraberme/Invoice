@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, isBatteryItem, calculateTotal } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, isBatteryItem, isLaborItem, calculateTotal } from '@/lib/utils'
 
 interface MGCapitalPreviewProps {
   invoice: Invoice
@@ -306,16 +306,18 @@ export function MGCapitalPreview({
 
                   {page.items.map((item) => {
                     const capitalAmount = item.quantity * item.rate
+                    const descLower = item.description.toLowerCase().trim()
+                    const isDeliveryOrLabor = isLaborItem(item.description) || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
                     return (
                       <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                         <span className="flex-1 text-[11.5px] text-[#111111] break-words whitespace-pre-wrap pr-4 font-medium leading-snug">
                           {item.description || '—'}
                         </span>
                         <span className="w-16 shrink-0 text-[11.5px] text-[#888888] text-center">
-                          {item.unit || '—'}
+                          {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                         </span>
                         <span className="w-14 shrink-0 text-[11.5px] text-[#888888] text-center">
-                          {item.quantity || '—'}
+                          {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                         </span>
                         <span className="w-28 shrink-0 text-[11.5px] text-[#555555] text-right font-mono">
                           {formatCurrency(item.rate, invoice.currency)}

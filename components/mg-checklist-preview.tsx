@@ -296,11 +296,11 @@ export function MGChecklistPreview({
                             </td>
 
                             <td className={cn("px-1.5 text-center align-middle text-[#555555]", rowPaddingClass)}>
-                              {item.unit || 'PCS'}
+                              {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : (item.unit || 'PCS')}
                             </td>
 
                             <td className={cn("px-1.5 text-center align-middle font-bold text-[#111111]", rowPaddingClass)}>
-                              {item.quantity}
+                              {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : item.quantity}
                             </td>
 
                             <td className={cn("px-1.5 align-middle", rowPaddingClass)}>

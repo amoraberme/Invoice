@@ -37,17 +37,16 @@ function getWireSize(inverterKw: number): string {
   return '#8'
 }
 
-function getConduitDetails(inverterKw: number, runLength: number) {
-  let rate = 66
-  if (inverterKw <= 5) {
-    rate = 66
-  } else if (inverterKw <= 10) {
-    rate = 95
-  } else {
-    rate = 124
+function getConduitDetails(inverterKw: number, runLength: number = 30) {
+  const rate = 39.50
+  let size = '25mm'
+  if (inverterKw >= 6 && inverterKw < 10) {
+    size = '32mm'
+  } else if (inverterKw >= 10) {
+    size = '40mm'
   }
   return {
-    description: 'Flexible hose',
+    description: `Flexible hose ${size}`,
     rate,
     quantity: 50,
     unit: 'M'
@@ -55,20 +54,14 @@ function getConduitDetails(inverterKw: number, runLength: number) {
 }
 
 function getDynamicBreakerRatings(systemKw: number) {
-  // AC MCB Calculation: I_AC = ceil((P_target * 1000 / (230 * 0.9)) * 1.25)
   const iAcRaw = Math.ceil(((systemKw * 1000) / (230 * 0.9)) * 1.25)
   const acBreakerSizes = [20, 32, 50, 63, 80, 100, 125]
   const acMcbAmp = acBreakerSizes.find(s => s >= iAcRaw) || Math.ceil(iAcRaw)
 
-  // DC MCCB Calculation: I_DC = ceil(P_target * 1000 / (48 * 0.85 * 0.80))
   const iDcRaw = Math.ceil((systemKw * 1000) / (48 * 0.85 * 0.80))
   const dcMccbSizes = [100, 160, 200, 250, 300, 350, 500]
   const dcMccbAmp = dcMccbSizes.find(s => s >= iDcRaw) || Math.ceil(iDcRaw)
 
-  // DC SPD Voltage Safeguard (600V < 8kW | 1000V >= 8kW)
-  const dcSpdVoltage = systemKw < 8 ? '600V DC' : '1000V DC'
-
-  // Changeover / ATS Rating (min 32A <=3kW; 63A 8-10kW; 80-100A 12kW+)
   let atsAmp = acMcbAmp
   if (systemKw <= 3) atsAmp = Math.max(32, acMcbAmp)
   else if (systemKw <= 10) atsAmp = Math.max(63, acMcbAmp)
@@ -77,28 +70,25 @@ function getDynamicBreakerRatings(systemKw: number) {
   return {
     iAcRaw,
     acMcbAmp,
-    acMcb: `AC MCB ${acMcbAmp}A`,
+    acMcb: `AC MCCB`,
     iDcRaw,
     dcMccbAmp,
-    dcMccb: `DC MCCB for battery ${dcMccbAmp}A`,
-    dcMcb: systemKw <= 10 ? 'DC MCB 32A' : (systemKw <= 12 ? 'DC MCB 63A' : 'DC MCB 100A'),
-    acSpd: `AC SPD 275V 40kA`,
-    dcSpdVoltage,
-    dcSpd: `DC SPD ${dcSpdVoltage} 40kA`,
+    dcMccb: `DC MCCB for battery`,
+    dcMcb: `DC MCB`,
+    acSpd: `AC SPD`,
+    dcSpdVoltage: systemKw < 8 ? '600V DC' : '1000V DC',
+    dcSpd: `DC SPD`,
     atsAmp,
-    ats: `Automatic transfer switch ${atsAmp}A`
+    ats: `Automatic transfer switch 125A`
   }
 }
 
 function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable: string, groundWire: string, acWire: string } {
-  // Grounding Wire: 6mm² standard, upgraded to 10mm² if >=10kW
   const groundWireGauge = systemKw >= 10 ? '10mm²' : '6mm²'
-
-  // AC Wire: AC Wire #8 for <= 8kW; AC Wire #6 for >= 10kW
   const acWireGauge = systemKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
 
   return {
-    dcCable: `DC WIRE`,
+    dcCable: `DC Wire`,
     groundWire: `Ground Wire ${groundWireGauge}`,
     acWire: acWireGauge
   }
@@ -115,7 +105,7 @@ function getInverterKwFromLineItems(lineItems: LineItem[]): number {
   return 5
 }
 
-function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, items: LineItem[] } {
+function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: number): { updated: boolean, items: LineItem[] } {
   const inverterKw = getInverterKwFromLineItems(lineItems)
   const runLength = 30
   const wireInfo = getDynamicWireSize(inverterKw, runLength)
@@ -125,20 +115,17 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
   const panelQty = panelItem ? panelItem.quantity : 0
   
   const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
+  const effectiveRows = (rowsCountOverride !== undefined && rowsCountOverride > 0) ? rowsCountOverride : rows
   const extraQty = 0
   
-  const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
-  const newMidClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
-  const newEndClampQty = panelQty <= 0 ? 0 : 4 * rows
-  const newLFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
-  const newSpliceConnectorQty = panelQty <= 0 ? 0 : Math.max(0, newRailingQty - (2 * rows))
+  const newRailingQty = panelQty <= 0 ? 0 : Math.ceil((panelQty / 2) * 3) + extraQty
+  const newMidClampQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 2.5)
+  const newEndClampQty = effectiveRows * 6
+  const newLFootQty = newRailingQty * 3
+  const newSpliceConnectorQty = Math.ceil(newRailingQty / 2)
   
-  let newMc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
-  if (newMc4Qty % 2 !== 0 && newMc4Qty > 0) newMc4Qty += 1
-
-  const newGroundLugQty = rows * 2
-  const rawGcLen = Math.ceil((runLength + 5) * 1.15)
-  const newGcRolls = panelQty <= 0 ? 0 : Math.max(1, Math.ceil(rawGcLen / 30))
+  const newMc4Qty = 15
+  const newGroundLugQty = 5
 
   let changed = false
   const items = lineItems.map(item => {
@@ -192,8 +179,7 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
         return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 90 }
       }
     } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
-      const setsOf2Pcs = inverterKw >= 16 ? 1 + Math.floor((inverterKw - 16) / 4) : 0
-      const targetQty = setsOf2Pcs * 2
+      const targetQty = inverterKw >= 10 ? 2 : 0
       if (item.quantity !== targetQty || item.rate !== 550 || item.description !== 'MC4 2 String') {
         changed = true
         return { ...item, description: 'MC4 2 String', quantity: targetQty, rate: 550, unit: 'PCS' }
@@ -204,19 +190,19 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
         return { ...item, description: 'Clip lock 3/4', rate: 180, unit: 'SET' }
       }
     } else if ((descLower.startsWith('mc4') || descLower.includes('mc4')) && !descLower.includes('2 string') && !descLower.includes('2-string') && !descLower.includes('2string')) {
-      if (item.quantity !== newMc4Qty) {
+      if (item.quantity !== 15 || item.rate !== 60 || item.description !== 'MC4 1500V') {
         changed = true
-        return { ...item, quantity: newMc4Qty }
+        return { ...item, description: 'MC4 1500V', quantity: 15, rate: 60 }
       }
     } else if (descLower.includes('grounding lug') || descLower.includes('solar grounding lug')) {
-      if (item.quantity !== newGroundLugQty || item.rate === 0) {
+      if (item.quantity !== 5 || item.rate !== 50) {
         changed = true
-        return { ...item, quantity: newGroundLugQty, rate: item.rate === 0 ? 50 : item.rate }
+        return { ...item, description: 'Grounding Lugs', quantity: 5, rate: 50 }
       }
     } else if (descLower === 'cable tray' || descLower.includes('cable tray') || descLower === 'tray') {
-      if (item.description !== 'Cable Tray' || item.rate !== 560) {
+      if (item.description !== 'Cable Tray 2m' || item.rate !== 560) {
         changed = true
-        return { ...item, description: 'Cable Tray', rate: 560 }
+        return { ...item, description: 'Cable Tray 2m', rate: 560 }
       }
     } else if (
       descLower === 'grounding conductor' ||
@@ -247,9 +233,9 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
         }
       }
     } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
-      if (item.description !== 'Ground Rod w/ Clamp 3 Meters' || item.rate !== 750) {
+      if (item.description !== 'Ground Rod w/ Clamp 1.5 Meters' || item.rate !== 750) {
         changed = true
-        return { ...item, description: 'Ground Rod w/ Clamp 3 Meters', rate: 750 }
+        return { ...item, description: 'Ground Rod w/ Clamp 1.5 Meters', rate: 750 }
       }
     } else if (
       descLower === 'ac' ||
@@ -260,7 +246,7 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
     ) {
       const targetDesc = inverterKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
       const targetRate = inverterKw >= 10 ? 99.34 : 60.04
-      const targetQty = 100
+      const targetQty = inverterKw >= 10 ? 50 : 100
       if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
         return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
@@ -276,43 +262,52 @@ function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, i
       descLower.includes('pv wire') ||
       descLower.includes('dc cable')
     ) {
-      const targetDesc = 'DC WIRE'
+      const targetDesc = 'DC Wire'
       const targetRate = 125
       const targetQty = 100
       if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
         return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
       }
-    } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb')) {
-      if (item.description !== breakers.acMcb) {
+    } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb') || descLower.includes('ac mccb')) {
+      if (item.description !== 'AC MCCB' || item.quantity !== 4 || item.rate !== 1300) {
         changed = true
-        return { ...item, description: breakers.acMcb }
+        return { ...item, description: 'AC MCCB', quantity: 4, rate: 1300 }
       }
     } else if (descLower === 'ac spd' || descLower.startsWith('ac spd')) {
-      if (item.description !== breakers.acSpd) {
+      if (item.description !== 'AC SPD' || item.rate !== 570) {
         changed = true
-        return { ...item, description: breakers.acSpd }
+        return { ...item, description: 'AC SPD', rate: 570 }
       }
     } else if (descLower === 'dc spd' || descLower.startsWith('dc spd')) {
-      const targetDesc = breakers.dcSpd
-      const targetRate = targetDesc.includes('600V') ? 500 : 650
-      if (item.description !== targetDesc || item.rate !== targetRate) {
+      if (item.description !== 'DC SPD' || item.rate !== 790) {
         changed = true
-        return { ...item, description: targetDesc, rate: targetRate }
+        return { ...item, description: 'DC SPD', rate: 790 }
       }
     } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
-      if (item.description !== breakers.dcMcb) {
+      if (item.description !== 'DC MCB' || item.rate !== 420) {
         changed = true
-        return { ...item, description: breakers.dcMcb }
+        return { ...item, description: 'DC MCB', rate: 420 }
       }
     } else if (descLower.includes('dc mccb') || descLower.includes('mccb for battery')) {
-      const targetDesc = breakers.dcMccb
-      const ampMatch = targetDesc.match(/(\d+)\s*A/i)
-      const amp = ampMatch ? parseInt(ampMatch[1], 10) : breakers.dcMccbAmp
-      const targetRate = amp <= 250 ? 1400 : (amp <= 400 ? 3800 : 4500)
-      if (item.description !== targetDesc || item.rate !== targetRate) {
+      if (item.description !== 'DC MCCB for battery' || item.rate !== 2000) {
         changed = true
-        return { ...item, description: targetDesc, rate: targetRate }
+        return { ...item, description: 'DC MCCB for battery', rate: 2000 }
+      }
+    } else if (descLower.includes('automatic transfer switch') || descLower.includes('ats')) {
+      if (item.description !== 'Automatic transfer switch 125A' || item.rate !== 4000) {
+        changed = true
+        return { ...item, description: 'Automatic transfer switch 125A', rate: 4000 }
+      }
+    } else if (descLower.includes('breaker box') || descLower.includes('metal enclosure')) {
+      if (item.description !== 'Breaker box / Metal Enclosure 50x60' || item.rate !== 3000) {
+        changed = true
+        return { ...item, description: 'Breaker box / Metal Enclosure 50x60', rate: 3000 }
+      }
+    } else if (descLower.includes('battery cable')) {
+      if (item.description !== 'Battery Cable (Black & Red) 50mm' || item.rate !== 700) {
+        changed = true
+        return { ...item, description: 'Battery Cable (Black & Red) 50mm', rate: 700 }
       }
     } else if (descLower === 'pu sealant' || descLower.includes('pu sealant') || descLower.includes('sealant')) {
       if (item.description !== 'PU Sealant' || item.rate !== 400) {
@@ -601,7 +596,7 @@ function extractLineItemsFromText(text: string) {
     13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
     14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
     15: { desc: "DC MCB 63A", qty: "2 pcs", price: "₱300.00", total: "₱600.00" },
-    16: { desc: "DC MCCB for battery 250A 1pc ₱2,300.00", qty: "1pc", price: "₱2,300.00", total: "₱2,300.00" },
+    16: { desc: "DC MCCB for battery", qty: "1 pc", price: "₱2,000.00", total: "₱2,000.00" },
     17: { desc: "Cable raceway conduit 2 meters", qty: "1pc", price: "₱1,000.00", total: "₱1,000.00" },
     18: { desc: "Automatic transfer switch", qty: "1pc", price: "₱1,300.00", total: "₱1,300.00" },
     19: { desc: "Terminal lugs", qty: "12 pcs", price: "₱40.00", total: "₱480.00" },
@@ -960,22 +955,23 @@ const SOLAR_PRICES = {
   ACwire: 60.04,
   PVwire: 125.00,
   DCwire: 125.00,
-  MC4: 40.00,
+  MC4: 60.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
   BreakerBox: 3000.00,
-  ACMCB: 250.00,
-  ACSPD: 500.00,
-  DCSPD: 650.00,
-  DCMCB: 350.00,
-  DCMCCB: 1400.00,
+  ACMCB: 1300.00,
+  ACSPD: 570.00,
+  DCSPD: 790.00,
+  DCMCB: 420.00,
+  DCMCCB: 2000.00,
   Raceway: 360.00,
   CableTray: 560.00,
-  ATS: 1600.00,
-  TerminalLugs: 40.00,
+  ATS: 4000.00,
+  TerminalLugs25: 40.00,
+  TerminalLugs50: 50.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
-  BatteryCable: 600.00,
+  BatteryCable: 700.00,
   GroundRod: 750.00,
   GroundingLugs: 50.00,
   GroundWire: 5888 / 150,
@@ -1266,6 +1262,25 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
+  const [rowsCount, setRowsCount] = useState<number>(1)
+
+  const handleUpdateRows = (newRowsVal: number) => {
+    const val = Math.max(1, newRowsVal)
+    setRowsCount(val)
+    setInvoice((prev) => {
+      let foundEndClamp = false
+      const updatedLineItems = prev.lineItems.map((item) => {
+        const descLower = item.description.toLowerCase()
+        if (descLower.includes('end clamp')) {
+          foundEndClamp = true
+          return { ...item, quantity: val * 6 }
+        }
+        return item
+      })
+      if (!foundEndClamp) return prev
+      return { ...prev, lineItems: updatedLineItems }
+    })
+  }
   const [systemType, setSystemType] = useState<'hybrid' | 'ongrid'>('hybrid')
   const [supplySearchQuery, setSupplySearchQuery] = useState('')
   const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
@@ -1864,7 +1879,7 @@ export default function Home() {
     // 1. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Tongwei Panel 620W (7.82ft x 3.72ft)`,
+      description: `Tongwei 620W`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
@@ -1879,7 +1894,7 @@ export default function Home() {
       unit: 'PC'
     })
 
-    // 3. Battery (included for Hybrid setup, excludeBattery flag toggles display/totals)
+    // 3. Battery (included for Hybrid setup)
     if (systemType === 'hybrid') {
       items.push({
         id: `boq-20-${now}`,
@@ -1893,8 +1908,8 @@ export default function Home() {
     const wireInfo = getDynamicWireSize(inverterKw, runLength)
     const breakers = getDynamicBreakerRatings(inverterKw)
 
-    // 3. Railings
-    const railingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
+    // 3. Railings (QTY = Math.ceil((Panels / 2) * 3))
+    const railingQty = panelQty <= 0 ? 0 : Math.ceil((panelQty / 2) * 3) + extraQty
     items.push({
       id: `boq-3-${now}`,
       description: `Railings 2.4m`,
@@ -1903,8 +1918,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 4. Mid Clamps (N_mid = 2 * (N_panels - N_rows))
-    const midClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
+    // 4. Mid Clamps (QTY = Math.ceil(Panels * 2.5))
+    const midClampQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 2.5)
     items.push({
       id: `boq-4-${now}`,
       description: `Mid Clamp`,
@@ -1913,8 +1928,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 5. End Clamps (N_end = 4 * N_rows)
-    const endClampQty = panelQty <= 0 ? 0 : 4 * rows
+    // 5. End Clamps (QTY = Rows * 6)
+    const endClampQty = rows * 6
     items.push({
       id: `boq-5-${now}`,
       description: `End Clamp`,
@@ -1923,8 +1938,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 6. L Foot (N_L-feet = ceil(N_panels * 3.2))
-    const lFootQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 3.2) + extraQty
+    // 6. L Foot (QTY = Railings * 3)
+    const lFootQty = railingQty * 3
     items.push({
       id: `boq-6-${now}`,
       description: `L Foot`,
@@ -1942,8 +1957,8 @@ export default function Home() {
       unit: 'SET'
     })
 
-    // 6.5. Splice Connector
-    const spliceConnectorQty = panelQty <= 0 ? 0 : Math.max(0, railingQty - (2 * rows))
+    // 6.5. Splice Connector (QTY = Math.ceil(Railings / 2))
+    const spliceConnectorQty = Math.ceil(railingQty / 2)
     items.push({
       id: `boq-splice-${now}`,
       description: `Splice Connector`,
@@ -1970,7 +1985,7 @@ export default function Home() {
       unit: 'M'
     })
 
-    // 7. Flexcon HDPE Hose (Conduit length L_conduit = (L_DC + L_AC) * 1.15)
+    // 7. Flexible Hose (Tiers 25mm / 32mm / 40mm based on kW)
     const conduitDetails = getConduitDetails(inverterKw, runLength)
     items.push({
       id: `boq-7-${now}`,
@@ -1980,161 +1995,175 @@ export default function Home() {
       unit: conduitDetails.unit
     })
 
-    // 8. AC Wire
-    const acDesc = inverterKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
-    const acRate = inverterKw >= 10 ? 99.34 : 60.04
-    items.push({
-      id: `boq-8-${now}`,
-      description: acDesc,
-      quantity: 100,
-      rate: acRate,
-      unit: 'M'
-    })
+    // 8. AC Wire (If >=10kW: AC Wire #6 50m + AC Wire #8 50m. Else AC Wire #8 100m)
+    if (inverterKw >= 10) {
+      items.push({
+        id: `boq-8-ac6-${now}`,
+        description: 'AC Wire #6',
+        quantity: 50,
+        rate: 99.34,
+        unit: 'M'
+      })
+      items.push({
+        id: `boq-8-ac8-${now}`,
+        description: 'AC Wire #8',
+        quantity: 50,
+        rate: 60.04,
+        unit: 'M'
+      })
+    } else {
+      items.push({
+        id: `boq-8-${now}`,
+        description: 'AC Wire #8',
+        quantity: 100,
+        rate: 60.04,
+        unit: 'M'
+      })
+    }
 
-    // 9. DC/PV Wire
+    // 9. DC Wire (Title case)
     items.push({
       id: `boq-dc-${now}`,
-      description: 'DC WIRE',
+      description: 'DC Wire',
       quantity: 100,
       rate: 125,
       unit: 'M'
     })
 
-    // 10. MC4 Connectors
-    let mc4Qty = panelQty <= 0 ? 0 : Math.ceil(1.2 * panelQty)
-    if (mc4Qty % 2 !== 0 && mc4Qty > 0) mc4Qty += 1
+    // 10. MC4 1500V (QTY = 15 | Price = ₱60)
     items.push({
       id: `boq-10-${now}`,
-      description: `MC4 50A`,
-      quantity: mc4Qty,
-      rate: prices.MC4,
+      description: `MC4 1500V`,
+      quantity: 15,
+      rate: 60.00,
       unit: 'PCS'
     })
 
-    // 10.5. MC4 2 String (Starts at 16kW, 2pcs for 16kW, 4pcs for 20kW, 6pcs for 24kW, etc.)
-    if (inverterKw >= 16) {
-      const setsOf2Pcs = 1 + Math.floor((inverterKw - 16) / 4)
-      const mc42StringPcs = setsOf2Pcs * 2
+    // 10.5. MC4 2 String (If >= 10kW QTY = 2, Else 0)
+    if (inverterKw >= 10) {
       items.push({
         id: `boq-mc4-2string-${now}`,
         description: `MC4 2 String`,
-        quantity: mc42StringPcs,
+        quantity: 2,
         rate: 550.00,
         unit: 'PCS'
       })
     }
 
-    // 11. Breaker Box / Metal Enclosure
+    // 11. Breaker Box / Metal Enclosure 50x60
     items.push({
       id: `boq-11-${now}`,
-      description: `Breaker box / Metal Enclosure`,
+      description: `Breaker box / Metal Enclosure 50x60`,
       quantity: 1,
       rate: prices.BreakerBox,
       unit: 'PC'
     })
 
-    // 12. AC MCB
+    // 12. AC MCCB (QTY = 4 | Price = ₱1300)
     items.push({
       id: `boq-12-${now}`,
-      description: breakers.acMcb,
-      quantity: 2,
-      rate: prices.ACMCB,
+      description: `AC MCCB`,
+      quantity: 4,
+      rate: 1300.00,
       unit: 'PCS'
     })
 
-    // 13. AC SPD
+    // 13. AC SPD (Price = ₱570)
     items.push({
       id: `boq-13-${now}`,
-      description: breakers.acSpd,
+      description: `AC SPD`,
       quantity: 2,
-      rate: prices.ACSPD,
+      rate: 570.00,
       unit: 'PCS'
     })
 
-    // 14. DC SPD
-    const dcSpdRate = breakers.dcSpd.includes('600V') ? 500 : 650
+    // 14. DC SPD (Price = ₱790)
     items.push({
       id: `boq-14-${now}`,
-      description: breakers.dcSpd,
+      description: `DC SPD`,
       quantity: 2,
-      rate: dcSpdRate,
+      rate: 790.00,
       unit: 'PCS'
     })
 
-    // 15. DC MCB
+    // 15. DC MCB (Price = ₱420)
     items.push({
       id: `boq-15-${now}`,
-      description: breakers.dcMcb,
+      description: `DC MCB`,
       quantity: 2,
-      rate: prices.DCMCB,
+      rate: 420.00,
       unit: 'PCS'
     })
 
-    // 16. DC MCCB
-    const dcMccbAmp = breakers.dcMccbAmp
-    const dcMccbRate = dcMccbAmp <= 250 ? 1400 : (dcMccbAmp <= 400 ? 3800 : 4500)
+    // 16. DC MCCB for battery (Price = ₱2000 | QTY = 1 per battery)
     items.push({
       id: `boq-16-${now}`,
-      description: breakers.dcMccb,
-      quantity: 1,
-      rate: dcMccbRate,
+      description: `DC MCCB for battery`,
+      quantity: batteryQty,
+      rate: 2000.00,
       unit: 'PC'
     })
 
-    // 17. Cable Tray
+    // 17. Cable Tray 2m (Price = ₱560)
     items.push({
       id: `boq-17-${now}`,
-      description: `Cable Tray`,
+      description: `Cable Tray 2m`,
       quantity: 1,
       rate: prices.CableTray || 560,
       unit: 'PCS'
     })
 
-    // 18. ATS (Included for Hybrid systems; On-Grid does not require an Automatic Transfer Switch)
+    // 18. Automatic transfer switch 125A (Price = ₱4000)
     if (systemType !== 'ongrid') {
       items.push({
         id: `boq-18-${now}`,
-        description: breakers.ats,
+        description: `Automatic transfer switch 125A`,
         quantity: 1,
-        rate: prices.ATS,
+        rate: 4000.00,
         unit: 'PC'
       })
     }
 
-    // 19. Terminal Lugs
+    // 19. Terminal lugs (Split into 25mm QTY 30 @ ₱40 and 50mm QTY 5 @ ₱50)
     items.push({
-      id: `boq-19-${now}`,
-      description: `Terminal lugs`,
-      quantity: 12,
-      rate: prices.TerminalLugs,
+      id: `boq-19-25mm-${now}`,
+      description: `Terminal lugs 25mm`,
+      quantity: 30,
+      rate: 40.00,
+      unit: 'PCS'
+    })
+    items.push({
+      id: `boq-19-50mm-${now}`,
+      description: `Terminal lugs 50mm`,
+      quantity: 5,
+      rate: 50.00,
       unit: 'PCS'
     })
 
-    // 21. Terminal Block
+    // 21. Terminal Block (Hardcode QTY = 2)
     items.push({
       id: `boq-21-${now}`,
       description: `Terminal Block`,
-      quantity: 5,
+      quantity: 2,
       rate: prices.TerminalBlock,
       unit: 'PCS'
     })
 
-    // 22. Battery Cable
+    // 22. Battery Cable (Black & Red) 50mm (Price = ₱700)
     const cableLength = batteryQty * 2
-    const cableDesc = `Battery Cable (Black & Red) ${cableLength / 2} meters each`
     items.push({
       id: `boq-22-${now}`,
-      description: cableDesc,
+      description: `Battery Cable (Black & Red) 50mm`,
       quantity: cableLength,
-      rate: prices.BatteryCable,
+      rate: 700.00,
       unit: 'M'
     })
 
-    // Grounding & Bonding System (Rate Empty / 0)
+    // Grounding Lugs (Hardcode QTY = 5)
     items.push({
       id: `boq-g1-${now}`,
       description: `Grounding Lugs`,
-      quantity: rows * 2,
+      quantity: 5,
       rate: prices.GroundingLugs || 50,
       unit: 'PCS'
     })
@@ -2147,9 +2176,10 @@ export default function Home() {
       unit: 'M'
     })
 
+    // Ground Rod w/ Clamp 1.5 Meters
     items.push({
       id: `boq-g3-${now}`,
-      description: `Ground Rod w/ Clamp 3 Meters`,
+      description: `Ground Rod w/ Clamp 1.5 Meters`,
       quantity: 1,
       rate: prices.GroundRod || 750,
       unit: 'PC'
@@ -2507,26 +2537,7 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mb-3 bg-secondary/40 p-2 rounded-[10px] border border-border">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-foreground">Labor Price / Watt</span>
-                      <span className="text-[8px] text-muted-foreground">Rate used for labor cost (Total Watts × ₱/W)</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-bold text-muted-foreground">₱</span>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                        className="w-14 h-7 text-xs font-bold text-center bg-card border-border rounded-[6px]"
-                        placeholder="6"
-                      />
-                      <span className="text-[9px] font-bold text-muted-foreground">/W</span>
-                    </div>
-                  </div>
+
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
@@ -3048,7 +3059,7 @@ export default function Home() {
               <section className="space-y-3">
                 <SectionHeader>Line Items</SectionHeader>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
                     <Input
                       type="number"
@@ -3069,6 +3080,17 @@ export default function Home() {
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                       placeholder="6"
+                    />
+                  </Field>
+                  <Field label="Rows (Array Rows)" onMouseEnter={() => setHoveredField('rowsCount')} onMouseLeave={() => setHoveredField(null)}>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={rowsCount}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => handleUpdateRows(Math.max(1, parseInt(e.target.value) || 1))}
+                      placeholder="1"
                     />
                   </Field>
                 </div>
@@ -3964,28 +3986,6 @@ export default function Home() {
                             )
                           })()}
 
-                          {isLaborItem(item.description) && (() => {
-                            const { panelQty, panelWattage, totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems)
-                            const pricePerWatt = invoice.laborPricePerWatt ?? 6
-                            return (
-                              <div className="flex items-center justify-between text-[9px] text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md mt-1 font-mono gap-1 flex-wrap">
-                                <span>⚡ Labor Breakdown: {panelQty} panels × {panelWattage}W = {totalWatts.toLocaleString()}W</span>
-                                <div className="flex items-center gap-1">
-                                  <span>@ ₱</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.5"
-                                    value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
-                                    onFocus={(e) => e.target.select()}
-                                    onChange={(e) => update('laborPricePerWatt', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                                    className="w-11 h-4.5 text-[9px] font-bold text-center bg-white dark:bg-black text-amber-900 dark:text-amber-100 rounded border border-amber-500/40 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                  />
-                                  <span>/ W = ₱{(totalWatts * pricePerWatt).toLocaleString()}</span>
-                                </div>
-                              </div>
-                            )
-                          })()}
                         </div>
                       )
                     })}
@@ -4276,7 +4276,7 @@ export default function Home() {
                           <div className="grid grid-cols-3 gap-2 text-[10px]">
                             <div>
                               <span className="text-muted-foreground">Qty: </span>
-                              <span className="font-mono font-bold">{item.quantity} {item.unit}</span>
+                              <span className="font-mono font-bold">{isLaborItem(item.description) || item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') ? '—' : `${item.quantity} ${item.unit}`}</span>
                             </div>
                             <div className="col-span-2 flex items-center justify-end gap-1.5">
                               <span className="text-muted-foreground">Base Rate: </span>
@@ -4483,7 +4483,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
                                             <div className="flex items-center gap-2 shrink-0">
                                               <span className="px-2 py-0.5 rounded-[6px] bg-secondary border border-border text-[11px] font-bold font-mono text-foreground">
-                                                {item.quantity} {item.unit}
+                                                {isLaborItem(item.description) || item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') ? '—' : `${item.quantity} ${item.unit}`}
                                               </span>
                                               <span className={cn(
                                                 "text-[10px] font-bold px-1.5 py-0.5 rounded-[4px]",

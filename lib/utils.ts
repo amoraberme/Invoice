@@ -485,7 +485,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     const grp = groups[key]
     if (grp.count > 0) {
       const qty = (key === 'panels' || key === 'inverter' || key === 'battery') && grp.totalQty > 0 ? grp.totalQty : 1
-      const unit = key === 'panels' ? 'PCS' : (key === 'inverter' || key === 'battery') ? 'PC' : 'LOT'
+      const unit = key === 'panels' ? 'PCS' : (key === 'inverter' || key === 'battery') ? 'PC' : (key === 'services' || key === 'delivery') ? '' : 'LOT'
       const rate = qty > 0 ? grp.totalAmount / qty : 0
 
       const desc =

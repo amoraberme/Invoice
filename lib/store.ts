@@ -154,19 +154,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   // ── SET DATE: AUGUST 14, 2026 (Dev) ──
   {
-    id: 'cl-dev-ui-cleanup-aug14_v3',
-    timestamp: 'Aug 14, 2026, 10:25 AM',
-    itemDescription: 'UI & Layout Cleanup',
+    id: 'cl-dev-ui-updates-aug14_v6',
+    timestamp: 'Aug 14, 2026, 03:30 PM',
+    itemDescription: 'UI Updates',
     changeType: 'system',
-    fieldChanged: 'UI Components & Reference Tables',
+    fieldChanged: 'Calculator UI & Layout Controls',
     oldValue: 'Floor Selection & Custom kW Input',
-    newValue: 'Cleaned UI & Preserved Core Preset Sizing',
+    newValue: 'Rows Input Field & Streamlined Sidebar',
     unit: 'SET',
-    note: '[Dev] Removed Floor Selection card, Custom kW Setup input, trimmed Sizing Reference table to 5kW–20kW, updated Pricelist 25th badge label',
+    note: '[Dev] Added Rows input field (default=1), removed Floor Selection & Custom kW Setup, trimmed Sizing Reference to 5kW–20kW, updated badge label',
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   {
-    id: 'cl-dev-delivery-fees-aug14_v3',
+    id: 'cl-dev-delivery-fees-aug14_v6',
     timestamp: 'Aug 14, 2026, 09:20 AM',
     itemDescription: 'Delivery Fees',
     changeType: 'system',
@@ -177,9 +177,57 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     note: '[Dev] Excluded delivery and freight items from isLaborItem and removed irrelevant Labor Breakdown widget',
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
-  // ── SET DATE: AUGUST 14, 2026 (MsG) ──
+  // ── SET DATE: AUGUST 14, 2026 (MsG - SysPrc) ──
   {
-    id: 'cl-msg-delivery-fees-aug14_v4',
+    id: 'cl-sysprc-formulas-aug14_v6',
+    timestamp: 'Aug 14, 2026, 03:30 PM',
+    itemDescription: 'Dynamic Quantity Formulas',
+    changeType: 'system',
+    fieldChanged: 'BOQ Quantities',
+    oldValue: 'Legacy Accessory Ratios',
+    newValue: 'Restructured Formulas',
+    unit: 'SET',
+    note: '[SysPrc] Railings (Panels/2)*3, L Foot Railings*3, Mid Clamp Panels*2.5, End Clamp Rows*6, Splice Railings/2, MC4 2-String >=10kW (2), Terminal Block (2), Ground Lugs (5), DC MCCB (1 per battery)',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-sysprc-wire-logic-aug14_v6',
+    timestamp: 'Aug 14, 2026, 03:30 PM',
+    itemDescription: 'Dynamic Size & Wire Logic',
+    changeType: 'system',
+    fieldChanged: 'Flexible Hose & AC Wire',
+    oldValue: 'Single AC Wire & Static Hose',
+    newValue: 'Dynamic Hose Tiers & Split AC Wire',
+    unit: 'SET',
+    note: '[SysPrc] Flexible Hose sizes 25mm (<6kW), 32mm (6-9.9kW), 40mm (>=10kW). AC Wire for >=10kW split into AC Wire #6 (50m @ ₱99.34) + AC Wire #8 (50m @ ₱60.04)',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-sysprc-naming-pricing-aug14_v6',
+    timestamp: 'Aug 14, 2026, 03:30 PM',
+    itemDescription: 'Naming Conventions & Pricing Overwrites',
+    changeType: 'system',
+    fieldChanged: 'Equipment Titles & Rates',
+    oldValue: 'Legacy Catalog Titles',
+    newValue: 'Restructured Titles & Rates',
+    unit: 'SET',
+    note: '[SysPrc] Tongwei 620W, DC Wire, MC4 1500V (₱60), Breaker box 50x60 (₱3000), AC MCCB (4 @ ₱1300), AC SPD (₱570), DC SPD (₱790), DC MCB (₱420), DC MCCB battery (₱2000), Cable Tray 2m (₱560), ATS 125A (₱4000), Battery Cable 50mm (₱700), Ground Rod 1.5m (₱750)',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-sysprc-item-splitting-aug14_v6',
+    timestamp: 'Aug 14, 2026, 03:30 PM',
+    itemDescription: 'Item Splitting',
+    changeType: 'system',
+    fieldChanged: 'Terminal Lugs',
+    oldValue: 'Single Terminal Lugs Item',
+    newValue: 'Terminal Lugs 25mm & 50mm',
+    unit: 'PCS',
+    note: '[SysPrc] Split Terminal Lugs into Terminal Lugs 25mm (30 pcs @ ₱40 each) and Terminal Lugs 50mm (5 pcs @ ₱50 each)',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-msg-delivery-fees-aug14_v6',
     timestamp: 'Aug 14, 2026, 09:20 AM',
     itemDescription: 'Delivery Fees',
     changeType: 'system',
@@ -188,18 +236,6 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: 'Fixed Flat Logistics Fee',
     unit: 'LOT',
     note: '[MsG] Standardized Delivery Fees as a standalone logistics charge exempt from per-watt labor calculations',
-    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
-  },
-  {
-    id: 'cl-msg-wire-conduit-aug14_v4',
-    timestamp: 'Aug 14, 2026, 10:20 AM',
-    itemDescription: 'Wire & Conduit',
-    changeType: 'system',
-    fieldChanged: 'Description, Default Qty & Rate',
-    oldValue: 'Dynamic Hose / ₱99.33 / m',
-    newValue: 'AC Wire #8/#6 (₱99.34/m), DC WIRE 100M, Flexible hose',
-    unit: 'M',
-    note: '[MsG] Configured AC Wire #8 for <=8kW (₱60.04/m), AC Wire #6 for >=10kW (₱99.34/m) with 100M default, DC WIRE 100M default, and simplified Flexible hose description',
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   // ── SET DATE: AUGUST 13, 2026 (Dev) ──
@@ -540,7 +576,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-wire-conduit-aug14_v4')
+        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-sysprc-item-splitting-aug14_v6')
         if (!hasAug14LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
@@ -784,8 +820,8 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
   },
   {
     code: 'SOL-092-B',
-    name: 'Breaker box / Metal Enclosure',
-    keywords: ['breaker box', 'metal enclosure', 'breaker box / metal enclosure'],
+    name: 'Breaker box / Metal Enclosure 50x60',
+    keywords: ['breaker box', 'metal enclosure', 'breaker box / metal enclosure 50x60', 'breaker box / metal enclosure'],
     meterPrice: 3000,
     rollPrice: 3000,
     meterUnit: 'PC',
@@ -793,19 +829,28 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
   },
   {
     code: 'SOL-170',
-    name: 'Cable Tray',
-    keywords: ['cable tray', 'cable tray 560', 'tray'],
+    name: 'Cable Tray 2m',
+    keywords: ['cable tray', 'cable tray 2m', 'cable tray 560', 'tray'],
     meterPrice: 560,
     rollPrice: 560,
     meterUnit: 'PCS',
     rollUnit: 'PCS',
   },
   {
-    code: 'SOL-110',
-    name: 'Terminal Lugs',
-    keywords: ['terminal lugs', 'terminal lug', 'lugs'],
+    code: 'SOL-110-25',
+    name: 'Terminal lugs 25mm',
+    keywords: ['terminal lugs 25mm', 'terminal lugs', 'lugs 25mm'],
     meterPrice: 40,
     rollPrice: 40,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'SOL-110-50',
+    name: 'Terminal lugs 50mm',
+    keywords: ['terminal lugs 50mm', 'terminal lugs', 'lugs 50mm'],
+    meterPrice: 50,
+    rollPrice: 50,
     meterUnit: 'PCS',
     rollUnit: 'PCS',
   },

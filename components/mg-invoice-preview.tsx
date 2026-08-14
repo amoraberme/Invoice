@@ -440,16 +440,18 @@ export function MGInvoicePreview({
                       const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
                       const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
                       const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
+                      const descLower = item.description.toLowerCase().trim()
+                      const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
                       return (
                         <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
                             {displayDesc || '—'}
                           </span>
                           <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                            {item.unit || '—'}
+                            {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                           </span>
                           <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                            {item.quantity || '—'}
+                            {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                           </span>
                           <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
                             {item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}
