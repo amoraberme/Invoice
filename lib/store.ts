@@ -179,7 +179,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   },
   // ── SET DATE: AUGUST 14, 2026 (MsG) ──
   {
-    id: 'cl-msg-delivery-fees-aug14_v3',
+    id: 'cl-msg-delivery-fees-aug14_v4',
     timestamp: 'Aug 14, 2026, 09:20 AM',
     itemDescription: 'Delivery Fees',
     changeType: 'system',
@@ -188,10 +188,10 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: 'Fixed Flat Logistics Fee',
     unit: 'LOT',
     note: '[MsG] Standardized Delivery Fees as a standalone logistics charge exempt from per-watt labor calculations',
-    batch: 'August 14, 2026 Price & Specification Updates (MsG)'
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-msg-wire-conduit-aug14_v3',
+    id: 'cl-msg-wire-conduit-aug14_v4',
     timestamp: 'Aug 14, 2026, 10:20 AM',
     itemDescription: 'Wire & Conduit',
     changeType: 'system',
@@ -200,7 +200,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     newValue: 'AC Wire #8/#6 (₱99.34/m), DC WIRE 100M, Flexible hose',
     unit: 'M',
     note: '[MsG] Configured AC Wire #8 for <=8kW (₱60.04/m), AC Wire #6 for >=10kW (₱99.34/m) with 100M default, DC WIRE 100M default, and simplified Flexible hose description',
-    batch: 'August 14, 2026 Price & Specification Updates (MsG)'
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   // ── SET DATE: AUGUST 13, 2026 (Dev) ──
   {
@@ -540,7 +540,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-wire-conduit-aug14_v3')
+        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-wire-conduit-aug14_v4')
         if (!hasAug14LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
