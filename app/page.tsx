@@ -1285,11 +1285,13 @@ export default function Home() {
   const handleUpdateLaborPricePerWatt = (newPricePerWatt: number) => {
     const val = Math.max(0, newPricePerWatt)
     setInvoice((prev) => {
+      const { totalWatts } = extractPanelInfoFromLineItems(prev.lineItems)
+      const expectedLaborRate = totalWatts > 0 ? Math.round(totalWatts * val) : 0
       let foundLabor = false
       const updatedLineItems = prev.lineItems.map((item) => {
         if (isLaborItem(item.description)) {
           foundLabor = true
-          return { ...item, rate: val }
+          return { ...item, rate: expectedLaborRate, quantity: 1, unit: 'LOT' }
         }
         return item
       })
@@ -1645,23 +1647,22 @@ export default function Home() {
     }
 
     const pricePerWattChanged = prevPricePerWattRef.current !== null && pricePerWatt !== prevPricePerWattRef.current
+    const panelQtyChanged = prevPanelQtyRef.current !== null && panelQty !== prevPanelQtyRef.current
+    const totalWattsChanged = prevTotalWattsRef.current !== null && totalWatts !== prevTotalWattsRef.current
+
     const laborItem = currentItems.find(item => isLaborItem(item.description))
 
-    if (laborItem) {
-      if (totalWatts > 0 && (laborItem.quantity !== totalWatts || laborItem.unit !== 'W')) {
+    if (laborItem && totalWatts > 0) {
+      if ((pricePerWattChanged || panelQtyChanged || totalWattsChanged) && laborItem.rate !== expectedLaborRate) {
         currentItems = currentItems.map(item =>
-          isLaborItem(item.description) ? { ...item, quantity: totalWatts, unit: 'W' } : item
+          isLaborItem(item.description) ? { ...item, rate: expectedLaborRate, quantity: 1, unit: 'LOT' } : item
         )
         itemsModified = true
-      }
-
-      if (pricePerWattChanged && laborItem.rate !== pricePerWatt) {
-        currentItems = currentItems.map(item =>
-          isLaborItem(item.description) ? { ...item, rate: pricePerWatt } : item
-        )
-        itemsModified = true
-      } else if (!pricePerWattChanged && laborItem.rate !== pricePerWatt) {
-        update('laborPricePerWatt', laborItem.rate)
+      } else if (!pricePerWattChanged && !panelQtyChanged && !totalWattsChanged && laborItem.rate !== expectedLaborRate) {
+        const calculatedPricePerWatt = Number((laborItem.rate / totalWatts).toFixed(2))
+        if (calculatedPricePerWatt >= 0 && calculatedPricePerWatt !== pricePerWatt) {
+          update('laborPricePerWatt', calculatedPricePerWatt)
+        }
       }
     }
 
@@ -2206,12 +2207,13 @@ export default function Home() {
     // 23. Labor and Installation
     const totalPanelWatts = panelQty * PANEL_WATTAGE
     const pricePerWatt = invoice.laborPricePerWatt ?? 6
+    const laborRate = Math.round(totalPanelWatts * pricePerWatt)
     items.push({
       id: `boq-23-${now}`,
       description: `Labor and Installation`,
-      quantity: totalPanelWatts,
-      rate: pricePerWatt,
-      unit: 'W'
+      quantity: 1,
+      rate: laborRate,
+      unit: 'LOT'
     })
 
     // 24. Delivery Fees
