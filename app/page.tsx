@@ -4809,17 +4809,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                           {log.newValue}
                                         </span>
                                       </div>
-
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDeleteChangelogItem(log.id)}
-                                        className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-                                        title="Delete log entry"
-                                      >
-                                        <Trash2 size={11} />
-                                      </Button>
                                     </div>
                                   </div>
 
