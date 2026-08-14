@@ -83,12 +83,13 @@ export function extractPanelInfoFromLineItems(lineItems: { description: string; 
 
 export function isLaborItem(description: string): boolean {
   const d = (description || '').toLowerCase().trim()
+  if (d.includes('delivery') || d.includes('freight')) {
+    return false
+  }
   return (
     d.includes('labor') ||
     d.includes('installation') ||
     d.includes('commissioning') ||
-    d.includes('delivery') ||
-    d.includes('freight') ||
     d.includes('service') ||
     d === 'labor and installation'
   )

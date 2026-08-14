@@ -1436,7 +1436,7 @@ export default function Home() {
 
   const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor' | 'other'; label: string; badgeColor: string } => {
     const d = (description || '').toLowerCase().trim()
-    if (d.includes('labor') || d.includes('installation') || d.includes('commissioning') || d.includes('delivery') || d.includes('freight') || d.includes('service')) {
+    if (!d.includes('delivery') && !d.includes('freight') && (d.includes('labor') || d.includes('installation') || d.includes('commissioning') || d.includes('service'))) {
       return { key: 'labor', label: 'Labor & Service', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' }
     }
     if (
