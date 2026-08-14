@@ -3308,21 +3308,29 @@ export default function Home() {
                               onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                               placeholder="Item description"
                             />
-                            <Input
-                              className="w-12 px-1 text-center"
-                              value={item.unit || ''}
-                              onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                              placeholder="pcs"
-                            />
-                            <Input
-                              className="w-10 px-0 text-center"
-                              type="number"
-                              min="0"
-                              value={item.quantity === 0 ? '' : item.quantity}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                              placeholder="0"
-                            />
+                            {isLaborItem(item.description) || descLower.includes('delivery') || descLower.includes('freight') ? (
+                              <div className="w-[96px] shrink-0 text-center text-[11px] font-mono text-muted-foreground self-center py-1 bg-secondary/30 rounded border border-dashed border-border/50">
+                                —
+                              </div>
+                            ) : (
+                              <>
+                                <Input
+                                  className="w-12 px-1 text-center"
+                                  value={item.unit || ''}
+                                  onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                                  placeholder="pcs"
+                                />
+                                <Input
+                                  className="w-10 px-0 text-center"
+                                  type="number"
+                                  min="0"
+                                  value={item.quantity === 0 ? '' : item.quantity}
+                                  onFocus={(e) => e.target.select()}
+                                  onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                  placeholder="0"
+                                />
+                              </>
+                            )}
                             <div className="flex flex-col items-end w-[72px] shrink-0">
                               <Input
                                 className="w-full px-2 text-right"
