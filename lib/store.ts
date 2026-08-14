@@ -154,32 +154,80 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   // ── SET DATE: AUGUST 14, 2026 (Dev) ──
   {
-    id: 'cl-dev-ui-updates-aug14_v6',
-    timestamp: 'Aug 14, 2026, 03:30 PM',
-    itemDescription: 'UI Updates',
+    id: 'cl-dev-header-controls-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:30 PM',
+    itemDescription: 'UI & Header Control Layout',
     changeType: 'system',
-    fieldChanged: 'Calculator UI & Layout Controls',
-    oldValue: 'Floor Selection & Custom kW Input',
-    newValue: 'Rows Input Field & Streamlined Sidebar',
+    fieldChanged: 'Line Items Section Controls',
+    oldValue: '2-Column Grid (Rate Markup % & Price/Watt)',
+    newValue: '3-Column Grid (Rate Markup %, Price/Watt & Rows)',
     unit: 'SET',
-    note: '[Dev] Added Rows input field (default=1), removed Floor Selection & Custom kW Setup, trimmed Sizing Reference to 5kW–20kW, updated badge label',
+    note: '[Dev] Integrated Rows (Array Rows) input field directly into the 3-column control grid under Line Items section header',
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   {
-    id: 'cl-dev-delivery-fees-aug14_v6',
-    timestamp: 'Aug 14, 2026, 09:20 AM',
-    itemDescription: 'Delivery Fees',
+    id: 'cl-dev-boq-editor-ui-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:20 PM',
+    itemDescription: 'BOQ Editor Table UI',
     changeType: 'system',
-    fieldChanged: 'Classification & Breakdown Widget',
-    oldValue: 'Labor Item Classification',
-    newValue: 'Standalone Logistics Item',
-    unit: 'LOT',
-    note: '[Dev] Excluded delivery and freight items from isLaborItem and removed irrelevant Labor Breakdown widget',
+    fieldChanged: 'Item Row Input Boxes',
+    oldValue: 'Unit [LOT] and Qty [1] Input Fields',
+    newValue: 'Clean Dash Placeholder for Labor & Delivery',
+    unit: 'SET',
+    note: '[Dev] Hidden LOT unit and 1 quantity input boxes in editor table for Labor & Installation and Delivery Fees rows',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-preview-layout-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:25 PM',
+    itemDescription: 'Document Preview Layout',
+    changeType: 'system',
+    fieldChanged: 'Rate, Unit & Qty Columns Display',
+    oldValue: 'Individual Rate & Quantity Badges',
+    newValue: 'Clean Dash Placeholder with Final Amount Only',
+    unit: 'SET',
+    note: '[Dev] Hidden unit, quantity, and rate columns (—) for Labor and Delivery Fees in preview modals to display only the final total amount',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-cleanup-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:15 PM',
+    itemDescription: 'Sidebar & Table Row Cleanup',
+    changeType: 'system',
+    fieldChanged: 'Redundant Widgets',
+    oldValue: 'Sidebar Price/Watt Card & Labor Breakdown Widget',
+    newValue: 'Centralized Controls & Clean Rows',
+    unit: 'SET',
+    note: '[Dev] Removed redundant Labor Price / Watt card from sidebar kW Set Up tab and inline Labor Breakdown widget from BOQ table',
     batch: 'August 14, 2026 System & UI Updates (Dev)'
   },
   // ── SET DATE: AUGUST 14, 2026 (MsG - SysPrc) ──
   {
-    id: 'cl-sysprc-formulas-aug14_v6',
+    id: 'cl-sysprc-battery-1x-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:30 PM',
+    itemDescription: 'Fixed Battery System Rule',
+    changeType: 'system',
+    fieldChanged: 'Battery Quantity Rule',
+    oldValue: 'Scaled Battery Qty (1 to 2+)',
+    newValue: 'Always 1x Battery across all setups',
+    unit: 'PC',
+    note: '[SysPrc] Standardized battery quantity to strictly 1x (quantity: 1) across all system sizes and kW setups',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-sysprc-labor-rate-aug14_v7',
+    timestamp: 'Aug 14, 2026, 04:25 PM',
+    itemDescription: 'Labor & Installation Rate Model',
+    changeType: 'system',
+    fieldChanged: 'Editor Table Rate Field',
+    oldValue: 'Price / Watt Input Value (5 / 6)',
+    newValue: 'Final Calculated Price (Total Watts × Price/Watt)',
+    unit: 'SET',
+    note: '[SysPrc] Set Labor and Installation rate field in BOQ editor to final calculated price with default Price/Watt = 6 (₱6.00/W)',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
+  },
+  {
+    id: 'cl-sysprc-formulas-aug14_v7',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Dynamic Quantity Formulas',
     changeType: 'system',
@@ -191,7 +239,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-wire-logic-aug14_v6',
+    id: 'cl-sysprc-wire-logic-aug14_v7',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Dynamic Size & Wire Logic',
     changeType: 'system',
@@ -203,7 +251,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-naming-pricing-aug14_v6',
+    id: 'cl-sysprc-naming-pricing-aug14_v7',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Naming Conventions & Pricing Overwrites',
     changeType: 'system',
@@ -215,7 +263,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 14, 2026 Price & Specification Updates (MsG - SysPrc)'
   },
   {
-    id: 'cl-sysprc-item-splitting-aug14_v6',
+    id: 'cl-sysprc-item-splitting-aug14_v7',
     timestamp: 'Aug 14, 2026, 03:30 PM',
     itemDescription: 'Item Splitting',
     changeType: 'system',
@@ -576,7 +624,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-sysprc-item-splitting-aug14_v6')
+        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-sysprc-battery-1x-aug14_v7')
         if (!hasAug14LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
