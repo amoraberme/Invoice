@@ -152,6 +152,56 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 14, 2026 (Dev) ──
+  {
+    id: 'cl-dev-ui-cleanup-aug14_v3',
+    timestamp: 'Aug 14, 2026, 10:25 AM',
+    itemDescription: 'UI & Layout Cleanup',
+    changeType: 'system',
+    fieldChanged: 'UI Components & Reference Tables',
+    oldValue: 'Floor Selection & Custom kW Input',
+    newValue: 'Cleaned UI & Preserved Core Preset Sizing',
+    unit: 'SET',
+    note: '[Dev] Removed Floor Selection card, Custom kW Setup input, trimmed Sizing Reference table to 5kW–20kW, updated Pricelist 25th badge label',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-delivery-fees-aug14_v3',
+    timestamp: 'Aug 14, 2026, 09:20 AM',
+    itemDescription: 'Delivery Fees',
+    changeType: 'system',
+    fieldChanged: 'Classification & Breakdown Widget',
+    oldValue: 'Labor Item Classification',
+    newValue: 'Standalone Logistics Item',
+    unit: 'LOT',
+    note: '[Dev] Excluded delivery and freight items from isLaborItem and removed irrelevant Labor Breakdown widget',
+    batch: 'August 14, 2026 System & UI Updates (Dev)'
+  },
+  // ── SET DATE: AUGUST 14, 2026 (MsG) ──
+  {
+    id: 'cl-msg-delivery-fees-aug14_v3',
+    timestamp: 'Aug 14, 2026, 09:20 AM',
+    itemDescription: 'Delivery Fees',
+    changeType: 'system',
+    fieldChanged: 'Labor Calculation Excluded',
+    oldValue: 'Capacity Labor Pricing',
+    newValue: 'Fixed Flat Logistics Fee',
+    unit: 'LOT',
+    note: '[MsG] Standardized Delivery Fees as a standalone logistics charge exempt from per-watt labor calculations',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG)'
+  },
+  {
+    id: 'cl-msg-wire-conduit-aug14_v3',
+    timestamp: 'Aug 14, 2026, 10:20 AM',
+    itemDescription: 'Wire & Conduit',
+    changeType: 'system',
+    fieldChanged: 'Description, Default Qty & Rate',
+    oldValue: 'Dynamic Hose / ₱99.33 / m',
+    newValue: 'AC Wire #8/#6 (₱99.34/m), DC WIRE 100M, Flexible hose',
+    unit: 'M',
+    note: '[MsG] Configured AC Wire #8 for <=8kW (₱60.04/m), AC Wire #6 for >=10kW (₱99.34/m) with 100M default, DC WIRE 100M default, and simplified Flexible hose description',
+    batch: 'August 14, 2026 Price & Specification Updates (MsG)'
+  },
   // ── SET DATE: AUGUST 13, 2026 (Dev) ──
   {
     id: 'cl-dev-delivery-fees',
@@ -402,7 +452,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     changeType: 'price',
     fieldChanged: 'Unit Price (Per Meter)',
     oldValue: '₱400.00 / m',
-    newValue: '₱99.33 / m',
+    newValue: '₱99.34 / m',
     unit: 'M',
     note: '[SysPrc] Updated rate per meter based on ₱14,900 per 150m roll',
     batch: 'August 13, 2026 Price & Catalog Adjustment (SysPrc)'
@@ -490,8 +540,8 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasDevDelivery = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-delivery-fees')
-        if (!hasDevDelivery) {
+        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-wire-conduit-aug14_v3')
+        if (!hasAug14LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }

@@ -163,7 +163,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     icon: Cable,
     items: [
       { code: 'SOL-170', name: 'Cable Tray', srp: '₱560', installer: '₱560', wholesale: '₱560', subdealer: '₱560' },
-      { code: 'SOL-124-AC', name: 'AC Wire #6 AWG 14mm²', srp: '₱14,900/150m', installer: '₱99.33/m', wholesale: '₱99.33/m', subdealer: '₱99.33/m' },
+      { code: 'SOL-124-AC', name: 'AC Wire #6 AWG 14mm²', srp: '₱14,900/150m', installer: '₱99.34/m', wholesale: '₱99.34/m', subdealer: '₱99.34/m' },
       { code: 'SOL-123-AC', name: 'AC Wire AWG #8', srp: '₱9,006/150m', installer: '₱60.04/m', wholesale: '₱60.04/m', subdealer: '₱60.04/m' },
       { code: 'SOL-152', name: 'Ground Wire', srp: '₱5,888/150m', installer: '₱39.25/m', wholesale: '₱39.25/m', subdealer: '₱39.25/m' },
       { code: 'ACC23', name: 'PV Cable 4mm² Single Core (100m Roll, Red/Black)', srp: '₱4,200', installer: '₱4,000', wholesale: '₱3,950', subdealer: '₱3,900' },

@@ -33,44 +33,21 @@ import {
 const PANEL_WATTAGE = 620
 const PANEL_WIDTH_FT = 3.72
 
-const FLOOR_BASE_METERS: Record<number, number> = {
-  1: 30,
-  2: 40,
-  3: 55,
-  4: 65,
-}
-
-function getFloorMeters(floorNum: number): number {
-  return FLOOR_BASE_METERS[floorNum] ?? 30
-}
-
 function getWireSize(inverterKw: number): string {
-  if (inverterKw <= 4) {
-    return '#8 10mm²'
-  } else if (inverterKw <= 10) {
-    return 'AWG #8'
-  } else if (inverterKw <= 12) {
-    return '#6 AWG 14mm²'
-  } else {
-    return '#4 22mm²'
-  }
+  return '#8'
 }
 
 function getConduitDetails(inverterKw: number, runLength: number) {
-  let size = '25mm'
   let rate = 66
   if (inverterKw <= 5) {
-    size = '25mm'
     rate = 66
   } else if (inverterKw <= 10) {
-    size = '32mm'
     rate = 95
   } else {
-    size = '40mm'
     rate = 124
   }
   return {
-    description: `Flexible hose ${size}`,
+    description: 'Flexible hose',
     rate,
     quantity: 50,
     unit: 'M'
@@ -114,22 +91,16 @@ function getDynamicBreakerRatings(systemKw: number) {
 }
 
 function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable: string, groundWire: string, acWire: string } {
-  // DC Solar Cable: 4mm² standard, upgraded to 6mm² if >=8kW or run >30m
-  const dcCableGauge = (systemKw >= 8 || runLength > 30) ? '6mm²' : '4mm²'
-
   // Grounding Wire: 6mm² standard, upgraded to 10mm² if >=10kW
   const groundWireGauge = systemKw >= 10 ? '10mm²' : '6mm²'
 
-  // AC Wire (Standard size by kW)
-  let acWireGauge = '#8 10mm²'
-  if (systemKw > 4 && systemKw <= 10) acWireGauge = 'AWG #8'
-  else if (systemKw > 10 && systemKw <= 12) acWireGauge = '#6 AWG 14mm²'
-  else if (systemKw > 12) acWireGauge = '#4 22mm²'
+  // AC Wire: AC Wire #8 for <= 8kW; AC Wire #6 for >= 10kW
+  const acWireGauge = systemKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
 
   return {
-    dcCable: `DC Solar Cable ${dcCableGauge}`,
+    dcCable: `DC WIRE`,
     groundWire: `Ground Wire ${groundWireGauge}`,
-    acWire: `AC Wire ${acWireGauge}`
+    acWire: acWireGauge
   }
 }
 
@@ -144,9 +115,9 @@ function getInverterKwFromLineItems(lineItems: LineItem[]): number {
   return 5
 }
 
-function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { updated: boolean, items: LineItem[] } {
+function recalculateBoqAccessories(lineItems: LineItem[]): { updated: boolean, items: LineItem[] } {
   const inverterKw = getInverterKwFromLineItems(lineItems)
-  const runLength = getFloorMeters(floorNum)
+  const runLength = 30
   const wireInfo = getDynamicWireSize(inverterKw, runLength)
   const breakers = getDynamicBreakerRatings(inverterKw)
 
@@ -154,7 +125,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
   const panelQty = panelItem ? panelItem.quantity : 0
   
   const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
-  const extraQty = floorNum >= 2 ? 3 : 0
+  const extraQty = 0
   
   const newRailingQty = panelQty <= 0 ? 0 : 2 * panelQty + extraQty
   const newMidClampQty = panelQty <= 0 ? 0 : 2 * Math.max(0, panelQty - rows)
@@ -287,15 +258,12 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('ac wire') ||
       descLower.includes('ac cable')
     ) {
-      const targetDesc = wireInfo.acWire
-      let targetRate = item.rate
-      if (targetDesc.includes('AWG #8') || targetDesc.includes('10mm²')) targetRate = 60.04
-      else if (targetDesc.includes('14mm²') || targetDesc.includes('#6')) targetRate = 14900 / 150
-      else if (targetDesc.includes('22mm²') || targetDesc.includes('#4')) targetRate = 500
-
-      if (item.description !== targetDesc || item.rate !== targetRate) {
+      const targetDesc = inverterKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
+      const targetRate = inverterKw >= 10 ? 99.34 : 60.04
+      const targetQty = 100
+      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
-        return { ...item, description: targetDesc, rate: targetRate }
+        return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
       }
     } else if (
       descLower === 'dc' ||
@@ -308,11 +276,12 @@ function recalculateBoqAccessories(lineItems: LineItem[], floorNum: number): { u
       descLower.includes('pv wire') ||
       descLower.includes('dc cable')
     ) {
-      const targetDesc = wireInfo.dcCable
-      const targetRate = targetDesc.includes('4mm²') ? 42 : 125
-      if (item.description !== targetDesc || item.rate !== targetRate) {
+      const targetDesc = 'DC WIRE'
+      const targetRate = 125
+      const targetQty = 100
+      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
-        return { ...item, description: targetDesc, rate: targetRate }
+        return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
       }
     } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb')) {
       if (item.description !== breakers.acMcb) {
@@ -969,7 +938,6 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
 ]
 
 const ELECTRIC_BILL_PRICE_REFERENCES = [
-  { bill: '₱5,000 – ₱7,000', kw: 4 },
   { bill: '₱8,000', kw: 5 },
   { bill: '₱9,000', kw: 6 },
   { bill: '₱10,000', kw: 8 },
@@ -978,9 +946,6 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
   { bill: '₱25,000', kw: 15 },
   { bill: '₱30,000', kw: 16 },
   { bill: '₱40,000', kw: 20 },
-  { bill: '₱50,000', kw: 25 },
-  { bill: '₱60,000', kw: 30 },
-  { bill: '₱70,000', kw: 35 },
 ]
 
 const SOLAR_PRICES = {
@@ -992,7 +957,7 @@ const SOLAR_PRICES = {
   LFoot: 90.00,
   SpliceConnector: 90.00,
   FlexconHDPE: 39.50,
-  ACwire: 190.00,
+  ACwire: 60.04,
   PVwire: 125.00,
   DCwire: 125.00,
   MC4: 40.00,
@@ -1294,7 +1259,6 @@ export default function Home() {
     coolingCapacity: '',
     breakerStatus: ''
   })
-  const [selectedFloor, setSelectedFloor] = useState<number>(1)
   const [monthlyKwh, setMonthlyKwh] = useState<string>('')
   const [dailyKwh, setDailyKwh] = useState<string>('')
   const [pricePerKwh, setPricePerKwh] = useState<string>('15.01')
@@ -1308,7 +1272,6 @@ export default function Home() {
   const [isSupplyMode, setIsSupplyMode] = useState(false)
   const prevPanelQtyRef = useRef<number | null>(null)
   const prevTotalWattsRef = useRef<number | null>(null)
-  const prevFloorRef = useRef<number | null>(null)
   const prevPricePerWattRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
@@ -1631,16 +1594,15 @@ export default function Home() {
   useEffect(() => {
     if (!loaded) return
     const { panelQty, totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems)
-    const floor = selectedFloor || 1
     const pricePerWatt = invoice.laborPricePerWatt ?? 6
     const expectedLaborRate = Math.round(totalWatts * pricePerWatt)
 
     let currentItems = invoice.lineItems
     let itemsModified = false
 
-    if (prevPanelQtyRef.current !== null && prevFloorRef.current !== null) {
-      if (panelQty !== prevPanelQtyRef.current || floor !== prevFloorRef.current) {
-        const { updated, items } = recalculateBoqAccessories(currentItems, floor)
+    if (prevPanelQtyRef.current !== null) {
+      if (panelQty !== prevPanelQtyRef.current) {
+        const { updated, items } = recalculateBoqAccessories(currentItems)
         if (updated) {
           currentItems = items
           itemsModified = true
@@ -1651,7 +1613,6 @@ export default function Home() {
     const systemParamsChanged = (
       (prevPanelQtyRef.current !== null && panelQty !== prevPanelQtyRef.current) ||
       (prevTotalWattsRef.current !== null && totalWatts !== prevTotalWattsRef.current) ||
-      (prevFloorRef.current !== null && floor !== prevFloorRef.current) ||
       (prevPricePerWattRef.current !== null && pricePerWatt !== prevPricePerWattRef.current)
     )
 
@@ -1680,9 +1641,8 @@ export default function Home() {
 
     prevPanelQtyRef.current = panelQty
     prevTotalWattsRef.current = totalWatts
-    prevFloorRef.current = floor
     prevPricePerWattRef.current = pricePerWatt
-  }, [invoice.lineItems, invoice.laborPricePerWatt, selectedFloor, loaded, setInvoice, update])
+  }, [invoice.lineItems, invoice.laborPricePerWatt, loaded, setInvoice, update])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
@@ -1850,163 +1810,6 @@ export default function Home() {
     }
   }
 
-  const handleSelectFloor = (floorNum: number) => {
-    setSelectedFloor(floorNum)
-    
-    const runLength = getFloorMeters(floorNum)
-    const extraQty = floorNum >= 2 ? 3 : 0
-
-    setInvoice((prev) => {
-      const items = [...prev.lineItems]
-      let hasHdpe = false
-      let hasAc = false
-      let hasPv = false
-      let hasDc = false
-
-      const inverterKw = getInverterKwFromLineItems(items)
-      const wireSize = getWireSize(inverterKw)
-
-      let panelQty = 0
-      for (const item of items) {
-        if (item.description.toLowerCase().includes('panel')) {
-          panelQty = item.quantity
-        }
-      }
-      const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
-
-      const updatedItems: LineItem[] = []
-
-      for (const item of items) {
-        const descLower = item.description.toLowerCase().trim()
-        
-        // Match Flexcon, HDPE, or Hose
-        if (descLower.includes('flexcon') || descLower.includes('hdpe') || descLower.includes('hose')) {
-          if (hasHdpe) {
-            // Duplicate found, skip/discard
-            continue
-          }
-          hasHdpe = true
-          const details = getConduitDetails(inverterKw, runLength)
-          updatedItems.push({
-            ...item,
-            quantity: details.quantity,
-            rate: details.rate,
-            unit: details.unit,
-            description: details.description
-          })
-          continue
-        }
-        
-        // Match AC wire
-        const hasAcWord = /\bac\b/i.test(item.description)
-        if (
-          descLower === 'ac' ||
-          descLower === 'ac wire' ||
-          descLower === 'ac cable' ||
-          descLower.includes('ac wire') || 
-          descLower.includes('ac cable') ||
-          (hasAcWord && descLower.includes('wire')) ||
-          (hasAcWord && descLower.includes('cable'))
-        ) {
-          if (hasAc) {
-            // Duplicate found, skip/discard
-            continue
-          }
-          hasAc = true
-          updatedItems.push({
-            ...item,
-            quantity: runLength,
-            unit: 'M',
-            description: `AC Wire ${wireSize}`
-          })
-          continue
-        }
-
-        // Match DC/PV wire
-        const hasDcWord = /\bdc\b|\bpv\b/i.test(item.description)
-        const isDcWire = 
-          descLower === 'dc' || 
-          descLower === 'dc wire' || 
-          descLower === 'dc/pv wire' || 
-          descLower === 'pv wire' || 
-          descLower === 'dc cable' || 
-          descLower.includes('dc wire') || 
-          descLower.includes('dc/pv wire') || 
-          descLower.includes('pv wire') || 
-          descLower.includes('dc cable') || 
-          (hasDcWord && descLower.includes('wire')) || 
-          (hasDcWord && descLower.includes('cable')) || 
-          descLower.includes('black pv') ||
-          descLower.includes('red pv')
-        
-        if (isDcWire) {
-          if (hasDc) {
-            // Duplicate found, skip/discard
-            continue
-          }
-          hasDc = true
-          updatedItems.push({
-            ...item,
-            quantity: runLength,
-            unit: 'M',
-            description: `DC/PV Wire ${wireSize}`
-          })
-          continue
-        }
-
-        // Railings, Mid Clamp, End Clamp, L Foot are structural accessories and will be handled by recalculateBoqAccessories
-        if (
-          descLower === 'railings' || descLower.includes('railing') ||
-          descLower === 'mid clamp' || descLower.includes('mid clamp') ||
-          descLower === 'end clamp' || descLower.includes('end clamp') ||
-          descLower === 'l foot' || descLower.includes('l foot')
-        ) {
-          updatedItems.push(item)
-          continue
-        }
-
-        // Not a matched material, keep as is
-        updatedItems.push(item)
-      }
-
-      const now = Date.now()
-      if (!hasHdpe) {
-        const details = getConduitDetails(inverterKw, runLength)
-        updatedItems.push({
-          id: `floor-hdpe-${now}`,
-          description: details.description,
-          quantity: details.quantity,
-          rate: details.rate,
-          unit: details.unit
-        })
-      }
-      if (!hasAc) {
-        updatedItems.push({
-          id: `floor-ac-${now}`,
-          description: `AC Wire ${wireSize}`,
-          quantity: runLength,
-          rate: SOLAR_PRICES.ACwire,
-          unit: 'M'
-        })
-      }
-      if (!hasDc) {
-        updatedItems.push({
-          id: `floor-dc-${now}`,
-          description: `DC/PV Wire ${wireSize}`,
-          quantity: runLength,
-          rate: SOLAR_PRICES.DCwire,
-          unit: 'M'
-        })
-      }
-
-      const { items: finalItems } = recalculateBoqAccessories(updatedItems, floorNum)
-      return {
-        ...prev,
-        lineItems: finalItems
-      }
-    })
-  }
-
   const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance') => {
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
@@ -2029,9 +1832,8 @@ export default function Home() {
 
     const items: LineItem[] = []
     const now = Date.now()
-    const floorNum = selectedFloor || 1
-    const runLength = getFloorMeters(floorNum)
-    const extraQty = floorNum >= 2 ? 3 : 0
+    const runLength = 30
+    const extraQty = 0
 
     // 1. Inverter
     const inverterSizes = [1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20, 30, 50, 60, 75, 125]
@@ -2179,30 +1981,22 @@ export default function Home() {
     })
 
     // 8. AC Wire
-    let acRate = prices.ACwire
-    if (wireInfo.acWire.includes('AWG #8') || wireInfo.acWire.includes('10mm²')) {
-      acRate = 60.04 // SOL-123 Wire 10mm² (AWG #8: ₱60.04/m = ₱9,006/150m)
-    } else if (wireInfo.acWire.includes('14mm²') || wireInfo.acWire.includes('#6')) {
-      acRate = 14900 / 150 // SOL-124 Wire 16mm² (AWG #6: ₱14,900/150m)
-    } else if (wireInfo.acWire.includes('22mm²') || wireInfo.acWire.includes('#4')) {
-      acRate = 500 // SOL-125 Wire 25mm² (AWG #4)
-    }
-
+    const acDesc = inverterKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
+    const acRate = inverterKw >= 10 ? 99.34 : 60.04
     items.push({
       id: `boq-8-${now}`,
-      description: wireInfo.acWire,
-      quantity: runLength,
+      description: acDesc,
+      quantity: 100,
       rate: acRate,
       unit: 'M'
     })
 
     // 9. DC/PV Wire
-    const dcRate = wireInfo.dcCable.includes('4mm²') ? 42 : 125 // SOL-038 (4mm²: ₱42/m) vs SOL-039 (6mm²: ₱125/m)
     items.push({
       id: `boq-dc-${now}`,
-      description: wireInfo.dcCable,
-      quantity: runLength,
-      rate: dcRate,
+      description: 'DC WIRE',
+      quantity: 100,
+      rate: 125,
       unit: 'M'
     })
 
@@ -2482,7 +2276,7 @@ export default function Home() {
               urgency.badgeBorder,
               urgency.shakeClass
             )}
-            title="Goodwe 25th Update Reminder"
+            title="Pricelist 25th Update Reminder"
           >
             <span className="flex h-1.5 w-1.5 relative shrink-0">
               <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
@@ -2594,14 +2388,14 @@ export default function Home() {
                   urgency.badgeBorder,
                   urgency.shakeClass
                 )}
-                title="Click for Goodwe Pricelist Update Reminder"
+                title="Click for Pricelist Update Reminder"
               >
                 <span className="flex h-2 w-2 relative shrink-0">
                   <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
                   <span className={cn("relative inline-flex rounded-full h-2 w-2", urgency.dotBg)}></span>
                 </span>
                 <span className="font-extrabold text-[11px] tracking-tight">
-                  ⚡ Goodwe 25th Update:
+                  ⚡ Pricelist 25th Update:
                 </span>
                 <span className="font-mono text-[11px] font-extrabold">
                   {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
@@ -2786,40 +2580,7 @@ export default function Home() {
                     })}
                   </div>
 
-                  <div className="border-t border-border pt-3 mt-3">
-                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                      Apply by Custom kW Setup {systemType === 'ongrid' && "(Disabled for On-Grid)"}
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        disabled={systemType === 'ongrid'}
-                        value={customKwInput}
-                        onChange={(e) => setCustomKwInput(e.target.value)}
-                        placeholder={systemType === 'ongrid' ? "Disabled for On-Grid" : "e.g. 7.5"}
-                        className={cn(
-                          "bg-secondary/50 border-border text-foreground font-medium h-9 rounded-[10px] text-xs focus:ring-1 focus:ring-primary focus:border-primary flex-1",
-                          systemType === 'ongrid' && "opacity-50 cursor-not-allowed bg-secondary/30"
-                        )}
-                      />
-                      <Button
-                        onClick={() => {
-                          const val = parseFloat(customKwInput)
-                          if (!isNaN(val) && val > 0) {
-                            setActiveKwSetup(val)
-                            handleGenerateBoq(val, activePreset)
-                          }
-                        }}
-                        disabled={systemType === 'ongrid' || !customKwInput || parseFloat(customKwInput) <= 0}
-                        variant="default"
-                        size="sm"
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-[10px] h-9 text-[10px] px-3 shrink-0 disabled:opacity-40"
-                      >
-                        APPLY
-                      </Button>
-                    </div>
+
 
                     <div className="flex gap-2 mt-3 w-full">
                       <Button
@@ -2863,43 +2624,8 @@ export default function Home() {
                       </Button>
                     </div>
                   </div>
-                </div>
 
-                {/* Floor Chooser */}
-                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                      🏢 Floor Selection
-                    </h4>
-                    {selectedFloor && (
-                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-[12px] font-bold border border-emerald-500/20">
-                        Auto-Synced
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="grid grid-cols-4 gap-1.5 select-none">
-                    {[1, 2, 3, 4].map((floorNum) => {
-                      const isSelected = selectedFloor === floorNum;
-                      const meters = getFloorMeters(floorNum);
-                      return (
-                        <button
-                          key={floorNum}
-                          onClick={() => handleSelectFloor(floorNum)}
-                          className={cn(
-                            "h-10 rounded-[8px] flex flex-col items-center justify-center transition-all relative border cursor-pointer select-none py-1",
-                            isSelected 
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm scale-[1.02] z-10" 
-                              : "bg-secondary/50 hover:bg-secondary text-muted-foreground border-border"
-                          )}
-                        >
-                          <span className="text-[11px] font-bold leading-none mb-0.5">F{floorNum}</span>
-                          <span className="text-[9px] opacity-80 leading-none">{meters}m</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
 
                 {/* Electric Bill vs Recommended System Size Reference Table */}
                 <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
