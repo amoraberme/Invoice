@@ -81,9 +81,7 @@ export function useMGInvoice() {
         }
         
         sanitized.issueDate = todayStr
-        if (!sanitized.dueDate) {
-          sanitized.dueDate = addDays(todayStr, 15)
-        }
+        sanitized.dueDate = addDays(todayStr, 15)
         setInvoice(sanitized)
       } else {
         const freshId = generateDocumentId('MG-QT')

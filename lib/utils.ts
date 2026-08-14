@@ -355,7 +355,6 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     electrical: { title: 'Electrical', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
     services: { title: 'Services', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
     delivery: { title: 'Delivery Fees', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
-    other: { title: 'Other Materials & Services', unit: 'LOT', totalAmount: 0, totalQty: 1, count: 0 },
   }
 
   const validItems = (invoice.lineItems || []).filter((item) => {
@@ -370,7 +369,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     const effectiveRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     const itemAmount = item.quantity * effectiveRate
 
-    let categoryKey = 'other'
+    let categoryKey = 'materials'
 
     // Priority 0: Standalone Delivery Fees
     if (
@@ -478,7 +477,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     grp.count += 1
   }
 
-  const categoryOrder = ['panels', 'inverter', 'battery', 'materials', 'electrical', 'services', 'delivery', 'other']
+  const categoryOrder = ['panels', 'inverter', 'battery', 'materials', 'electrical', 'services', 'delivery']
   const result: LineItem[] = []
 
   for (const key of categoryOrder) {
