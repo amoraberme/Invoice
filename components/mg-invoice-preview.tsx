@@ -300,7 +300,7 @@ export function MGInvoicePreview({
         {/* Brand Name Single Toggle Button */}
         <button
           type="button"
-          onClick={() => onToggleWithBrandName?.(invoice.withBrandName !== false)}
+          onClick={() => onToggleWithBrandName?.(invoice.withBrandName === false)}
           className={cn(
             "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
             invoice.withBrandName !== false

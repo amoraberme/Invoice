@@ -255,18 +255,96 @@ export function sortLineItems(items: LineItem[]): LineItem[] {
   })
 }
 
+export function getPanelDimensions(wattageOrDesc: string): string {
+  const numMatch = (wattageOrDesc || '').match(/(\d+)\s*w/i) || (wattageOrDesc || '').match(/(\d+)/)
+  const num = numMatch ? parseInt(numMatch[1], 10) : 620
+  if (num >= 720) {
+    return '7.82ft x 4.28ft'
+  }
+  return '7.82ft x 3.72ft'
+}
+
 export function stripBrandName(description: string): string {
   if (!description) return ''
-  const d = description.trim()
+  let d = description.trim()
 
-  const brandRegex = /^(Tongwei|JA\s+Solar|JA|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Ian|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC|Oliter|Alpsolar|Alp\s+Solar|AlpSolarr)\s+/i
+  const brandRegex = /\b(Tongwei|JA\s+Solar|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC|Oliter|Alpsolar|Alp\s+Solar|AlpSolarr)\b\s*/gi
 
-  return d.replace(brandRegex, '').trim()
+  d = d.replace(brandRegex, '').replace(/\s{2,}/g, ' ').trim()
+  return d
+}
+
+export function formatPanelDescription(description: string, withBrandName: boolean): string {
+  const d = (description || '').trim()
+  if (!d) return ''
+  const lower = d.toLowerCase()
+
+  // Match wattage
+  const wattMatch = d.match(/(\d+)\s*w/i)
+  const wattage = wattMatch ? wattMatch[0].toUpperCase() : '620W'
+  const dims = getPanelDimensions(wattage)
+
+  // Identify brand if present
+  let brand = ''
+  if (lower.includes('tongwei')) brand = 'Tongwei'
+  else if (lower.includes('ja solar') || lower.includes('ja ')) brand = 'JA Solar'
+  else if (lower.includes('runergy')) brand = 'Runergy'
+  else if (lower.includes('jinko')) brand = 'Jinko'
+  else if (lower.includes('gokin')) brand = 'Gokin'
+  else if (lower.includes('longi')) brand = 'Longi'
+  else if (lower.includes('seraphim')) brand = 'Seraphim'
+  else if (lower.includes('trina')) brand = 'Trina Solar'
+  else if (lower.includes('lesso')) brand = 'Lesso'
+  else if (withBrandName) brand = 'Tongwei'
+
+  const hasDimensions = lower.includes('ft') || lower.includes('7.82')
+
+  if (withBrandName) {
+    if (hasDimensions) {
+      if (brand && !lower.includes(brand.toLowerCase())) {
+        return `${brand} ${d}`
+      }
+      return d
+    }
+    if (brand && !lower.includes(brand.toLowerCase())) {
+      return `${brand} Panel ${wattage} (${dims})`
+    }
+    return `${d} (${dims})`
+  } else {
+    // Without Brand
+    let stripped = stripBrandName(d)
+    if (!stripped.toLowerCase().includes('panel') && !stripped.toLowerCase().includes('module')) {
+      stripped = `Panel ${stripped}`
+    }
+    if (hasDimensions) {
+      return stripped
+    }
+    return `${stripped} (${dims})`
+  }
 }
 
 export function formatItemDescription(description: string, withBrandName: boolean): string {
   const d = (description || '').trim()
   if (!d) return ''
+  const lower = d.toLowerCase()
+
+  // Panel check
+  const isPanel =
+    lower.includes('panel') ||
+    lower.includes('module') ||
+    lower.includes('tongwei') ||
+    lower.includes('ja solar') ||
+    lower.includes('runergy') ||
+    lower.includes('jinko') ||
+    lower.includes('gokin') ||
+    lower.includes('longi') ||
+    lower.includes('seraphim') ||
+    lower.includes('trina') ||
+    lower.includes('lesso')
+
+  if (isPanel) {
+    return formatPanelDescription(d, withBrandName)
+  }
 
   if (withBrandName) {
     return formatBrandItemDescription(d)
@@ -279,28 +357,6 @@ export function formatBrandItemDescription(description: string): string {
   const d = (description || '').trim()
   if (!d) return ''
   const lower = d.toLowerCase()
-
-  // Panel check
-  if (lower.includes('panel') || lower.includes('module')) {
-    const hasBrand =
-      lower.includes('tongwei') ||
-      lower.includes('ja solar') ||
-      lower.includes('ja') ||
-      lower.includes('runergy') ||
-      lower.includes('jinko') ||
-      lower.includes('gokin') ||
-      lower.includes('longi') ||
-      lower.includes('ian') ||
-      lower.includes('seraphim') ||
-      lower.includes('trina') ||
-      lower.includes('lesso')
-    if (!hasBrand) {
-      if (lower.startsWith('panel')) {
-        return `Tongwei ${d}`
-      }
-      return `Tongwei Panel ${d.replace(/^panel\s*/i, '')}`
-    }
-  }
 
   // Inverter check
   if (lower.includes('inverter')) {

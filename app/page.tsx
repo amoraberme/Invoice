@@ -1893,7 +1893,7 @@ export default function Home() {
     // 1. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Tongwei 620W`,
+      description: `Tongwei Panel 620W (7.82ft x 3.72ft)`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
