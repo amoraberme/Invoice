@@ -85,7 +85,7 @@ function getDynamicBreakerRatings(systemKw: number) {
 
 function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable: string, groundWire: string, acWire: string } {
   const groundWireGauge = systemKw >= 10 ? '10mm²' : '6mm²'
-  const acWireGauge = systemKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
+  const acWireGauge = systemKw >= 10 ? 'AC Wire #6 & AC Wire #8' : 'AC Wire #8'
 
   return {
     dcCable: `DC Wire`,
@@ -128,7 +128,10 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   const newGroundLugQty = 5
 
   let changed = false
-  const items = lineItems.map(item => {
+  let seenAcWire6 = false
+  let seenAcWire8 = false
+
+  const mappedItems = lineItems.map(item => {
     const descLower = item.description.toLowerCase().trim()
     if (
       descLower === 'flexible hose' ||
@@ -244,12 +247,43 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       descLower.includes('ac wire') ||
       descLower.includes('ac cable')
     ) {
-      const targetDesc = inverterKw >= 10 ? 'AC Wire #6' : 'AC Wire #8'
-      const targetRate = inverterKw >= 10 ? 99.34 : 60.04
-      const targetQty = inverterKw >= 10 ? 50 : 100
-      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
-        changed = true
-        return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
+      if (inverterKw >= 10) {
+        const isExplicit8 = descLower.includes('#8') || descLower.includes('awg 8') || descLower.includes('awg #8')
+        const isExplicit6 = descLower.includes('#6') || descLower.includes('awg 6') || descLower.includes('awg #6')
+
+        let targetDesc = 'AC Wire #6'
+        let targetRate = 99.34
+        let targetQty = 50
+
+        if (isExplicit8 || (seenAcWire6 && !seenAcWire8)) {
+          targetDesc = 'AC Wire #8'
+          targetRate = 60.04
+          targetQty = 50
+          seenAcWire8 = true
+        } else {
+          targetDesc = 'AC Wire #6'
+          targetRate = 99.34
+          targetQty = 50
+          seenAcWire6 = true
+        }
+
+        if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty || item.unit !== 'M') {
+          changed = true
+          return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
+        }
+      } else {
+        if (seenAcWire8) {
+          changed = true
+          return null
+        }
+        seenAcWire8 = true
+        const targetDesc = 'AC Wire #8'
+        const targetRate = 60.04
+        const targetQty = 100
+        if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty || item.unit !== 'M') {
+          changed = true
+          return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
+        }
       }
     } else if (
       descLower === 'dc' ||
@@ -322,6 +356,42 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     }
     return item
   })
+
+  let items = mappedItems.filter((item): item is LineItem => item !== null)
+  if (items.length !== lineItems.length) {
+    changed = true
+  }
+
+  if (inverterKw >= 10) {
+    const hasAc6 = items.some(it => it.description.toLowerCase().includes('ac wire #6'))
+    const hasAc8 = items.some(it => it.description.toLowerCase().includes('ac wire #8'))
+
+    if (!hasAc6 && panelQty > 0) {
+      changed = true
+      const hoseIdx = items.findIndex(it => it.description.toLowerCase().includes('flexible hose') || it.description.toLowerCase().includes('hose'))
+      const insertIdx = hoseIdx !== -1 ? hoseIdx + 1 : items.length
+      items.splice(insertIdx, 0, {
+        id: `boq-ac6-${Date.now()}`,
+        description: 'AC Wire #6',
+        quantity: 50,
+        rate: 99.34,
+        unit: 'M'
+      })
+    }
+
+    if (!hasAc8 && panelQty > 0) {
+      changed = true
+      const ac6Idx = items.findIndex(it => it.description.toLowerCase().includes('ac wire #6'))
+      const insertIdx = ac6Idx !== -1 ? ac6Idx + 1 : items.length
+      items.splice(insertIdx, 0, {
+        id: `boq-ac8-${Date.now()}`,
+        description: 'AC Wire #8',
+        quantity: 50,
+        rate: 60.04,
+        unit: 'M'
+      })
+    }
+  }
 
   const hasSplice = items.some(it => it.description.toLowerCase().includes('splice'))
   if (!hasSplice && panelQty > 0) {
