@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, defaultInvoice } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -3037,7 +3037,19 @@ export default function Home() {
 
                 {/* TERMS & CONDITIONS */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Terms & Conditions</SectionHeader>
+                  <div className="flex items-center justify-between">
+                    <SectionHeader>Terms & Conditions</SectionHeader>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => update('terms', defaultInvoice.terms)}
+                      className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-foreground cursor-pointer font-mono"
+                      title="Reset terms to standard default policy"
+                    >
+                      Reset Default
+                    </Button>
+                  </div>
                   <Textarea
                     value={invoice.terms || ''}
                     onChange={(e) => update('terms', e.target.value)}

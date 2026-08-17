@@ -152,6 +152,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 17, 2026 (MsG) ──
+  {
+    id: 'cl-msg-payment-terms-aug17_v3',
+    timestamp: 'Aug 17, 2026, 01:15 PM',
+    itemDescription: 'Commercial Payment Terms & Channels Policy',
+    changeType: 'system',
+    fieldChanged: 'Payment & Validity Terms Policy',
+    oldValue: '50% Down Payment / 50% Upon Delivery (Bank / GCash / Check / Cash); 15-30 days',
+    newValue: 'Full payment after Installation (Cash / Bank Transfer / Credit Card / Crypto / Gold); 15 days validity',
+    unit: 'TERMS',
+    note: '[MsG] Standardized default terms to full payment after installation, added Credit Card, Crypto, and Gold payment channels, and established strict 15-day quotation validity as permanent default policy',
+    batch: 'August 17, 2026 Policy & Commercial Terms Updates (MsG)'
+  },
   // ── SET DATE: AUGUST 17, 2026 (Dev) ──
   {
     id: 'cl-dev-terms-updated-aug17_v2',
@@ -709,7 +722,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug17LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-terms-updated-aug17_v2')
+        const hasAug17LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-payment-terms-aug17_v3')
         if (!hasAug17LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED

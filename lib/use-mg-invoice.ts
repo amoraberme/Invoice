@@ -81,7 +81,16 @@ export function useMGInvoice() {
             }
           } else if (key === 'terms') {
             const currentTerms = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.terms) || ''
-            if (currentTerms.includes('50% down payment') || currentTerms.includes('GCash / Check / Cash') || currentTerms.includes('15-30 days')) {
+            if (
+              !currentTerms ||
+              currentTerms.includes('50%') ||
+              currentTerms.includes('down payment') ||
+              currentTerms.includes('GCash') ||
+              currentTerms.includes('Check') ||
+              currentTerms.includes('15-30 days') ||
+              !currentTerms.includes('Full payment after Installation') ||
+              !currentTerms.includes('Crypto / Gold')
+            ) {
               sanitized.terms = defaultInvoice.terms
             } else {
               sanitized.terms = currentTerms
@@ -94,6 +103,7 @@ export function useMGInvoice() {
         sanitized.issueDate = todayStr
         sanitized.dueDate = addDays(todayStr, 15)
         setInvoice(sanitized)
+        saveInvoice(sanitized)
       } else {
         const freshId = generateDocumentId('MG-QT')
         const dueStr = addDays(todayStr, 15)
