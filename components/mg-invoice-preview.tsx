@@ -87,180 +87,171 @@ export function MGInvoicePreview({
 
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice): PageData[] => {
-    const pages: PageData[] = []
-    
     // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
     const headerHeight = 135
     const billToHeight = 80
+    const continuationHeaderHeight = 0
     
-    const subjectLines = getWrappedLines(inv.subject, 80)
+    const subjectLines = getWrappedLines(inv.subject, 65)
     const subjectHeight = inv.subject ? (18 + subjectLines * 16) : 0
     
-    const salutationLines = getWrappedLines(inv.salutation, 80)
+    const salutationLines = getWrappedLines(inv.salutation, 65)
     const salutationHeight = inv.salutation ? (18 + salutationLines * 16) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 35
     
-    // 2. Totals height + Bank Details (now directly below items)
-    let totalsLines = 3 // Subtotal + VAT + Total
+    // 2. Totals height + Bank Details
+    const totalsLines = 3 // Subtotal + VAT + Total
     let totalsHeight = totalsLines * 24 + 40
 
-    // Add bank details height to totalsHeight, since they are rendered inside showTotals now!
     let bankFields = 0
     if (inv.bankBeneficiary) bankFields++
     if (inv.bankName) bankFields++
     if (inv.bankSortCode) bankFields++
     if (inv.bankAccount) bankFields++
     if (inv.bankSwift) bankFields++
-    const bankHeight = bankFields > 0 ? (bankFields * 24 + 90) : 0 // include padding, margins, gaps and header
+    const bankHeight = bankFields > 0 ? (bankFields * 24 + 80) : 0
     totalsHeight += bankHeight
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
-    const noteLines = getWrappedLines(inv.note, 80)
+    const noteLines = getWrappedLines(inv.note, 65)
     const noteHeight = inv.note ? (noteLines * 18 + 36) : 0
     
-    const termsLines = getWrappedLines(inv.terms, 80)
+    const termsLines = getWrappedLines(inv.terms, 65)
     const termsHeight = inv.terms ? (termsLines * 18 + 36) : 0
     
-    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 140 : 0
+    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 130 : 0
     
-    const closingLines = getWrappedLines(inv.closing, 80)
+    const closingLines = getWrappedLines(inv.closing, 65)
     const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
 
-    const ackHeight = inv.closing ? 160 : 0
+    const ackHeight = inv.closing ? 150 : 0
     
     const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 20
 
-    // Available content height inside A4 borders with a safety buffer to prevent browser clipping
-    const PAGE_MAX_H = 1000
-    
-    let currentItems: LineItem[] = []
-    let currentPageHeight = topSectionHeight + tableHeaderHeight
-    let isFirstPage = true
-    
+    // Available content height inside A4 borders (PAPER_H 1123 - padding 112 - bottom indicator buffer 70 = ~940px)
+    const PAGE_MAX_H = 920
+
     const getItemHeight = (item: LineItem): number => {
       const desc = item.description || ''
       const lines = desc.split('\n')
       let itemLines = 0
       for (const line of lines) {
-        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 45))
+        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 40))
       }
-      return 18 + itemLines * 16
+      return 22 + itemLines * 16
     }
     
-    const itemsToPlace = inv.isCondensed
+    const allItems = inv.isCondensed
       ? getCondensedLineItems(inv)
       : [...inv.lineItems].filter(item => !(inv.excludeBattery && isBatteryItem(item.description)))
-    
-    while (itemsToPlace.length > 0) {
-      const item = itemsToPlace[0]
-      const itemHeight = getItemHeight(item)
-      
-      // If page is empty (just header/tableHeader), always accept the item
-      const isPageEmpty = currentItems.length === 0
-      const maxItems = isFirstPage ? 14 : 20
-      
-      if (isPageEmpty || (currentPageHeight + itemHeight <= PAGE_MAX_H && currentItems.length < maxItems)) {
-        currentItems.push(item)
-        currentPageHeight += itemHeight
-        itemsToPlace.shift()
-      } else {
-        // Page is full — save it and start a new page
-        pages.push({
-          items: currentItems,
-          showTop: isFirstPage,
-          showTotals: false,
-          showBottom: false,
-        })
-        currentItems = []
-        currentPageHeight = tableHeaderHeight
-        isFirstPage = false
-      }
-    }
-    
-    // All items placed. Now decide where totals + footer go.
-    // Totals MUST appear directly after items on the same page.
-    // If totals don't fit, push last item(s) to the next page.
-    
-    // If totals don't fit on the current page, and we have items, push items to next page
-    if (currentPageHeight + totalsHeight > PAGE_MAX_H && currentItems.length > 0) {
-      const nextPageItems: LineItem[] = []
-      let nextPageHeight = tableHeaderHeight
 
-      while (currentPageHeight + totalsHeight > PAGE_MAX_H && currentItems.length > 1) {
-        const item = currentItems.pop()!
-        nextPageItems.unshift(item)
-        currentPageHeight -= getItemHeight(item)
-        nextPageHeight += getItemHeight(item)
-      }
+    const totalItemsHeight = allItems.reduce((sum, item) => sum + getItemHeight(item), 0)
 
-      // Save the current page (without totals)
-      pages.push({
-        items: currentItems,
-        showTop: isFirstPage,
-        showTotals: false,
-        showBottom: false,
-      })
-
-      // Setup the next page as the active page
-      currentItems = nextPageItems
-      currentPageHeight = nextPageHeight
-      isFirstPage = false
-    }
-
-    // Now, totals should fit on this page (since we pushed items or it was already clean).
-    // Let's decide where totals + footer go.
-    if (currentPageHeight + totalsHeight <= PAGE_MAX_H) {
-      if (currentPageHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
-        // Everything fits on this page
-        pages.push({
-          items: currentItems,
-          showTop: isFirstPage,
-          showTotals: true,
-          showBottom: true,
-        })
-      } else {
-        // Totals fit but footer doesn't — put totals with items, footer on next page
-        pages.push({
-          items: currentItems,
-          showTop: isFirstPage,
-          showTotals: true,
-          showBottom: false,
-        })
-        pages.push({
-          items: [],
-          showTop: false,
-          showTotals: false,
-          showBottom: true,
-        })
-      }
-    } else {
-      // Fallback in case totals are too massive for a single blank page
-      if (currentItems.length > 0) {
-        pages.push({
-          items: currentItems,
-          showTop: isFirstPage,
-          showTotals: false,
-          showBottom: false,
-        })
-      }
-      pages.push({
-        items: [],
-        showTop: false,
+    // Check if EVERYTHING fits on 1 page cleanly
+    if (topSectionHeight + tableHeaderHeight + totalItemsHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
+      return [{
+        items: allItems,
+        showTop: true,
         showTotals: true,
-        showBottom: footerBlockHeight <= PAGE_MAX_H - totalsHeight,
-      })
-      if (footerBlockHeight > PAGE_MAX_H - totalsHeight) {
+        showBottom: true,
+      }]
+    }
+
+    // Otherwise, build multi-page layout dynamically
+    const pages: PageData[] = []
+    let remainingItems = [...allItems]
+    let isFirst = true
+
+    while (remainingItems.length > 0) {
+      const pageTopHeight = isFirst ? topSectionHeight : continuationHeaderHeight
+      let currentHeight = pageTopHeight + tableHeaderHeight
+      const currentItems: LineItem[] = []
+
+      while (remainingItems.length > 0) {
+        const item = remainingItems[0]
+        const h = getItemHeight(item)
+        
+        // If placing this item + all remaining items + totals + footer would fit on this final page:
+        const remainingAfterThis = remainingItems.slice(1)
+        const remHeight = remainingAfterThis.reduce((s, it) => s + getItemHeight(it), 0)
+        
+        if (currentHeight + h + remHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
+          currentItems.push(...remainingItems)
+          pages.push({
+            items: currentItems,
+            showTop: isFirst,
+            showTotals: true,
+            showBottom: true,
+          })
+          remainingItems = []
+          break
+        }
+
+        // If placing this item fits on current page (with breathing buffer)
+        if (currentHeight + h <= PAGE_MAX_H - 40 || currentItems.length === 0) {
+          currentItems.push(item)
+          currentHeight += h
+          remainingItems.shift()
+        } else {
+          // Page is full for items
+          break
+        }
+      }
+
+      if (remainingItems.length === 0 && pages.length > 0 && pages[pages.length - 1].items === currentItems) {
+        break
+      }
+
+      if (remainingItems.length === 0) {
+        // All items placed. Let's see if totals + footer fit on this page
+        if (currentHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
+          pages.push({
+            items: currentItems,
+            showTop: isFirst,
+            showTotals: true,
+            showBottom: true,
+          })
+        } else if (currentHeight + totalsHeight <= PAGE_MAX_H) {
+          pages.push({
+            items: currentItems,
+            showTop: isFirst,
+            showTotals: true,
+            showBottom: false,
+          })
+          pages.push({
+            items: [],
+            showTop: false,
+            showTotals: false,
+            showBottom: true,
+          })
+        } else {
+          pages.push({
+            items: currentItems,
+            showTop: isFirst,
+            showTotals: false,
+            showBottom: false,
+          })
+          pages.push({
+            items: [],
+            showTop: false,
+            showTotals: true,
+            showBottom: true,
+          })
+        }
+        break
+      } else {
         pages.push({
-          items: [],
-          showTop: false,
+          items: currentItems,
+          showTop: isFirst,
           showTotals: false,
-          showBottom: true,
+          showBottom: false,
         })
+        isFirst = false
       }
     }
-    
+
     return pages
   }
 
@@ -314,7 +305,7 @@ export function MGInvoicePreview({
       </div>
       {virtualPages.map((page, pageIndex) => {
         return (
-          <div key={pageIndex} className={cn("w-full flex justify-center mb-8 last:mb-0 print:block print:m-0 print:p-0", pageIndex < totalPages - 1 && "print-break")}>
+          <div key={pageIndex} className={cn("w-full flex justify-center mb-8 last:mb-0 print:block print:m-0 print:p-0", pageIndex < totalPages - 1 ? "print-break" : "print-break-last")}>
             {/* Scale wrapper — occupies the visual space of the scaled paper */}
             <div 
               style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
@@ -323,8 +314,9 @@ export function MGInvoicePreview({
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print-page print:!transform-none"
+                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print-page print:!transform-none flex flex-col justify-between"
               >
+                <div>
                 {/* Header (First Page Only) */}
                 {page.showTop && (
                   <div className="flex justify-between items-start mb-6">
@@ -642,6 +634,7 @@ export function MGInvoicePreview({
                     )}
                   </>
                 )}
+                </div>
 
                 {/* Page Number Indicator */}
                 <div className="absolute bottom-10 right-14 text-[10px] text-[#AAAAAA]">

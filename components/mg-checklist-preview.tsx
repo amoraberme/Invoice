@@ -135,7 +135,76 @@ function paginateChecklist(invoice: Invoice): VirtualChecklistPage[] {
     }
   })
 
-  return [{
+  if (checklistItems.length <= 22) {
+    return [{
+      categories: fullCategories.map(cat => ({ ...cat, isContinued: false })),
+      showTop: true,
+      showSignatureBlock: true,
+    }]
+  }
+
+  // Multi-page checklist partitioning
+  const pages: VirtualChecklistPage[] = []
+  let currentCategories: CategorySlice[] = []
+  let currentItemCount = 0
+  const maxItemsFirstPage = 18
+  const maxItemsSubsequentPage = 22
+  let isFirst = true
+
+  fullCategories.forEach(cat => {
+    let catItems = [...cat.items]
+    let isContinued = false
+
+    while (catItems.length > 0) {
+      const limit = isFirst ? maxItemsFirstPage : maxItemsSubsequentPage
+      const spaceLeft = limit - currentItemCount
+
+      if (catItems.length <= spaceLeft || spaceLeft >= 5) {
+        const take = Math.min(catItems.length, spaceLeft)
+        currentCategories.push({
+          key: isContinued ? `${cat.key}-cont` : cat.key,
+          label: isContinued ? `${cat.label} (Cont.)` : cat.label,
+          isContinued,
+          items: catItems.slice(0, take),
+        })
+        currentItemCount += take
+        catItems = catItems.slice(take)
+        isContinued = true
+
+        if (currentItemCount >= limit) {
+          pages.push({
+            categories: currentCategories,
+            showTop: isFirst,
+            showSignatureBlock: false,
+          })
+          currentCategories = []
+          currentItemCount = 0
+          isFirst = false
+        }
+      } else {
+        pages.push({
+          categories: currentCategories,
+          showTop: isFirst,
+          showSignatureBlock: false,
+        })
+        currentCategories = []
+        currentItemCount = 0
+        isFirst = false
+      }
+    }
+  })
+
+  if (currentCategories.length > 0) {
+    pages.push({
+      categories: currentCategories,
+      showTop: isFirst,
+      showSignatureBlock: true,
+    })
+  } else if (pages.length > 0) {
+    pages[pages.length - 1].showSignatureBlock = true
+  }
+
+  return pages.length > 0 ? pages : [{
     categories: fullCategories.map(cat => ({ ...cat, isContinued: false })),
     showTop: true,
     showSignatureBlock: true,
@@ -173,10 +242,11 @@ export function MGChecklistPreview({
   })
 
   const virtualPages = paginateChecklist(invoice)
+  const totalPages = virtualPages.length
 
   useEffect(() => {
-    onPagesChange?.(1)
-  }, [onPagesChange])
+    onPagesChange?.(totalPages)
+  }, [totalPages, onPagesChange])
 
   const totalCount = checklistItems.length
   const checkedCount = checklistItems.filter(it => checkedItems[it.id]).length
@@ -198,160 +268,185 @@ export function MGChecklistPreview({
           Checklist Preview Mode:
         </span>
         <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-          📋 Material Dispatch & Packing List (Single Page A4)
+          📋 Material Dispatch & Packing List ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
         </span>
       </div>
 
-      <div className="w-full flex justify-center mb-6 print:block print:m-0 print:p-0">
-        <div 
-          style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
-          className="print-wrapper"
-        >
-          {/* Fixed Single Page A4 Paper Canvas */}
-          <div
-            style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-            className="relative bg-white text-[#111111] rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10)] px-10 py-8 print-page print:!transform-none flex flex-col justify-between font-mono select-none overflow-hidden"
+      {virtualPages.map((page, pageIdx) => (
+        <div key={pageIdx} className={cn("w-full flex justify-center mb-6 last:mb-0 print:block print:m-0 print:p-0", pageIdx < totalPages - 1 ? "print-break" : "print-break-last")}>
+          <div 
+            style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
+            className="print-wrapper"
           >
-            {/* TOP & CONTENT CONTAINER */}
-            <div className="space-y-3">
-              {/* HEADER */}
-              <div className="flex justify-between items-start border-b border-[#111111]/20 pb-2.5">
-                <div>
-                  <p className="font-extrabold text-[22px] text-[#111111] tracking-tight leading-none uppercase">
-                    {invoice.fromName || 'MG SOLAR'}
-                  </p>
-                  <div className="text-[10px] text-[#666666] mt-1.5 font-sans leading-tight">
-                    {invoice.fromEmail && <div>{invoice.fromEmail}</div>}
-                    {invoice.fromPhone && <div>{invoice.fromPhone}</div>}
-                    {invoice.fromAddress && <div className="max-w-[320px] whitespace-pre-line">{invoice.fromAddress}</div>}
+            {/* Fixed A4 Paper Canvas */}
+            <div
+              style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+              className="relative bg-white text-[#111111] rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10)] px-10 py-8 print-page print:!transform-none flex flex-col justify-between font-mono select-none overflow-hidden"
+            >
+              {/* TOP & CONTENT CONTAINER */}
+              <div className="space-y-3">
+                {page.showTop ? (
+                  /* HEADER */
+                  <div className="flex justify-between items-start border-b border-[#111111]/20 pb-2.5">
+                    <div>
+                      <p className="font-extrabold text-[22px] text-[#111111] tracking-tight leading-none uppercase">
+                        {invoice.fromName || 'MG SOLAR'}
+                      </p>
+                      <div className="text-[10px] text-[#666666] mt-1.5 font-sans leading-tight">
+                        {invoice.fromEmail && <div>{invoice.fromEmail}</div>}
+                        {invoice.fromPhone && <div>{invoice.fromPhone}</div>}
+                        {invoice.fromAddress && <div className="max-w-[320px] whitespace-pre-line">{invoice.fromAddress}</div>}
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <img 
+                        src="/logo.svg" 
+                        alt="MG Solar Logo" 
+                        className="h-11 w-auto object-contain mb-1"
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                      />
+                      <p className="text-[9.5px] font-mono text-[#777777]">
+                        DOC #: MG-CL-{invoice.invoiceNumber || '260715133721'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <img 
-                    src="/logo.svg" 
-                    alt="MG Solar Logo" 
-                    className="h-11 w-auto object-contain mb-1"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-                  />
-                  <p className="text-[9.5px] font-mono text-[#777777]">
-                    DOC #: MG-CL-{invoice.invoiceNumber || '260715133721'}
-                  </p>
-                </div>
+                ) : (
+                  /* CONTINUATION HEADER */
+                  <div className="flex justify-between items-center border-b border-[#111111]/20 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[14px] text-[#111111] uppercase tracking-wide">
+                        {invoice.fromName || 'MG SOLAR'}
+                      </span>
+                      <span className="text-[10px] text-[#777777]">
+                        • MATERIAL DISPATCH & PACKING LIST (CONTINUED)
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9.5px] font-bold uppercase bg-[#111111] text-white px-2 py-0.5 rounded-xs font-mono">
+                        PAGE {pageIdx + 1} OF {totalPages}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUBJECT / PROJECT & CLIENT META BAR */}
+                {page.showTop && (
+                  <div className="text-[10px] font-mono border-b border-[#E5E5E5] pb-2 flex justify-between items-center flex-wrap gap-1">
+                    <div>
+                      <span className="text-[#777777]">SUBJECT / PROJECT:</span>{' '}
+                      <strong className="text-[#111111] uppercase">{invoice.subject ? `Checklist — ${invoice.subject}` : 'Checklist — Solar System Materials Dispatch'}</strong>
+                    </div>
+                    <div className="text-right text-[9.5px] font-mono flex items-center gap-3">
+                      <span><span className="text-[#777777]">CLIENT:</span> <strong className="text-[#111111]">{invoice.toName || '—'}</strong></span>
+                      <span><span className="text-[#777777]">DATE:</span> <strong className="text-[#111111]">{formatDate(invoice.issueDate)}</strong></span>
+                      <span><span className="text-[#777777]">STATUS:</span> <strong className="text-[#008B4C]">{checkedCount}/{totalCount} Verified</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* CHECKLIST TABLE */}
+                <table className={cn("w-full text-left border-collapse font-mono", fontSizeClass)}>
+                  <thead>
+                    <tr className={cn("border-b-2 border-[#111111] text-[#555555] uppercase tracking-wider", headerFontSizeClass)}>
+                      <th className="py-1 px-1.5 w-8 text-center">CHECK</th>
+                      <th className="py-1 px-1.5">MATERIAL DESCRIPTION</th>
+                      <th className="py-1 px-1.5 w-14 text-center">UNIT</th>
+                      <th className="py-1 px-1.5 w-12 text-center">QTY</th>
+                      <th className="py-1 px-1.5 w-44">VERIFICATION / REMARKS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {page.categories.map(cat => (
+                      <Fragment key={cat.key}>
+                        <tr className="bg-[#111111] text-white">
+                          <td colSpan={5} className={cn("px-2 font-bold uppercase tracking-wider", rowPaddingClass, headerFontSizeClass)}>
+                            ▸ {cat.label} ({cat.items.length})
+                          </td>
+                        </tr>
+                        {cat.items.map(item => {
+                          const isChecked = !!checkedItems[item.id]
+
+                          return (
+                            <tr 
+                              key={item.id}
+                              onClick={() => onToggleCheck?.(item.id)}
+                              className={cn(
+                                "border-b border-[#E5E5E5] transition-colors cursor-pointer",
+                                isChecked ? "bg-[#008B4C]/5" : "hover:bg-[#F9F9F9]"
+                              )}
+                            >
+                              <td className={cn("px-1.5 text-center align-middle", rowPaddingClass)}>
+                                <div className={cn(
+                                  "w-3.5 h-3.5 rounded-[2px] border mx-auto flex items-center justify-center transition-all",
+                                  isChecked ? "bg-[#008B4C] border-[#008B4C] text-white" : "border-[#666666] bg-white"
+                                )}>
+                                  {isChecked && <Check size={9} strokeWidth={4} />}
+                                </div>
+                              </td>
+
+                              <td className={cn("px-1.5 align-middle font-semibold text-[#111111]", rowPaddingClass, isChecked && "line-through text-[#777777]")}>
+                                {item.description || 'Untitled Item'}
+                              </td>
+
+                              <td className={cn("px-1.5 text-center align-middle text-[#555555]", rowPaddingClass)}>
+                                {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : (item.unit || 'PCS')}
+                              </td>
+
+                              <td className={cn("px-1.5 text-center align-middle font-bold text-[#111111]", rowPaddingClass)}>
+                                {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : item.quantity}
+                              </td>
+
+                              <td className={cn("px-1.5 align-middle", rowPaddingClass)}>
+                                <div className="w-full border-b border-dashed border-[#CCCCCC] h-3" />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
-              {/* SUBJECT / PROJECT & CLIENT META BAR */}
-              <div className="text-[10px] font-mono border-b border-[#E5E5E5] pb-2 flex justify-between items-center flex-wrap gap-1">
-                <div>
-                  <span className="text-[#777777]">SUBJECT / PROJECT:</span>{' '}
-                  <strong className="text-[#111111] uppercase">{invoice.subject ? `Checklist — ${invoice.subject}` : 'Checklist — Solar System Materials Dispatch'}</strong>
-                </div>
-                <div className="text-right text-[9.5px] font-mono flex items-center gap-3">
-                  <span><span className="text-[#777777]">CLIENT:</span> <strong className="text-[#111111]">{invoice.toName || '—'}</strong></span>
-                  <span><span className="text-[#777777]">DATE:</span> <strong className="text-[#111111]">{formatDate(invoice.issueDate)}</strong></span>
-                  <span><span className="text-[#777777]">STATUS:</span> <strong className="text-[#008B4C]">{checkedCount}/{totalCount} Verified</strong></span>
-                </div>
-              </div>
+              {/* BOTTOM SIGNATURE BLOCK / FOOTER */}
+              {page.showSignatureBlock && (
+                <div className="pt-3 border-t border-[#111111]/20 space-y-2.5">
+                  <div className="grid grid-cols-3 gap-5 text-[9px] font-mono text-[#333333]">
+                    <div className="space-y-2">
+                      <div>PREPARED / DISPATCHED BY:</div>
+                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                        {invoice.salesName || 'Warehouse Logistics'}
+                      </div>
+                      <div className="text-[8px] text-[#777777]">Signature & Date</div>
+                    </div>
 
-              {/* CHECKLIST TABLE */}
-              <table className={cn("w-full text-left border-collapse font-mono", fontSizeClass)}>
-                <thead>
-                  <tr className={cn("border-b-2 border-[#111111] text-[#555555] uppercase tracking-wider", headerFontSizeClass)}>
-                    <th className="py-1 px-1.5 w-8 text-center">CHECK</th>
-                    <th className="py-1 px-1.5">MATERIAL DESCRIPTION</th>
-                    <th className="py-1 px-1.5 w-14 text-center">UNIT</th>
-                    <th className="py-1 px-1.5 w-12 text-center">QTY</th>
-                    <th className="py-1 px-1.5 w-44">VERIFICATION / REMARKS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {virtualPages[0].categories.map(cat => (
-                    <Fragment key={cat.key}>
-                      <tr className="bg-[#111111] text-white">
-                        <td colSpan={5} className={cn("px-2 font-bold uppercase tracking-wider", rowPaddingClass, headerFontSizeClass)}>
-                          ▸ {cat.label} ({cat.items.length})
-                        </td>
-                      </tr>
-                      {cat.items.map(item => {
-                        const isChecked = !!checkedItems[item.id]
+                    <div className="space-y-2">
+                      <div>INSPECTED / PACKED BY:</div>
+                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                        &nbsp;
+                      </div>
+                      <div className="text-[8px] text-[#777777]">Quality Inspector</div>
+                    </div>
 
-                        return (
-                          <tr 
-                            key={item.id}
-                            onClick={() => onToggleCheck?.(item.id)}
-                            className={cn(
-                              "border-b border-[#E5E5E5] transition-colors cursor-pointer",
-                              isChecked ? "bg-[#008B4C]/5" : "hover:bg-[#F9F9F9]"
-                            )}
-                          >
-                            <td className={cn("px-1.5 text-center align-middle", rowPaddingClass)}>
-                              <div className={cn(
-                                "w-3.5 h-3.5 rounded-[2px] border mx-auto flex items-center justify-center transition-all",
-                                isChecked ? "bg-[#008B4C] border-[#008B4C] text-white" : "border-[#666666] bg-white"
-                              )}>
-                                {isChecked && <Check size={9} strokeWidth={4} />}
-                              </div>
-                            </td>
-
-                            <td className={cn("px-1.5 align-middle font-semibold text-[#111111]", rowPaddingClass, isChecked && "line-through text-[#777777]")}>
-                              {item.description || 'Untitled Item'}
-                            </td>
-
-                            <td className={cn("px-1.5 text-center align-middle text-[#555555]", rowPaddingClass)}>
-                              {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : (item.unit || 'PCS')}
-                            </td>
-
-                            <td className={cn("px-1.5 text-center align-middle font-bold text-[#111111]", rowPaddingClass)}>
-                              {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : item.quantity}
-                            </td>
-
-                            <td className={cn("px-1.5 align-middle", rowPaddingClass)}>
-                              <div className="w-full border-b border-dashed border-[#CCCCCC] h-3" />
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* BOTTOM SIGNATURE BLOCK / FOOTER */}
-            <div className="pt-3 border-t border-[#111111]/20 space-y-2.5">
-              <div className="grid grid-cols-3 gap-5 text-[9px] font-mono text-[#333333]">
-                <div className="space-y-2">
-                  <div>PREPARED / DISPATCHED BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
-                    {invoice.salesName || 'Warehouse Logistics'}
+                    <div className="space-y-2">
+                      <div>VERIFIED ON SITE BY:</div>
+                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                        &nbsp;
+                      </div>
+                      <div className="text-[8px] text-[#777777]">Installer</div>
+                    </div>
                   </div>
-                  <div className="text-[8px] text-[#777777]">Signature & Date</div>
-                </div>
 
-                <div className="space-y-2">
-                  <div>INSPECTED / PACKED BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
-                    &nbsp;
+                  <div className="flex justify-between items-center text-[8px] text-[#888888] font-sans">
+                    <span>MG SOLAR Material Dispatch Verification Form — Official Document</span>
+                    <span>Page {pageIdx + 1} of {totalPages}</span>
                   </div>
-                  <div className="text-[8px] text-[#777777]">Quality Inspector</div>
                 </div>
-
-                <div className="space-y-2">
-                  <div>VERIFIED ON SITE BY:</div>
-                  <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
-                    &nbsp;
-                  </div>
-                  <div className="text-[8px] text-[#777777]">Installer</div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center text-[8px] text-[#888888] font-sans">
-                <span>MG SOLAR Material Dispatch Verification Form — Official Document</span>
-                <span>Page 1 of 1</span>
-              </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      ))}
     </main>
   )
 }

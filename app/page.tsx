@@ -2347,9 +2347,28 @@ export default function Home() {
     if (titleEl) {
       titleEl.innerText = title
     }
+
+    if (activeTab === 'changelog') {
+      setActiveTab('quotation')
+    }
+
+    // On mobile / small screens, ensure preview view is active so DOM is fully rendered for printing
+    if (activeView === 'edit' && typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setActiveView('preview')
+    }
+
     setTimeout(() => {
-      window.print()
-    }, 150)
+      try {
+        if (typeof window !== 'undefined' && typeof window.print === 'function') {
+          window.print()
+        } else {
+          alert('Printing/PDF download is not directly supported in this browser webview. Please open this website in Google Chrome or Safari to download as PDF.')
+        }
+      } catch (err) {
+        console.error('Print trigger error:', err)
+        alert('Could not open print window. Please use your browser menu: Share > Print / Save as PDF.')
+      }
+    }, 200)
   }
 
   const handleSalesPersonChange = (val: string) => {
@@ -2371,7 +2390,7 @@ export default function Home() {
   }
 
   return (
-    <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:bg-white print:block print:h-auto print:overflow-visible", `theme-${invoice.theme || 'light'}`)}>
+    <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:!bg-white print:!block print:!h-auto print:!overflow-visible", `theme-${invoice.theme || 'light'}`)}>
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-2.5 py-2 bg-card border-b border-border shrink-0 print:hidden gap-1 overflow-hidden">
 
@@ -2450,9 +2469,9 @@ export default function Home() {
 
 
       {/* Main Workspace Container */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row print:!block print:!h-auto print:!overflow-visible">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:hidden", activeTab === 'changelog' ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", activeTab === 'changelog' ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
@@ -4966,7 +4985,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 print:block print:h-auto relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center", activeTab === 'changelog' ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", activeTab === 'changelog' ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
         {/* Floating background themed characters (screen only, hidden on print) */}
 
 

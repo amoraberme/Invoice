@@ -27,8 +27,8 @@ function paginateCapital(inv: Invoice): CapitalVirtualPage[] {
 
   const additionalCount = (inv.additionalExpenses || []).length
 
-  // Check if everything can fit cleanly on 1 page (up to 7 items with minimal expenses)
-  if (items.length <= 7 && additionalCount <= 2) {
+  // Check if everything can fit cleanly on 1 page (up to 8 items with minimal expenses)
+  if (items.length <= 8 && additionalCount <= 3) {
     return [{
       items,
       showTop: true,
@@ -39,35 +39,54 @@ function paginateCapital(inv: Invoice): CapitalVirtualPage[] {
     }]
   }
 
-  // Otherwise: Fill Page 1 cleanly (up to 18 items) to eliminate empty whitespace
-  let page1Count = Math.min(items.length, 18)
+  // Multi-page Capital Worksheet calculation
+  const pages: CapitalVirtualPage[] = []
+  let remainingItems = [...items]
+  let isFirst = true
 
-  // Avoid leaving just 1 orphaned item on Page 2 if possible
-  if (items.length - page1Count === 1 && page1Count > 1) {
-    page1Count -= 1
+  while (remainingItems.length > 0) {
+    const maxItemsOnFinalPage = Math.max(1, 12 - additionalCount)
+    
+    if (remainingItems.length <= maxItemsOnFinalPage) {
+      pages.push({
+        items: remainingItems,
+        showTop: isFirst,
+        showTable1Subtotal: true,
+        showTable2: true,
+        showFinancialSummary: true,
+        showBottom: true,
+      })
+      break
+    }
+
+    const itemsForThisPageCount = isFirst ? 14 : 18
+    const pageItems = remainingItems.slice(0, itemsForThisPageCount)
+    remainingItems = remainingItems.slice(itemsForThisPageCount)
+
+    pages.push({
+      items: pageItems,
+      showTop: isFirst,
+      showTable1Subtotal: remainingItems.length === 0,
+      showTable2: remainingItems.length === 0,
+      showFinancialSummary: remainingItems.length === 0,
+      showBottom: remainingItems.length === 0,
+    })
+
+    isFirst = false
   }
 
-  const page1Items = items.slice(0, page1Count)
-  const page2Items = items.slice(page1Count)
-
-  return [
-    {
-      items: page1Items,
-      showTop: true,
-      showTable1Subtotal: false,
-      showTable2: false,
-      showFinancialSummary: false,
-      showBottom: true,
-    },
-    {
-      items: page2Items,
+  if (pages.length > 0 && !pages[pages.length - 1].showFinancialSummary) {
+    pages.push({
+      items: [],
       showTop: false,
       showTable1Subtotal: true,
       showTable2: true,
       showFinancialSummary: true,
       showBottom: true,
-    }
-  ]
+    })
+  }
+
+  return pages
 }
 
 export function MGCapitalPreview({
@@ -154,7 +173,7 @@ export function MGCapitalPreview({
       </div>
 
       {virtualPages.map((page, pageIdx) => (
-        <div key={pageIdx} className="w-full flex justify-center mb-6 print:block print:m-0 print:p-0">
+        <div key={pageIdx} className={cn("w-full flex justify-center mb-6 last:mb-0 print:block print:m-0 print:p-0", pageIdx < totalPages - 1 ? "print-break" : "print-break-last")}>
           <div 
             style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
             className="print-wrapper"

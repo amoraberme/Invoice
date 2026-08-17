@@ -188,7 +188,7 @@
 
 @media print {
   @page {
-    size: A4;
+    size: A4 portrait;
     margin: 0;
   }
   html, body {
@@ -198,38 +198,53 @@
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .print-wrapper {
     width: 210mm !important;
-    height: 296mm !important; /* 296mm (slightly shorter than 297mm) prevents iOS Safari printing extra blank pages */
+    height: 297mm !important;
+    max-height: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
     display: block !important;
     page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: avoid-page !important;
   }
   .print-page {
     width: 210mm !important;
-    height: 296mm !important; /* matches print-wrapper to prevent overflow */
+    height: 297mm !important;
+    max-height: 297mm !important;
     margin: 0 !important;
-    padding: 14.8mm !important;
+    padding: 14mm !important;
     box-sizing: border-box !important;
     position: relative !important;
     overflow: hidden !important;
     background: white !important;
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
     transform: none !important;
     box-shadow: none !important;
+    border: none !important;
     border-radius: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: avoid-page !important;
   }
   .print-break {
     page-break-after: always !important;
     break-after: page !important;
+  }
+  .print-break-last {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 }
 
