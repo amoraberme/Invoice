@@ -79,6 +79,13 @@ export function useMGInvoice() {
             } else {
               sanitized.note = currentNote
             }
+          } else if (key === 'terms') {
+            const currentTerms = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.terms) || ''
+            if (currentTerms.includes('50% down payment') || currentTerms.includes('GCash / Check / Cash') || currentTerms.includes('15-30 days')) {
+              sanitized.terms = defaultInvoice.terms
+            } else {
+              sanitized.terms = currentTerms
+            }
           } else {
             ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
           }
