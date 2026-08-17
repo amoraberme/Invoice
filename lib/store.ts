@@ -152,6 +152,67 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 17, 2026 (Dev) ──
+  {
+    id: 'cl-dev-validity-15d-aug17_v1',
+    timestamp: 'Aug 17, 2026, 09:30 AM',
+    itemDescription: '15-Day Validity Synchronization',
+    changeType: 'system',
+    fieldChanged: 'Quotation Validity (Due Date)',
+    oldValue: 'Manual / Empty Due Date',
+    newValue: 'Auto-synchronized 15-day validity gap from Issue Date',
+    unit: 'DAYS',
+    note: '[Dev] Synchronized quotation validity across all salesperson profiles, BOQ presets, and edit views to automatically maintain a 15-day gap (+15 days) from the issue date',
+    batch: 'August 17, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-categories-clean-aug17_v1',
+    timestamp: 'Aug 17, 2026, 09:25 AM',
+    itemDescription: 'Category Standardization & Cleanup',
+    changeType: 'system',
+    fieldChanged: 'Supply & Material Classification',
+    oldValue: 'Ambiguous "Other Materials & Supplies" category',
+    newValue: 'Strict 5-Category Standard (Equipment, Mounting, Electrical, Grounding, Labor)',
+    unit: 'SET',
+    note: '[Dev] Eliminated "Other Materials & Supplies" and mapped all components, accessories, meters (SEC1000), and hardware into proper standard categories across Checklist and Items views',
+    batch: 'August 17, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-top-section-compact-aug17_v1',
+    timestamp: 'Aug 17, 2026, 09:20 AM',
+    itemDescription: 'Quotation Header & Top Section',
+    changeType: 'system',
+    fieldChanged: 'Header Proportions & Margins',
+    oldValue: '50% Page 1 Height (140px Logo, Large Margins)',
+    newValue: 'Compacted ~25-30% (95px Logo, 22px Header, Tight Margins)',
+    unit: 'PX',
+    note: '[Dev] Compacted header layout and margins on Page 1 to increase table capacity and optimize vertical canvas space',
+    batch: 'August 17, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-pagination-aug17_v1',
+    timestamp: 'Aug 17, 2026, 09:15 AM',
+    itemDescription: 'Single-Item Overflow Pagination',
+    changeType: 'system',
+    fieldChanged: 'Document Pagination Thresholds',
+    oldValue: 'Item Clipping / Multi-Item Page Overflow',
+    newValue: '14 Items on Page 1 (Pushes strictly 1 overflowing item)',
+    unit: 'ITEMS',
+    note: '[Dev] Refined pagination calculations so Page 1 comfortably accommodates 14 items with complete client details and pushes only the single overflowing item to Page 2',
+    batch: 'August 17, 2026 System & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-capital-validity-aug17_v1',
+    timestamp: 'Aug 17, 2026, 09:10 AM',
+    itemDescription: 'Capital Worksheet Validity Header',
+    changeType: 'system',
+    fieldChanged: 'Capital Preview Meta Header',
+    oldValue: 'Issue Date & Prepared By only',
+    newValue: 'Issue Date, Validity & Prepared By',
+    unit: 'SET',
+    note: '[Dev] Added Validity date display to the Internal Capital & Expenses Worksheet header matching the customer quotation layout',
+    batch: 'August 17, 2026 System & UI Updates (Dev)'
+  },
   // ── SET DATE: AUGUST 14, 2026 (Dev) ──
   {
     id: 'cl-dev-battery-1x-aug14_v8',
@@ -636,8 +697,8 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug14LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-battery-1x-aug14_v8')
-        if (!hasAug14LatestSeed) {
+        const hasAug17LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-validity-15d-aug17_v1')
+        if (!hasAug17LatestSeed) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }

@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
@@ -1433,10 +1433,10 @@ export default function Home() {
     setActiveTab(newTab)
   }
 
-  const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor' | 'other'; label: string; badgeColor: string } => {
+  const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'; label: string; badgeColor: string } => {
     const d = (description || '').toLowerCase().trim()
-    if (!d.includes('delivery') && !d.includes('freight') && (d.includes('labor') || d.includes('installation') || d.includes('commissioning') || d.includes('service'))) {
-      return { key: 'labor', label: 'Labor & Service', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' }
+    if (!d.includes('delivery') && !d.includes('freight') && (d.includes('labor') || d.includes('installation') || d.includes('commissioning') || d.includes('service') || d.includes('services') || d.includes('engineering') || d.includes('supervision') || d.includes('testing') || d === 'labor and installation' || d === 'labor & installation')) {
+      return { key: 'labor', label: 'Labor & Services', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' }
     }
     if (
       d.includes('ground') ||
@@ -1446,6 +1446,9 @@ export default function Home() {
       d.includes('weeb') ||
       d.includes('ground rod') ||
       d.includes('ground clamp') ||
+      d.includes('ground wire') ||
+      d.includes('earth') ||
+      d.includes('lightning') ||
       d.includes('splice jumper')
     ) {
       return { key: 'grounding', label: 'Grounding & Bonding', badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' }
@@ -1455,11 +1458,22 @@ export default function Home() {
       d.includes('module') ||
       d.includes('inverter') ||
       d.includes('battery') ||
+      d.includes('controller') ||
+      d.includes('meter') ||
+      d.includes('datalogger') ||
+      d.includes('dongle') ||
+      d.includes('collector') ||
+      d.includes('sec1000') ||
       d.includes('dyness') ||
       d.includes('oliter') ||
       d.includes('alpsolar') ||
       d.includes('ja solar') ||
       d.includes('tongwei') ||
+      d.includes('gokin') ||
+      d.includes('jinko') ||
+      d.includes('longi') ||
+      d.includes('trina') ||
+      d.includes('seraphim') ||
       d.includes('solis') ||
       d.includes('goodwe') ||
       d.includes('anern') ||
@@ -1467,47 +1481,39 @@ export default function Home() {
       d.includes('solax') ||
       d.includes('foxess') ||
       d.includes('sunways') ||
-      d.includes('sungrow')
+      d.includes('sungrow') ||
+      d.includes('deye') ||
+      d.includes('growatt') ||
+      d.includes('victron') ||
+      d.includes('genix') ||
+      d.includes('cesc')
     ) {
       return { key: 'equipment', label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' }
     }
     if (
-      d.includes('wire') ||
-      d.includes('cable') ||
-      d.includes('breaker') ||
-      d.includes('mcb') ||
-      d.includes('spd') ||
-      d.includes('mccb') ||
-      d.includes('flexcon') ||
-      d.includes('hose') ||
-      d.includes('mc4') ||
-      d.includes('raceway') ||
-      d.includes('cable tray') ||
-      d.includes('tray') ||
-      d.includes('conduit') ||
-      d.includes('ats') ||
-      d.includes('terminal') ||
-      d.includes('lug') ||
-      d.includes('splice') ||
-      d.includes('clip lock') ||
-      d.includes('clip-lock')
-    ) {
-      return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
-    }
-    if (
       d.includes('railing') ||
+      d.includes('rail') ||
       d.includes('clamp') ||
       d.includes('l foot') ||
       d.includes('l-foot') ||
+      d.includes('clip lock') ||
+      d.includes('clip-lock') ||
       d.includes('mid clamp') ||
       d.includes('end clamp') ||
       d.includes('mounting') ||
       d.includes('structure') ||
-      d.includes('hardware')
+      d.includes('hardware') ||
+      d.includes('rack') ||
+      d.includes('bracket') ||
+      d.includes('roof') ||
+      d.includes('hook') ||
+      d.includes('bolt') ||
+      d.includes('screw') ||
+      d.includes('sealant')
     ) {
       return { key: 'mounting', label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' }
     }
-    return { key: 'other', label: 'Supplied Item', badgeColor: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' }
+    return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
   }
 
   const handleSystemTypeChange = (type: 'hybrid' | 'ongrid') => {
@@ -2220,12 +2226,14 @@ export default function Home() {
     const mm = String(today.getMonth() + 1).padStart(2, '0')
     const dd = String(today.getDate()).padStart(2, '0')
     const currentDateStr = `${yyyy}-${mm}-${dd}`
+    const dueStr = addDays(currentDateStr, 15)
 
     setInvoice((prev) => ({
       ...prev,
       lineItems: items,
       subject: `${systemKw}kW Hybrid System with Battery`,
-      issueDate: currentDateStr
+      issueDate: currentDateStr,
+      dueDate: dueStr,
     }))
   }
 
@@ -2284,6 +2292,10 @@ export default function Home() {
         update('salesCompany', person.company)
         update('salesContact', person.contact)
         update('salesEmail', person.email)
+      }
+      if (!invoice.dueDate || invoice.dueDate === '') {
+        const todayStr = new Date().toISOString().slice(0, 10)
+        update('dueDate', addDays(invoice.issueDate || todayStr, 15))
       }
     }
   }
@@ -4429,8 +4441,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             mounting: { label: 'Mounting & Hardware', badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', items: [] },
                             electrical: { label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', items: [] },
                             grounding: { label: 'Grounding & Bonding', badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', items: [] },
-                            labor: { label: 'Labor & Installation Services', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', items: [] },
-                            other: { label: 'Other Items', badgeColor: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20', items: [] },
+                            labor: { label: 'Labor & Services', badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', items: [] },
                           }
 
                           activeChecklistItems.forEach(item => {
@@ -4438,7 +4449,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             if (grouped[cat.key]) {
                               grouped[cat.key].items.push(item)
                             } else {
-                              grouped.other.items.push(item)
+                              grouped.electrical.items.push(item)
                             }
                           })
 

@@ -15,7 +15,7 @@ interface MGChecklistPreviewProps {
   onPagesChange?: (count: number) => void
 }
 
-const getChecklistCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'other'; label: string } => {
+const getChecklistCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding'; label: string } => {
   const d = (description || '').toLowerCase().trim()
   if (
     d.includes('ground') ||
@@ -25,6 +25,9 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('weeb') ||
     d.includes('ground rod') ||
     d.includes('ground clamp') ||
+    d.includes('ground wire') ||
+    d.includes('earth') ||
+    d.includes('lightning') ||
     d.includes('splice jumper')
   ) {
     return { key: 'grounding', label: 'Grounding & Bonding' }
@@ -34,11 +37,22 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('module') ||
     d.includes('inverter') ||
     d.includes('battery') ||
+    d.includes('controller') ||
+    d.includes('meter') ||
+    d.includes('datalogger') ||
+    d.includes('dongle') ||
+    d.includes('collector') ||
+    d.includes('sec1000') ||
     d.includes('dyness') ||
     d.includes('oliter') ||
     d.includes('alpsolar') ||
     d.includes('ja solar') ||
     d.includes('tongwei') ||
+    d.includes('gokin') ||
+    d.includes('jinko') ||
+    d.includes('longi') ||
+    d.includes('trina') ||
+    d.includes('seraphim') ||
     d.includes('solis') ||
     d.includes('goodwe') ||
     d.includes('anern') ||
@@ -46,12 +60,18 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('solax') ||
     d.includes('foxess') ||
     d.includes('sunways') ||
-    d.includes('sungrow')
+    d.includes('sungrow') ||
+    d.includes('deye') ||
+    d.includes('growatt') ||
+    d.includes('victron') ||
+    d.includes('genix') ||
+    d.includes('cesc')
   ) {
     return { key: 'equipment', label: 'Major Equipment' }
   }
   if (
     d.includes('railing') ||
+    d.includes('rail') ||
     d.includes('clamp') ||
     d.includes('l foot') ||
     d.includes('l-foot') ||
@@ -61,36 +81,18 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('end clamp') ||
     d.includes('mounting') ||
     d.includes('structure') ||
-    d.includes('hardware')
+    d.includes('hardware') ||
+    d.includes('rack') ||
+    d.includes('bracket') ||
+    d.includes('roof') ||
+    d.includes('hook') ||
+    d.includes('bolt') ||
+    d.includes('screw') ||
+    d.includes('sealant')
   ) {
     return { key: 'mounting', label: 'Mounting & Hardware' }
   }
-  if (
-    d.includes('wire') ||
-    d.includes('cable') ||
-    d.includes('breaker') ||
-    d.includes('mcb') ||
-    d.includes('spd') ||
-    d.includes('mccb') ||
-    d.includes('flexcon') ||
-    d.includes('hose') ||
-    d.includes('mc4') ||
-    d.includes('raceway') ||
-    d.includes('cable tray') ||
-    d.includes('tray') ||
-    d.includes('conduit') ||
-    d.includes('ats') ||
-    d.includes('terminal') ||
-    d.includes('lug') ||
-    d.includes('splice') ||
-    d.includes('moulding') ||
-    d.includes('sealant') ||
-    d.includes('box') ||
-    d.includes('enclosure')
-  ) {
-    return { key: 'electrical', label: 'Electrical & Cabling' }
-  }
-  return { key: 'other', label: 'Supplied Material' }
+  return { key: 'electrical', label: 'Electrical & Cabling' }
 }
 
 interface CategorySlice {
@@ -113,12 +115,11 @@ function paginateChecklist(invoice: Invoice): VirtualChecklistPage[] {
     return true
   })
 
-  const categoryOrder: ('equipment' | 'mounting' | 'electrical' | 'grounding' | 'other')[] = [
+  const categoryOrder: ('equipment' | 'mounting' | 'electrical' | 'grounding')[] = [
     'equipment',
     'mounting',
     'electrical',
-    'grounding',
-    'other'
+    'grounding'
   ]
 
   const fullCategories: { key: string; label: string; items: LineItem[] }[] = []

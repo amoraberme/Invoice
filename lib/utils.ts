@@ -91,7 +91,12 @@ export function isLaborItem(description: string): boolean {
     d.includes('installation') ||
     d.includes('commissioning') ||
     d.includes('service') ||
-    d === 'labor and installation'
+    d.includes('services') ||
+    d.includes('engineering') ||
+    d.includes('supervision') ||
+    d.includes('testing') ||
+    d === 'labor and installation' ||
+    d === 'labor & installation'
   )
 }
 

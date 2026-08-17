@@ -93,6 +93,10 @@ export function newExpenseItem(description = '', amount = 0, category: ExpenseIt
   return { id, description, amount, category }
 }
 
+const defaultToday = new Date()
+const defaultDue = new Date()
+defaultDue.setDate(defaultDue.getDate() + 15)
+
 export const defaultInvoice: Invoice = {
   fromName: 'MG SOLAR',
   fromEmail: 'charlotte.mgtrading@gmail.com',
@@ -102,8 +106,8 @@ export const defaultInvoice: Invoice = {
   toEmail: 'client@company.com',
   toAddress: 'Industrial Zone, Metro Manila',
   invoiceNumber: 'MG-QT-100KW-2026',
-  issueDate: new Date().toISOString().slice(0, 10),
-  dueDate: '',
+  issueDate: defaultToday.toISOString().slice(0, 10),
+  dueDate: defaultDue.toISOString().slice(0, 10),
   currency: 'PHP',
   vatRate: 0,
   rateMarkup: 30,

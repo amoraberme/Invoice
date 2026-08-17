@@ -252,6 +252,16 @@ export function MGCapitalPreview({
                         </p>
                       </div>
                     )}
+                    {invoice.dueDate && (
+                      <div className="text-right p-1">
+                        <p className="text-[9.5px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                          Validity
+                        </p>
+                        <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
+                          {formatDate(invoice.dueDate)}
+                        </p>
+                      </div>
+                    )}
                     {invoice.salesName && (
                       <div className="text-right p-1">
                         <p className="text-[9.5px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">

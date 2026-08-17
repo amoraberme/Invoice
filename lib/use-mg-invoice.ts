@@ -5,17 +5,21 @@ import { type Invoice, type LineItem, type ExpenseItem, newLineItem, newExpenseI
 import { loadInvoice, saveInvoice } from './store'
 import { generateDocumentId, addDays } from './utils'
 
+function getTodayStr(): string {
+  const date = new Date()
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function useMGInvoice() {
   const [invoice, setInvoice] = useState<Invoice>(defaultInvoice)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     loadInvoice().then((saved) => {
-      const date = new Date()
-      const yyyy = date.getFullYear()
-      const mm = String(date.getMonth() + 1).padStart(2, '0')
-      const dd = String(date.getDate()).padStart(2, '0')
-      const todayStr = `${yyyy}-${mm}-${dd}`
+      const todayStr = getTodayStr()
 
       if (saved) {
         const sanitized: Invoice = { ...defaultInvoice }
@@ -177,6 +181,8 @@ export function useMGInvoice() {
       
       if (field === 'issueDate') {
         next.dueDate = addDays(value as string, 15)
+      } else if (!next.dueDate) {
+        next.dueDate = addDays(next.issueDate || getTodayStr(), 15)
       }
       return next
     })
@@ -239,8 +245,8 @@ export function useMGInvoice() {
       nextSync.fromEmail = nextSync.salesEmail
       nextSync.fromPhone = nextSync.salesContact
       
-      if (nextSync.issueDate !== prev.issueDate) {
-        nextSync.dueDate = addDays(nextSync.issueDate, 15)
+      if (!nextSync.dueDate || nextSync.issueDate !== prev.issueDate) {
+        nextSync.dueDate = addDays(nextSync.issueDate || getTodayStr(), 15)
       }
       return nextSync
     })

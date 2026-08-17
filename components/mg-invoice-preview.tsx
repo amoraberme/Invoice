@@ -90,14 +90,14 @@ export function MGInvoicePreview({
     const pages: PageData[] = []
     
     // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
-    const headerHeight = 188
-    const billToHeight = 95
+    const headerHeight = 135
+    const billToHeight = 80
     
     const subjectLines = getWrappedLines(inv.subject, 80)
-    const subjectHeight = inv.subject ? (24 + subjectLines * 18) : 0
+    const subjectHeight = inv.subject ? (18 + subjectLines * 16) : 0
     
     const salutationLines = getWrappedLines(inv.salutation, 80)
-    const salutationHeight = inv.salutation ? (24 + salutationLines * 18) : 0
+    const salutationHeight = inv.salutation ? (18 + salutationLines * 16) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 35
@@ -300,7 +300,7 @@ export function MGInvoicePreview({
         {/* Brand Name Single Toggle Button */}
         <button
           type="button"
-          onClick={() => onToggleWithBrandName?.(invoice.withBrandName === false)}
+          onClick={() => onToggleWithBrandName?.(invoice.withBrandName !== false)}
           className={cn(
             "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
             invoice.withBrandName !== false
@@ -327,29 +327,29 @@ export function MGInvoicePreview({
               >
                 {/* Header (First Page Only) */}
                 {page.showTop && (
-                  <div className="flex justify-between items-start mb-12">
+                  <div className="flex justify-between items-start mb-6">
                     <div className={cn("max-w-xs p-1", getHighlightClass('sender'))}>
-                      <p className="font-bold text-[26px] text-[#111111] tracking-tight leading-none">
+                      <p className="font-bold text-[22px] text-[#111111] tracking-tight leading-none">
                         {invoice.fromName || 'Your Company'}
                       </p>
                       {invoice.fromEmail && (
-                        <p className="text-[12px] text-[#888888] mt-2">{invoice.fromEmail}</p>
+                        <p className="text-[11.5px] text-[#888888] mt-1.5">{invoice.fromEmail}</p>
                       )}
                       {invoice.fromPhone && (
-                        <p className="text-[12px] text-[#888888]">{invoice.fromPhone}</p>
+                        <p className="text-[11.5px] text-[#888888]">{invoice.fromPhone}</p>
                       )}
                       {invoice.fromAddress && (
-                        <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
+                        <p className="text-[11.5px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
                       )}
                     </div>
                     <div className={cn("text-right flex flex-col items-end p-1", getHighlightClass('invoiceNumber'))}>
                       <img
                         src="/mg.png"
                         alt="INVOICE"
-                        className="h-[140px] w-auto object-contain mb-1"
+                        className="h-[95px] w-auto object-contain mb-0.5"
                       />
                       {invoice.invoiceNumber && (
-                        <p className="text-[12px] text-[#888888] mt-1">{invoice.invoiceNumber}</p>
+                        <p className="text-[11.5px] text-[#888888] mt-0.5">{invoice.invoiceNumber}</p>
                       )}
                     </div>
                   </div>
@@ -357,19 +357,19 @@ export function MGInvoicePreview({
 
                 {/* Bill To + Dates (First Page Only) */}
                 {page.showTop && (
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex justify-between items-start mb-4">
                     <div className={cn("max-w-xs p-1", getHighlightClass('client'))}>
-                      <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1.5">
+                      <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                         Bill To
                       </p>
-                      <p className="font-bold text-[15px] text-[#111111] tracking-tight">
+                      <p className="font-bold text-[14px] text-[#111111] tracking-tight">
                         {invoice.toName || '—'}
                       </p>
                       {invoice.toEmail && (
-                        <p className="text-[12px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
+                        <p className="text-[11.5px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
                       )}
                       {invoice.toAddress && (
-                        <p className="text-[12px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
+                        <p className="text-[11.5px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
                       )}
                     </div>
                     <div className="flex gap-8">
@@ -378,7 +378,7 @@ export function MGInvoicePreview({
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Issue Date
                           </p>
-                          <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
+                          <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
                             {formatDate(invoice.issueDate)}
                           </p>
                         </div>
@@ -388,7 +388,7 @@ export function MGInvoicePreview({
                           <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
                             Validity
                           </p>
-                          <p className="text-[12px] font-medium text-[#111111]" suppressHydrationWarning>
+                          <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
                             {formatDate(invoice.dueDate)}
                           </p>
                         </div>
@@ -399,16 +399,16 @@ export function MGInvoicePreview({
 
                 {/* Subject Line (First Page Only) */}
                 {page.showTop && invoice.subject && (
-                  <div className={cn("mb-6 pb-2 border-b border-[#E5E5E5]/50 flex gap-2 p-1", getHighlightClass('subject'))}>
-                    <span className="text-[12px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
-                    <span className="text-[12px] font-bold text-[#111111]">{invoice.subject}</span>
+                  <div className={cn("mb-4 pb-1.5 border-b border-[#E5E5E5]/50 flex gap-2 p-1", getHighlightClass('subject'))}>
+                    <span className="text-[11.5px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
+                    <span className="text-[11.5px] font-bold text-[#111111]">{invoice.subject}</span>
                   </div>
                 )}
 
                 {/* Salutation / Intro (First Page Only) */}
                 {page.showTop && invoice.salutation && (
-                  <div className={cn("mb-6 p-1.5", getHighlightClass('salutation'))}>
-                    <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                  <div className={cn("mb-4 p-1", getHighlightClass('salutation'))}>
+                    <p className="text-[11.5px] text-[#555555] whitespace-pre-wrap leading-relaxed">
                       {invoice.salutation}
                     </p>
                   </div>

@@ -1,5 +1,9 @@
 import { type Invoice } from './types'
 
+const sampleToday = new Date()
+const sampleDue = new Date()
+sampleDue.setDate(sampleDue.getDate() + 15)
+
 const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   fromName: 'MG SOLAR',
   fromEmail: 'charlotte.mgtrading@gmail.com',
@@ -8,8 +12,8 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   toName: '',
   toEmail: '',
   toAddress: '',
-  issueDate: new Date().toISOString().split('T')[0],
-  dueDate: '',
+  issueDate: sampleToday.toISOString().split('T')[0],
+  dueDate: sampleDue.toISOString().split('T')[0],
   currency: 'PHP',
   vatRate: 0,
   rateMarkup: 28,
