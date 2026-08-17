@@ -59,7 +59,7 @@ function paginateCapital(inv: Invoice): CapitalVirtualPage[] {
       break
     }
 
-    const itemsForThisPageCount = isFirst ? 14 : 18
+    const itemsForThisPageCount = isFirst ? 16 : 20
     const pageItems = remainingItems.slice(0, itemsForThisPageCount)
     remainingItems = remainingItems.slice(itemsForThisPageCount)
 

@@ -130,17 +130,17 @@ export function MGInvoicePreview({
     
     const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 20
 
-    // Available content height inside A4 borders (PAPER_H 1123 - padding 112 - bottom indicator buffer 70 = ~940px)
-    const PAGE_MAX_H = 920
+    // Available content height inside A4 borders (PAPER_H 1123 - padding 112 - bottom indicator buffer 75 = 936px)
+    const PAGE_MAX_H = 935
 
     const getItemHeight = (item: LineItem): number => {
       const desc = item.description || ''
       const lines = desc.split('\n')
       let itemLines = 0
       for (const line of lines) {
-        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 40))
+        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 45))
       }
-      return 22 + itemLines * 16
+      return 18 + itemLines * 18
     }
     
     const allItems = inv.isCondensed
@@ -189,8 +189,8 @@ export function MGInvoicePreview({
           break
         }
 
-        // If placing this item fits on current page (with breathing buffer)
-        if (currentHeight + h <= PAGE_MAX_H - 40 || currentItems.length === 0) {
+        // If placing this item fits on current page
+        if (currentHeight + h <= PAGE_MAX_H || currentItems.length === 0) {
           currentItems.push(item)
           currentHeight += h
           remainingItems.shift()
