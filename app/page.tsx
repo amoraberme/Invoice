@@ -1470,18 +1470,21 @@ export default function Home() {
         setInvoice((p) => ({
           ...p,
           subject: 'Supply of Solar System Materials',
+          salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the Supply of Solar System Materials based on your requirement.',
           lineItems: remainingItems,
         }))
       } else {
         const laborToRestore = savedLaborItemsRef.current
         const subjectToRestore = savedSubjectRef.current
+        const restoredSubject = subjectToRestore !== null ? subjectToRestore : invoice.subject
 
         setInvoice((p) => {
           const currentNonLabor = p.lineItems.filter((item) => !isLaborItem(item.description))
           const combined = [...currentNonLabor, ...laborToRestore]
           return {
             ...p,
-            subject: subjectToRestore !== null ? subjectToRestore : p.subject,
+            subject: restoredSubject,
+            salutation: `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${restoredSubject} based on your requirement.`,
             lineItems: combined,
           }
         })
@@ -1648,21 +1651,32 @@ export default function Home() {
         updatedItems = updatedItems.filter(item => !isBatteryUnit(item.description) || item.id === firstId)
       } else if (batteryItems.length === 0) {
         const batteryQty = 1
+        const isSmallSetup = activeKwSetup <= 6
+        const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
+        const batteryRate = isSmallSetup ? 65000.00 : 85000.00
 
         updatedItems.push({
           id: `boq-20-${Date.now()}`,
-          description: `Genix Battery 51.2V 314Ah`,
+          description: batteryDesc,
           quantity: batteryQty,
-          rate: 88000.00,
+          rate: batteryRate,
           unit: 'PC'
         })
       }
     }
 
+    const systemTypeLabel = type === 'ongrid' ? 'On-Grid' : 'Hybrid'
+    const systemTypeSubject = type === 'ongrid' 
+      ? `${activeKwSetup}kW On-Grid Solar System`
+      : `${activeKwSetup}kW Hybrid System with Battery`
+    const newSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${activeKwSetup}kW ${systemTypeLabel} Solar System based on your requirement.`
+
     setInvoice(prev => ({
       ...prev,
       excludeBattery: isExclude,
-      lineItems: updatedItems
+      lineItems: updatedItems,
+      subject: systemTypeSubject,
+      salutation: newSalutation,
     }))
   }
 
@@ -1680,12 +1694,15 @@ export default function Home() {
 
           const panelIdx = updatedItems.findIndex(i => i.description.toLowerCase().includes('panel'))
           const insertIdx = panelIdx !== -1 ? panelIdx + 1 : 1
+          const isSmallSetup = activeKwSetup <= 6
+          const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
+          const batteryRate = isSmallSetup ? 65000.00 : 85000.00
 
           updatedItems.splice(insertIdx, 0, {
             id: `boq-20-${Date.now()}`,
-            description: `Genix Battery 51.2V 314Ah`,
+            description: batteryDesc,
             quantity: batteryQty,
-            rate: 88000.00,
+            rate: batteryRate,
             unit: 'PC'
           })
         }
@@ -1980,11 +1997,14 @@ export default function Home() {
 
     // 3. Battery (included for Hybrid setup)
     if (systemType === 'hybrid') {
+      const isSmallSetup = systemKw <= 6
+      const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
+      const batteryRate = isSmallSetup ? 65000.00 : 85000.00
       items.push({
         id: `boq-20-${now}`,
-        description: `Genix Battery 51.2V 314Ah`,
+        description: batteryDesc,
         quantity: batteryQty,
-        rate: 88000.00,
+        rate: batteryRate,
         unit: 'PC'
       })
     }
@@ -2298,10 +2318,17 @@ export default function Home() {
     const currentDateStr = `${yyyy}-${mm}-${dd}`
     const dueStr = addDays(currentDateStr, 15)
 
+    const systemTypeLabel = systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
+    const systemTypeSubject = systemType === 'ongrid' 
+      ? `${systemKw}kW On-Grid Solar System`
+      : `${systemKw}kW Hybrid System with Battery`
+    const newSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${systemKw}kW ${systemTypeLabel} Solar System based on your requirement.`
+
     setInvoice((prev) => ({
       ...prev,
       lineItems: items,
-      subject: `${systemKw}kW Hybrid System with Battery`,
+      subject: systemTypeSubject,
+      salutation: newSalutation,
       issueDate: currentDateStr,
       dueDate: dueStr,
     }))
@@ -2557,56 +2584,8 @@ export default function Home() {
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
             {activeTab === 'ocr' && (
               <section className="bg-[#111111] p-4 rounded-[16px] relative overflow-hidden">
-                {ocrLoading && (
-                  <div className="absolute inset-0 bg-white/95 rounded-[16px] flex flex-col justify-center items-center p-6 text-center z-10 animate-in fade-in duration-200">
-                    <div className="w-10 h-10 border-4 border-[#E5E5E5] border-t-[#111111] rounded-full animate-spin mb-4" />
-                    <p className="text-[11px] font-mono text-[#111111] leading-relaxed">
-                      <strong>Systemic Precision:</strong> &quot;Initializing local cryptographic text parsing engine... Processing layer variables cleanly inside your browser context. Sensitive document data never leaves your secure node.&quot;
-                    </p>
-                    <div className="w-full bg-[#E5E5E5] h-3 rounded-[16px] overflow-hidden mt-4 border border-[#E5E5E5] relative">
-                      <div 
-                        className="bg-[#111111] h-full transition-all duration-300"
-                        style={{ 
-                          width: `${ocrProgress}%`,
-                          clipPath: 'polygon(0% 0%, 100% 0%, 98% 100%, 0% 100%)'
-                        }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-mono text-[#111111] mt-2 font-bold">{ocrProgress}%</span>
-                  </div>
-                )}
-
-                <div 
-                  className={cn(
-                    "border border-dashed rounded-[14px] p-3 text-center transition-all bg-[#FFFFFF] dark:bg-[#1A1A1A] flex flex-col items-center justify-center gap-2",
-                    dragActive ? "border-[#111111] dark:border-white bg-[#F5F5F5] dark:bg-[#222222]" : "border-[#CCCCCC] dark:border-[#444444]"
-                  )}
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                  />
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-2.5 px-4 text-xs font-bold border border-gray-300 dark:border-gray-700 text-foreground bg-secondary/80 hover:bg-primary hover:text-primary-foreground rounded-[10px] shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                    UPLOAD TECHNICAL SPEC SHEET
-                  </Button>
-                </div>
-
                 {/* Solar BOQ System Sizing Setup */}
-                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
+                <div className="p-4 bg-card border border-border rounded-[16px] text-left">
                   <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                       Solar BOQ Sizing Setup
@@ -3053,7 +3032,27 @@ export default function Home() {
                     <Field label="Subject" onMouseEnter={() => setHoveredField('subject')} onMouseLeave={() => setHoveredField(null)}>
                       <Input
                         value={invoice.subject || ''}
-                        onChange={(e) => update('subject', e.target.value)}
+                        onChange={(e) => {
+                          const newSubj = e.target.value
+                          update('subject', newSubj)
+                          setInvoice((prev) => {
+                            const isStandardSalutation = !prev.salutation || 
+                              prev.salutation.startsWith('Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the') ||
+                              prev.salutation.includes('based on your requirement')
+                            if (isStandardSalutation && newSubj.trim()) {
+                              const offerTitle = newSubj
+                                .replace(/\s*\(\d+%\s*Margin\)/i, '')
+                                .replace(/^Proposal\s*for\s*/i, '')
+                                .trim()
+                              return {
+                                ...prev,
+                                subject: newSubj,
+                                salutation: `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${offerTitle} based on your requirement.`
+                              }
+                            }
+                            return { ...prev, subject: newSubj }
+                          })
+                        }}
                         placeholder="Supply & Deliver Safety Hats"
                       />
                     </Field>
@@ -3186,10 +3185,10 @@ export default function Home() {
                       type="number"
                       min="-100"
                       max="1000"
-                      value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? '')}
+                      value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? 30)}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      placeholder="28"
+                      placeholder="30"
                     />
                   </Field>
                   <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
@@ -4942,6 +4941,11 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
                                   {log.note && (
                                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground leading-relaxed pl-0.5 pt-0.5 flex-wrap">
+                                      {log.note.includes('[Dev]') && (
+                                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 font-black text-[9.5px] px-1.5 py-0.5 rounded shrink-0">
+                                          Dev
+                                        </span>
+                                      )}
                                       {log.note.includes('[MsG]') && (
                                         <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-black text-[9.5px] px-1.5 py-0.5 rounded shrink-0">
                                           MsG
@@ -4953,7 +4957,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                         </span>
                                       )}
                                       <span className="italic">
-                                        {log.note.replace(/\[MsG\]\s*/g, '').replace(/\[SysPrc\]\s*/g, '')}
+                                        {log.note.replace(/\[Dev\]\s*/g, '').replace(/\[MsG\]\s*/g, '').replace(/\[SysPrc\]\s*/g, '')}
                                       </span>
                                     </div>
                                   )}

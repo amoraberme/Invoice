@@ -152,6 +152,55 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 18, 2026 (Dev) ──
+  {
+    id: 'cl-dev-remove-ocr-aug18_v1',
+    timestamp: 'Aug 18, 2026, 08:44 AM',
+    itemDescription: 'Removed Technical Spec Sheet OCR Upload Button',
+    changeType: 'system',
+    fieldChanged: 'kW Set Up Tab Interface',
+    oldValue: 'Upload Technical Spec Sheet OCR button & drag-drop box',
+    newValue: 'Removed OCR button; Streamlined direct Solar BOQ Sizing Setup',
+    unit: 'UI',
+    note: '[Dev] Removed "Upload Technical Spec Sheet" OCR button and drag-drop area to streamline the Solar BOQ Sizing Setup interface',
+    batch: 'August 18, 2026 System & BOQ Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-defaults-markup-labor-aug18_v1',
+    timestamp: 'Aug 18, 2026, 08:35 AM',
+    itemDescription: 'Standardized Default Rate Markup & Labor Price/Watt',
+    changeType: 'system',
+    fieldChanged: 'Default Rate Markup (30%) & Price / Watt (₱6.00)',
+    oldValue: 'Price/Watt inferred as 1.5 on cleared cache; Rate Markup 28%',
+    newValue: 'Strict defaults: Price/Watt = ₱6.00/W (₱600.6k seed), Rate Markup = 30%',
+    unit: 'CONFIG',
+    note: '[Dev] Fixed cache-clearing initialization bug by updating default seed labor rate to ₱600,600 (100.1 kWp × ₱6.00/W) and standardizing default rate markup to 30%',
+    batch: 'August 18, 2026 System & BOQ Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-salutation-sync-aug18_v2',
+    timestamp: 'Aug 18, 2026, 08:12 AM',
+    itemDescription: 'Dynamic Salutation & Offer Sync',
+    changeType: 'system',
+    fieldChanged: 'Salutation / Intro Generator',
+    oldValue: 'Static 100kW Salutation Text',
+    newValue: 'Dynamic offer synchronization with Subject and kW Setup',
+    unit: 'TEXT',
+    note: '[Dev] Dynamic salutation generation: Automatically updates "We are pleased to submit to you our offer on the [System / Subject] based on your requirement" whenever kW setup, system type, or subject changes',
+    batch: 'August 18, 2026 System & BOQ Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-genix-200ah-default-aug18_v1',
+    timestamp: 'Aug 18, 2026, 08:05 AM',
+    itemDescription: 'Default Battery Setup <= 6kW',
+    changeType: 'system',
+    fieldChanged: 'Default Battery for <= 6kW Systems',
+    oldValue: 'Genix Battery 51.2V 314Ah (₱85,000 / ₱88,000)',
+    newValue: 'Genix Green Battery 51.2V 200Ah (₱65,000) for <= 6kW setups',
+    unit: 'PC',
+    note: '[Dev] Configured Genix Green 200Ah (51.2V 200Ah @ ₱65,000) as the default battery for all setups <= 6kW (1.5kW, 3kW, 4kW, 5kW, 6kW)',
+    batch: 'August 18, 2026 System & BOQ Updates (Dev)'
+  },
   // ── SET DATE: AUGUST 17, 2026 (MsG) ──
   {
     id: 'cl-msg-payment-terms-aug17_v3',
@@ -722,8 +771,14 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug17LatestSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-msg-payment-terms-aug17_v3')
-        if (!hasAug17LatestSeed) {
+        const hasAug18LatestDevSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-remove-ocr-aug18_v1')
+        const hasOldMsGAug18 = parsed.some((i: ChangelogItem) => 
+          i.id === 'cl-msg-salutation-sync-aug18_v2' || 
+          i.id === 'cl-msg-genix-200ah-default-aug18_v1' ||
+          (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
+          (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
+        )
+        if (!hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }

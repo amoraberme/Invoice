@@ -64,8 +64,11 @@ export function useMGInvoice() {
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             let numVal = !isNaN(parsed) ? parsed : defaultVal
-            if (key === 'rateMarkup' && (numVal === 25 || savedVal === undefined || savedVal === null || savedVal === '25')) {
-              numVal = 28
+            if (key === 'rateMarkup' && (numVal === 25 || numVal === 28 || savedVal === undefined || savedVal === null || savedVal === '25' || savedVal === '28')) {
+              numVal = 30
+            }
+            if (key === 'laborPricePerWatt' && (savedVal === undefined || savedVal === null)) {
+              numVal = 6
             }
             ;(sanitized as unknown as Record<string, unknown>)[key] = numVal
           } else if (key === 'note') {

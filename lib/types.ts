@@ -198,7 +198,7 @@ export const defaultInvoice: Invoice = {
       id: 'item-100k-11',
       description: 'System Engineering, Structural Mounting & Grid-Tie Commissioning',
       quantity: 1,
-      rate: 150000.00,
+      rate: 600600.00,
       unit: 'LOT'
     },
     {
