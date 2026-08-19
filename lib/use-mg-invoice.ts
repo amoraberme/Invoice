@@ -131,6 +131,10 @@ export function useMGInvoice() {
           }
         }
 
+        if (!sanitized.invoiceNumber || sanitized.invoiceNumber === 'MG-QT-100KW-2026' || sanitized.invoiceNumber === 'INV-0001' || sanitized.invoiceNumber === 'Untitled Quotation') {
+          sanitized.invoiceNumber = generateDocumentId('MG-QT')
+        }
+
         sanitized.issueDate = todayStr
         sanitized.dueDate = addDays(todayStr, 15)
         setInvoice(sanitized)

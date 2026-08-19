@@ -306,7 +306,7 @@ export function MGChecklistPreview({
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                       />
                       <p className="text-[9.5px] font-mono text-[#777777]">
-                        DOC #: MG-CL-{invoice.invoiceNumber || '260715133721'}
+                        DOC #: {invoice.invoiceNumber ? (invoice.invoiceNumber.startsWith('MG-') ? invoice.invoiceNumber.replace(/^MG-[A-Z]+-/, 'MG-CL-') : `MG-CL-${invoice.invoiceNumber}`) : 'MG-CL-260715133721'}
                       </p>
                     </div>
                   </div>

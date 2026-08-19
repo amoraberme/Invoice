@@ -105,7 +105,7 @@ export const defaultInvoice: Invoice = {
   toName: 'Commercial Client',
   toEmail: 'client@company.com',
   toAddress: 'Industrial Zone, Metro Manila',
-  invoiceNumber: 'MG-QT-100KW-2026',
+  invoiceNumber: '',
   issueDate: defaultToday.toISOString().slice(0, 10),
   dueDate: defaultDue.toISOString().slice(0, 10),
   currency: 'PHP',

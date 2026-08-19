@@ -2469,6 +2469,9 @@ export default function Home() {
       salutation: newSalutation,
       issueDate: currentDateStr,
       dueDate: dueStr,
+      invoiceNumber: prev.invoiceNumber && !prev.invoiceNumber.includes('100KW') && prev.invoiceNumber !== 'INV-0001'
+        ? prev.invoiceNumber
+        : generateDocumentId('MG-QT'),
     }))
   }
 
@@ -3100,19 +3103,29 @@ export default function Home() {
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <Field label="Invoice #" onMouseEnter={() => setHoveredField('invoiceNumber')} onMouseLeave={() => setHoveredField(null)}>
-                        <Input
-                          className="font-mono text-xs"
-                          value={invoice.invoiceNumber}
-                          onChange={(e) => update('invoiceNumber', e.target.value)}
-                          placeholder="INV-0001"
-                        />
-                        <div className="flex gap-1 mt-1 justify-end">
+                        <div className="relative flex items-center">
+                          <Input
+                            className="font-mono text-xs pr-7"
+                            value={invoice.invoiceNumber || ''}
+                            onChange={(e) => update('invoiceNumber', e.target.value)}
+                            placeholder="MG-QT-..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => update('invoiceNumber', generateDocumentId(invoice.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'))}
+                            className="absolute right-1.5 p-1 text-muted-foreground hover:text-foreground cursor-pointer rounded hover:bg-secondary transition-colors"
+                            title="Generate fresh ID"
+                          >
+                            <RefreshCw size={11} />
+                          </button>
+                        </div>
+                        <div className="flex gap-1 mt-1 justify-end items-center">
                           <span className="text-[9px] text-[#888888] mr-auto self-center select-none font-mono">Generate:</span>
                           <Button
                             variant="outline"
                             size="xs"
                             onClick={() => update('invoiceNumber', generateDocumentId('MG-INV'))}
-                            className="h-5 px-1.5 text-[9px] font-mono"
+                            className="h-5 px-1.5 text-[9px] font-mono cursor-pointer"
                             title="Generate Invoice ID"
                           >
                             +INV
@@ -3121,7 +3134,7 @@ export default function Home() {
                             variant="outline"
                             size="xs"
                             onClick={() => update('invoiceNumber', generateDocumentId('MG-QT'))}
-                            className="h-5 px-1.5 text-[9px] font-mono"
+                            className="h-5 px-1.5 text-[9px] font-mono cursor-pointer"
                             title="Generate Quotation ID"
                           >
                             +QT
