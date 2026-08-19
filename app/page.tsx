@@ -2500,11 +2500,7 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [loaded, invoice.toName, invoice.invoiceNumber, invoice])
 
-  const handleDownload = async () => {
-    if (isExportingPdf) return
-    setIsExportingPdf(true)
-    setPdfExportStatus('Preparing PDF...')
-
+  const handleDownload = () => {
     const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
     setHistoryList(updatedHistory)
     const client = invoice.toName ? invoice.toName.trim() : 'Client'
@@ -2526,32 +2522,18 @@ export default function Home() {
       setActiveView('preview')
     }
 
-    // Give DOM a tick to paint preview elements before canvas rasterization
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
-        const success = await exportToPdfDirect({
-          filename: `${title}.pdf`,
-          onProgress: (status) => setPdfExportStatus(status),
-        })
-
-        if (!success) {
-          // Fallback to browser print if DOM rasterization had an issue
-          if (typeof window !== 'undefined' && typeof window.print === 'function') {
-            window.print()
-          } else {
-            alert('Could not generate PDF directly. Please use your browser menu: Share > Print / Save as PDF.')
-          }
-        }
-      } catch (err) {
-        console.error('PDF export error:', err)
         if (typeof window !== 'undefined' && typeof window.print === 'function') {
           window.print()
+        } else {
+          alert('Printing/PDF download is not directly supported in this browser webview. Please open this website in Google Chrome or Safari to download as PDF.')
         }
-      } finally {
-        setIsExportingPdf(false)
-        setPdfExportStatus('')
+      } catch (err) {
+        console.error('Print trigger error:', err)
+        alert('Could not open print window. Please use your browser menu: Share > Print / Save as PDF.')
       }
-    }, 180)
+    }, 150)
   }
 
   const handleSalesPersonChange = (val: string) => {
@@ -2639,16 +2621,11 @@ export default function Home() {
           {/* PDF Download */}
           <Button
             onClick={handleDownload}
-            disabled={isExportingPdf}
             size="sm"
             className="h-6 px-1.5 rounded-[6px] text-[10px] font-semibold gap-1 cursor-pointer flex items-center shrink-0"
           >
-            {isExportingPdf ? (
-              <Loader2 size={10} className="animate-spin" />
-            ) : (
-              <Download size={10} strokeWidth={2.5} />
-            )}
-            {isExportingPdf ? 'Saving...' : 'PDF'}
+            <Download size={10} strokeWidth={2.5} />
+            PDF
           </Button>
         </div>
       </div>
@@ -5132,15 +5109,10 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
               <Button
                 onClick={handleDownload}
-                disabled={isExportingPdf}
                 className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer gap-2"
               >
-                {isExportingPdf ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Download size={15} strokeWidth={2} />
-                )}
-                {isExportingPdf ? (pdfExportStatus || 'Generating PDF...') : 'Download PDF'}
+                <Download size={15} strokeWidth={2} />
+                Download PDF
               </Button>
             </div>
           )}
