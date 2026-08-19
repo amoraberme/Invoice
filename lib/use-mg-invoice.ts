@@ -103,6 +103,34 @@ export function useMGInvoice() {
           }
         }
         
+        // Auto-fix any mismatched Subject & Salutation on all devices
+        const hasOnGridInverter = (sanitized.lineItems || []).some(it => {
+          const d = (it.description || '').toLowerCase()
+          return d.includes('on-grid') || d.includes('grid-tied') || d.includes('grid-tie') || d.includes('ongrid')
+        })
+        const hasBattery = (sanitized.lineItems || []).some(it => {
+          const d = (it.description || '').toLowerCase()
+          return d.includes('battery') || d.includes('lifepo4') || d.includes('200ah') || d.includes('314ah') || d.includes('100ah')
+        })
+        const isOnGridInvoice = sanitized.excludeBattery || (hasOnGridInverter && !hasBattery)
+
+        if (isOnGridInvoice) {
+          if (sanitized.subject && /hybrid/i.test(sanitized.subject)) {
+            sanitized.subject = sanitized.subject
+              .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid/gi, 'On-Grid')
+          }
+          if (sanitized.salutation && /hybrid/i.test(sanitized.salutation)) {
+            sanitized.salutation = sanitized.salutation
+              .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid/gi, 'On-Grid')
+          }
+        }
+
         sanitized.issueDate = todayStr
         sanitized.dueDate = addDays(todayStr, 15)
         setInvoice(sanitized)

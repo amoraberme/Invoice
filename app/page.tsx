@@ -1589,15 +1589,38 @@ export default function Home() {
     return { key: 'electrical', label: 'Electrical & Cabling', badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' }
   }
 
-  const handleSystemTypeChange = (type: 'hybrid' | 'ongrid') => {
+  const handleSystemTypeChange = (type: 'hybrid' | 'ongrid', explicitKw?: number) => {
+    // 1. Determine effective kW from inverter item, panels, or explicitKw
+    let currentKw = explicitKw
+    if (!currentKw) {
+      const inverterItem = invoice.lineItems.find(item => {
+        const d = (item.description || '').toLowerCase()
+        return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow')
+      })
+      if (inverterItem) {
+        const kwMatch = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
+        if (kwMatch) currentKw = parseFloat(kwMatch[1])
+      }
+    }
+    if (!currentKw) {
+      const { totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems)
+      if (totalWatts > 0) {
+        currentKw = Math.round(totalWatts / 1000)
+      }
+    }
+    if (!currentKw) {
+      currentKw = activeKwSetup || 5
+    }
+
     if (type === 'ongrid') {
-      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(currentKw!) !== null)
       if (!hasOnGridOption) {
         return
       }
     }
 
     setSystemType(type)
+    setActiveKwSetup(currentKw)
     const isExclude = type === 'ongrid'
     update('excludeBattery', isExclude)
 
@@ -1612,10 +1635,12 @@ export default function Home() {
         descLower.includes('solax') ||
         descLower.includes('foxess') ||
         descLower.includes('sunways') ||
+        descLower.includes('deye') ||
+        descLower.includes('growatt') ||
         descLower.includes('sungrow')
       ) {
         const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
-        const kw = kwMatch ? parseFloat(kwMatch[1]) : activeKwSetup
+        const kw = kwMatch ? parseFloat(kwMatch[1]) : currentKw!
 
         if (type === 'ongrid') {
           const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(kw) !== null)
@@ -1651,7 +1676,7 @@ export default function Home() {
         updatedItems = updatedItems.filter(item => !isBatteryUnit(item.description) || item.id === firstId)
       } else if (batteryItems.length === 0) {
         const batteryQty = 1
-        const isSmallSetup = activeKwSetup <= 6
+        const isSmallSetup = currentKw <= 6
         const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
         const batteryRate = isSmallSetup ? 65000.00 : 85000.00
 
@@ -1667,17 +1692,58 @@ export default function Home() {
 
     const systemTypeLabel = type === 'ongrid' ? 'On-Grid' : 'Hybrid'
     const systemTypeSubject = type === 'ongrid' 
-      ? `${activeKwSetup}kW On-Grid Solar System`
-      : `${activeKwSetup}kW Hybrid System with Battery`
-    const newSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${activeKwSetup}kW ${systemTypeLabel} Solar System based on your requirement.`
+      ? `${currentKw}kW On-Grid Solar System`
+      : `${currentKw}kW Hybrid System with Battery`
+    const newSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${currentKw}kW ${systemTypeLabel} Solar System based on your requirement.`
 
-    setInvoice(prev => ({
-      ...prev,
-      excludeBattery: isExclude,
-      lineItems: updatedItems,
-      subject: systemTypeSubject,
-      salutation: newSalutation,
-    }))
+    setInvoice(prev => {
+      let finalSubject = systemTypeSubject
+      let finalSalutation = newSalutation
+
+      if (prev.subject && prev.subject.trim()) {
+        if (type === 'ongrid') {
+          finalSubject = prev.subject
+            .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+            .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+            .replace(/Hybrid\s+System/gi, 'On-Grid System')
+            .replace(/Hybrid/gi, 'On-Grid')
+        } else {
+          finalSubject = prev.subject
+            .replace(/On-Grid\s+Solar\s+System/gi, 'Hybrid System with Battery')
+            .replace(/On-Grid\s+System/gi, 'Hybrid System with Battery')
+            .replace(/On-Grid/gi, 'Hybrid')
+        }
+        if (!/on-grid/i.test(finalSubject) && type === 'ongrid') {
+          finalSubject = systemTypeSubject
+        }
+      }
+
+      if (prev.salutation && prev.salutation.trim()) {
+        if (type === 'ongrid') {
+          finalSalutation = prev.salutation
+            .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+            .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+            .replace(/Hybrid\s+System/gi, 'On-Grid Solar System')
+            .replace(/Hybrid/gi, 'On-Grid')
+        } else {
+          finalSalutation = prev.salutation
+            .replace(/On-Grid\s+Solar\s+System/gi, 'Hybrid Solar System')
+            .replace(/On-Grid\s+System/gi, 'Hybrid Solar System')
+            .replace(/On-Grid/gi, 'Hybrid')
+        }
+        if (!/on-grid/i.test(finalSalutation) && type === 'ongrid') {
+          finalSalutation = newSalutation
+        }
+      }
+
+      return {
+        ...prev,
+        excludeBattery: isExclude,
+        lineItems: updatedItems,
+        subject: finalSubject,
+        salutation: finalSalutation,
+      }
+    })
   }
 
   const handleToggleBatteryExclusion = () => {
@@ -1715,6 +1781,75 @@ export default function Home() {
       }
     })
   }
+
+  // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
+  useEffect(() => {
+    if (!loaded) return
+
+    const hasOnGridInverter = (invoice.lineItems || []).some(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('on-grid') || d.includes('grid-tied') || d.includes('grid-tie') || d.includes('ongrid')
+    })
+    const hasBattery = (invoice.lineItems || []).some(it => isBatteryUnit(it.description))
+    const isOngrid = invoice.excludeBattery || (hasOnGridInverter && !hasBattery)
+    const detectedType: 'hybrid' | 'ongrid' = isOngrid ? 'ongrid' : 'hybrid'
+
+    let detectedKw = 5
+    const invItem = (invoice.lineItems || []).find(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways')
+    })
+    if (invItem) {
+      const kwMatch = invItem.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
+      if (kwMatch) detectedKw = parseFloat(kwMatch[1])
+    } else {
+      const { totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems || [])
+      if (totalWatts > 0) detectedKw = Math.round(totalWatts / 1000)
+    }
+
+    setSystemType(detectedType)
+    setActiveKwSetup(detectedKw)
+
+    if (isOngrid) {
+      const subjectHasHybrid = /hybrid/i.test(invoice.subject || '')
+      const salutationHasHybrid = /hybrid/i.test(invoice.salutation || '')
+
+      if (subjectHasHybrid || salutationHasHybrid) {
+        setInvoice(prev => {
+          let updatedSubj = prev.subject || `${detectedKw}kW On-Grid Solar System`
+          if (/hybrid/i.test(updatedSubj)) {
+            updatedSubj = updatedSubj
+              .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+System/gi, 'On-Grid System')
+              .replace(/Hybrid/gi, 'On-Grid')
+            if (!/on-grid/i.test(updatedSubj)) {
+              updatedSubj = `${detectedKw}kW On-Grid Solar System`
+            }
+          }
+
+          let updatedSalutation = prev.salutation || `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${detectedKw}kW On-Grid Solar System based on your requirement.`
+          if (/hybrid/i.test(updatedSalutation)) {
+            updatedSalutation = updatedSalutation
+              .replace(/Hybrid\s+System\s+with\s+Battery/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+Solar\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid\s+System/gi, 'On-Grid Solar System')
+              .replace(/Hybrid/gi, 'On-Grid')
+            if (!/on-grid/i.test(updatedSalutation)) {
+              updatedSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${detectedKw}kW On-Grid Solar System based on your requirement.`
+            }
+          }
+
+          return {
+            ...prev,
+            excludeBattery: true,
+            subject: updatedSubj,
+            salutation: updatedSalutation
+          }
+        })
+      }
+    }
+  }, [loaded])
 
   useEffect(() => {
     if (!loaded) return
@@ -3587,15 +3722,7 @@ export default function Home() {
                                     type="button"
                                     disabled={!HYBRID_BRANDS.some(b => b.getPrice(itemKw) !== null)}
                                     onClick={() => {
-                                      const defaultBrand = HYBRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
-                                      if (!defaultBrand) return
-                                      const price = defaultBrand.getPrice(itemKw)!
-                                      const newDesc = item.description.replace(/On-Grid/i, 'Hybrid')
-                                      const finalDesc = newDesc.includes('Hybrid') ? newDesc : `${newDesc} Hybrid`
-                                      updateItem(item.id, 'description', finalDesc)
-                                      updateItem(item.id, 'rate', price)
-                                      setSystemType('hybrid')
-                                      update('excludeBattery', false)
+                                      handleSystemTypeChange('hybrid', itemKw)
                                     }}
                                     className={cn(
                                       "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none",
@@ -3617,15 +3744,7 @@ export default function Home() {
                                     type="button"
                                     disabled={!ON_GRID_BRANDS.some(b => b.getPrice(itemKw) !== null)}
                                     onClick={() => {
-                                      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(itemKw) !== null)
-                                      if (!defaultBrand) return
-                                      const price = defaultBrand.getPrice(itemKw)!
-                                      const newDesc = item.description.replace(/Hybrid/i, 'On-Grid')
-                                      const finalDesc = newDesc.includes('On-Grid') ? newDesc : `${newDesc} On-Grid`
-                                      updateItem(item.id, 'description', finalDesc)
-                                      updateItem(item.id, 'rate', price)
-                                      setSystemType('ongrid')
-                                      update('excludeBattery', true)
+                                      handleSystemTypeChange('ongrid', itemKw)
                                     }}
                                     className={cn(
                                       "text-[8px] font-bold px-1.5 py-0.5 rounded-[4px] transition-all select-none",
@@ -3660,6 +3779,10 @@ export default function Home() {
                                         disabled={!isApplicable}
                                         onClick={() => {
                                           if (!isApplicable) return
+                                          const isCurrentlyOnGrid = systemType === 'ongrid' || isItemOnGrid
+                                          if (!isCurrentlyOnGrid) {
+                                            handleSystemTypeChange('ongrid', itemKw)
+                                          }
                                           updateItem(item.id, 'rate', brandPrice)
                                           updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW On-Grid`)
                                         }}
@@ -3700,6 +3823,10 @@ export default function Home() {
                                         disabled={!isApplicable}
                                         onClick={() => {
                                           if (!isApplicable) return
+                                          const isCurrentlyHybrid = systemType === 'hybrid' && !isItemOnGrid
+                                          if (!isCurrentlyHybrid) {
+                                            handleSystemTypeChange('hybrid', itemKw)
+                                          }
                                           updateItem(item.id, 'rate', brandPrice)
                                           updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW Hybrid`)
                                         }}
