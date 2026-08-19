@@ -7,9 +7,20 @@ export interface PdfExportOptions {
 }
 
 /**
+ * Checks if the current browser/platform is iOS (iPhone, iPad, iPod)
+ */
+function isIosDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  const isAppleMobile = /iPad|iPhone|iPod/.test(ua)
+  const isIpadOs = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return isAppleMobile || isIpadOs
+}
+
+/**
  * Exports the active quotation / capital / checklist pages directly to a pure A4 PDF file.
  * This completely avoids browser print dialogs (such as iOS Safari / WebKit print sheets)
- * that inject unwanted URL link footers and timestamp headers.
+ * that inject unwanted URL link footers, timestamp headers, or split pages into extras.
  */
 export async function exportToPdfDirect({
   filename = 'Quotation.pdf',
@@ -22,17 +33,22 @@ export async function exportToPdfDirect({
 
     onProgress?.('Preparing document...')
 
-    // Locate all printable page elements in the DOM
-    const pageNodes = document.querySelectorAll<HTMLElement>('.print-page')
-    if (!pageNodes || pageNodes.length === 0) {
+    // Locate visible printable page elements in the DOM
+    const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
+    if (!allPageNodes || allPageNodes.length === 0) {
       console.warn('No .print-page elements found to export')
       return false
     }
 
-    const pages = Array.from(pageNodes)
-    const totalPages = pages.length
+    // Filter to only visible elements (to avoid exporting inactive hidden tabs)
+    const pages = Array.from(allPageNodes).filter((el) => {
+      return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
+    })
 
-    // A4 dimensions in points: 595.28 x 841.89 (Standard ISO 216 A4)
+    const targetPages = pages.length > 0 ? pages : Array.from(allPageNodes)
+    const totalPages = targetPages.length
+
+    // Standard ISO 216 A4 Dimensions in points: 595.28 pt x 841.89 pt (210mm x 297mm)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'pt',
@@ -44,10 +60,10 @@ export async function exportToPdfDirect({
     const pdfHeight = pdf.internal.pageSize.getHeight()
 
     for (let i = 0; i < totalPages; i++) {
-      const pageEl = pages[i]
+      const pageEl = targetPages[i]
       onProgress?.(`Rendering page ${i + 1} of ${totalPages}...`)
 
-      // Capture high-resolution raster image of the A4 page (scale 2.2 for crisp vector-like clarity)
+      // High-resolution canvas capture (scale 2.2 for crisp 200+ DPI text and graphic rendering)
       const canvas = await html2canvas(pageEl, {
         scale: 2.2,
         useCORS: true,
@@ -64,6 +80,8 @@ export async function exportToPdfDirect({
           clonedEl.style.border = 'none'
           clonedEl.style.backgroundColor = '#ffffff'
           clonedEl.style.color = '#111111'
+          clonedEl.style.width = '794px'
+          clonedEl.style.height = '1123px'
         },
       })
 
@@ -78,44 +96,26 @@ export async function exportToPdfDirect({
 
     onProgress?.('Saving PDF...')
 
-    // Check if on iOS device and Web Share API is available for native file share/save
-    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-    const isIOS =
-      /iPad|iPhone|iPod/.test(userAgent) ||
-      (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-
-    const blob = pdf.output('blob')
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`
+    const isIOS = isIosDevice()
+    const blob = pdf.output('blob')
 
-    if (isIOS && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-      try {
-        const file = new File([blob], cleanFilename, { type: 'application/pdf' })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: cleanFilename,
-          })
-          return true
-        }
-      } catch (shareErr) {
-        // User cancelled share or share failed; proceed to blob download fallback
-        if ((shareErr as Error)?.name === 'AbortError') {
-          return true
-        }
+    // On iOS Safari: standard <a download> does not work for Blob files.
+    // We open the clean PDF directly in Safari's native viewer or trigger file share.
+    if (isIOS) {
+      const blobUrl = URL.createObjectURL(blob)
+      
+      // Try opening in new window/tab for native iOS PDF QuickLook
+      const newWin = window.open(blobUrl, '_blank')
+      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        // Popups blocked, navigate directly in current window
+        window.location.href = blobUrl
       }
+      return true
     }
 
-    // Standard download via Blob URL for universal browser compatibility
-    const blobUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = blobUrl
-    link.download = cleanFilename
-    link.style.display = 'none'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000)
-
+    // On Desktop (Chrome, Edge, Firefox, Mac Safari) and Android: direct file download
+    pdf.save(cleanFilename)
     return true
   } catch (err) {
     console.error('Error during direct PDF export:', err)

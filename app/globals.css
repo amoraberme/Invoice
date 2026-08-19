@@ -186,8 +186,9 @@
   }
 }
 
-/* Root-level page geometry to enforce zero browser margin and remove headers/footers (URLs, timestamps) across iOS Safari, WebKit, and Chrome */
+/* Root-level page geometry to enforce A4 size, zero browser margin, and remove headers/footers (URLs, timestamps) across iOS Safari, WebKit, Chrome, and Edge */
 @page {
+  size: 210mm 297mm;
   size: A4 portrait;
   margin: 0;
   margin-top: 0;
@@ -197,19 +198,26 @@
 }
 
 @page :left {
+  size: 210mm 297mm;
+  size: A4 portrait;
   margin: 0;
 }
 
 @page :right {
+  size: 210mm 297mm;
+  size: A4 portrait;
   margin: 0;
 }
 
 @page :first {
+  size: 210mm 297mm;
+  size: A4 portrait;
   margin: 0;
 }
 
 @media print {
   @page {
+    size: 210mm 297mm;
     size: A4 portrait;
     margin: 0;
     margin-top: 0;
@@ -219,14 +227,20 @@
   }
 
   @page :left {
+    size: 210mm 297mm;
+    size: A4 portrait;
     margin: 0;
   }
 
   @page :right {
+    size: 210mm 297mm;
+    size: A4 portrait;
     margin: 0;
   }
 
   @page :first {
+    size: 210mm 297mm;
+    size: A4 portrait;
     margin: 0;
   }
 
@@ -264,22 +278,27 @@
     text-shadow: none !important;
   }
   .print-wrapper {
-    width: 210mm !important;
-    height: 297mm !important;
-    max-height: 297mm !important;
+    width: 100% !important;
+    max-width: 210mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     margin: 0 auto !important;
     padding: 0 !important;
     box-sizing: border-box !important;
     display: block !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
     break-inside: avoid-page !important;
   }
   .print-page {
     width: 210mm !important;
-    height: 297mm !important;
-    max-height: 297mm !important;
+    max-width: 100% !important;
+    height: 285mm !important;
+    max-height: 285mm !important;
+    min-height: 0 !important;
     margin: 0 auto !important;
-    padding: 14mm !important;
+    padding: 12mm 14mm !important;
     box-sizing: border-box !important;
     position: relative !important;
     overflow: hidden !important;
@@ -295,15 +314,34 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
     break-inside: avoid-page !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
   .print-break {
     page-break-after: always !important;
     break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
   }
   .print-break-last {
     page-break-after: auto !important;
     break-after: auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
   }
 }
 
