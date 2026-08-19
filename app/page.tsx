@@ -5,7 +5,7 @@ import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, St
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect } from '@/lib/pdf-export'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, defaultInvoice } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, newWarrantyItem, defaultWarranties, defaultInvoice } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1745,6 +1745,7 @@ export default function Home() {
         lineItems: updatedItems,
         subject: finalSubject,
         salutation: finalSalutation,
+        invoiceNumber: generateDocumentId(prev.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'),
       }
     })
   }
@@ -1785,45 +1786,25 @@ export default function Home() {
     })
   }
 
-  const handleToggleCustomMode = (enable?: boolean) => {
-    const nextIsCustom = enable !== undefined ? enable : !invoice.isCustom
-    if (nextIsCustom) {
-      const condensed = getCondensedLineItems(invoice)
-      let customItems: LineItem[] = []
-      if (condensed && condensed.length > 0 && !invoice.isCustom) {
-        customItems = condensed.map((item, idx) => ({
-          id: `custom-item-${idx + 1}-${Date.now()}`,
-          description: item.description,
-          quantity: 1,
-          rate: Math.round(item.quantity * item.rate),
-          unit: item.unit || 'LOT',
-        }))
-      } else if (invoice.lineItems && invoice.lineItems.length > 0 && invoice.isCustom) {
-        customItems = invoice.lineItems
-      } else {
-        customItems = [
-          { id: `custom-panel-${Date.now()}`, description: 'Solar Panels', quantity: 1, rate: 0, unit: 'PCS' },
-          { id: `custom-inverter-${Date.now()}`, description: 'Inverter', quantity: 1, rate: 0, unit: 'PC' },
-          { id: `custom-battery-${Date.now()}`, description: 'Battery', quantity: 1, rate: 0, unit: 'PC' },
-          { id: `custom-materials-${Date.now()}`, description: 'Materials', quantity: 1, rate: 0, unit: 'LOT' },
-          { id: `custom-electrical-${Date.now()}`, description: 'Electrical', quantity: 1, rate: 0, unit: 'LOT' },
-          { id: `custom-services-${Date.now()}`, description: 'Services', quantity: 1, rate: 0, unit: '' },
-          { id: `custom-delivery-${Date.now()}`, description: 'Delivery Fees', quantity: 1, rate: 0, unit: '' },
-        ]
-      }
-      setInvoice(prev => ({
-        ...prev,
-        isCustom: true,
-        isCondensed: true,
-        lineItems: customItems,
-      }))
-    } else {
-      setInvoice(prev => ({
-        ...prev,
-        isCustom: false,
-      }))
-      handleGenerateBoq(activeKwSetup, activePreset)
-    }
+  const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
+    const list = invoice.warranties || defaultWarranties
+    const updated = list.map((w) => (w.id === id ? { ...w, [field]: value } : w))
+    update('warranties', updated)
+  }
+
+  const handleAddWarranty = () => {
+    const newItem = newWarrantyItem('', 'Manufacturer Warranty', '')
+    const list = invoice.warranties || defaultWarranties
+    update('warranties', [...list, newItem])
+  }
+
+  const handleRemoveWarranty = (id: string) => {
+    const list = invoice.warranties || defaultWarranties
+    update('warranties', list.filter((w) => w.id !== id))
+  }
+
+  const handleResetWarranties = () => {
+    update('warranties', defaultWarranties)
   }
 
   // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
@@ -2510,11 +2491,29 @@ export default function Home() {
       salutation: newSalutation,
       issueDate: currentDateStr,
       dueDate: dueStr,
-      invoiceNumber: prev.invoiceNumber && !prev.invoiceNumber.includes('100KW') && prev.invoiceNumber !== 'INV-0001'
-        ? prev.invoiceNumber
-        : generateDocumentId('MG-QT'),
+      invoiceNumber: generateDocumentId(prev.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'),
     }))
   }
+
+  // Auto-update timestamped Invoice / Quotation # every second in real-time
+  useEffect(() => {
+    if (!loaded) return
+    const interval = setInterval(() => {
+      setInvoice((prev) => {
+        const current = prev.invoiceNumber?.trim() || ''
+        const isDynamicPattern = !current || /^MG-(QT|INV)(-\d{6,14})?$/i.test(current)
+        if (!isDynamicPattern) return prev
+        const prefix = current.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'
+        const nextId = generateDocumentId(prefix)
+        if (nextId === current) return prev
+        return {
+          ...prev,
+          invoiceNumber: nextId,
+        }
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [loaded])
 
   // Keep document title synced at all times with the client name and quotation number
   useEffect(() => {
@@ -2712,7 +2711,7 @@ export default function Home() {
             {[
               { id: 'ocr', label: 'kW Set Up', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
-              { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details, Bank & Terms' },
+              { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
@@ -2831,38 +2830,8 @@ export default function Home() {
                       >
                         🌐 On-Grid
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCustomMode(!invoice.isCustom)}
-                        className={cn(
-                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
-                          invoice.isCustom
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        title="Custom Mode: User-defined descriptions and rates are strictly preserved in both comprehensive and condensed views."
-                      >
-                        🛠️ Custom
-                      </button>
                     </div>
                   </div>
-
-                  {invoice.isCustom && (
-                    <div className="mb-3 p-2.5 bg-primary/10 border border-primary/30 rounded-[10px] flex items-center justify-between text-[11px] text-foreground font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <span>🛠️</span>
-                        <span><strong>Custom Mode Active:</strong> Custom item descriptions and values are strictly respected in both Comprehensive & Condensed views.</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCustomMode(false)}
-                        className="text-[10px] text-primary underline ml-2 shrink-0 cursor-pointer font-bold"
-                      >
-                        Standard
-                      </button>
-                    </div>
-                  )}
-
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
@@ -3317,48 +3286,6 @@ export default function Home() {
                   />
                 </section>
 
-                {/* BANK DETAILS */}
-                <section className="space-y-3">
-                  <SectionHeader>Bank Details</SectionHeader>
-                  <div className="space-y-2" onMouseEnter={() => setHoveredField('bankBeneficiary')} onMouseLeave={() => setHoveredField(null)}>
-                    <Field label="Beneficiary">
-                      <Input
-                        value={invoice.bankBeneficiary}
-                        onChange={(e) => update('bankBeneficiary', e.target.value)}
-                        placeholder="Acme Studio Ltd."
-                      />
-                    </Field>
-                    <Field label="Bank name">
-                      <Input
-                        value={invoice.bankName}
-                        onChange={(e) => update('bankName', e.target.value)}
-                        placeholder="First National Bank"
-                      />
-                    </Field>
-                    <Field label="Sort Code / Routing">
-                      <Input
-                        value={invoice.bankSortCode}
-                        onChange={(e) => update('bankSortCode', e.target.value)}
-                        placeholder="20-00-00"
-                      />
-                    </Field>
-                    <Field label="Account number / IBAN">
-                      <Input
-                        value={invoice.bankAccount}
-                        onChange={(e) => update('bankAccount', e.target.value)}
-                        placeholder="GB29 NWBK 6016 1331 9268 19"
-                      />
-                    </Field>
-                    <Field label="SWIFT / BIC">
-                      <Input
-                        value={invoice.bankSwift}
-                        onChange={(e) => update('bankSwift', e.target.value)}
-                        placeholder="NWBKGB2L"
-                      />
-                    </Field>
-                  </div>
-                </section>
-
                 {/* NOTES / SPECIAL INSTRUCTIONS */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
                   <SectionHeader>Notes / Special Instructions</SectionHeader>
@@ -3424,209 +3351,9 @@ export default function Home() {
 
             {activeTab === 'items' && (
               <section className="space-y-3">
-                {invoice.isCustom ? (
-                  /* CUSTOM LINE ITEMS (LUMP-SUM TOTALS FOR DELIVERY, SERVICES, ELECTRICAL, MATERIALS, INVERTER, PANEL) */
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div>
-                        <SectionHeader>Custom Line Items</SectionHeader>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Directly edit descriptions and final totals for each category. No Qty or Rate calculations required.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-[6px] border border-primary/30">
-                          🛠️ Custom Active
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleCustomMode(false)}
-                          className="h-7 text-[10px] font-bold px-2.5 cursor-pointer"
-                        >
-                          Reset to Standard
-                        </Button>
-                      </div>
-                    </div>
+                <SectionHeader>Line Items</SectionHeader>
 
-                    {/* Quick Category Add Presets */}
-                    <div className="p-2.5 bg-card border border-border rounded-[12px] space-y-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase block">
-                        Quick Add Category:
-                      </span>
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
-                        {[
-                          { name: 'Solar Panels', unit: 'PCS' },
-                          { name: 'Inverter', unit: 'PC' },
-                          { name: 'Battery', unit: 'PC' },
-                          { name: 'Materials', unit: 'LOT' },
-                          { name: 'Electrical', unit: 'LOT' },
-                          { name: 'Services', unit: '' },
-                          { name: 'Delivery Fees', unit: '' },
-                        ].map((cat) => (
-                          <button
-                            key={cat.name}
-                            type="button"
-                            onClick={() => {
-                              const newItem: LineItem = {
-                                id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                                description: cat.name,
-                                quantity: 1,
-                                rate: 0,
-                                unit: cat.unit,
-                              }
-                              update('lineItems', [...(invoice.lineItems || []), newItem])
-                            }}
-                            className="text-[10px] font-bold bg-secondary hover:bg-secondary/80 text-foreground px-2.5 py-1 rounded-[8px] border border-border cursor-pointer transition-all hover:scale-105 active:scale-95"
-                          >
-                            + {cat.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Custom Items List */}
-                    <div className="space-y-2 pt-1">
-                      {/* Column Header: No QTY, Rate - just Description and Final Total */}
-                      <div className="flex gap-2 px-2 items-center">
-                        <span className="flex-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Category / Description
-                        </span>
-                        <span className="w-36 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right pr-2">
-                          Final Total (₱)
-                        </span>
-                        <span className="w-6" />
-                      </div>
-
-                      {(invoice.lineItems || []).map((item, idx) => {
-                        const dLower = (item.description || '').toLowerCase()
-                        let icon = '📦'
-                        if (dLower.includes('panel') || dLower.includes('module')) icon = '☀️'
-                        else if (dLower.includes('inverter')) icon = '⚡'
-                        else if (dLower.includes('battery')) icon = '🔋'
-                        else if (dLower.includes('material') || dLower.includes('rail') || dLower.includes('mount') || dLower.includes('clamp')) icon = '🔩'
-                        else if (dLower.includes('electrical') || dLower.includes('wire') || dLower.includes('cable') || dLower.includes('breaker') || dLower.includes('mcb')) icon = '🔌'
-                        else if (dLower.includes('service') || dLower.includes('labor') || dLower.includes('install') || dLower.includes('commission')) icon = '🛠️'
-                        else if (dLower.includes('delivery') || dLower.includes('freight') || dLower.includes('logistics')) icon = '🚚'
-
-                        return (
-                          <div
-                            key={item.id || idx}
-                            className="flex items-center gap-2 p-2.5 rounded-[12px] bg-secondary/40 border border-border hover:border-primary/50 transition-all"
-                            onMouseEnter={() => setHoveredField(item.id)}
-                            onMouseLeave={() => setHoveredField(null)}
-                          >
-                            <span className="text-sm shrink-0 select-none pl-1" title={item.description}>{icon}</span>
-                            <Input
-                              className="flex-1 text-xs font-sans h-9"
-                              value={item.description}
-                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                              placeholder="e.g. Solar Panels, Inverter, Materials, Electrical, Services, Delivery Fees..."
-                            />
-                            <div className="relative w-36 shrink-0">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground select-none">₱</span>
-                              <Input
-                                className="w-full pl-7 pr-2.5 text-right font-mono font-bold text-xs h-9"
-                                type="number"
-                                min="0"
-                                step="100"
-                                value={item.rate === 0 ? '' : item.rate}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0
-                                  const updated = (invoice.lineItems || []).map(it => it.id === item.id ? { ...it, rate: val, quantity: 1 } : it)
-                                  update('lineItems', updated)
-                                }}
-                                placeholder="0.00"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer transition-colors text-sm shrink-0"
-                              title="Delete category item"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        )
-                      })}
-
-                      {/* Add Custom Item Button */}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newItem: LineItem = {
-                            id: `custom-${Date.now()}`,
-                            description: '',
-                            quantity: 1,
-                            rate: 0,
-                            unit: 'LOT',
-                          }
-                          update('lineItems', [...(invoice.lineItems || []), newItem])
-                        }}
-                        className="w-full h-9 border-dashed border-border hover:border-primary text-xs font-bold mt-1 cursor-pointer"
-                      >
-                        <Plus size={13} />
-                        Add Custom Category Item
-                      </Button>
-
-                      {/* Live Total Proposal Amount (Editable) */}
-                      <div className="mt-3 p-3.5 bg-card border border-border rounded-[14px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                        <div>
-                          <span className="text-xs font-bold text-foreground block">
-                            Final Total Proposal Amount:
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {invoice.customTotal !== undefined && invoice.customTotal > 0
-                              ? "✨ Manual total override active"
-                              : "Calculated from items above. Type below to manually set total."}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="relative w-44 shrink-0">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground select-none">₱</span>
-                            <Input
-                              className="w-full pl-7 pr-3 text-right font-mono font-extrabold text-sm h-9 bg-background"
-                              type="number"
-                              min="0"
-                              step="100"
-                              value={
-                                invoice.customTotal !== undefined && invoice.customTotal !== null
-                                  ? (invoice.customTotal === 0 ? '' : invoice.customTotal)
-                                  : (calculateSubtotal(invoice) === 0 ? '' : calculateSubtotal(invoice))
-                              }
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => {
-                                const val = e.target.value === '' ? undefined : parseFloat(e.target.value) || 0
-                                update('customTotal', val)
-                              }}
-                              placeholder="0.00"
-                            />
-                          </div>
-                          {invoice.customTotal !== undefined && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => update('customTotal', undefined)}
-                              className="h-9 text-[10px] font-bold px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
-                              title="Reset to auto-calculated total from items"
-                            >
-                              Auto
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <SectionHeader>Line Items</SectionHeader>
-
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
                         <Input
                           type="number"
@@ -3638,29 +3365,40 @@ export default function Home() {
                           placeholder="30"
                         />
                       </Field>
-                  <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => handleUpdateLaborPricePerWatt(e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      placeholder="6"
-                    />
-                  </Field>
-                  <Field label="Rows (Array Rows)" onMouseEnter={() => setHoveredField('rowsCount')} onMouseLeave={() => setHoveredField(null)}>
-                    <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={rowsCount}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => handleUpdateRows(Math.max(1, parseInt(e.target.value) || 1))}
-                      placeholder="1"
-                    />
-                  </Field>
-                </div>
+                      <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={invoice.laborPricePerWatt === 0 ? '' : (invoice.laborPricePerWatt ?? 6)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleUpdateLaborPricePerWatt(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                          placeholder="6"
+                        />
+                      </Field>
+                      <Field label="Discount (₱)" onMouseEnter={() => setHoveredField('discountAmount')} onMouseLeave={() => setHoveredField(null)}>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={invoice.discountAmount === 0 || !invoice.discountAmount ? '' : invoice.discountAmount}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => update('discountAmount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                          placeholder="0.00"
+                        />
+                      </Field>
+                      <Field label="Rows (Array Rows)" onMouseEnter={() => setHoveredField('rowsCount')} onMouseLeave={() => setHoveredField(null)}>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={rowsCount}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleUpdateRows(Math.max(1, parseInt(e.target.value) || 1))}
+                          placeholder="1"
+                        />
+                      </Field>
+                    </div>
 
 
 
@@ -4561,16 +4299,94 @@ export default function Home() {
                   <Button
                     variant="outline"
                     onClick={handleAddItem}
-                    className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1"
+                    className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1 cursor-pointer"
                   >
                     <Plus size={13} />
                     Add item
                   </Button>
+
+                  {/* Warranty Coverage Editor */}
+                  <div className="mt-8 pt-5 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={16} className="text-primary" />
+                        <SectionHeader>Warranty Coverage</SectionHeader>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetWarranties}
+                        className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                        title="Reset to default warranty coverage"
+                      >
+                        Reset Defaults
+                      </Button>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      Customize the component warranties, warranty types, and coverage periods shown in the proposal's Warranty Coverage table.
+                    </p>
+
+                    {/* Column Headers */}
+                    <div className="flex gap-2 px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span className="flex-1">Component / Service</span>
+                      <span className="w-44">Warranty Type</span>
+                      <span className="w-28 text-right pr-2">Coverage Period</span>
+                      <span className="w-7" />
+                    </div>
+
+                    <div className="space-y-2">
+                      {(invoice.warranties || defaultWarranties).map((w, idx) => (
+                        <div
+                          key={w.id || idx}
+                          className="flex items-center gap-2 p-2 rounded-[10px] bg-secondary/30 border border-border hover:border-primary/40 transition-all"
+                        >
+                          <Input
+                            className="flex-1 text-xs h-8 font-medium bg-background"
+                            value={w.component}
+                            onChange={(e) => updateWarranty(w.id, 'component', e.target.value)}
+                            placeholder="e.g. Solar Panels, Inverter, Battery..."
+                          />
+                          <Input
+                            className="w-44 shrink-0 text-xs h-8 text-muted-foreground bg-background"
+                            value={w.warrantyType}
+                            onChange={(e) => updateWarranty(w.id, 'warrantyType', e.target.value)}
+                            placeholder="e.g. Manufacturer Warranty"
+                          />
+                          <Input
+                            className="w-28 shrink-0 text-xs h-8 font-bold text-right bg-background"
+                            value={w.coverage}
+                            onChange={(e) => updateWarranty(w.id, 'coverage', e.target.value)}
+                            placeholder="e.g. 15 Years, 5 Years..."
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => handleRemoveWarranty(w.id)}
+                            className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer h-7 w-7"
+                            title="Remove warranty row"
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddWarranty}
+                      className="w-full h-8 border-dashed border-border text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-foreground mt-1 cursor-pointer"
+                    >
+                      <Plus size={13} />
+                      Add Warranty Row
+                    </Button>
+                  </div>
                 </div>
-              </>
+              </section>
             )}
-          </section>
-        )}
 
             {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
@@ -5509,7 +5325,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
-            onToggleCustom={(val) => handleToggleCustomMode(val)}
           />
         )}
       </div>

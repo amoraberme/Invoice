@@ -16,6 +16,13 @@ export interface ExpenseItem {
   category?: 'lalamove' | 'logistics' | 'permits' | 'meals' | 'additional' | 'other'
 }
 
+export interface WarrantyItem {
+  id: string
+  component: string
+  warrantyType: string
+  coverage: string
+}
+
 export interface Invoice {
   fromName: string
   fromEmail: string
@@ -35,10 +42,11 @@ export interface Invoice {
   excludeBattery: boolean
   isCondensed: boolean
   withBrandName: boolean
-  isCustom?: boolean
   customTotal?: number
+  discountAmount?: number
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
+  warranties?: WarrantyItem[]
   lalamoveCost: number
   additionalExpenses: ExpenseItem[]
   bankBeneficiary: string
@@ -95,6 +103,18 @@ export function newExpenseItem(description = '', amount = 0, category: ExpenseIt
   return { id, description, amount, category }
 }
 
+export function newWarrantyItem(component = '', warrantyType = 'Manufacturer Warranty', coverage = ''): WarrantyItem {
+  const id = `warr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return { id, component, warrantyType, coverage }
+}
+
+export const defaultWarranties: WarrantyItem[] = [
+  { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
+  { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: '5 Years' },
+  { id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: '10 Years' },
+  { id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '1 Year' },
+]
+
 const defaultToday = new Date()
 const defaultDue = new Date()
 defaultDue.setDate(defaultDue.getDate() + 15)
@@ -118,9 +138,10 @@ export const defaultInvoice: Invoice = {
   excludeBattery: false,
   isCondensed: false,
   withBrandName: true,
-  isCustom: false,
   customTotal: undefined,
+  discountAmount: 0,
   theme: 'light',
+  warranties: defaultWarranties,
   lineItems: [
     {
       id: 'item-100k-1',

@@ -1,15 +1,17 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { type Invoice, type LineItem } from '@/lib/types'
+import { type Invoice, type LineItem, defaultWarranties } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription, sortLineItems, calculateSubtotal } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
   showTop: boolean
   showTotals: boolean
   showBottom: boolean
+  showCondensedScope?: boolean
+  showCondensedWarranty?: boolean
 }
 
 export function MGInvoicePreview({ 
@@ -19,7 +21,6 @@ export function MGInvoicePreview({
   onPagesChange,
   onToggleCondensed,
   onToggleWithBrandName,
-  onToggleCustom,
 }: { 
   invoice: Invoice; 
   hoveredField?: string | null;
@@ -27,7 +28,6 @@ export function MGInvoicePreview({
   onPagesChange?: (count: number) => void;
   onToggleCondensed?: (isCondensed: boolean) => void;
   onToggleWithBrandName?: (withBrandName: boolean) => void;
-  onToggleCustom?: (isCustom: boolean) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -61,11 +61,88 @@ export function MGInvoicePreview({
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = invoice.isCondensed
     ? getCondensedLineItems(invoice)
-    : (invoice.isCustom ? invoice.lineItems : sortLineItems(invoice.lineItems))
+    : sortLineItems(invoice.lineItems)
   const showPriceColumns = displayItems.some(it => (it.rate || 0) > 0)
   const subtotal = calculateSubtotal(invoice)
-  const vat = subtotal * (invoice.vatRate / 100)
-  const total = subtotal + vat
+  const discount = invoice.discountAmount || 0
+  const netSubtotal = Math.max(0, subtotal - discount)
+  const vat = netSubtotal * (invoice.vatRate / 100)
+  const total = netSubtotal + vat
+
+  // Extracted Scope details for condensed/compressed mode
+  const scopeData = (() => {
+    const items = invoice.lineItems || []
+    const withBrand = invoice.withBrandName !== false
+
+    // Helper to strip any leading quantity/counts from descriptions (e.g. "24 Rails" -> "Rails", "10x Panel" -> "Panel", "50 AC Cable" -> "AC Cable")
+    const cleanDescWithoutQty = (text: string) => {
+      if (!text) return ''
+      const formatted = formatItemDescription(text, withBrand)
+      return formatted.replace(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/, '').trim()
+    }
+
+    // A. Solar Panels
+    const panelItem = items.find(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('panel') || d.includes('module') || d.includes('ja solar') || d.includes('tongwei') || d.includes('pv module')
+    })
+    const panelQty = panelItem?.quantity || extractPanelInfoFromLineItems(items).panelQty || 0
+    const panelWattMatch = (panelItem?.description || '').match(/(\d+)\s*w/i) || (panelItem?.description || '').match(/(\d+)/)
+    const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '620W'
+    const panelDimensions = getPanelDimensions(panelItem?.description || '')
+    let panelBrand = withBrand ? (panelItem?.description?.split(' ')?.[0] || 'Tier-1') : 'Tier-1'
+    if (panelItem?.description?.toLowerCase().includes('ja solar')) panelBrand = withBrand ? 'JA Solar' : 'Tier-1'
+    else if (panelItem?.description?.toLowerCase().includes('tongwei')) panelBrand = withBrand ? 'Tongwei' : 'Tier-1'
+
+    const rawPanelDesc = panelItem ? cleanDescWithoutQty(panelItem.description) : `${panelBrand} ${panelWatts} N-Type TOPCon Monocrystalline PV Modules`
+    const panelTitle = panelDimensions && !rawPanelDesc.includes(panelDimensions)
+      ? `${rawPanelDesc} (${panelDimensions})`
+      : rawPanelDesc
+
+    // B. Solar Inverter
+    const inverterItem = items.find(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('inverter') || d.includes('anern') || d.includes('solis') || d.includes('goodwe') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow') || d.includes('victron')
+    })
+    const inverterTitle = inverterItem
+      ? cleanDescWithoutQty(inverterItem.description)
+      : 'High-Efficiency Smart Solar Inverter'
+
+    // C. Battery
+    const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
+    const hasBattery = !invoice.excludeBattery && !!batteryItem
+    const batteryTitle = batteryItem
+      ? cleanDescWithoutQty(batteryItem.description)
+      : 'N/A - Grid-Tied System'
+
+    // D. Materials
+    const materialItems = items.filter(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('rail') || d.includes('clamp') || d.includes('l foot') || d.includes('l-foot') || d.includes('mounting') || d.includes('hardware') || d.includes('sealant') || d.includes('bracket')
+    })
+    const materialsList = materialItems.length > 0
+      ? materialItems.map(it => cleanDescWithoutQty(it.description)).filter(Boolean).join(', ')
+      : 'Anodized Aluminum Mounting Rails, Mid & End Clamps, Stainless L-Feet / Tile Brackets, Heavy-Duty Grounding Lugs, PU Weatherproof Sealants, and SUS304 Stainless Hardware'
+
+    // E. Electrical
+    const electricalItems = items.filter(it => {
+      const d = (it.description || '').toLowerCase()
+      return d.includes('wire') || d.includes('cable') || d.includes('breaker') || d.includes('mcb') || d.includes('spd') || d.includes('mccb') || d.includes('flexcon') || d.includes('conduit') || d.includes('ats') || d.includes('switch') || d.includes('box') || d.includes('combiner')
+    })
+    const electricalList = electricalItems.length > 0
+      ? electricalItems.map(it => cleanDescWithoutQty(it.description)).filter(Boolean).join(', ')
+      : 'DC & AC Miniature Circuit Breakers (MCB), Molded Case Circuit Breaker (MCCB), Type II Surge Protective Devices (SPD), DC Solar PV Cables (4mm²/6mm²), THHN/THWN AC Wiring, Flexible Corrugated Conduits, Heavy-Duty ATS Switch, and Weatherproof IP65 Distribution Enclosures'
+
+    return {
+      panelQty,
+      panelTitle,
+      inverterTitle,
+      hasBattery,
+      batteryTitle,
+      materialsList,
+      electricalList,
+    }
+  })()
 
   // Helper to count wrapped lines in monospace font
   const getWrappedLines = (text: string, charsPerLine: number): number => {
@@ -81,50 +158,41 @@ export function MGInvoicePreview({
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice): PageData[] => {
     // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
-    const headerHeight = 135
-    const billToHeight = 80
-    const continuationHeaderHeight = 0
+    const headerHeight = 85
+    const billToHeight = 55
+    const continuationHeaderHeight = 28
     
     const subjectLines = getWrappedLines(inv.subject, 65)
-    const subjectHeight = inv.subject ? (18 + subjectLines * 16) : 0
+    const subjectHeight = inv.subject ? (12 + subjectLines * 14) : 0
     
     const salutationLines = getWrappedLines(inv.salutation, 65)
-    const salutationHeight = inv.salutation ? (18 + salutationLines * 16) : 0
+    const salutationHeight = inv.salutation ? (12 + salutationLines * 14) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
-    const tableHeaderHeight = 35
+    const tableHeaderHeight = 28
     
-    // 2. Totals height + Bank Details
+    // 2. Totals height
     const totalsLines = 3 // Subtotal + VAT + Total
-    let totalsHeight = totalsLines * 24 + 40
-
-    let bankFields = 0
-    if (inv.bankBeneficiary) bankFields++
-    if (inv.bankName) bankFields++
-    if (inv.bankSortCode) bankFields++
-    if (inv.bankAccount) bankFields++
-    if (inv.bankSwift) bankFields++
-    const bankHeight = bankFields > 0 ? (bankFields * 24 + 80) : 0
-    totalsHeight += bankHeight
+    let totalsHeight = totalsLines * 20 + 30
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
     const noteLines = getWrappedLines(inv.note, 65)
-    const noteHeight = inv.note ? (noteLines * 18 + 36) : 0
+    const noteHeight = inv.note ? (noteLines * 16 + 28) : 0
     
     const termsLines = getWrappedLines(inv.terms, 65)
-    const termsHeight = inv.terms ? (termsLines * 18 + 36) : 0
+    const termsHeight = inv.terms ? (termsLines * 16 + 28) : 0
     
-    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 130 : 0
+    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 110 : 0
     
     const closingLines = getWrappedLines(inv.closing, 65)
-    const closingHeight = inv.closing ? (24 + closingLines * 18) : 0
+    const closingHeight = inv.closing ? (20 + closingLines * 16) : 0
 
-    const ackHeight = inv.closing ? 150 : 0
+    const ackHeight = inv.closing ? 130 : 0
     
-    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 20
+    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 15
 
-    // Available content height inside A4 borders (PAPER_H 1123 - padding 112 - bottom indicator buffer 75 = 936px)
-    const PAGE_MAX_H = 935
+    // Available content height inside A4 borders (PAPER_H 1123 with safe bottom margins)
+    const PAGE_MAX_H = 880
 
     const getItemHeight = (item: LineItem): number => {
       const desc = item.description || ''
@@ -133,12 +201,36 @@ export function MGInvoicePreview({
       for (const line of lines) {
         itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 45))
       }
-      return 18 + itemLines * 18
+      return 20 + itemLines * 16
     }
     
     const allItems = inv.isCondensed
       ? getCondensedLineItems(inv)
       : [...inv.lineItems].filter(item => !(inv.excludeBattery && isBatteryItem(item.description)))
+
+    // Dedicated 2-page executive proposal for condensed mode:
+    // Page 1: Header -> Bill To -> Scope of Works (A-F) -> Warranty Table -> Final Total Price
+    // Page 2: Bank / Payment Details -> Note -> Terms & Conditions -> Signatures
+    if (inv.isCondensed) {
+      return [
+        {
+          items: allItems,
+          showTop: true,
+          showTotals: true,
+          showBottom: false,
+          showCondensedScope: true,
+          showCondensedWarranty: true,
+        },
+        {
+          items: [],
+          showTop: false,
+          showTotals: false,
+          showBottom: true,
+          showCondensedScope: false,
+          showCondensedWarranty: false,
+        }
+      ]
+    }
 
     const totalItemsHeight = allItems.reduce((sum, item) => sum + getItemHeight(item), 0)
 
@@ -274,9 +366,9 @@ export function MGInvoicePreview({
               ? "bg-primary text-primary-foreground border-primary shadow-xs"
               : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
           )}
-          title={invoice.isCondensed ? "Currently in Condensed mode. Click to switch to Comprehensive view." : "Currently in Comprehensive mode. Click to switch to Condensed view."}
+          title={invoice.isCondensed ? "Currently in Compressed mode. Click to switch to Expanded view." : "Currently in Expanded mode. Click to switch to Compressed view."}
         >
-          {invoice.isCondensed ? "[Condensed]" : "[Comprehensive]"}
+          {invoice.isCondensed ? "[Compressed]" : "[Expanded]"}
         </button>
 
         <div className="h-4 w-[1px] bg-border hidden sm:block" />
@@ -295,23 +387,6 @@ export function MGInvoicePreview({
         >
           {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
         </button>
-
-        <div className="h-4 w-[1px] bg-border hidden sm:block" />
-
-        {/* Custom Mode Single Toggle Button */}
-        <button
-          type="button"
-          onClick={() => onToggleCustom?.(!invoice.isCustom)}
-          className={cn(
-            "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
-            invoice.isCustom
-              ? "bg-primary text-primary-foreground border-primary shadow-xs"
-              : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
-          )}
-          title={invoice.isCustom ? "Custom mode is ON. Custom user descriptions are strictly respected." : "Standard mode. Click to enable Custom mode."}
-        >
-          {invoice.isCustom ? "[Custom: ON]" : "[Custom: OFF]"}
-        </button>
       </div>
       {virtualPages.map((page, pageIndex) => {
         return (
@@ -324,73 +399,82 @@ export function MGInvoicePreview({
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] px-14 py-14 print-page print:!transform-none flex flex-col justify-between"
+                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13 py-10"
               >
                 <div>
-                {/* Header (First Page Only) */}
-                {page.showTop && (
-                  <div className="flex justify-between items-start mb-6">
-                    <div className={cn("max-w-xs p-1", getHighlightClass('sender'))}>
-                      <p className="font-bold text-[22px] text-[#111111] tracking-tight leading-none">
+                {/* Header (First Page Only) or Continuation Header */}
+                {page.showTop ? (
+                  <div className="flex justify-between items-start mb-3.5">
+                    <div className={cn("max-w-xs p-0.5", getHighlightClass('sender'))}>
+                      <p className="font-bold text-[#111111] tracking-tight leading-none text-[19px]">
                         {invoice.fromName || 'Your Company'}
                       </p>
                       {invoice.fromEmail && (
-                        <p className="text-[11.5px] text-[#888888] mt-1.5">{invoice.fromEmail}</p>
+                        <p className="text-[#888888] text-[10.5px] mt-1">{invoice.fromEmail}</p>
                       )}
                       {invoice.fromPhone && (
-                        <p className="text-[11.5px] text-[#888888]">{invoice.fromPhone}</p>
+                        <p className="text-[#888888] text-[10.5px]">{invoice.fromPhone}</p>
                       )}
                       {invoice.fromAddress && (
-                        <p className="text-[11.5px] text-[#888888] whitespace-pre-line">{invoice.fromAddress}</p>
+                        <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.fromAddress}</p>
                       )}
                     </div>
-                    <div className={cn("text-right flex flex-col items-end p-1", getHighlightClass('invoiceNumber'))}>
+                    <div className={cn("text-right flex flex-col items-end p-0.5", getHighlightClass('invoiceNumber'))}>
                       <img
                         src="/mg.png"
                         alt="INVOICE"
-                        className="h-[95px] w-auto object-contain mb-0.5"
+                        className="w-auto object-contain h-[68px] mb-0.5"
                       />
-                      {invoice.invoiceNumber && (
-                        <p className="text-[11.5px] text-[#888888] mt-0.5">{invoice.invoiceNumber}</p>
-                      )}
+                      <p className="font-medium tracking-tight text-[#888888] text-[11px] mt-0.5">
+                        {invoice.invoiceNumber || '—'}
+                      </p>
                     </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center pb-2.5 mb-5 border-b border-[#E5E5E5]">
+                    <span className="text-[11px] font-bold text-[#111111] uppercase tracking-[0.05em]">
+                      {invoice.fromName || 'M&G Commercial Proposal'} — Proposal Continuation
+                    </span>
+                    <span className="text-[10px] text-[#888888] font-medium font-mono">
+                      {invoice.invoiceNumber ? `Ref: ${invoice.invoiceNumber}` : ''}
+                    </span>
                   </div>
                 )}
 
                 {/* Bill To + Dates (First Page Only) */}
                 {page.showTop && (
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={cn("max-w-xs p-1", getHighlightClass('client'))}>
-                      <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className={cn("max-w-xs p-0.5", getHighlightClass('client'))}>
+                      <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
                         Bill To
                       </p>
-                      <p className="font-bold text-[14px] text-[#111111] tracking-tight">
+                      <p className="font-bold text-[#111111] tracking-tight text-[13px]">
                         {invoice.toName || '—'}
                       </p>
                       {invoice.toEmail && (
-                        <p className="text-[11.5px] text-[#888888] mt-0.5">{invoice.toEmail}</p>
+                        <p className="text-[#888888] text-[10.5px] mt-0.5">{invoice.toEmail}</p>
                       )}
                       {invoice.toAddress && (
-                        <p className="text-[11.5px] text-[#888888] whitespace-pre-line">{invoice.toAddress}</p>
+                        <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.toAddress}</p>
                       )}
                     </div>
-                    <div className="flex gap-8">
+                    <div className="flex gap-6">
                       {invoice.issueDate && (
-                        <div className={cn("text-right p-1", getHighlightClass('issueDate'))}>
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                        <div className={cn("text-right p-0.5", getHighlightClass('issueDate'))}>
+                          <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
                             Issue Date
                           </p>
-                          <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
+                          <p className="font-medium text-[#111111] text-[10.5px]" suppressHydrationWarning>
                             {formatDate(invoice.issueDate)}
                           </p>
                         </div>
                       )}
                       {invoice.dueDate && (
-                        <div className={cn("text-right p-1", getHighlightClass('dueDate'))}>
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
+                        <div className={cn("text-right p-0.5", getHighlightClass('dueDate'))}>
+                          <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
                             Validity
                           </p>
-                          <p className="text-[11.5px] font-medium text-[#111111]" suppressHydrationWarning>
+                          <p className="font-medium text-[#111111] text-[10.5px]" suppressHydrationWarning>
                             {formatDate(invoice.dueDate)}
                           </p>
                         </div>
@@ -401,225 +485,381 @@ export function MGInvoicePreview({
 
                 {/* Subject Line (First Page Only) */}
                 {page.showTop && invoice.subject && (
-                  <div className={cn("mb-4 pb-1.5 border-b border-[#E5E5E5]/50 flex gap-2 p-1", getHighlightClass('subject'))}>
-                    <span className="text-[11.5px] font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
-                    <span className="text-[11.5px] font-bold text-[#111111]">{invoice.subject}</span>
+                  <div className={cn(
+                    "border-b border-[#E5E5E5]/50 flex gap-2 p-0.5 mb-2 pb-1 text-[11px]",
+                    getHighlightClass('subject')
+                  )}>
+                    <span className="font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
+                    <span className="font-bold text-[#111111]">{invoice.subject}</span>
                   </div>
                 )}
 
                 {/* Salutation / Intro (First Page Only) */}
                 {page.showTop && invoice.salutation && (
-                  <div className={cn("mb-4 p-1", getHighlightClass('salutation'))}>
-                    <p className="text-[11.5px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                  <div className={cn("mb-2.5 p-0.5", getHighlightClass('salutation'))}>
+                    <p className="text-[#555555] whitespace-pre-wrap text-[10.5px] leading-relaxed">
                       {invoice.salutation}
                     </p>
                   </div>
                 )}
 
-                {/* Line items table */}
-                {page.items.length > 0 && (
-                  <div className="mb-8">
-                    {showPriceColumns ? (
-                      <>
-                        <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-                          <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                            Description
-                          </span>
-                          <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                            Unit
-                          </span>
-                          <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                            Qty
-                          </span>
-                          <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
-                            Rate
-                          </span>
-                          <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                            Amount
+                {/* Line items table OR Condensed Scope & Warranty */}
+                {invoice.isCondensed ? (
+                  <div className="mb-3">
+                    {/* Section 1: Structured Scope of Equipment & Works */}
+                    {page.showCondensedScope && (
+                      <div className="mb-3">
+                        <div className="flex py-1 border-b-[1.5px] border-[#111111] mb-2">
+                          <span className="text-[9.5px] font-bold text-[#111111] tracking-[0.08em] uppercase">
+                            Scope of Equipment & Works
                           </span>
                         </div>
-                        {page.items.map((item) => {
-                          const isCondensedItem = item.id.startsWith('condensed-')
-                          const isLabor = !isCondensedItem && isLaborItem(item.description)
-                          const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
-                          const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
-                          const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false, invoice.isCustom)
-                          const descLower = item.description.toLowerCase().trim()
-                          const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
-                          const hasPrice = (item.rate || 0) > 0
-                          return (
-                            <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                              <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                                {displayDesc || '—'}
-                              </span>
-                              <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                                {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
-                              </span>
-                              <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                                {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
-                              </span>
-                              <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
-                                {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
-                              </span>
-                              <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
-                                {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
-                              </span>
+
+                        <div className="space-y-1.5 text-[10.5px] text-[#222222]">
+                          {/* A. Solar Panels */}
+                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>A</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-[#111111] text-[11px]">
+                                  Solar Panels: <span className="font-semibold text-[#333333]">{scopeData.panelQty > 0 ? `${scopeData.panelQty}x ${scopeData.panelTitle}` : scopeData.panelTitle}</span>
+                                </div>
+                                <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
+                                  Tier-1 N-Type TOPCon High-Efficiency Monocrystalline PV Modules • High PID resistance & superior low-light performance
+                                </div>
+                              </div>
                             </div>
-                          )
-                        })}
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-                          <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                            Description
+                          </div>
+
+                          {/* B. Solar Inverter */}
+                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>B</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-[#111111] text-[11px]">
+                                  Solar Inverter: <span className="font-semibold text-[#333333]">{scopeData.inverterTitle}</span>
+                                </div>
+                                <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
+                                  Dual MPPT tracking, IP65 casing, smart cloud Wi-Fi monitoring, integrated DC disconnect & surge protection
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* C. Energy Storage / Battery */}
+                          {scopeData.hasBattery ? (
+                            <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>C</span>
+                                <div className="flex-1">
+                                  <div className="font-bold text-[#111111] text-[11px]">
+                                    Energy Storage / Battery: <span className="font-semibold text-[#333333]">{scopeData.batteryTitle}</span>
+                                  </div>
+                                  <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
+                                    High-safety LiFePO4 deep-cycle storage system with Smart BMS & multi-tier cell protection
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA]/70 border border-[#EBEBEB]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#888888] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none" style={{ color: '#ffffff', backgroundColor: '#888888' }}>C</span>
+                                <div className="flex-1">
+                                  <div className="font-bold text-[#666666] text-[11px]">
+                                    Energy Storage / Battery: <span className="font-normal text-[#888888]">N/A - Grid-Tied System</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* D. Mounting & Structural Materials */}
+                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>D</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-[#111111] text-[11px]">
+                                  Mounting & Structural Materials:
+                                </div>
+                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
+                                  {scopeData.materialsList}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* E. Balance of System & Electrical */}
+                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>E</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-[#111111] text-[11px]">
+                                  Balance of System & Electrical Protection:
+                                </div>
+                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
+                                  {scopeData.electricalList}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* F. Professional Services */}
+                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>F</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-[#111111] text-[11px]">
+                                  Professional Engineering & Installation Services:
+                                </div>
+                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
+                                  Complete engineering design, mobilization, structural mounting, electrical cabling, commissioning, logistics & handover orientation.
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 2: Warranty Coverage Table */}
+                    {page.showCondensedWarranty && (
+                      <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
+                          <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
+                            Warranty Coverage
                           </span>
                         </div>
-                        {page.items.map((item) => {
-                          const isCondensedItem = item.id.startsWith('condensed-') || invoice.isCustom
-                          const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false, invoice.isCustom)
-                          return (
-                            <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                              <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap">
-                                {displayDesc || '—'}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </>
+                        <table className="w-full text-left text-[10px] border-collapse">
+                          <thead>
+                            <tr className="border-b border-[#E5E5E5] bg-[#F8F8F8]">
+                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-5/12">Component / Service</th>
+                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-4/12">Warranty Type</th>
+                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-3/12 text-right">Coverage Period</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#E5E5E5] bg-white">
+                            {(invoice.warranties && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
+                              .filter((w) => {
+                                if (w.component.toLowerCase().includes('battery') && !scopeData.hasBattery) {
+                                  return false
+                                }
+                                return true
+                              })
+                              .map((w) => (
+                                <tr key={w.id}>
+                                  <td className="py-1 px-3 font-semibold text-[#111111]">{w.component}</td>
+                                  <td className="py-1 px-3 text-[#555555]">{w.warrantyType}</td>
+                                  <td className="py-1 px-3 font-bold text-[#111111] text-right">{w.coverage}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
+                ) : (
+                  page.items.length > 0 ? (
+                    <div className="mb-4">
+                      {showPriceColumns ? (
+                        <>
+                          <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                            <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                              Description
+                            </span>
+                            <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                              Unit
+                            </span>
+                            <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                              Qty
+                            </span>
+                            <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
+                              Rate
+                            </span>
+                            <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                              Amount
+                            </span>
+                          </div>
+                          {page.items.map((item) => {
+                            const isCondensedItem = item.id.startsWith('condensed-')
+                            const isLabor = !isCondensedItem && isLaborItem(item.description)
+                            const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
+                            const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
+                            const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
+                            const descLower = item.description.toLowerCase().trim()
+                            const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
+                            const hasPrice = (item.rate || 0) > 0
+                            return (
+                              <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                                  {displayDesc || '—'}
+                                </span>
+                                <span className="w-16 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                  {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                </span>
+                                <span className="w-14 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                  {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                </span>
+                                <span className={cn("w-24 shrink-0 text-[12.5px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
+                                  {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                                </span>
+                                <span className="w-28 shrink-0 text-[12.5px] font-medium text-[#111111] text-right">
+                                  {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                            <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                              Description
+                            </span>
+                          </div>
+                          {page.items.map((item) => {
+                            const isCondensedItem = item.id.startsWith('condensed-')
+                            const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
+                            return (
+                              <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap">
+                                  {displayDesc || '—'}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </>
+                      )}
+                    </div>
+                  ) : null
                 )}
 
                 {/* Totals + Bank Details (directly below items) */}
                 {page.showTotals && (
                   <>
-                    <div className="flex flex-col items-end gap-2 mb-8 mt-4 print:break-inside-avoid">
+                    <div className={cn(
+                      "flex flex-col items-end print:break-inside-avoid",
+                      invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
+                    )}>
                       <div className="flex gap-8 items-center">
-                        <span className="text-[12px] text-[#888888]">Subtotal</span>
-                        <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                        <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
+                        <span className={cn("font-medium text-[#111111] w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
                           {formatCurrency(subtotal, invoice.currency)}
                         </span>
                       </div>
-                      <div className={cn("flex gap-8 items-center p-1", getHighlightClass('vatRate'))}>
-                        <span className="text-[12px] text-[#888888]">VAT {invoice.vatRate || 0}%</span>
-                        <span className="text-[12px] font-medium text-[#111111] w-32 text-right">
+                      {discount > 0 && (
+                        <div className="flex gap-8 items-center">
+                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
+                          <span className={cn("font-semibold text-emerald-600 w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                            - {formatCurrency(discount, invoice.currency)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
+                        <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>VAT {invoice.vatRate || 0}%</span>
+                        <span className={cn("font-medium text-[#111111] w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
                           {formatCurrency(vat, invoice.currency)}
                         </span>
                       </div>
-                      <div className="w-48 h-px bg-[#E5E5E5]" />
+                      <div className={cn("bg-[#E5E5E5]", invoice.isCondensed ? "w-48 h-px" : "w-52 h-px")} />
                       <div className="flex gap-8 items-center">
-                        <span className="text-[15px] font-bold text-[#111111] tracking-tight">Total</span>
-                        <span className="text-[20px] font-bold text-[#111111] tracking-tight w-32 text-right">
+                        <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                          {invoice.isCondensed ? 'Final Total Price' : 'Total'}
+                        </span>
+                        <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
                           {formatCurrency(total, invoice.currency)}
                         </span>
                       </div>
                     </div>
-
-                    {/* Bank / Payment Details */}
-                    {(invoice.bankBeneficiary || invoice.bankName || invoice.bankSortCode || invoice.bankAccount || invoice.bankSwift) && (
-                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-2 mb-6 print:break-inside-avoid p-1", getHighlightClass('bankDetails'))}>
-                        <div className="flex flex-col gap-1.5">
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-1">
-                            Payment Details
-                          </p>
-                          {invoice.bankBeneficiary && (
-                            <div className="flex gap-2">
-                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Beneficiary</span>
-                              <span className="text-[12px] text-[#111111]">{invoice.bankBeneficiary}</span>
-                            </div>
-                          )}
-                          {invoice.bankName && (
-                            <div className="flex gap-2">
-                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Bank</span>
-                              <span className="text-[12px] text-[#111111]">{invoice.bankName}</span>
-                            </div>
-                          )}
-                          {invoice.bankSortCode && (
-                            <div className="flex gap-2">
-                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Sort / Route</span>
-                              <span className="text-[12px] text-[#111111]">{invoice.bankSortCode}</span>
-                            </div>
-                          )}
-                          {invoice.bankAccount && (
-                            <div className="flex gap-2">
-                              <span className="text-[12px] text-[#888888] w-24 shrink-0">Account</span>
-                              <span className="text-[12px] text-[#111111]">{invoice.bankAccount}</span>
-                            </div>
-                          )}
-                          {invoice.bankSwift && (
-                            <div className="flex gap-2">
-                              <span className="text-[12px] text-[#888888] w-24 shrink-0">SWIFT / BIC</span>
-                              <span className="text-[12px] text-[#111111]">{invoice.bankSwift}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
 
-                {/* Footer block: Note, Terms, Bank, Sales, Closing */}
-                {page.showBottom && (
-                  <>
-                    {/* Note */}
-                    {invoice.note && (
-                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('note'))}>
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Note
-                        </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
-                          {invoice.note}
-                        </p>
-                      </div>
-                    )}
+                {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
+                {page.showBottom && (() => {
+                  let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed)
+                  
+                  const getSectionBorderClass = () => {
+                    if (hasRenderedPriorBlock) {
+                      return "border-t border-[#E5E5E5] pt-6 mb-6 print:break-inside-avoid p-1"
+                    }
+                    hasRenderedPriorBlock = true
+                    return "mb-6 print:break-inside-avoid p-1"
+                  }
 
-                    {/* Sales Contact (below Note, far left — no heading label) */}
-                    {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
-                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('sales'))}>
-                        <div className="flex flex-col gap-0.5">
-                          <p className="text-[13px] font-bold text-[#111111]">
-                            {invoice.salesName}
+                  return (
+                    <>
+                      {/* Note */}
+                      {invoice.note && (
+                        <div className={cn(
+                          getSectionBorderClass(),
+                          getHighlightClass('note')
+                        )}>
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                            Note
                           </p>
-                          {invoice.salesPosition && (
-                            <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
-                          )}
-                          {invoice.salesCompany && (
-                            <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
-                          )}
-                          {invoice.salesContact && (
-                            <p className="text-[11px] text-[#888888] mt-1">{invoice.salesContact}</p>
-                          )}
-                          {invoice.salesEmail && (
-                            <p className="text-[11px] text-[#888888]">{invoice.salesEmail}</p>
-                          )}
+                          <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                            {invoice.note}
+                          </p>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Terms & Conditions */}
-                    {invoice.terms && (
-                      <div className={cn("border-t border-[#E5E5E5] pt-6 mt-6 print:break-inside-avoid p-1", getHighlightClass('terms'))}>
-                        <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                          Terms & Conditions
-                        </p>
-                        <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
-                          {invoice.terms}
-                        </p>
-                      </div>
-                    )}
+                      {/* Sales Contact (below Note, far left — no heading label) */}
+                      {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
+                        <div className={cn(
+                          getSectionBorderClass(),
+                          getHighlightClass('sales')
+                        )}>
+                          <div className="flex flex-col gap-0.5">
+                            <p className="text-[13px] font-bold text-[#111111]">
+                              {invoice.salesName}
+                            </p>
+                            {invoice.salesPosition && (
+                              <p className="text-[12px] text-[#555555]">{invoice.salesPosition}</p>
+                            )}
+                            {invoice.salesCompany && (
+                              <p className="text-[11px] text-[#888888]">{invoice.salesCompany}</p>
+                            )}
+                            {invoice.salesContact && (
+                              <p className="text-[11px] text-[#888888] mt-1">{invoice.salesContact}</p>
+                            )}
+                            {invoice.salesEmail && (
+                              <p className="text-[11px] text-[#888888]">{invoice.salesEmail}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
+                      {/* Terms & Conditions */}
+                      {invoice.terms && (
+                        <div className={cn(
+                          getSectionBorderClass(),
+                          getHighlightClass('terms')
+                        )}>
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                            Terms & Conditions
+                          </p>
+                          <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                            {invoice.terms}
+                          </p>
+                        </div>
+                      )}
 
-                    {/* Closing & Acknowledgment Section */}
-                    {invoice.closing && (
-                      <div className={cn("mt-8 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1", getHighlightClass('closing'))}>
-                        <p className="text-[12px] text-[#555555] italic text-center font-medium">
-                          {invoice.closing}
-                        </p>
+                      {/* Closing & Acknowledgment Section */}
+                      {invoice.closing && (
+                        <div className={cn(
+                          "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
+                          getHighlightClass('closing')
+                        )}>
+                          <p className="text-[12px] text-[#555555] italic text-center font-medium">
+                            {invoice.closing}
+                          </p>
+                        </div>
+                      )}
 
-                        {/* Acknowledgment Section with Signatures */}
-                        <div className="mt-6 pt-6 border-t border-[#E5E5E5] print:break-inside-avoid">
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-6 text-center">
+                      {/* Acknowledgment & Conforme */}
+                      {invoice.closing && (
+                        <div className="mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid">
+                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-8">
                             Acknowledgment & Conforme
                           </p>
 
@@ -664,15 +904,17 @@ export function MGInvoicePreview({
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                      )}
+                    </>
+                  )
+                })()}
                 </div>
 
-                {/* Page Number Indicator */}
-                <div className="absolute bottom-10 right-14 text-[10px] text-[#AAAAAA]">
-                  Page {pageIndex + 1} of {totalPages}
+                {/* Bottom Page Number Indicator */}
+                <div className="w-full flex justify-end items-center pt-2 mt-auto">
+                  <span className="text-[10px] text-[#888888] font-mono select-none">
+                    Page {pageIndex + 1} of {totalPages}
+                  </span>
                 </div>
               </div>
             </div>

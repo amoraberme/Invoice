@@ -323,10 +323,9 @@ export function formatPanelDescription(description: string, withBrandName: boole
   }
 }
 
-export function formatItemDescription(description: string, withBrandName: boolean = true, isCustom: boolean = false): string {
+export function formatItemDescription(description: string, withBrandName: boolean = true): string {
   const d = (description || '').trim()
   if (!d) return ''
-  if (isCustom) return d
   const lower = d.toLowerCase()
 
   // Panel check
@@ -403,15 +402,8 @@ export function formatBrandItemDescription(description: string): string {
 }
 
 export function getCondensedLineItems(invoice: Invoice): LineItem[] {
-  if (invoice.isCustom) {
-    return (invoice.lineItems || []).filter((item) => {
-      return !(invoice.excludeBattery && isBatteryItem(item.description))
-    })
-  }
-
   const rateMarkup = invoice.rateMarkup || 0
   const withBrand = invoice.withBrandName !== false
-  const isCustom = false
 
   const groups: Record<
     string,
@@ -431,7 +423,7 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   })
 
   for (const item of validItems) {
-    const formattedDesc = formatItemDescription(item.description, withBrand, isCustom)
+    const formattedDesc = formatItemDescription(item.description, withBrand)
     const descLower = (item.description || '').toLowerCase().trim()
     const isLabor = isLaborItem(item.description)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
@@ -578,12 +570,6 @@ export function calculateSubtotal(invoice: Invoice): number {
   if (invoice.customTotal !== undefined && invoice.customTotal !== null && invoice.customTotal > 0) {
     return invoice.customTotal
   }
-  if (invoice.isCustom) {
-    return (invoice.lineItems || []).reduce((sum, item) => {
-      if (invoice.excludeBattery && isBatteryItem(item.description)) return sum
-      return sum + (item.quantity || 1) * (item.rate || 0)
-    }, 0)
-  }
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems || [])
   return displayItems.reduce((sum, item) => {
@@ -603,8 +589,10 @@ export function calculateSubtotal(invoice: Invoice): number {
 
 export function calculateTotal(invoice: Invoice): number {
   const subtotal = calculateSubtotal(invoice)
-  const vat = subtotal * ((invoice.vatRate || 0) / 100)
-  return subtotal + vat
+  const discount = invoice.discountAmount || 0
+  const netSubtotal = Math.max(0, subtotal - discount)
+  const vat = netSubtotal * ((invoice.vatRate || 0) / 100)
+  return netSubtotal + vat
 }
 
 
