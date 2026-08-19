@@ -1786,20 +1786,22 @@ export default function Home() {
     })
   }
 
+  const getSafeWarranties = () => (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
+
   const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
-    const list = invoice.warranties || defaultWarranties
+    const list = getSafeWarranties()
     const updated = list.map((w) => (w.id === id ? { ...w, [field]: value } : w))
     update('warranties', updated)
   }
 
   const handleAddWarranty = () => {
     const newItem = newWarrantyItem('', 'Manufacturer Warranty', '')
-    const list = invoice.warranties || defaultWarranties
+    const list = getSafeWarranties()
     update('warranties', [...list, newItem])
   }
 
   const handleRemoveWarranty = (id: string) => {
-    const list = invoice.warranties || defaultWarranties
+    const list = getSafeWarranties()
     update('warranties', list.filter((w) => w.id !== id))
   }
 
@@ -4337,7 +4339,7 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-2">
-                      {(invoice.warranties || defaultWarranties).map((w, idx) => (
+                      {getSafeWarranties().map((w, idx) => (
                         <div
                           key={w.id || idx}
                           className="flex items-center gap-2 p-2 rounded-[10px] bg-secondary/30 border border-border hover:border-primary/40 transition-all"

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type Invoice, type LineItem, type ExpenseItem, newLineItem, newExpenseItem, defaultInvoice } from './types'
+import { type Invoice, type LineItem, type ExpenseItem, newLineItem, newExpenseItem, defaultInvoice, defaultWarranties } from './types'
 import { loadInvoice, saveInvoice } from './store'
 import { generateDocumentId, addDays } from './utils'
 
@@ -39,6 +39,17 @@ export function useMGInvoice() {
                 rate: !isNaN(rt) ? rt : 0,
               }
             })
+            continue
+          }
+
+          if (key === 'warranties') {
+            const rawWarr = Array.isArray(savedObj.warranties) ? savedObj.warranties : defaultWarranties
+            sanitized.warranties = (rawWarr as Record<string, unknown>[]).map((w, idx) => ({
+              id: typeof w?.id === 'string' ? w.id : `warr-${idx}-${Date.now()}`,
+              component: w?.component && w.component !== 'undefined' ? String(w.component) : '',
+              warrantyType: w?.warrantyType && w.warrantyType !== 'undefined' ? String(w.warrantyType) : 'Manufacturer Warranty',
+              coverage: w?.coverage && w.coverage !== 'undefined' ? String(w.coverage) : '',
+            }))
             continue
           }
 

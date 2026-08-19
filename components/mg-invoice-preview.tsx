@@ -639,7 +639,7 @@ export function MGInvoicePreview({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
-                            {(invoice.warranties && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
+                            {(Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
                               .filter((w) => {
                                 if (w.component.toLowerCase().includes('battery') && !scopeData.hasBattery) {
                                   return false
