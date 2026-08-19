@@ -152,6 +152,80 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 19, 2026 (Dev) ──
+  {
+    id: 'cl-dev-zip-export-aug19_v1',
+    timestamp: 'Aug 19, 2026, 02:50 PM',
+    itemDescription: 'Multi-Document ZIP Export & Dual Rate Markup Options',
+    changeType: 'system',
+    fieldChanged: 'PDF Export Engine & Download Dialog',
+    oldValue: 'Single-file direct PDF download; Single quotation rate markup',
+    newValue: 'Multi-document .zip package bundling via JSZip; Dual quotation export (With Markup & Without Markup); Native Save As picker',
+    unit: 'EXPORT',
+    note: '[Dev] Added multi-document export that bundles into a .zip archive when multiple items are selected or downloads directly as .pdf when 1 item is chosen, with dual markup options (With & Without Markup) and native Save As directory picker',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-color-parser-fix-aug19_v1',
+    timestamp: 'Aug 19, 2026, 02:40 PM',
+    itemDescription: 'Modern CSS Color Function Support ("lab" / "oklch")',
+    changeType: 'system',
+    fieldChanged: 'html2canvas Color Parser & Build Lifecycle',
+    oldValue: 'Crashed with "Attempting to parse an unsupported color function \'lab\'"',
+    newValue: 'Safe fallback returns (0 / transparent) for lab, oklch, color-mix with prebuild and postinstall patch scripts',
+    unit: 'SYSTEM',
+    note: '[Dev] Fixed html2canvas unsupported color function runtime crash by creating patch-html2canvas.js with automated prebuild and postinstall hooks, eliminating PDF rendering failures from modern Tailwind CSS colors',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-checklist-1page-aug19_v1',
+    timestamp: 'Aug 19, 2026, 02:30 PM',
+    itemDescription: 'Material Checklist Proportional 1-Page Layout & Scroll Fix',
+    changeType: 'system',
+    fieldChanged: 'Material Checklist Preview & PDF Renderer',
+    oldValue: 'Scrolled preview caused top header/footer clipping; Excessive white space gaps',
+    newValue: 'scrollX/scrollY zeroing; Proportional dynamic row padding (py-1 to py-2.5); Filtered out delivery/freight charges; Guaranteed 1-page A4 fit',
+    unit: 'UI',
+    note: '[Dev] Calibrated checklist layout to maximize page usage, eliminated top/bottom cropping during PDF download with scroll zeroing, and filtered non-physical delivery fees for a clean single-page material packing verification sheet',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-kw-bill-ref-aug19_v1',
+    timestamp: 'Aug 19, 2026, 02:15 PM',
+    itemDescription: 'kW Setup Electric Bill Reference & Default Battery Update',
+    changeType: 'system',
+    fieldChanged: 'Solar BOQ Setup Buttons & Battery Defaults',
+    oldValue: 'Panel and row counts (e.g., "8 Panels (4 Rows)"); Default 314Ah = Genix Green',
+    newValue: 'Monthly Electric Bill references (e.g., ₱8,000 for 5kW); Default 314Ah = CESC',
+    unit: 'CONFIG',
+    note: '[Dev] Updated all kW setup buttons to show realistic estimated monthly electric bill references (₱8k, ₱16k, etc.) instead of panel counts, and set CESC as the default brand for 314Ah batteries',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  {
+    id: 'cl-dev-minimal-scrollbar-aug19_v1',
+    timestamp: 'Aug 19, 2026, 01:50 PM',
+    itemDescription: 'Minimalist Scrollbar Design & Sender Default Landing Tab',
+    changeType: 'system',
+    fieldChanged: 'Global Scrollbar Styling & Initial Navigation',
+    oldValue: 'Standard scrollbars; Default kW Setup tab',
+    newValue: 'Ultra-thin 5px floating pill scrollbars with smooth transitions; Default Sender tab',
+    unit: 'UI',
+    note: '[Dev] Implemented ultra-thin 5px minimalist floating pill scrollbars with theme-aware hover transitions and global smooth scrolling, and designated Sender tab as the default landing view',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  // ── SET DATE: AUGUST 19, 2026 (MsG) ──
+  {
+    id: 'cl-msg-exec-contacts-aug19_v1',
+    timestamp: 'Aug 19, 2026, 02:00 PM',
+    itemDescription: 'Executive Leadership Sales Contacts Added',
+    changeType: 'system',
+    fieldChanged: 'Sales Contact Directory & Signatory Profile',
+    oldValue: 'Previous sales contacts only',
+    newValue: 'James Vidal (Chief Operating Officer - 09998837203) & Edwin Vidal (Chief Finance Officer - 0912 383 9791)',
+    unit: 'CONTACT',
+    note: '[MsG] Added Chief Operating Officer James Vidal (jamesedwardvidal08@gmail.com / 09998837203) and Chief Finance Officer Edwin Vidal (edwinvidal08@gmail.com / 0912 383 9791) to sales and signatory contact directory',
+    batch: 'August 19, 2026 Sales & Organizational Updates (MsG)'
+  },
   // ── SET DATE: AUGUST 18, 2026 (Dev) ──
   {
     id: 'cl-dev-remove-ocr-aug18_v1',
@@ -771,6 +845,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-zip-export-aug19_v1')
         const hasAug18LatestDevSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-remove-ocr-aug18_v1')
         const hasOldMsGAug18 = parsed.some((i: ChangelogItem) => 
           i.id === 'cl-msg-salutation-sync-aug18_v2' || 
@@ -778,7 +853,7 @@ export function getChangelogHistory(): ChangelogItem[] {
           (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
           (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
         )
-        if (!hasAug18LatestDevSeed || hasOldMsGAug18) {
+        if (!hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }
