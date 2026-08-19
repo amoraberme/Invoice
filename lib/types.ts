@@ -42,7 +42,6 @@ export interface Invoice {
   excludeBattery: boolean
   isCondensed: boolean
   withBrandName: boolean
-  customTotal?: number
   discountAmount?: number
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
@@ -138,7 +137,6 @@ export const defaultInvoice: Invoice = {
   excludeBattery: false,
   isCondensed: false,
   withBrandName: true,
-  customTotal: undefined,
   discountAmount: 0,
   theme: 'light',
   warranties: defaultWarranties,

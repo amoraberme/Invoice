@@ -567,9 +567,6 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
 }
 
 export function calculateSubtotal(invoice: Invoice): number {
-  if (invoice.customTotal !== undefined && invoice.customTotal !== null && invoice.customTotal > 0) {
-    return invoice.customTotal
-  }
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems || [])
   return displayItems.reduce((sum, item) => {
