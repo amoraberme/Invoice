@@ -1412,6 +1412,10 @@ export default function Home() {
     batch: 'Manual Price Update'
   })
 
+  // Download PDF Modal & Custom Filename State
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false)
+  const [downloadFileName, setDownloadFileName] = useState('')
+
   useEffect(() => {
     setHistoryList(getInvoiceHistory())
     setChangelogList(getChangelogHistory())
@@ -2563,17 +2567,35 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [loaded, invoice.toName, invoice.invoiceNumber, invoice])
 
-  const handleDownload = async () => {
+  const computeDefaultFileName = () => {
+    const client = invoice.toName ? invoice.toName.trim() : 'Client'
+    const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
+    const parts = [client, quotationNumber].filter(Boolean)
+    const base = parts.length > 0 ? parts.join(' - ') : 'Quotation'
+    return base.replace(/[\\/:*?"<>|]/g, '').trim() || 'Quotation'
+  }
+
+  const handleOpenDownloadModal = () => {
+    setDownloadFileName(computeDefaultFileName())
+    setDownloadModalOpen(true)
+  }
+
+  const handleExecuteDownload = async (targetCustomName?: string) => {
     if (isExportingPdf) return
     setIsExportingPdf(true)
     setPdfExportStatus('Preparing PDF...')
 
+    const rawName = (targetCustomName || downloadFileName || computeDefaultFileName()).trim()
+    let cleanName = rawName.replace(/[\\/:*?"<>|]/g, '').trim()
+    if (cleanName.toLowerCase().endsWith('.pdf')) {
+      cleanName = cleanName.slice(0, -4).trim()
+    }
+    if (!cleanName) cleanName = 'Quotation'
+    const title = cleanName
+    const finalFilename = `${cleanName}.pdf`
+
     const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
     setHistoryList(updatedHistory)
-    const client = invoice.toName ? invoice.toName.trim() : 'Client'
-    const quotationNumber = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : ''
-    const parts = [client, quotationNumber].filter(Boolean)
-    const title = parts.length > 0 ? parts.join(' - ') : 'Quotation'
     document.title = title
     const titleEl = document.querySelector('title')
     if (titleEl) {
@@ -2597,7 +2619,7 @@ export default function Home() {
     setTimeout(async () => {
       try {
         const success = await exportToPdfDirect({
-          filename: `${title}.pdf`,
+          filename: finalFilename,
           onProgress: (status) => setPdfExportStatus(status),
         })
 
@@ -2607,6 +2629,8 @@ export default function Home() {
           } else {
             alert('Could not download PDF directly. Please check your browser download permissions.')
           }
+        } else {
+          setDownloadModalOpen(false)
         }
       } catch (err) {
         console.error('Direct PDF export error:', err)
@@ -2704,7 +2728,7 @@ export default function Home() {
 
           {/* PDF Download */}
           <Button
-            onClick={handleDownload}
+            onClick={handleOpenDownloadModal}
             disabled={isExportingPdf}
             size="sm"
             className="h-6 px-1.5 rounded-[6px] text-[10px] font-semibold gap-1 cursor-pointer flex items-center shrink-0"
@@ -5402,7 +5426,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           {activeTab !== 'changelog' && (
             <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
               <Button
-                onClick={handleDownload}
+                onClick={handleOpenDownloadModal}
                 disabled={isExportingPdf}
                 className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer gap-2"
               >
@@ -5794,6 +5818,109 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Download PDF Dialog with Custom Filename */}
+      <Dialog open={downloadModalOpen} onOpenChange={setDownloadModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card text-foreground border border-border shadow-2xl rounded-[18px] p-5 sm:p-6">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
+              <Download size={18} className="text-primary" />
+              Download Quotation PDF
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleExecuteDownload()
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Quotation File Name
+              </label>
+              <div className="flex items-center rounded-[8px] border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-xs">
+                <input
+                  type="text"
+                  value={downloadFileName}
+                  autoFocus
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setDownloadFileName(e.target.value)}
+                  placeholder="Quotation File Name"
+                  className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
+                />
+                <span className="bg-muted/70 px-2.5 py-2 text-xs font-mono text-muted-foreground border-l border-border select-none">
+                  .pdf
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Enter your desired file name before downloading.
+              </p>
+            </div>
+
+            {/* Quick Naming Presets */}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Quick Naming Presets
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {(() => {
+                  const client = invoice.toName ? invoice.toName.trim() : 'Client'
+                  const qNum = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : 'Quotation'
+                  const systemTypeLabel = systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
+                  const p1 = `${client} - ${qNum}`
+                  const p2 = `${qNum}`
+                  const p3 = `${activeKwSetup}kW ${systemTypeLabel} - ${client}`
+                  const p4 = `MG Solar Quotation - ${client}`
+
+                  const presets = [
+                    { label: 'Client - Quote#', val: p1 },
+                    { label: 'Quote# Only', val: p2 },
+                    { label: 'System + Client', val: p3 },
+                    { label: 'MG Solar + Client', val: p4 },
+                  ]
+
+                  return presets.map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setDownloadFileName(p.val.replace(/[\\/:*?"<>|]/g, ''))}
+                      className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary border border-border rounded-[6px] text-foreground transition-all cursor-pointer select-none active:scale-[0.98]"
+                    >
+                      {p.label}
+                    </button>
+                  ))
+                })()}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDownloadModalOpen(false)}
+                disabled={isExportingPdf}
+                className="h-9 px-3.5 rounded-[8px] text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isExportingPdf || !downloadFileName.trim()}
+                className="h-9 px-4 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+              >
+                {isExportingPdf ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )}
+                {isExportingPdf ? (pdfExportStatus || 'Downloading...') : 'Download PDF'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
