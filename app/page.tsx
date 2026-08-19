@@ -39,13 +39,8 @@ function getWireSize(inverterKw: number): string {
 }
 
 function getConduitDetails(inverterKw: number, runLength: number = 30) {
-  const rate = 39.50
-  let size = '25mm'
-  if (inverterKw >= 6 && inverterKw < 10) {
-    size = '32mm'
-  } else if (inverterKw >= 10) {
-    size = '40mm'
-  }
+  const rate = 124.00
+  const size = '40mm'
   return {
     description: `Flexible hose ${size}`,
     rate,
@@ -312,9 +307,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
       }
     } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb') || descLower.includes('ac mccb')) {
-      if (item.description !== 'AC MCCB' || item.quantity !== 4 || item.rate !== 1300) {
+      if (item.description !== 'AC MCCB' || item.quantity !== 4 || item.rate !== 850) {
         changed = true
-        return { ...item, description: 'AC MCCB', quantity: 4, rate: 1300 }
+        return { ...item, description: 'AC MCCB', quantity: 4, rate: 850 }
       }
     } else if (descLower === 'ac spd' || descLower.startsWith('ac spd')) {
       if (item.description !== 'AC SPD' || item.rate !== 570) {
@@ -1029,7 +1024,7 @@ const SOLAR_PRICES = {
   EndClamp: 55.00,
   LFoot: 90.00,
   SpliceConnector: 90.00,
-  FlexconHDPE: 39.50,
+  FlexconHDPE: 124.00,
   ACwire: 60.04,
   PVwire: 125.00,
   DCwire: 125.00,
@@ -1037,7 +1032,7 @@ const SOLAR_PRICES = {
   ClipLock34: 180.00,
   MC4_2String: 550.00,
   BreakerBox: 3000.00,
-  ACMCB: 1300.00,
+  ACMCB: 850.00,
   ACSPD: 570.00,
   DCSPD: 790.00,
   DCMCB: 420.00,
@@ -2337,12 +2332,12 @@ export default function Home() {
       unit: 'PC'
     })
 
-    // 12. AC MCCB (QTY = 4 | Price = ₱1300)
+    // 12. AC MCCB (QTY = 4 | Price = ₱850)
     items.push({
       id: `boq-12-${now}`,
       description: `AC MCCB`,
       quantity: 4,
-      rate: 1300.00,
+      rate: 850.00,
       unit: 'PCS'
     })
 
