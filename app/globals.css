@@ -350,29 +350,34 @@
   }
 }
 
-/* Custom Modern Sleek Scrollbars */
+/* Minimalist Modern Scrollbar Architecture */
+html {
+  scroll-behavior: smooth;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(130, 130, 130, 0.3);
+  background-color: rgba(0, 0, 0, 0.16);
   border-radius: 9999px;
-  transition: background 0.2s ease;
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.15s ease-in-out;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(130, 130, 130, 0.55);
+  background-color: rgba(0, 0, 0, 0.36);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: rgba(130, 130, 130, 0.75);
+  background-color: rgba(0, 0, 0, 0.52);
 }
 
 ::-webkit-scrollbar-button {
@@ -388,20 +393,44 @@
 /* Firefox scrollbar styling */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(130, 130, 130, 0.3) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
 }
 
-/* Dark mode scrollbars */
+/* Dark & Theme Mode Minimalist Scrollbars */
 .dark ::-webkit-scrollbar-thumb,
 .theme-dark ::-webkit-scrollbar-thumb,
-.theme-spiderman ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+.theme-spiderman ::-webkit-scrollbar-thumb,
+.theme-violet ::-webkit-scrollbar-thumb,
+.theme-barbie ::-webkit-scrollbar-thumb,
+.theme-minion ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover,
 .theme-dark ::-webkit-scrollbar-thumb:hover,
-.theme-spiderman ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+.theme-spiderman ::-webkit-scrollbar-thumb:hover,
+.theme-violet ::-webkit-scrollbar-thumb:hover,
+.theme-barbie ::-webkit-scrollbar-thumb:hover,
+.theme-minion ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.36);
+}
+
+.dark ::-webkit-scrollbar-thumb:active,
+.theme-dark ::-webkit-scrollbar-thumb:active,
+.theme-spiderman ::-webkit-scrollbar-thumb:active,
+.theme-violet ::-webkit-scrollbar-thumb:active,
+.theme-barbie ::-webkit-scrollbar-thumb:active,
+.theme-minion ::-webkit-scrollbar-thumb:active {
+  background-color: rgba(255, 255, 255, 0.52);
+}
+
+.dark *,
+.theme-dark *,
+.theme-spiderman *,
+.theme-violet *,
+.theme-barbie *,
+.theme-minion * {
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 
 /* High contrast screen overrides to theme the document page preview */

@@ -4,6 +4,74 @@ import { jsPDF } from 'jspdf'
 export interface PdfExportOptions {
   filename?: string
   onProgress?: (msg: string) => void
+  container?: HTMLElement | null
+  elements?: HTMLElement[]
+  useSavePicker?: boolean
+  returnBlobOnly?: boolean
+}
+
+export interface PdfExportResult {
+  success: boolean
+  blob?: Blob
+  filename: string
+}
+
+/**
+ * Saves a Blob to user's device using native Save As dialog if supported, or browser download.
+ */
+export async function saveBlobWithPicker(
+  blob: Blob,
+  suggestedName: string,
+  types?: Array<{ description: string; accept: Record<string, string[]> }>
+): Promise<boolean> {
+  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window && !isIos()) {
+    try {
+      const defaultTypes = suggestedName.toLowerCase().endsWith('.zip')
+        ? [
+            {
+              description: 'ZIP Archive (*.zip)',
+              accept: { 'application/zip': ['.zip'] },
+            },
+          ]
+        : [
+            {
+              description: 'PDF Document (*.pdf)',
+              accept: { 'application/pdf': ['.pdf'] },
+            },
+          ]
+
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName,
+        types: types || defaultTypes,
+      })
+      const writable = await handle.createWritable()
+      await writable.write(blob)
+      await writable.close()
+      return true
+    } catch (pickerErr: any) {
+      if (pickerErr.name === 'AbortError') {
+        // User cancelled the file picker
+        return true
+      }
+      console.warn('showSaveFilePicker failed, falling back to standard download:', pickerErr)
+    }
+  }
+
+  // Fallback direct download
+  try {
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = suggestedName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+    return true
+  } catch (err) {
+    console.error('Blob download failed:', err)
+    return false
+  }
 }
 
 /**
@@ -18,34 +86,47 @@ function isIos(): boolean {
 }
 
 /**
- * Exports the active quotation / capital / checklist preview directly to a pure A4 PDF file.
- * Resets mobile screen zoom/scale transforms during rasterization so the PDF matches
- * the full-scale A4 preview exactly, with zero browser link footers and zero timestamp headers.
+ * Exports the active quotation / capital / checklist preview directly to a pure A4 PDF file or Blob.
  */
 export async function exportToPdfDirect({
   filename = 'Quotation.pdf',
   onProgress,
-}: PdfExportOptions = {}): Promise<boolean> {
+  container,
+  elements,
+  useSavePicker = true,
+  returnBlobOnly = false,
+}: PdfExportOptions = {}): Promise<PdfExportResult> {
   try {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return false
+      return { success: false, filename }
     }
 
     onProgress?.('Preparing pages...')
 
-    // Locate visible printable page elements in the DOM
-    const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
-    if (!allPageNodes || allPageNodes.length === 0) {
-      console.warn('No .print-page elements found to export')
-      return false
+    // Locate visible printable page elements in the DOM or container
+    let targetPages: HTMLElement[] = []
+    if (elements && elements.length > 0) {
+      targetPages = elements
+    } else if (container) {
+      const pageNodes = container.querySelectorAll<HTMLElement>('.print-page')
+      targetPages = Array.from(pageNodes)
+    } else {
+      const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
+      if (!allPageNodes || allPageNodes.length === 0) {
+        console.warn('No .print-page elements found to export')
+        return { success: false, filename }
+      }
+      const visiblePages = Array.from(allPageNodes).filter((el) => {
+        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
+      })
+      targetPages = visiblePages.length > 0 ? visiblePages : Array.from(allPageNodes)
     }
 
-    // Filter to only visible elements
-    const pages = Array.from(allPageNodes).filter((el) => {
-      return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
-    })
+    if (targetPages.length === 0) {
+      console.warn('No target pages found to export')
+      return { success: false, filename }
+    }
 
-    const targetPages = pages.length > 0 ? pages : Array.from(allPageNodes)
     const totalPages = targetPages.length
 
     // Standard ISO 216 A4 Dimensions in points: 595.28 pt x 841.89 pt (210mm x 297mm)
@@ -115,12 +196,29 @@ export async function exportToPdfDirect({
           height: A4_HEIGHT_PX,
           windowWidth: 1280,
           windowHeight: 1800,
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
           logging: false,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
+            // Reset all scroll positions to ensure top and bottom are never cropped
+            if (clonedDoc.defaultView) {
+              try { clonedDoc.defaultView.scrollTo(0, 0) } catch {}
+            }
+            if (clonedDoc.documentElement) {
+              clonedDoc.documentElement.scrollTop = 0
+              clonedDoc.documentElement.scrollLeft = 0
+            }
+            if (clonedDoc.body) {
+              clonedDoc.body.scrollTop = 0
+              clonedDoc.body.scrollLeft = 0
+            }
+
             // Mute iframe console warnings for unsupported modern CSS color functions
             if (clonedDoc.defaultView) {
               clonedDoc.defaultView.console.error = (...args: unknown[]) => {
@@ -135,7 +233,71 @@ export async function exportToPdfDirect({
                 if (isColorFunctionWarning(args)) return
                 origLog(...args)
               }
+
+              // Intercept window.getComputedStyle to completely neutralize lab(), oklch(), color-mix()
+              if (typeof clonedDoc.defaultView.getComputedStyle === 'function') {
+                const origGetComputedStyle = clonedDoc.defaultView.getComputedStyle.bind(clonedDoc.defaultView)
+                
+                const sanitizeColorValue = (val: string, propKey: string = ''): string => {
+                  if (!val || typeof val !== 'string') return val
+                  if (
+                    val.includes('lab(') ||
+                    val.includes('oklch(') ||
+                    val.includes('oklab(') ||
+                    val.includes('lch(') ||
+                    val.includes('color(') ||
+                    val.includes('color-mix(')
+                  ) {
+                    const lowerKey = propKey.toLowerCase()
+                    if (lowerKey.includes('background') || lowerKey.includes('bg')) {
+                      return 'rgba(0, 0, 0, 0)'
+                    }
+                    if (lowerKey.includes('border') || lowerKey.includes('outline')) {
+                      return 'rgb(229, 231, 235)'
+                    }
+                    if (lowerKey.includes('shadow')) {
+                      return 'none'
+                    }
+                    return 'rgb(17, 17, 17)'
+                  }
+                  return val
+                }
+
+                clonedDoc.defaultView.getComputedStyle = function(el: Element, pseudo?: string | null) {
+                  const style = origGetComputedStyle(el, pseudo)
+                  return new Proxy(style, {
+                    get(target, prop: string | symbol) {
+                      const val = (target as any)[prop]
+                      if (typeof val === 'string') {
+                        return sanitizeColorValue(val, typeof prop === 'string' ? prop : '')
+                      }
+                      if (typeof val === 'function') {
+                        if (prop === 'getPropertyValue') {
+                          return function(propertyName: string) {
+                            const res = target.getPropertyValue(propertyName)
+                            return sanitizeColorValue(res, propertyName)
+                          }
+                        }
+                        return val.bind(target)
+                      }
+                      return val
+                    }
+                  })
+                }
+              }
             }
+
+            // Remove non-printable UI elements (modals, aside, toolbars) in the clone
+            const nonPrintableNodes = clonedDoc.querySelectorAll<HTMLElement>(
+              'aside, nav, [role="dialog"], .radix-dialog-overlay, [data-state="open"]:not(.print-page):not(.print-wrapper)'
+            )
+            nonPrintableNodes.forEach((node) => {
+              if (!node.contains(clonedDoc.querySelector('.print-page'))) {
+                try {
+                  node.remove()
+                } catch {}
+              }
+            })
 
             // Reset all scale wrappers in the cloned document so content is rendered at true 794x1123px
             const clonedWrappers = clonedDoc.querySelectorAll<HTMLElement>('.print-wrapper')
@@ -249,17 +411,50 @@ export async function exportToPdfDirect({
       console.info = origInfo
     }
 
-    onProgress?.('Saving PDF...')
+    onProgress?.('Finalizing PDF...')
 
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`
+    const pdfBlob = pdf.output('blob')
 
-    // Use jsPDF's built-in file saving which handles iOS Safari, Android, and Desktop downloads
+    if (returnBlobOnly) {
+      return {
+        success: true,
+        blob: pdfBlob,
+        filename: cleanFilename,
+      }
+    }
+
+    // Attempt native Save As file picker if supported by the browser (Chrome, Edge, Opera, Desktop Safari)
+    if (useSavePicker && typeof window !== 'undefined' && 'showSaveFilePicker' in window && !isIos()) {
+      try {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: cleanFilename,
+          types: [
+            {
+              description: 'PDF Document (*.pdf)',
+              accept: { 'application/pdf': ['.pdf'] },
+            },
+          ],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(pdfBlob)
+        await writable.close()
+        return { success: true, blob: pdfBlob, filename: cleanFilename }
+      } catch (pickerErr: any) {
+        if (pickerErr.name === 'AbortError') {
+          // User deliberately cancelled the file picker dialog
+          return { success: true, blob: pdfBlob, filename: cleanFilename }
+        }
+        console.warn('showSaveFilePicker failed, falling back to standard download:', pickerErr)
+      }
+    }
+
+    // Standard download fallback
     try {
       pdf.save(cleanFilename)
     } catch (saveError) {
       console.warn('pdf.save fallback to blob URL:', saveError)
-      const blob = pdf.output('blob')
-      const blobUrl = URL.createObjectURL(blob)
+      const blobUrl = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
       a.href = blobUrl
       a.download = cleanFilename
@@ -269,9 +464,9 @@ export async function exportToPdfDirect({
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
     }
 
-    return true
+    return { success: true, blob: pdfBlob, filename: cleanFilename }
   } catch (err) {
     console.error('Error during direct PDF export:', err)
-    return false
+    return { success: false, filename: filename || 'error.pdf' }
   }
 }

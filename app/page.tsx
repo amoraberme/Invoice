@@ -4,7 +4,8 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { exportToPdfDirect } from '@/lib/pdf-export'
+import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
+import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, newWarrantyItem, defaultWarranties, defaultInvoice } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
@@ -520,6 +521,8 @@ const SALESPEOPLE = [
   { id: 'ryan', name: 'Ryan M. Castillo', position: 'Liaison Officer', company: MG_COMPANY, contact: '09352956244', email: 'ry.manalo1111@gmail.com' },
   { id: 'renzel', name: 'Renzel G. Rongavilla', position: 'Liaison Officer', company: MG_COMPANY, contact: '09299606023', email: 'rongavillarenzel.gs@gmail.com' },
   { id: 'noel', name: 'Noel Jayson E. Santos', position: 'Chief Operating Officer', company: MG_COMPANY, contact: '09198718747', email: 'Santosnoel9999@gmail.com' },
+  { id: 'james', name: 'James Vidal', position: 'Chief Operating Officer', company: MG_COMPANY, contact: '09998837203', email: 'jamesedwardvidal08@gmail.com' },
+  { id: 'edwin', name: 'Edwin Vidal', position: 'Chief Finance Officer', company: MG_COMPANY, contact: '0912 383 9791', email: 'edwinvidal08@gmail.com' },
 ]
 
 const loadPdfJs = async (): Promise<any> => {
@@ -1005,16 +1008,35 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
   }
 ]
 
+const KW_TO_ELECTRIC_BILL: Record<number, string> = {
+  1.5: '₱3,000',
+  3: '₱5,000',
+  4: '₱6,500',
+  5: '₱8,000',
+  6: '₱9,000',
+  8: '₱10,000',
+  10: '₱15,000',
+  12: '₱20,000',
+  16: '₱30,000',
+  20: '₱40,000',
+}
+
 const ELECTRIC_BILL_PRICE_REFERENCES = [
+  { bill: '₱3,000', kw: 1.5 },
+  { bill: '₱5,000', kw: 3 },
+  { bill: '₱6,500', kw: 4 },
   { bill: '₱8,000', kw: 5 },
   { bill: '₱9,000', kw: 6 },
   { bill: '₱10,000', kw: 8 },
   { bill: '₱15,000', kw: 10 },
   { bill: '₱20,000', kw: 12 },
-  { bill: '₱25,000', kw: 15 },
   { bill: '₱30,000', kw: 16 },
   { bill: '₱40,000', kw: 20 },
 ]
+
+function getElectricBillRef(kw: number): string {
+  return KW_TO_ELECTRIC_BILL[kw] || `₱${Math.round(kw * 1600).toLocaleString()}`
+}
 
 const SOLAR_PRICES = {
   Inverter: 67000.00,
@@ -1314,7 +1336,7 @@ export default function Home() {
 
   const [hoveredField, setHoveredField] = useState<string | null>(null)
 
-  const [activeTab, setActiveTab] = useState<string>('ocr')
+  const [activeTab, setActiveTab] = useState<string>('sender')
   const [previousTab, setPreviousTab] = useState<string>('items')
   const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({})
   const [checklistCopied, setChecklistCopied] = useState(false)
@@ -1407,9 +1429,26 @@ export default function Home() {
     batch: 'Manual Price Update'
   })
 
-  // Download PDF Modal & Custom Filename State
+  // Download PDF Modal & Export Options State
   const [downloadModalOpen, setDownloadModalOpen] = useState(false)
   const [downloadFileName, setDownloadFileName] = useState('')
+  const [downloadDocTypes, setDownloadDocTypes] = useState<{
+    quotation: boolean
+    checklist: boolean
+    capital: boolean
+  }>({
+    quotation: true,
+    checklist: false,
+    capital: false,
+  })
+  const [downloadIsCondensed, setDownloadIsCondensed] = useState<boolean>(false)
+  const [downloadQuotationMarkup, setDownloadQuotationMarkup] = useState<{
+    withMarkup: boolean
+    withoutMarkup: boolean
+  }>({
+    withMarkup: true,
+    withoutMarkup: false,
+  })
 
   useEffect(() => {
     setHistoryList(getInvoiceHistory())
@@ -1686,8 +1725,8 @@ export default function Home() {
       } else if (batteryItems.length === 0) {
         const batteryQty = 1
         const isSmallSetup = currentKw <= 6
-        const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
-        const batteryRate = isSmallSetup ? 65000.00 : 85000.00
+        const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
+        const batteryRate = isSmallSetup ? 65000.00 : 88000.00
 
         updatedItems.push({
           id: `boq-20-${Date.now()}`,
@@ -1771,8 +1810,8 @@ export default function Home() {
           const panelIdx = updatedItems.findIndex(i => i.description.toLowerCase().includes('panel'))
           const insertIdx = panelIdx !== -1 ? panelIdx + 1 : 1
           const isSmallSetup = activeKwSetup <= 6
-          const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
-          const batteryRate = isSmallSetup ? 65000.00 : 85000.00
+          const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
+          const batteryRate = isSmallSetup ? 65000.00 : 88000.00
 
           updatedItems.splice(insertIdx, 0, {
             id: `boq-20-${Date.now()}`,
@@ -2167,8 +2206,8 @@ export default function Home() {
     // 3. Battery (included for Hybrid setup)
     if (effSystemType === 'hybrid') {
       const isSmallSetup = systemKw <= 6
-      const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
-      const batteryRate = isSmallSetup ? 65000.00 : 85000.00
+      const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
+      const batteryRate = isSmallSetup ? 65000.00 : 88000.00
       items.push({
         id: `boq-20-${now}`,
         description: batteryDesc,
@@ -2572,13 +2611,87 @@ export default function Home() {
 
   const handleOpenDownloadModal = () => {
     setDownloadFileName(computeDefaultFileName())
+    setDownloadIsCondensed(invoice.isCondensed ?? false)
+    setDownloadQuotationMarkup({
+      withMarkup: true,
+      withoutMarkup: false,
+    })
+    setDownloadDocTypes({
+      quotation: true,
+      checklist: activeTab === 'checklist',
+      capital: activeTab === 'capital',
+    })
     setDownloadModalOpen(true)
+  }
+
+  const getSelectedExportTasks = (baseName: string) => {
+    const tasks: Array<{
+      id: string
+      title: string
+      filename: string
+      docType: 'quotation' | 'checklist' | 'capital'
+      withoutMarkup?: boolean
+      isCondensed?: boolean
+    }> = []
+
+    const hasQuotation = downloadDocTypes.quotation && (downloadQuotationMarkup.withMarkup || downloadQuotationMarkup.withoutMarkup)
+    const quoteModesCount = (downloadQuotationMarkup.withMarkup ? 1 : 0) + (downloadQuotationMarkup.withoutMarkup ? 1 : 0)
+    const totalSelectedDocs = (hasQuotation ? quoteModesCount : 0) + (downloadDocTypes.checklist ? 1 : 0) + (downloadDocTypes.capital ? 1 : 0)
+
+    if (downloadDocTypes.quotation) {
+      if (downloadQuotationMarkup.withMarkup) {
+        const suffix = downloadQuotationMarkup.withoutMarkup
+          ? ' - With Markup'
+          : (totalSelectedDocs > 1 ? ' - Quotation' : '')
+        tasks.push({
+          id: 'quote-with-markup',
+          title: 'Quotation (With Markup)',
+          filename: `${baseName}${suffix}.pdf`,
+          docType: 'quotation',
+          withoutMarkup: false,
+          isCondensed: downloadIsCondensed,
+        })
+      }
+      if (downloadQuotationMarkup.withoutMarkup) {
+        const suffix = downloadQuotationMarkup.withMarkup
+          ? ' - Without Markup'
+          : (totalSelectedDocs > 1 ? ' - Quotation (0% Markup)' : '')
+        tasks.push({
+          id: 'quote-without-markup',
+          title: 'Quotation (Without Markup)',
+          filename: `${baseName}${suffix}.pdf`,
+          docType: 'quotation',
+          withoutMarkup: true,
+          isCondensed: downloadIsCondensed,
+        })
+      }
+    }
+
+    if (downloadDocTypes.checklist) {
+      const suffix = totalSelectedDocs > 1 ? ' - Checklist' : ''
+      tasks.push({
+        id: 'checklist',
+        title: 'Packing & Dispatch Checklist',
+        filename: `${baseName}${suffix}.pdf`,
+        docType: 'checklist',
+      })
+    }
+
+    if (downloadDocTypes.capital) {
+      const suffix = totalSelectedDocs > 1 ? ' - Capital Breakdown' : ''
+      tasks.push({
+        id: 'capital',
+        title: 'Capital & Expenses Breakdown',
+        filename: `${baseName}${suffix}.pdf`,
+        docType: 'capital',
+      })
+    }
+
+    return tasks
   }
 
   const handleExecuteDownload = async (targetCustomName?: string) => {
     if (isExportingPdf) return
-    setIsExportingPdf(true)
-    setPdfExportStatus('Preparing PDF...')
 
     const rawName = (targetCustomName || downloadFileName || computeDefaultFileName()).trim()
     let cleanName = rawName.replace(/[\\/:*?"<>|]/g, '').trim()
@@ -2587,7 +2700,12 @@ export default function Home() {
     }
     if (!cleanName) cleanName = 'Quotation'
     const title = cleanName
-    const finalFilename = `${cleanName}.pdf`
+
+    const tasks = getSelectedExportTasks(cleanName)
+    if (tasks.length === 0) return
+
+    setIsExportingPdf(true)
+    setPdfExportStatus('Preparing documents for export...')
 
     const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
     setHistoryList(updatedHistory)
@@ -2595,10 +2713,6 @@ export default function Home() {
     const titleEl = document.querySelector('title')
     if (titleEl) {
       titleEl.innerText = title
-    }
-
-    if (activeTab === 'changelog') {
-      setActiveTab('quotation')
     }
 
     // On mobile / small screens, switch to preview tab so that printable DOM is fully mounted
@@ -2611,32 +2725,91 @@ export default function Home() {
       window.history.replaceState(null, '', window.location.pathname)
     }
 
-    setTimeout(async () => {
-      try {
-        const success = await exportToPdfDirect({
-          filename: finalFilename,
-          onProgress: (status) => setPdfExportStatus(status),
-        })
+    const originalTab = activeTab
+    const originalIsCondensed = invoice.isCondensed
+    const originalRateMarkup = invoice.rateMarkup
 
-        if (!success) {
-          if (typeof window !== 'undefined' && typeof window.print === 'function') {
-            window.print()
-          } else {
-            alert('Could not download PDF directly. Please check your browser download permissions.')
-          }
+    try {
+      const generatedFiles: Array<{ filename: string; blob: Blob }> = []
+
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i]
+        setPdfExportStatus(`[${i + 1}/${tasks.length}] Generating ${task.title}...`)
+
+        if (task.docType === 'quotation') {
+          setInvoice(prev => ({
+            ...prev,
+            isCondensed: task.isCondensed ?? false,
+            rateMarkup: task.withoutMarkup ? 0 : (originalRateMarkup ?? 10),
+          }))
+          setActiveTab('items')
+        } else if (task.docType === 'checklist') {
+          setActiveTab('checklist')
+        } else if (task.docType === 'capital') {
+          setActiveTab('capital')
+        }
+
+        await new Promise(r => setTimeout(r, 260))
+
+        if (tasks.length === 1) {
+          // Single file: directly export and trigger Save As dialog for PDF
+          setPdfExportStatus(`Saving ${task.filename}...`)
+          await exportToPdfDirect({
+            filename: task.filename,
+            onProgress: (status) => setPdfExportStatus(status),
+            useSavePicker: true,
+            returnBlobOnly: false,
+          })
         } else {
-          setDownloadModalOpen(false)
+          // Multiple files: generate blob in memory for ZIP package
+          const res = await exportToPdfDirect({
+            filename: task.filename,
+            onProgress: (status) => setPdfExportStatus(`[${i + 1}/${tasks.length}] ${status}`),
+            returnBlobOnly: true,
+          })
+          if (res.success && res.blob) {
+            generatedFiles.push({
+              filename: task.filename,
+              blob: res.blob,
+            })
+          }
         }
-      } catch (err) {
-        console.error('Direct PDF export error:', err)
-        if (typeof window !== 'undefined' && typeof window.print === 'function') {
-          window.print()
-        }
-      } finally {
-        setIsExportingPdf(false)
-        setPdfExportStatus('')
       }
-    }, 180)
+
+      // If multiple files selected, bundle into ZIP and trigger Save As for ZIP
+      if (tasks.length > 1 && generatedFiles.length > 0) {
+        setPdfExportStatus('Packaging files into ZIP archive...')
+        const zip = new JSZip()
+        for (const item of generatedFiles) {
+          zip.file(item.filename, item.blob)
+        }
+        const zipBlob = await zip.generateAsync({
+          type: 'blob',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 6 },
+        })
+        const zipFilename = `${cleanName} - Package.zip`
+        setPdfExportStatus('Saving ZIP package to device...')
+        await saveBlobWithPicker(zipBlob, zipFilename)
+      }
+
+      setDownloadModalOpen(false)
+    } catch (err) {
+      console.error('Direct PDF export error:', err)
+      if (typeof window !== 'undefined' && typeof window.print === 'function') {
+        window.print()
+      }
+    } finally {
+      // Restore original invoice settings and active tab
+      setInvoice(prev => ({
+        ...prev,
+        isCondensed: originalIsCondensed,
+        rateMarkup: originalRateMarkup,
+      }))
+      setActiveTab(originalTab)
+      setIsExportingPdf(false)
+      setPdfExportStatus('')
+    }
   }
 
   const handleSalesPersonChange = (val: string) => {
@@ -2748,7 +2921,6 @@ export default function Home() {
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
-              { id: 'ocr', label: 'kW Set Up', icon: Sparkles, title: 'Upload & Spec OCR' },
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
@@ -2828,231 +3000,6 @@ export default function Home() {
 
           {/* Scrollable active tab form content */}
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
-            {activeTab === 'ocr' && (
-              <section className="bg-[#111111] p-4 rounded-[16px] relative overflow-hidden">
-                {/* Solar BOQ System Sizing Setup */}
-                <div className="p-4 bg-card border border-border rounded-[16px] text-left">
-                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                      Solar BOQ Sizing Setup
-                    </h4>
-                    <div className="flex gap-1.5 bg-secondary p-1 rounded-[10px] border border-border">
-                      <button
-                        type="button"
-                        onClick={() => handleSystemTypeChange('hybrid')}
-                        className={cn(
-                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
-                          systemType === 'hybrid'
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        ⚡ Hybrid
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)}
-                        onClick={() => handleSystemTypeChange('ongrid')}
-                        className={cn(
-                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all select-none",
-                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
-                            ? "opacity-40 cursor-not-allowed pointer-events-none text-muted-foreground"
-                            : systemType === 'ongrid'
-                              ? "bg-primary text-primary-foreground shadow-sm cursor-pointer"
-                              : "text-muted-foreground hover:text-foreground cursor-pointer"
-                        )}
-                        title={
-                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
-                            ? `On-Grid is not available for ${activeKwSetup}kW setup`
-                            : undefined
-                        }
-                      >
-                        🌐 On-Grid
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
-                      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
-                      const isDisabled = systemType === 'ongrid' && !hasOnGridOption
-
-                      const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
-                      let calculatedPanelQty = maxPanels
-                      if (activePreset === 'min') {
-                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.5))
-                      } else if (activePreset === 'balance') {
-                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
-                      }
-                      
-                      const calculatedRows = calculatedPanelQty <= 0 ? 0 : Math.ceil(calculatedPanelQty / 2)
-                      const totalWatts = calculatedPanelQty * PANEL_WATTAGE
-                      const pricePerWatt = invoice.laborPricePerWatt ?? 6
-                      const laborCost = Math.round(totalWatts * pricePerWatt)
-                      
-                      const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
-                      const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
-
-                      const isSelected = activeKwSetup === kw
-                      const panelDescColor = isSelected ? "text-primary-foreground/75" : "text-muted-foreground"
-                      const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
-
-                      return (
-                        <button
-                          key={kw}
-                          disabled={isDisabled}
-                          onClick={() => {
-                            if (isDisabled) return
-                            setActiveKwSetup(kw)
-                            handleGenerateBoq(kw, activePreset)
-                          }}
-                          title={isDisabled ? `Not available in On-Grid database` : undefined}
-                          className={cn(
-                            "flex flex-col items-center justify-center p-3 rounded-[12px] border transition-all select-none font-semibold",
-                            isDisabled
-                              ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
-                              : isSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                                : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                          )}
-                        >
-                          <span className="font-bold text-xs">{kw}kW Setup</span>
-                          <span className={cn("text-[8px] mt-1 font-mono font-normal", panelDescColor)}>{panelDesc}</span>
-                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-
-
-                    <div className="flex gap-2 mt-3 w-full">
-                      <Button
-                        variant={activePreset === 'min' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleApplyPreset('min')}
-                        className={cn(
-                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
-                          activePreset === 'min'
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
-                        )}
-                      >
-                        Min Panels
-                      </Button>
-                      <Button
-                        variant={activePreset === 'balance' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleApplyPreset('balance')}
-                        className={cn(
-                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
-                          activePreset === 'balance'
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
-                        )}
-                      >
-                        Balance Setup
-                      </Button>
-                      <Button
-                        variant={activePreset === 'max' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleApplyPreset('max')}
-                        className={cn(
-                          "text-[10px] font-bold py-1.5 px-2 rounded-[10px] transition-all h-8 flex-1 border border-border",
-                          activePreset === 'max'
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-transparent text-foreground hover:bg-secondary shadow-none"
-                        )}
-                      >
-                        Max Panels
-                      </Button>
-                    </div>
-                  </div>
-
-
-
-                {/* Electric Bill vs Recommended System Size Reference Table */}
-                <div className="mt-4 p-4 bg-card border border-border rounded-[16px] text-left">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <span>💡</span> Electric Bill & Sizing Reference
-                    </h4>
-                    <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-[8px] border border-border">
-                      Quick Guide
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-                    Reference recommended system capacity (kW) based on monthly electric bill.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ELECTRIC_BILL_PRICE_REFERENCES.map((ref, idx) => {
-                      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(ref.kw) !== null)
-                      const isDisabled = systemType === 'ongrid' && !hasOnGridOption
-                      const isSelected = activeKwSetup === ref.kw
-
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => {
-                            if (isDisabled) return
-                            setActiveKwSetup(ref.kw)
-                            handleGenerateBoq(ref.kw, activePreset)
-                          }}
-                          className={cn(
-                            "flex items-center justify-between px-3 py-2 text-xs rounded-[10px] border transition-all select-none text-left cursor-pointer",
-                            isDisabled
-                              ? "opacity-35 bg-secondary/20 border-border cursor-not-allowed pointer-events-none line-through text-muted-foreground"
-                              : isSelected
-                                ? "bg-primary/10 border-primary font-bold text-primary shadow-xs scale-[1.01]"
-                                : "bg-background hover:bg-secondary/60 border-border text-foreground"
-                          )}
-                          title={isDisabled ? "Not available in On-Grid database" : `Click to apply ${ref.kw}kW Setup`}
-                        >
-                          <span className="font-mono text-[11px] font-semibold">{ref.bill}</span>
-                          <span className={cn(
-                            "font-mono text-[11px] font-bold px-2 py-0.5 rounded-[6px] border transition-colors",
-                            isSelected
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-secondary/80 text-foreground border-border/60"
-                          )}>
-                            {ref.kw} kW
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Cascading Selection Fields (only rendered once parsed) */}
-                {specData.brand && (
-                  <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[12px] p-4 text-[#111111] space-y-3 mt-3 animate-in fade-in duration-300">
-                    <h4 className="text-[10px] font-bold text-[#111111] uppercase tracking-wider">Parsed Configuration</h4>
-                    <div className="grid grid-cols-2 gap-2 text-left">
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold">BRAND</span>
-                        <span className="font-semibold text-[#111111] truncate">{specData.brand}</span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold">FORM FACTOR</span>
-                        <span className="font-semibold text-[#111111] truncate">{specData.formFactor}</span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold">COOLING CAPACITY</span>
-                        <span className="font-semibold text-[#111111] truncate">{specData.coolingCapacity}</span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 bg-[#F9F9F9] p-2 rounded-[12px] border border-[#E5E5E5]">
-                        <span className="text-[8px] text-[#888888] font-mono font-semibold">BREAKER STATUS</span>
-                        <span className="font-semibold text-[#111111] truncate">{specData.breakerStatus}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
-
             {activeTab === 'sender' && (
               <>
                 {/* FROM */}
@@ -3396,7 +3343,7 @@ export default function Home() {
                     <div className="flex items-center gap-1.5">
                       <Zap size={14} className="text-primary" />
                       <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                        Solar BOQ Sizing Setup
+                        Electric Bill & Sizing Reference
                       </h4>
                     </div>
                     <div className="flex gap-1 bg-secondary p-0.5 rounded-[8px] border border-border">
@@ -3449,16 +3396,14 @@ export default function Home() {
                         calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
                       }
                       
-                      const calculatedRows = calculatedPanelQty <= 0 ? 0 : Math.ceil(calculatedPanelQty / 2)
                       const totalWatts = calculatedPanelQty * PANEL_WATTAGE
                       const pricePerWatt = invoice.laborPricePerWatt ?? 6
                       const laborCost = Math.round(totalWatts * pricePerWatt)
-                      
-                      const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
                       const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
 
                       const isSelected = activeKwSetup === kw
-                      const panelDescColor = isSelected ? "text-primary-foreground/75" : "text-muted-foreground"
+                      const billRef = getElectricBillRef(kw)
+                      const billDescColor = isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
                       const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
 
                       return (
@@ -3470,7 +3415,7 @@ export default function Home() {
                             setActiveKwSetup(kw)
                             handleGenerateBoq(kw, activePreset)
                           }}
-                          title={isDisabled ? `Not available in On-Grid database` : `${kw}kW Setup`}
+                          title={isDisabled ? `Not available in On-Grid database` : `${kw}kW Setup (Est. Bill: ${billRef})`}
                           className={cn(
                             "flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center",
                             isDisabled
@@ -3481,8 +3426,8 @@ export default function Home() {
                           )}
                         >
                           <span className="font-bold text-xs">{kw}kW Setup</span>
-                          <span className={cn("text-[8px] mt-0.5 font-mono font-normal", panelDescColor)}>{panelDesc}</span>
-                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
+                          <span className={cn("text-[8.5px] mt-0.5 font-mono font-medium", billDescColor)}>{billRef}</span>
+                          <span className={cn("text-[8.5px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
                         </button>
                       )
                     })}
@@ -5816,14 +5761,17 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </DialogContent>
       </Dialog>
 
-      {/* Download PDF Dialog with Custom Filename */}
+      {/* Download PDF Dialog with Document Selection, Layout, Pricing, and Save As */}
       <Dialog open={downloadModalOpen} onOpenChange={setDownloadModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground border border-border shadow-2xl rounded-[18px] p-5 sm:p-6">
+        <DialogContent className="sm:max-w-lg bg-card text-foreground border border-border shadow-2xl rounded-[18px] p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
               <Download size={18} className="text-primary" />
-              Download Quotation PDF
+              Download & Export Document(s)
             </DialogTitle>
+            <p className="text-[11.5px] text-muted-foreground">
+              Choose the document types, layout style, pricing options, and save location.
+            </p>
           </DialogHeader>
 
           <form
@@ -5833,88 +5781,280 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             }}
             className="space-y-4 pt-2"
           >
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Quotation File Name
-              </label>
-              <div className="flex items-center rounded-[8px] border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-xs">
-                <input
-                  type="text"
-                  value={downloadFileName}
-                  autoFocus
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setDownloadFileName(e.target.value)}
-                  placeholder="Quotation File Name"
-                  className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
-                />
-                <span className="bg-muted/70 px-2.5 py-2 text-xs font-mono text-muted-foreground border-l border-border select-none">
-                  .pdf
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Enter your desired file name before downloading.
-              </p>
-            </div>
+            {(() => {
+              const selectedTasks = getSelectedExportTasks(downloadFileName || computeDefaultFileName())
+              const totalFiles = selectedTasks.length
 
-            {/* Quick Naming Presets */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Quick Naming Presets
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {(() => {
-                  const client = invoice.toName ? invoice.toName.trim() : 'Client'
-                  const qNum = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : 'Quotation'
-                  const systemTypeLabel = systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
-                  const p1 = `${client} - ${qNum}`
-                  const p2 = `${qNum}`
-                  const p3 = `${activeKwSetup}kW ${systemTypeLabel} - ${client}`
-                  const p4 = `MG Solar Quotation - ${client}`
+              return (
+                <>
+                  {/* Document Selection Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        1. Select Document(s) to Export
+                      </label>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-[6px] bg-secondary border border-border text-foreground">
+                        {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} Selected {totalFiles > 1 ? '(ZIP)' : '(PDF)'}
+                      </span>
+                    </div>
 
-                  const presets = [
-                    { label: 'Client - Quote#', val: p1 },
-                    { label: 'Quote# Only', val: p2 },
-                    { label: 'System + Client', val: p3 },
-                    { label: 'MG Solar + Client', val: p4 },
-                  ]
+                    <div className="space-y-2">
+                      {/* Quotation Option */}
+                      <div className={cn(
+                        "p-3 rounded-[12px] border transition-all",
+                        downloadDocTypes.quotation ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={downloadDocTypes.quotation}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                setDownloadDocTypes(prev => ({ ...prev, quotation: checked }))
+                                if (checked && !downloadQuotationMarkup.withMarkup && !downloadQuotationMarkup.withoutMarkup) {
+                                  setDownloadQuotationMarkup({ withMarkup: true, withoutMarkup: false })
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                            />
+                            <div>
+                              <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                                📄 Solar Quotation / Proposal
+                              </span>
+                              <span className="text-[10.5px] text-muted-foreground block">
+                                Client-facing quotation with itemized BOQ, system specs & warranties
+                              </span>
+                            </div>
+                          </label>
+                        </div>
 
-                  return presets.map((p, idx) => (
-                    <button
-                      key={idx}
+                        {/* Sub-options for Quotation */}
+                        {downloadDocTypes.quotation && (
+                          <div className="mt-3 pt-2.5 border-t border-border/60 space-y-3 pl-6">
+                            {/* Layout Format: Compressed vs Expanded */}
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-[10.5px] font-semibold text-foreground">
+                                Quotation Layout:
+                              </span>
+                              <div className="flex gap-1 bg-secondary/80 p-0.5 rounded-[8px] border border-border">
+                                <button
+                                  type="button"
+                                  onClick={() => setDownloadIsCondensed(false)}
+                                  className={cn(
+                                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
+                                    !downloadIsCondensed
+                                      ? "bg-primary text-primary-foreground shadow-xs"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  📋 Expanded (Detailed)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDownloadIsCondensed(true)}
+                                  className={cn(
+                                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
+                                    downloadIsCondensed
+                                      ? "bg-primary text-primary-foreground shadow-xs"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  ⚡ Compressed (1-Page)
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Pricing Modes: With Markup vs Without Markup (both can be checked!) */}
+                            <div className="pt-2 border-t border-border/40 space-y-1.5">
+                              <span className="text-[10.5px] font-semibold text-foreground block">
+                                Quotation Pricing Version(s):
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <label className={cn(
+                                  "flex items-center gap-2 p-2 rounded-[8px] border transition-all cursor-pointer select-none",
+                                  downloadQuotationMarkup.withMarkup ? "bg-primary/10 border-primary/40 text-foreground" : "bg-background border-border text-muted-foreground"
+                                )}>
+                                  <input
+                                    type="checkbox"
+                                    checked={downloadQuotationMarkup.withMarkup}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked
+                                      if (!checked && !downloadQuotationMarkup.withoutMarkup) return
+                                      setDownloadQuotationMarkup(prev => ({ ...prev, withMarkup: checked }))
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+                                  />
+                                  <div>
+                                    <span className="text-[10.5px] font-bold block leading-tight">With Rate Markup</span>
+                                    <span className="text-[9px] text-muted-foreground block font-mono">+{invoice.rateMarkup ?? 10}% client price</span>
+                                  </div>
+                                </label>
+
+                                <label className={cn(
+                                  "flex items-center gap-2 p-2 rounded-[8px] border transition-all cursor-pointer select-none",
+                                  downloadQuotationMarkup.withoutMarkup ? "bg-primary/10 border-primary/40 text-foreground" : "bg-background border-border text-muted-foreground"
+                                )}>
+                                  <input
+                                    type="checkbox"
+                                    checked={downloadQuotationMarkup.withoutMarkup}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked
+                                      if (!checked && !downloadQuotationMarkup.withMarkup) return
+                                      setDownloadQuotationMarkup(prev => ({ ...prev, withoutMarkup: checked }))
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+                                  />
+                                  <div>
+                                    <span className="text-[10.5px] font-bold block leading-tight">Without Rate Markup</span>
+                                    <span className="text-[9px] text-muted-foreground block font-mono">0% raw base price</span>
+                                  </div>
+                                </label>
+                              </div>
+                              <p className="text-[9.5px] text-muted-foreground">
+                                {downloadQuotationMarkup.withMarkup && downloadQuotationMarkup.withoutMarkup
+                                  ? '⚡ Both selected: 2 separate Quotation PDFs (With & Without Markup) will be generated.'
+                                  : 'Select one or both. If both are selected, 2 separate PDF files will be generated.'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Checklist Option */}
+                      <div className={cn(
+                        "p-3 rounded-[12px] border transition-all",
+                        downloadDocTypes.checklist ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
+                      )}>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={downloadDocTypes.checklist}
+                            onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, checklist: e.target.checked }))}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                              📋 Packing & Dispatch Checklist
+                            </span>
+                            <span className="text-[10.5px] text-muted-foreground block">
+                              1-Page itemized warehouse checklist for solar panels, inverter, and hardware
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* Capital Breakdown Option */}
+                      <div className={cn(
+                        "p-3 rounded-[12px] border transition-all",
+                        downloadDocTypes.capital ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
+                      )}>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={downloadDocTypes.capital}
+                            onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, capital: e.target.checked }))}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                          <div>
+                            <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                              💰 Capital & Expenses Breakdown
+                            </span>
+                            <span className="text-[10.5px] text-muted-foreground block">
+                              Internal BOM cost, labor, transport, miscellaneous expenses, and profit margin
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filename & Presets Section */}
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      2. Base File Name
+                    </label>
+                    <div className="flex items-center rounded-[8px] border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-xs">
+                      <input
+                        type="text"
+                        value={downloadFileName}
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => setDownloadFileName(e.target.value)}
+                        placeholder="Quotation File Name"
+                        className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
+                      />
+                      <span className="bg-muted/70 px-2.5 py-2 text-xs font-mono text-muted-foreground border-l border-border select-none">
+                        {totalFiles > 1 ? '.zip' : '.pdf'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Naming Presets */}
+                  <div className="space-y-1.5 pt-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Quick Naming Presets
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(() => {
+                        const client = invoice.toName ? invoice.toName.trim() : 'Client'
+                        const qNum = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : 'Quotation'
+                        const systemTypeLabel = systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
+                        const p1 = `${client} - ${qNum}`
+                        const p2 = `${qNum}`
+                        const p3 = `${activeKwSetup}kW ${systemTypeLabel} - ${client}`
+                        const p4 = `MG Solar Quotation - ${client}`
+
+                        const presets = [
+                          { label: 'Client - Quote#', val: p1 },
+                          { label: 'Quote# Only', val: p2 },
+                          { label: 'System + Client', val: p3 },
+                          { label: 'MG Solar + Client', val: p4 },
+                        ]
+
+                        return presets.map((p, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setDownloadFileName(p.val.replace(/[\\/:*?"<>|]/g, ''))}
+                            className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary border border-border rounded-[6px] text-foreground transition-all cursor-pointer select-none active:scale-[0.98]"
+                          >
+                            {p.label}
+                          </button>
+                        ))
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Footer Buttons */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+                    <Button
                       type="button"
-                      onClick={() => setDownloadFileName(p.val.replace(/[\\/:*?"<>|]/g, ''))}
-                      className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary border border-border rounded-[6px] text-foreground transition-all cursor-pointer select-none active:scale-[0.98]"
+                      variant="outline"
+                      onClick={() => setDownloadModalOpen(false)}
+                      disabled={isExportingPdf}
+                      className="h-9 px-3.5 rounded-[8px] text-xs font-semibold cursor-pointer"
                     >
-                      {p.label}
-                    </button>
-                  ))
-                })()}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDownloadModalOpen(false)}
-                disabled={isExportingPdf}
-                className="h-9 px-3.5 rounded-[8px] text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isExportingPdf || !downloadFileName.trim()}
-                className="h-9 px-4 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
-              >
-                {isExportingPdf ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Download size={14} />
-                )}
-                {isExportingPdf ? (pdfExportStatus || 'Downloading...') : 'Download PDF'}
-              </Button>
-            </div>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isExportingPdf || !downloadFileName.trim() || totalFiles === 0}
+                      className="h-9 px-4 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      {isExportingPdf ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                      {isExportingPdf
+                        ? (pdfExportStatus || 'Exporting...')
+                        : (totalFiles > 1 ? `Download ZIP Package (${totalFiles} Files)` : 'Download PDF')}
+                    </Button>
+                  </div>
+                </>
+              )
+            })()}
           </form>
         </DialogContent>
       </Dialog>

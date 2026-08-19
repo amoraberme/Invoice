@@ -95,6 +95,19 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
   return { key: 'electrical', label: 'Electrical & Cabling' }
 }
 
+const isChecklistExcludedItem = (description: string): boolean => {
+  const d = (description || '').toLowerCase().trim()
+  return (
+    isLaborItem(description) ||
+    d.includes('delivery fee') ||
+    d.includes('delivery charge') ||
+    d.includes('freight') ||
+    d.includes('shipping') ||
+    d.includes('transport fee') ||
+    d.includes('mobilization')
+  )
+}
+
 interface CategorySlice {
   key: string
   label: string
@@ -110,7 +123,7 @@ interface VirtualChecklistPage {
 
 function paginateChecklist(invoice: Invoice): VirtualChecklistPage[] {
   const checklistItems = invoice.lineItems.filter(item => {
-    if (isLaborItem(item.description)) return false
+    if (isChecklistExcludedItem(item.description)) return false
     if (invoice.excludeBattery && isBatteryItem(item.description)) return false
     return true
   })
@@ -135,7 +148,7 @@ function paginateChecklist(invoice: Invoice): VirtualChecklistPage[] {
     }
   })
 
-  if (checklistItems.length <= 22) {
+  if (checklistItems.length <= 34) {
     return [{
       categories: fullCategories.map(cat => ({ ...cat, isContinued: false })),
       showTop: true,
@@ -143,12 +156,12 @@ function paginateChecklist(invoice: Invoice): VirtualChecklistPage[] {
     }]
   }
 
-  // Multi-page checklist partitioning
+  // Multi-page checklist partitioning for abnormally huge lists
   const pages: VirtualChecklistPage[] = []
   let currentCategories: CategorySlice[] = []
   let currentItemCount = 0
-  const maxItemsFirstPage = 18
-  const maxItemsSubsequentPage = 22
+  const maxItemsFirstPage = 26
+  const maxItemsSubsequentPage = 30
   let isFirst = true
 
   fullCategories.forEach(cat => {
@@ -236,7 +249,7 @@ export function MGChecklistPreview({
 
   // Filter checklist items (exclude labor and excluded battery)
   const checklistItems = invoice.lineItems.filter(item => {
-    if (isLaborItem(item.description)) return false
+    if (isChecklistExcludedItem(item.description)) return false
     if (invoice.excludeBattery && isBatteryItem(item.description)) return false
     return true
   })
@@ -252,10 +265,25 @@ export function MGChecklistPreview({
   const checkedCount = checklistItems.filter(it => checkedItems[it.id]).length
   const sourceLabel = previousTab === 'supply' ? 'Supply Materials List' : 'Full Line Items Proposal'
 
-  // Dynamic row padding & font sizing based on item count to fill 1 page comfortably without empty space
-  const rowPaddingClass = totalCount <= 18 ? "py-2" : totalCount <= 25 ? "py-1.5" : "py-[3px]"
-  const fontSizeClass = totalCount <= 22 ? "text-[10.5px]" : "text-[10px]"
-  const headerFontSizeClass = totalCount <= 22 ? "text-[9px]" : "text-[8.5px]"
+  // Dynamic row padding & font sizing calibrated to maximize full-page A4 coverage
+  const rowPaddingClass = 
+    totalCount <= 14 ? "py-2.5" : 
+    totalCount <= 20 ? "py-2" : 
+    totalCount <= 26 ? "py-1.5" : 
+    totalCount <= 30 ? "py-1" : "py-[2px]"
+
+  const fontSizeClass = 
+    totalCount <= 14 ? "text-[11px]" : 
+    totalCount <= 20 ? "text-[10px]" : 
+    totalCount <= 26 ? "text-[9.5px]" : 
+    totalCount <= 30 ? "text-[9px]" : "text-[8.5px]"
+
+  const headerFontSizeClass = 
+    totalCount <= 20 ? "text-[9.5px]" : 
+    totalCount <= 28 ? "text-[9px]" : "text-[8px]"
+
+  const checkboxBoxSize = totalCount <= 20 ? "w-4 h-4" : "w-3.5 h-3.5"
+  const checkIconSize = totalCount <= 20 ? 10 : 8
 
   return (
     <main
@@ -281,48 +309,48 @@ export function MGChecklistPreview({
             {/* Fixed A4 Paper Canvas */}
             <div
               style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-              className="relative bg-white text-[#111111] rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10)] px-10 py-8 print-page print:!transform-none flex flex-col justify-between font-mono select-none overflow-hidden"
+              className="relative bg-white text-[#111111] rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10)] px-8 py-6 print-page print:!transform-none flex flex-col justify-between font-mono select-none overflow-hidden"
             >
               {/* TOP & CONTENT CONTAINER */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {page.showTop ? (
                   /* HEADER */
-                  <div className="flex justify-between items-start border-b border-[#111111]/20 pb-2.5">
+                  <div className="flex justify-between items-start border-b-2 border-[#111111] pb-2">
                     <div>
-                      <p className="font-extrabold text-[22px] text-[#111111] tracking-tight leading-none uppercase">
+                      <p className="font-extrabold text-[20px] text-[#111111] tracking-tight leading-none uppercase">
                         {invoice.fromName || 'MG SOLAR'}
                       </p>
-                      <div className="text-[10px] text-[#666666] mt-1.5 font-sans leading-tight">
+                      <div className="text-[9.5px] text-[#555555] mt-1 font-sans leading-tight space-y-0.5">
                         {invoice.fromEmail && <div>{invoice.fromEmail}</div>}
                         {invoice.fromPhone && <div>{invoice.fromPhone}</div>}
-                        {invoice.fromAddress && <div className="max-w-[320px] whitespace-pre-line">{invoice.fromAddress}</div>}
+                        {invoice.fromAddress && <div className="max-w-[340px] whitespace-pre-line">{invoice.fromAddress}</div>}
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <img 
                         src="/logo.svg" 
                         alt="MG Solar Logo" 
-                        className="h-11 w-auto object-contain mb-1"
+                        className="h-10 w-auto object-contain mb-1"
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                       />
-                      <p className="text-[9.5px] font-mono text-[#777777]">
+                      <p className="text-[9px] font-mono font-bold text-[#555555]">
                         DOC #: {invoice.invoiceNumber ? (invoice.invoiceNumber.startsWith('MG-') ? invoice.invoiceNumber.replace(/^MG-[A-Z]+-/, 'MG-CL-') : `MG-CL-${invoice.invoiceNumber}`) : 'MG-CL-260715133721'}
                       </p>
                     </div>
                   </div>
                 ) : (
                   /* CONTINUATION HEADER */
-                  <div className="flex justify-between items-center border-b border-[#111111]/20 pb-2.5">
+                  <div className="flex justify-between items-center border-b-2 border-[#111111] pb-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-[14px] text-[#111111] uppercase tracking-wide">
+                      <span className="font-bold text-[13px] text-[#111111] uppercase tracking-wide">
                         {invoice.fromName || 'MG SOLAR'}
                       </span>
-                      <span className="text-[10px] text-[#777777]">
+                      <span className="text-[9.5px] text-[#555555]">
                         • MATERIAL DISPATCH & PACKING LIST (CONTINUED)
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[9.5px] font-bold uppercase bg-[#111111] text-white px-2 py-0.5 rounded-xs font-mono">
+                      <span className="text-[9px] font-bold uppercase bg-[#111111] text-white px-2.5 py-0.5 rounded-xs font-mono">
                         PAGE {pageIdx + 1} OF {totalPages}
                       </span>
                     </div>
@@ -331,15 +359,15 @@ export function MGChecklistPreview({
 
                 {/* SUBJECT / PROJECT & CLIENT META BAR */}
                 {page.showTop && (
-                  <div className="text-[10px] font-mono border-b border-[#E5E5E5] pb-2 flex justify-between items-center flex-wrap gap-1">
+                  <div className="text-[9.5px] font-mono border-b border-[#D4D4D8] pb-1.5 flex justify-between items-center flex-wrap gap-1">
                     <div>
-                      <span className="text-[#777777]">SUBJECT / PROJECT:</span>{' '}
+                      <span className="text-[#666666]">SUBJECT / PROJECT:</span>{' '}
                       <strong className="text-[#111111] uppercase">{invoice.subject ? `Checklist — ${invoice.subject}` : 'Checklist — Solar System Materials Dispatch'}</strong>
                     </div>
-                    <div className="text-right text-[9.5px] font-mono flex items-center gap-3">
-                      <span><span className="text-[#777777]">CLIENT:</span> <strong className="text-[#111111]">{invoice.toName || '—'}</strong></span>
-                      <span><span className="text-[#777777]">DATE:</span> <strong className="text-[#111111]">{formatDate(invoice.issueDate)}</strong></span>
-                      <span><span className="text-[#777777]">STATUS:</span> <strong className="text-[#008B4C]">{checkedCount}/{totalCount} Verified</strong></span>
+                    <div className="text-right text-[9px] font-mono flex items-center gap-3">
+                      <span><span className="text-[#666666]">CLIENT:</span> <strong className="text-[#111111]">{invoice.toName || '—'}</strong></span>
+                      <span><span className="text-[#666666]">DATE:</span> <strong className="text-[#111111]">{formatDate(invoice.issueDate)}</strong></span>
+                      <span><span className="text-[#666666]">STATUS:</span> <strong className="text-[#008B4C]">{checkedCount}/{totalCount} Verified</strong></span>
                     </div>
                   </div>
                 )}
@@ -347,12 +375,12 @@ export function MGChecklistPreview({
                 {/* CHECKLIST TABLE */}
                 <table className={cn("w-full text-left border-collapse font-mono", fontSizeClass)}>
                   <thead>
-                    <tr className={cn("border-b-2 border-[#111111] text-[#555555] uppercase tracking-wider", headerFontSizeClass)}>
+                    <tr className={cn("border-b-2 border-[#111111] text-[#444444] font-bold uppercase tracking-wider", headerFontSizeClass)}>
                       <th className="py-1 px-1.5 w-8 text-center">CHECK</th>
-                      <th className="py-1 px-1.5">MATERIAL DESCRIPTION</th>
+                      <th className="py-1 px-2">MATERIAL DESCRIPTION</th>
                       <th className="py-1 px-1.5 w-14 text-center">UNIT</th>
                       <th className="py-1 px-1.5 w-12 text-center">QTY</th>
-                      <th className="py-1 px-1.5 w-44">VERIFICATION / REMARKS</th>
+                      <th className="py-1 px-2 w-44">VERIFICATION / REMARKS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -377,14 +405,15 @@ export function MGChecklistPreview({
                             >
                               <td className={cn("px-1.5 text-center align-middle", rowPaddingClass)}>
                                 <div className={cn(
-                                  "w-3.5 h-3.5 rounded-[2px] border mx-auto flex items-center justify-center transition-all",
+                                  checkboxBoxSize,
+                                  "rounded-[2px] border mx-auto flex items-center justify-center transition-all",
                                   isChecked ? "bg-[#008B4C] border-[#008B4C] text-white" : "border-[#666666] bg-white"
                                 )}>
-                                  {isChecked && <Check size={9} strokeWidth={4} />}
+                                  {isChecked && <Check size={checkIconSize} strokeWidth={4} />}
                                 </div>
                               </td>
 
-                              <td className={cn("px-1.5 align-middle font-semibold text-[#111111]", rowPaddingClass, isChecked && "line-through text-[#777777]")}>
+                              <td className={cn("px-2 align-middle font-semibold text-[#111111]", rowPaddingClass, isChecked && "line-through text-[#777777]")}>
                                 {item.description || 'Untitled Item'}
                               </td>
 
@@ -396,8 +425,8 @@ export function MGChecklistPreview({
                                 {item.description.toLowerCase().includes('delivery') || item.description.toLowerCase().includes('freight') || item.description.toLowerCase().includes('labor') || item.description.toLowerCase().includes('installation') || item.description.toLowerCase().includes('service') ? '—' : item.quantity}
                               </td>
 
-                              <td className={cn("px-1.5 align-middle", rowPaddingClass)}>
-                                <div className="w-full border-b border-dashed border-[#CCCCCC] h-3" />
+                              <td className={cn("px-2 align-middle", rowPaddingClass)}>
+                                <div className="w-full border-b border-dashed border-[#CCCCCC] h-2.5" />
                               </td>
                             </tr>
                           )
@@ -410,34 +439,34 @@ export function MGChecklistPreview({
 
               {/* BOTTOM SIGNATURE BLOCK / FOOTER */}
               {page.showSignatureBlock && (
-                <div className="pt-3 border-t border-[#111111]/20 space-y-2.5">
-                  <div className="grid grid-cols-3 gap-5 text-[9px] font-mono text-[#333333]">
-                    <div className="space-y-2">
-                      <div>PREPARED / DISPATCHED BY:</div>
-                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                <div className="pt-2 border-t-2 border-[#111111] space-y-2">
+                  <div className="grid grid-cols-3 gap-6 text-[8.5px] font-mono text-[#333333]">
+                    <div className="space-y-1.5">
+                      <div className="font-bold text-[#111111]">PREPARED / DISPATCHED BY:</div>
+                      <div className="border-b border-[#111111] pb-1 font-bold text-[#111111] min-h-[18px]">
                         {invoice.salesName || 'Warehouse Logistics'}
                       </div>
-                      <div className="text-[8px] text-[#777777]">Signature & Date</div>
+                      <div className="text-[7.5px] text-[#777777]">Signature & Date</div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div>INSPECTED / PACKED BY:</div>
-                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                    <div className="space-y-1.5">
+                      <div className="font-bold text-[#111111]">INSPECTED / PACKED BY:</div>
+                      <div className="border-b border-[#111111] pb-1 font-bold text-[#111111] min-h-[18px]">
                         &nbsp;
                       </div>
-                      <div className="text-[8px] text-[#777777]">Quality Inspector</div>
+                      <div className="text-[7.5px] text-[#777777]">Quality Inspector</div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div>VERIFIED ON SITE BY:</div>
-                      <div className="border-b border-[#111111] pb-0.5 font-bold text-[#111111] min-h-[18px]">
+                    <div className="space-y-1.5">
+                      <div className="font-bold text-[#111111]">VERIFIED ON SITE BY:</div>
+                      <div className="border-b border-[#111111] pb-1 font-bold text-[#111111] min-h-[18px]">
                         &nbsp;
                       </div>
-                      <div className="text-[8px] text-[#777777]">Installer</div>
+                      <div className="text-[7.5px] text-[#777777]">Installer / Receiver</div>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center text-[8px] text-[#888888] font-sans">
+                  <div className="flex justify-between items-center text-[8px] text-[#888888] font-sans pt-0.5">
                     <span>MG SOLAR Material Dispatch Verification Form — Official Document</span>
                     <span>Page {pageIdx + 1} of {totalPages}</span>
                   </div>
