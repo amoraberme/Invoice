@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect } from '@/lib/pdf-export'
@@ -96,12 +96,19 @@ function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable
 }
 
 function getInverterKwFromLineItems(lineItems: LineItem[]): number {
-  const inverterItem = lineItems.find(it => it.description.toLowerCase().includes('inverter'))
+  const inverterItem = lineItems.find(it => {
+    const d = it.description.toLowerCase()
+    return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow')
+  })
   if (inverterItem) {
     const match = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kW/i)
     if (match) {
       return parseFloat(match[1])
     }
+  }
+  const { totalWatts } = extractPanelInfoFromLineItems(lineItems)
+  if (totalWatts > 0) {
+    return Math.round(totalWatts / 1000)
   }
   return 5
 }
@@ -1834,8 +1841,8 @@ export default function Home() {
       if (totalWatts > 0) detectedKw = Math.round(totalWatts / 1000)
     }
 
-    setSystemType(detectedType)
-    setActiveKwSetup(detectedKw)
+    setSystemType((prev) => (prev !== detectedType ? detectedType : prev))
+    setActiveKwSetup((prev) => (prev !== detectedKw ? detectedKw : prev))
 
     if (isOngrid) {
       const subjectHasHybrid = /hybrid/i.test(invoice.subject || '')
@@ -1876,7 +1883,7 @@ export default function Home() {
         })
       }
     }
-  }, [loaded])
+  }, [loaded, invoice.lineItems, invoice.excludeBattery])
 
   useEffect(() => {
     if (!loaded) return
@@ -2095,7 +2102,8 @@ export default function Home() {
     }
   }
 
-  const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance') => {
+  const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance', explicitSystemType?: 'hybrid' | 'ongrid') => {
+    const effSystemType = explicitSystemType || systemType
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
     if (preset === 'min') {
@@ -2123,14 +2131,14 @@ export default function Home() {
     let inverterDesc = ''
     let inverterPrice = 0
 
-    if (systemType === 'ongrid') {
+    if (effSystemType === 'ongrid') {
       const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
       if (defaultBrand) {
         inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW On-Grid`
         inverterPrice = defaultBrand.getPrice(inverterKw)!
       } else {
         const brandPrices = getInverterBrandPrices(inverterKw)
-        inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
+        inverterDesc = `Solis Inverter ${inverterKw}kW On-Grid`
         inverterPrice = brandPrices.solis
       }
     } else {
@@ -2158,7 +2166,7 @@ export default function Home() {
     })
 
     // 3. Battery (included for Hybrid setup)
-    if (systemType === 'hybrid') {
+    if (effSystemType === 'hybrid') {
       const isSmallSetup = systemKw <= 6
       const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `Genix Battery 51.2V 314Ah`
       const batteryRate = isSmallSetup ? 65000.00 : 85000.00
@@ -2361,14 +2369,16 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 16. DC MCCB for battery (Price = ₱2000 | QTY = 1 per battery)
-    items.push({
-      id: `boq-16-${now}`,
-      description: `DC MCCB for battery`,
-      quantity: batteryQty,
-      rate: 2000.00,
-      unit: 'PC'
-    })
+    // 16. DC MCCB for battery (included only for Hybrid setup)
+    if (effSystemType !== 'ongrid') {
+      items.push({
+        id: `boq-16-${now}`,
+        description: `DC MCCB for battery`,
+        quantity: batteryQty,
+        rate: 2000.00,
+        unit: 'PC'
+      })
+    }
 
     // 17. Cable Tray 2m (Price = ₱560)
     items.push({
@@ -2379,8 +2389,8 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 18. Automatic transfer switch 125A (Price = ₱4000)
-    if (systemType !== 'ongrid') {
+    // 18. Automatic transfer switch 125A (included only for Hybrid setup)
+    if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-18-${now}`,
         description: `Automatic transfer switch 125A`,
@@ -2415,15 +2425,17 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 22. Battery Cable (Black & Red) 50mm (Price = ₱700)
-    const cableLength = batteryQty * 2
-    items.push({
-      id: `boq-22-${now}`,
-      description: `Battery Cable (Black & Red) 50mm`,
-      quantity: cableLength,
-      rate: 700.00,
-      unit: 'M'
-    })
+    // 22. Battery Cable (included only for Hybrid setup)
+    if (effSystemType !== 'ongrid') {
+      const cableLength = batteryQty * 2
+      items.push({
+        id: `boq-22-${now}`,
+        description: `Battery Cable (Black & Red) 50mm`,
+        quantity: cableLength,
+        rate: 700.00,
+        unit: 'M'
+      })
+    }
 
     // Grounding Lugs (Hardcode QTY = 5)
     items.push({
@@ -2480,14 +2492,20 @@ export default function Home() {
     const currentDateStr = `${yyyy}-${mm}-${dd}`
     const dueStr = addDays(currentDateStr, 15)
 
-    const systemTypeLabel = systemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
-    const systemTypeSubject = systemType === 'ongrid' 
+    const systemTypeLabel = effSystemType === 'ongrid' ? 'On-Grid' : 'Hybrid'
+    const systemTypeSubject = effSystemType === 'ongrid' 
       ? `${systemKw}kW On-Grid Solar System`
       : `${systemKw}kW Hybrid System with Battery`
     const newSalutation = `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${systemKw}kW ${systemTypeLabel} Solar System based on your requirement.`
 
+    setActiveKwSetup(systemKw)
+    if (explicitSystemType) {
+      setSystemType(explicitSystemType)
+    }
+
     setInvoice((prev) => ({
       ...prev,
+      excludeBattery: effSystemType === 'ongrid',
       lineItems: items,
       subject: systemTypeSubject,
       salutation: newSalutation,
@@ -3352,8 +3370,155 @@ export default function Home() {
             )}
 
             {activeTab === 'items' && (
-              <section className="space-y-3">
-                <SectionHeader>Line Items</SectionHeader>
+              <section className="space-y-4">
+                {/* Solar BOQ System Sizing & kW Setup */}
+                <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Zap size={14} className="text-primary" />
+                      <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Solar BOQ Sizing Setup
+                      </h4>
+                    </div>
+                    <div className="flex gap-1 bg-secondary p-0.5 rounded-[8px] border border-border">
+                      <button
+                        type="button"
+                        onClick={() => handleSystemTypeChange('hybrid')}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
+                          systemType === 'hybrid'
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        ⚡ Hybrid
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)}
+                        onClick={() => handleSystemTypeChange('ongrid')}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all select-none",
+                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+                            ? "opacity-40 cursor-not-allowed pointer-events-none text-muted-foreground"
+                            : systemType === 'ongrid'
+                              ? "bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                              : "text-muted-foreground hover:text-foreground cursor-pointer"
+                        )}
+                        title={
+                          !ON_GRID_BRANDS.some(b => b.getPrice(activeKwSetup) !== null)
+                            ? `On-Grid is not available for ${activeKwSetup}kW setup`
+                            : undefined
+                        }
+                      >
+                        🌐 On-Grid
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* kW Setup Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
+                      const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
+                      const isDisabled = systemType === 'ongrid' && !hasOnGridOption
+
+                      const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
+                      let calculatedPanelQty = maxPanels
+                      if (activePreset === 'min') {
+                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.5))
+                      } else if (activePreset === 'balance') {
+                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
+                      }
+                      
+                      const calculatedRows = calculatedPanelQty <= 0 ? 0 : Math.ceil(calculatedPanelQty / 2)
+                      const totalWatts = calculatedPanelQty * PANEL_WATTAGE
+                      const pricePerWatt = invoice.laborPricePerWatt ?? 6
+                      const laborCost = Math.round(totalWatts * pricePerWatt)
+                      
+                      const panelDesc = `${calculatedPanelQty} Panels (${calculatedRows} Row${calculatedRows > 1 ? 's' : ''})`
+                      const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
+
+                      const isSelected = activeKwSetup === kw
+                      const panelDescColor = isSelected ? "text-primary-foreground/75" : "text-muted-foreground"
+                      const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
+
+                      return (
+                        <button
+                          key={kw}
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (isDisabled) return
+                            setActiveKwSetup(kw)
+                            handleGenerateBoq(kw, activePreset)
+                          }}
+                          title={isDisabled ? `Not available in On-Grid database` : `${kw}kW Setup`}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center",
+                            isDisabled
+                              ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
+                              : isSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          )}
+                        >
+                          <span className="font-bold text-xs">{kw}kW Setup</span>
+                          <span className={cn("text-[8px] mt-0.5 font-mono font-normal", panelDescColor)}>{panelDesc}</span>
+                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Presets */}
+                  <div className="flex gap-2 w-full pt-0.5">
+                    <Button
+                      type="button"
+                      variant={activePreset === 'min' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleApplyPreset('min')}
+                      className={cn(
+                        "text-[10px] font-bold py-1 px-2 rounded-[8px] transition-all h-7 flex-1 border border-border cursor-pointer",
+                        activePreset === 'min'
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                          : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                      )}
+                    >
+                      Min Panels
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={activePreset === 'balance' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleApplyPreset('balance')}
+                      className={cn(
+                        "text-[10px] font-bold py-1 px-2 rounded-[8px] transition-all h-7 flex-1 border border-border cursor-pointer",
+                        activePreset === 'balance'
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                          : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                      )}
+                    >
+                      Balance Setup
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={activePreset === 'max' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleApplyPreset('max')}
+                      className={cn(
+                        "text-[10px] font-bold py-1 px-2 rounded-[8px] transition-all h-7 flex-1 border border-border cursor-pointer",
+                        activePreset === 'max'
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                          : "bg-transparent text-foreground hover:bg-secondary shadow-none"
+                      )}
+                    >
+                      Max Panels
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <SectionHeader>Line Items</SectionHeader>
+                </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
