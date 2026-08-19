@@ -186,15 +186,71 @@
   }
 }
 
+/* Root-level page geometry to enforce zero browser margin and remove headers/footers (URLs, timestamps) across iOS Safari, WebKit, and Chrome */
+@page {
+  size: A4 portrait;
+  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@page :left {
+  margin: 0;
+}
+
+@page :right {
+  margin: 0;
+}
+
+@page :first {
+  margin: 0;
+}
+
 @media print {
   @page {
     size: A4 portrait;
     margin: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
   }
+
+  @page :left {
+    margin: 0;
+  }
+
+  @page :right {
+    margin: 0;
+  }
+
+  @page :first {
+    margin: 0;
+  }
+
+  /* Suppress automatic link URLs and browser footer text */
+  a,
+  a:visited,
+  a:link {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  a[href]:after,
+  a:after,
+  a::after {
+    content: none !important;
+    display: none !important;
+  }
+
   html, body {
     background: white !important;
+    background-color: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -204,12 +260,14 @@
   *, *::before, *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
   .print-wrapper {
     width: 210mm !important;
     height: 297mm !important;
     max-height: 297mm !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     box-sizing: border-box !important;
     display: block !important;
@@ -220,12 +278,13 @@
     width: 210mm !important;
     height: 297mm !important;
     max-height: 297mm !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 14mm !important;
     box-sizing: border-box !important;
     position: relative !important;
     overflow: hidden !important;
     background: white !important;
+    background-color: white !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
