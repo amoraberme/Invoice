@@ -1,12 +1,12 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, newWarrantyItem, defaultWarranties, defaultInvoice } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1829,6 +1829,35 @@ export default function Home() {
         lineItems: updatedItems
       }
     })
+  }
+
+  const getSafeScopes = (): ScopeOfWorkItem[] => {
+    if (Array.isArray(invoice.scopes) && invoice.scopes.length > 0) {
+      return invoice.scopes
+    }
+    return generateDefaultScopesFromInvoice(invoice)
+  }
+
+  const updateScope = (id: string, field: keyof ScopeOfWorkItem, value: any) => {
+    const list = getSafeScopes()
+    const updated = list.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    update('scopes', updated)
+  }
+
+  const handleAddScope = () => {
+    const list = getSafeScopes()
+    const nextLetter = String.fromCharCode(65 + (list.length % 26))
+    const newItem = newScopeItem(nextLetter, '', '', '')
+    update('scopes', [...list, newItem])
+  }
+
+  const handleRemoveScope = (id: string) => {
+    const list = getSafeScopes()
+    update('scopes', list.filter((s) => s.id !== id))
+  }
+
+  const handleResetScopes = () => {
+    update('scopes', generateDefaultScopesFromInvoice(invoice))
   }
 
   const getSafeWarranties = () => (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
@@ -4435,6 +4464,90 @@ export default function Home() {
                     <Plus size={13} />
                     Add item
                   </Button>
+
+                  {/* Scope of Equipment & Works Editor */}
+                  <div className="mt-8 pt-5 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Layers size={16} className="text-primary" />
+                        <SectionHeader>Scope of Equipment & Works</SectionHeader>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetScopes}
+                        className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                        title="Sync & reset to auto-generated scope from line items"
+                      >
+                        Sync from Items
+                      </Button>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      Customize the structured equipment specifications, mounting materials, electrical protection, and engineering scope shown in the proposal.
+                    </p>
+
+                    <div className="space-y-3">
+                      {getSafeScopes().map((s, idx) => (
+                        <div
+                          key={s.id || idx}
+                          className="p-3 rounded-[10px] bg-secondary/30 border border-border hover:border-primary/40 transition-all space-y-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Input
+                              className="w-10 text-center font-bold text-xs h-8 bg-background uppercase shrink-0"
+                              value={s.letter || String.fromCharCode(65 + idx)}
+                              onChange={(e) => updateScope(s.id, 'letter', e.target.value)}
+                              placeholder="A"
+                            />
+                            <Input
+                              className="flex-1 text-xs h-8 font-bold bg-background"
+                              value={s.title}
+                              onChange={(e) => updateScope(s.id, 'title', e.target.value)}
+                              placeholder="Category Title (e.g. Solar Panels, Solar Inverter...)"
+                            />
+                            <Input
+                              className="flex-1 text-xs h-8 font-medium text-foreground bg-background"
+                              value={s.subtitle || ''}
+                              onChange={(e) => updateScope(s.id, 'subtitle', e.target.value)}
+                              placeholder="Item / Spec (e.g. 5x Tongwei 620W N-Type PV Modules)"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => handleRemoveScope(s.id)}
+                              className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer h-7 w-7"
+                              title="Remove scope item"
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </div>
+
+                          <div>
+                            <textarea
+                              className="w-full text-[11px] p-2 rounded-[6px] border border-border bg-background text-foreground leading-relaxed resize-y min-h-[44px] focus:outline-hidden focus:ring-1 focus:ring-primary font-sans"
+                              value={s.description || ''}
+                              onChange={(e) => updateScope(s.id, 'description', e.target.value)}
+                              placeholder="Detailed scope description / specifications..."
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddScope}
+                      className="w-full h-8 border-dashed border-border text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-foreground mt-1 cursor-pointer"
+                    >
+                      <Plus size={13} />
+                      Add Scope Item
+                    </Button>
+                  </div>
 
                   {/* Warranty Coverage Editor */}
                   <div className="mt-8 pt-5 border-t border-border space-y-3">

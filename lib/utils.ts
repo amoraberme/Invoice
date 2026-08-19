@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { type Invoice, type LineItem } from './types'
+import { type Invoice, type LineItem, type ScopeOfWorkItem } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -591,6 +591,121 @@ export function calculateTotal(invoice: Invoice): number {
   const vat = netSubtotal * ((invoice.vatRate || 0) / 100)
   return netSubtotal + vat
 }
+
+export function generateDefaultScopesFromInvoice(invoice: Partial<Invoice>): ScopeOfWorkItem[] {
+  const items = invoice.lineItems || []
+  const withBrand = invoice.withBrandName !== false
+
+  const cleanDescWithoutQty = (text: string) => {
+    if (!text) return ''
+    const formatted = formatItemDescription(text, withBrand)
+    return formatted.replace(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/, '').trim()
+  }
+
+  // A. Solar Panels
+  const panelItem = items.find(it => {
+    const d = (it.description || '').toLowerCase()
+    return d.includes('panel') || d.includes('module') || d.includes('ja solar') || d.includes('tongwei') || d.includes('pv module')
+  })
+  const panelQty = panelItem?.quantity || extractPanelInfoFromLineItems(items).panelQty || 0
+  const panelWattMatch = (panelItem?.description || '').match(/(\d+)\s*w/i) || (panelItem?.description || '').match(/(\d+)/)
+  const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '620W'
+  const panelDimensions = getPanelDimensions(panelItem?.description || '')
+  let panelBrand = withBrand ? (panelItem?.description?.split(' ')?.[0] || 'Tier-1') : 'Tier-1'
+  if (panelItem?.description?.toLowerCase().includes('ja solar')) panelBrand = withBrand ? 'JA Solar' : 'Tier-1'
+  else if (panelItem?.description?.toLowerCase().includes('tongwei')) panelBrand = withBrand ? 'Tongwei' : 'Tier-1'
+
+  const rawPanelDesc = panelItem ? cleanDescWithoutQty(panelItem.description) : `${panelBrand} ${panelWatts} N-Type TOPCon Monocrystalline PV Modules`
+  const panelSubtitle = panelQty > 0
+    ? (panelDimensions && !rawPanelDesc.includes(panelDimensions) ? `${panelQty}x ${rawPanelDesc} (${panelDimensions})` : `${panelQty}x ${rawPanelDesc}`)
+    : (panelDimensions && !rawPanelDesc.includes(panelDimensions) ? `${rawPanelDesc} (${panelDimensions})` : rawPanelDesc)
+
+  // B. Solar Inverter
+  const inverterItem = items.find(it => {
+    const d = (it.description || '').toLowerCase()
+    return d.includes('inverter') || d.includes('anern') || d.includes('solis') || d.includes('goodwe') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow') || d.includes('victron')
+  })
+  const inverterSubtitle = inverterItem
+    ? cleanDescWithoutQty(inverterItem.description)
+    : 'High-Efficiency Smart Solar Inverter'
+
+  // C. Battery
+  const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
+  const hasBattery = !invoice.excludeBattery && !!batteryItem
+  const batterySubtitle = hasBattery && batteryItem
+    ? cleanDescWithoutQty(batteryItem.description)
+    : 'N/A - Grid-Tied System'
+
+  // D. Materials
+  const materialItems = items.filter(it => {
+    const d = (it.description || '').toLowerCase()
+    return d.includes('rail') || d.includes('clamp') || d.includes('l foot') || d.includes('l-foot') || d.includes('mounting') || d.includes('hardware') || d.includes('sealant') || d.includes('bracket')
+  })
+  const materialsList = materialItems.length > 0
+    ? materialItems.map(it => cleanDescWithoutQty(it.description)).filter(Boolean).join(', ')
+    : 'Anodized Aluminum Mounting Rails, Mid & End Clamps, Stainless L-Feet / Tile Brackets, Heavy-Duty Grounding Lugs, PU Weatherproof Sealants, and SUS304 Stainless Hardware'
+
+  // E. Electrical
+  const electricalItems = items.filter(it => {
+    const d = (it.description || '').toLowerCase()
+    return d.includes('wire') || d.includes('cable') || d.includes('breaker') || d.includes('mcb') || d.includes('spd') || d.includes('mccb') || d.includes('flexcon') || d.includes('conduit') || d.includes('ats') || d.includes('switch') || d.includes('box') || d.includes('combiner')
+  })
+  const electricalList = electricalItems.length > 0
+    ? electricalItems.map(it => cleanDescWithoutQty(it.description)).filter(Boolean).join(', ')
+    : 'DC & AC Miniature Circuit Breakers (MCB), Molded Case Circuit Breaker (MCCB), Type II Surge Protective Devices (SPD), DC Solar PV Cables (4mm²/6mm²), THHN/THWN AC Wiring, Flexible Corrugated Conduits, Heavy-Duty ATS Switch, and Weatherproof IP65 Distribution Enclosures'
+
+  return [
+    {
+      id: 'scope-a',
+      letter: 'A',
+      title: 'Solar Panels',
+      subtitle: panelSubtitle,
+      description: 'Tier-1 N-Type TOPCon High-Efficiency Monocrystalline PV Modules • High PID resistance & superior low-light performance',
+      enabled: true
+    },
+    {
+      id: 'scope-b',
+      letter: 'B',
+      title: 'Solar Inverter',
+      subtitle: inverterSubtitle,
+      description: 'Dual MPPT tracking, IP65 casing, smart cloud Wi-Fi monitoring, integrated DC disconnect & surge protection',
+      enabled: true
+    },
+    {
+      id: 'scope-c',
+      letter: 'C',
+      title: 'Energy Storage / Battery',
+      subtitle: batterySubtitle,
+      description: hasBattery ? 'High-safety LiFePO4 deep-cycle storage system with Smart BMS & multi-tier cell protection' : 'N/A - Grid-Tied System',
+      enabled: true
+    },
+    {
+      id: 'scope-d',
+      letter: 'D',
+      title: 'Mounting & Structural Materials',
+      subtitle: '',
+      description: materialsList,
+      enabled: true
+    },
+    {
+      id: 'scope-e',
+      letter: 'E',
+      title: 'Balance of System & Electrical Protection',
+      subtitle: '',
+      description: electricalList,
+      enabled: true
+    },
+    {
+      id: 'scope-f',
+      letter: 'F',
+      title: 'Professional Engineering & Installation Services',
+      subtitle: '',
+      description: 'Complete engineering design, mobilization, structural mounting, electrical cabling, commissioning, logistics & handover orientation.',
+      enabled: true
+    }
+  ]
+}
+
 
 
 

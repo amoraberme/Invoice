@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem, defaultWarranties } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -515,110 +515,41 @@ export function MGInvoicePreview({
                           </span>
                         </div>
 
-                        <div className="space-y-1.5 text-[10.5px] text-[#222222]">
-                          {/* A. Solar Panels */}
-                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>A</span>
-                              <div className="flex-1">
-                                <div className="font-bold text-[#111111] text-[11px]">
-                                  Solar Panels: <span className="font-semibold text-[#333333]">{scopeData.panelQty > 0 ? `${scopeData.panelQty}x ${scopeData.panelTitle}` : scopeData.panelTitle}</span>
-                                </div>
-                                <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
-                                  Tier-1 N-Type TOPCon High-Efficiency Monocrystalline PV Modules • High PID resistance & superior low-light performance
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                        {(() => {
+                          const activeScopes = (invoice.scopes && invoice.scopes.length > 0)
+                            ? invoice.scopes.filter(s => s.enabled !== false)
+                            : generateDefaultScopesFromInvoice(invoice)
 
-                          {/* B. Solar Inverter */}
-                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>B</span>
-                              <div className="flex-1">
-                                <div className="font-bold text-[#111111] text-[11px]">
-                                  Solar Inverter: <span className="font-semibold text-[#333333]">{scopeData.inverterTitle}</span>
-                                </div>
-                                <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
-                                  Dual MPPT tracking, IP65 casing, smart cloud Wi-Fi monitoring, integrated DC disconnect & surge protection
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* C. Energy Storage / Battery */}
-                          {scopeData.hasBattery ? (
-                            <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>C</span>
-                                <div className="flex-1">
-                                  <div className="font-bold text-[#111111] text-[11px]">
-                                    Energy Storage / Battery: <span className="font-semibold text-[#333333]">{scopeData.batteryTitle}</span>
-                                  </div>
-                                  <div className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
-                                    High-safety LiFePO4 deep-cycle storage system with Smart BMS & multi-tier cell protection
+                          return (
+                            <div className="space-y-1.5 text-[10.5px] text-[#222222]">
+                              {activeScopes.map((scopeItem, idx) => (
+                                <div key={scopeItem.id || idx} className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                                  <div className="flex items-start gap-2">
+                                    <span 
+                                      className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs mt-0.5" 
+                                      style={{ color: '#ffffff', backgroundColor: '#111111' }}
+                                    >
+                                      {scopeItem.letter || String.fromCharCode(65 + idx)}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-[#111111] text-[11px] leading-snug">
+                                        {scopeItem.title}
+                                        {scopeItem.subtitle ? (
+                                          <>: <span className="font-semibold text-[#333333]">{scopeItem.subtitle}</span></>
+                                        ) : null}
+                                      </div>
+                                      {scopeItem.description && (
+                                        <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5 whitespace-pre-line">
+                                          {scopeItem.description}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
+                              ))}
                             </div>
-                          ) : (
-                            <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA]/70 border border-[#EBEBEB]">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#888888] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none" style={{ color: '#ffffff', backgroundColor: '#888888' }}>C</span>
-                                <div className="flex-1">
-                                  <div className="font-bold text-[#666666] text-[11px]">
-                                    Energy Storage / Battery: <span className="font-normal text-[#888888]">N/A - Grid-Tied System</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* D. Mounting & Structural Materials */}
-                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>D</span>
-                              <div className="flex-1">
-                                <div className="font-bold text-[#111111] text-[11px]">
-                                  Mounting & Structural Materials:
-                                </div>
-                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
-                                  {scopeData.materialsList}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* E. Balance of System & Electrical */}
-                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>E</span>
-                              <div className="flex-1">
-                                <div className="font-bold text-[#111111] text-[11px]">
-                                  Balance of System & Electrical Protection:
-                                </div>
-                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
-                                  {scopeData.electricalList}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* F. Professional Services */}
-                          <div className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs" style={{ color: '#ffffff', backgroundColor: '#111111' }}>F</span>
-                              <div className="flex-1">
-                                <div className="font-bold text-[#111111] text-[11px]">
-                                  Professional Engineering & Installation Services:
-                                </div>
-                                <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5">
-                                  Complete engineering design, mobilization, structural mounting, electrical cabling, commissioning, logistics & handover orientation.
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          )
+                        })()}
                       </div>
                     )}
 

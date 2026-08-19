@@ -23,6 +23,15 @@ export interface WarrantyItem {
   coverage: string
 }
 
+export interface ScopeOfWorkItem {
+  id: string
+  letter: string
+  title: string
+  subtitle?: string
+  description: string
+  enabled?: boolean
+}
+
 export interface Invoice {
   fromName: string
   fromEmail: string
@@ -45,6 +54,7 @@ export interface Invoice {
   discountAmount?: number
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
+  scopes?: ScopeOfWorkItem[]
   warranties?: WarrantyItem[]
   lalamoveCost: number
   additionalExpenses: ExpenseItem[]
@@ -105,6 +115,11 @@ export function newExpenseItem(description = '', amount = 0, category: ExpenseIt
 export function newWarrantyItem(component = '', warrantyType = 'Manufacturer Warranty', coverage = ''): WarrantyItem {
   const id = `warr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   return { id, component, warrantyType, coverage }
+}
+
+export function newScopeItem(letter = 'A', title = '', subtitle = '', description = ''): ScopeOfWorkItem {
+  const id = `scope-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  return { id, letter, title, subtitle, description, enabled: true }
 }
 
 export const defaultWarranties: WarrantyItem[] = [

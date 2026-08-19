@@ -154,6 +154,18 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   // ── SET DATE: AUGUST 19, 2026 (Dev) ──
   {
+    id: 'cl-dev-scope-editor-aug19_v1',
+    timestamp: 'Aug 19, 2026, 03:30 PM',
+    itemDescription: 'Editable Scope of Equipment & Works Section',
+    changeType: 'system',
+    fieldChanged: 'Scope of Equipment & Works Editor & Proposal Preview',
+    oldValue: 'Static auto-generated scope text',
+    newValue: 'Fully editable scope items (letters, titles, equipment models, and descriptions) placed before Warranty Coverage with "Sync from Items" capability',
+    unit: 'UI',
+    note: '[Dev] Added a dedicated Scope of Equipment & Works interactive editor in the Items tab before Warranty Coverage, enabling users to customize equipment models, descriptions, letters, or sync from line items',
+    batch: 'August 19, 2026 System, Export & UI Updates (Dev)'
+  },
+  {
     id: 'cl-dev-zip-export-aug19_v1',
     timestamp: 'Aug 19, 2026, 02:50 PM',
     itemDescription: 'Multi-Document ZIP Export & Dual Rate Markup Options',
@@ -845,7 +857,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-zip-export-aug19_v1')
+        const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-scope-editor-aug19_v1')
         const hasAug18LatestDevSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-remove-ocr-aug18_v1')
         const hasOldMsGAug18 = parsed.some((i: ChangelogItem) => 
           i.id === 'cl-msg-salutation-sync-aug18_v2' || 
