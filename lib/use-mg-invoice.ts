@@ -183,6 +183,9 @@ export function useMGInvoice() {
     if (Object.keys(overrides).length > 0) {
       setTimeout(() => {
         setInvoice((prev) => ({ ...prev, ...overrides }))
+        if (typeof window !== 'undefined' && window.location.search) {
+          window.history.replaceState(null, '', window.location.pathname)
+        }
       }, 0)
     }
   }, [loaded])
@@ -191,31 +194,6 @@ export function useMGInvoice() {
     if (!loaded) return
     const timer = setTimeout(() => saveInvoice(invoice), 400)
     return () => clearTimeout(timer)
-  }, [invoice, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
-    // Start from current params so non-invoice params (e.g. print=true) are preserved
-    const params = new URLSearchParams(window.location.search)
-    for (const key of Object.keys(defaultInvoice) as (keyof Invoice)[]) {
-      if (key === 'lineItems' || key === 'additionalExpenses') continue
-      const value = invoice[key]
-      const def = defaultInvoice[key]
-      if (
-        value !== def && 
-        value !== '' && 
-        value !== 0 && 
-        value !== undefined && 
-        value !== null && 
-        String(value) !== 'undefined'
-      ) {
-        params.set(key, String(value))
-      } else {
-        params.delete(key)
-      }
-    }
-    const qs = params.size ? `?${params.toString()}` : window.location.pathname
-    history.replaceState(null, '', qs)
   }, [invoice, loaded])
 
   const update = useCallback(<K extends keyof Invoice>(field: K, value: Invoice[K]) => {

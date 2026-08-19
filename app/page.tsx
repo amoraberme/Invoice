@@ -2525,6 +2525,11 @@ export default function Home() {
       setActiveView('preview')
     }
 
+    // Ensure URL has no trailing query parameters in browser address bar before printing
+    if (typeof window !== 'undefined' && window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+
     setTimeout(() => {
       try {
         if (typeof window !== 'undefined' && typeof window.print === 'function') {
