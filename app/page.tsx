@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2 } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect } from '@/lib/pdf-export'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, defaultInvoice } from '@/lib/types'
@@ -1785,6 +1785,47 @@ export default function Home() {
     })
   }
 
+  const handleToggleCustomMode = (enable?: boolean) => {
+    const nextIsCustom = enable !== undefined ? enable : !invoice.isCustom
+    if (nextIsCustom) {
+      const condensed = getCondensedLineItems(invoice)
+      let customItems: LineItem[] = []
+      if (condensed && condensed.length > 0 && !invoice.isCustom) {
+        customItems = condensed.map((item, idx) => ({
+          id: `custom-item-${idx + 1}-${Date.now()}`,
+          description: item.description,
+          quantity: 1,
+          rate: Math.round(item.quantity * item.rate),
+          unit: item.unit || 'LOT',
+        }))
+      } else if (invoice.lineItems && invoice.lineItems.length > 0 && invoice.isCustom) {
+        customItems = invoice.lineItems
+      } else {
+        customItems = [
+          { id: `custom-panel-${Date.now()}`, description: 'Solar Panels', quantity: 1, rate: 0, unit: 'PCS' },
+          { id: `custom-inverter-${Date.now()}`, description: 'Inverter', quantity: 1, rate: 0, unit: 'PC' },
+          { id: `custom-battery-${Date.now()}`, description: 'Battery', quantity: 1, rate: 0, unit: 'PC' },
+          { id: `custom-materials-${Date.now()}`, description: 'Materials', quantity: 1, rate: 0, unit: 'LOT' },
+          { id: `custom-electrical-${Date.now()}`, description: 'Electrical', quantity: 1, rate: 0, unit: 'LOT' },
+          { id: `custom-services-${Date.now()}`, description: 'Services', quantity: 1, rate: 0, unit: '' },
+          { id: `custom-delivery-${Date.now()}`, description: 'Delivery Fees', quantity: 1, rate: 0, unit: '' },
+        ]
+      }
+      setInvoice(prev => ({
+        ...prev,
+        isCustom: true,
+        isCondensed: true,
+        lineItems: customItems,
+      }))
+    } else {
+      setInvoice(prev => ({
+        ...prev,
+        isCustom: false,
+      }))
+      handleGenerateBoq(activeKwSetup, activePreset)
+    }
+  }
+
   // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
   useEffect(() => {
     if (!loaded) return
@@ -2790,8 +2831,37 @@ export default function Home() {
                       >
                         🌐 On-Grid
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCustomMode(!invoice.isCustom)}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-bold rounded-[8px] transition-all cursor-pointer select-none",
+                          invoice.isCustom
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        title="Custom Mode: User-defined descriptions and rates are strictly preserved in both comprehensive and condensed views."
+                      >
+                        🛠️ Custom
+                      </button>
                     </div>
                   </div>
+
+                  {invoice.isCustom && (
+                    <div className="mb-3 p-2.5 bg-primary/10 border border-primary/30 rounded-[10px] flex items-center justify-between text-[11px] text-foreground font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span>🛠️</span>
+                        <span><strong>Custom Mode Active:</strong> Custom item descriptions and values are strictly respected in both Comprehensive & Condensed views.</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCustomMode(false)}
+                        className="text-[10px] text-primary underline ml-2 shrink-0 cursor-pointer font-bold"
+                      >
+                        Standard
+                      </button>
+                    </div>
+                  )}
 
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
@@ -3354,20 +3424,220 @@ export default function Home() {
 
             {activeTab === 'items' && (
               <section className="space-y-3">
-                <SectionHeader>Line Items</SectionHeader>
+                {invoice.isCustom ? (
+                  /* CUSTOM LINE ITEMS (LUMP-SUM TOTALS FOR DELIVERY, SERVICES, ELECTRICAL, MATERIALS, INVERTER, PANEL) */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <SectionHeader>Custom Line Items</SectionHeader>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Directly edit descriptions and final totals for each category. No Qty or Rate calculations required.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-[6px] border border-primary/30">
+                          🛠️ Custom Active
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleCustomMode(false)}
+                          className="h-7 text-[10px] font-bold px-2.5 cursor-pointer"
+                        >
+                          Reset to Standard
+                        </Button>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
-                    <Input
-                      type="number"
-                      min="-100"
-                      max="1000"
-                      value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? 30)}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                      placeholder="30"
-                    />
-                  </Field>
+                    {/* Quick Category Add Presets */}
+                    <div className="p-2.5 bg-card border border-border rounded-[12px] space-y-1.5">
+                      <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase block">
+                        Quick Add Category:
+                      </span>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+                        {[
+                          { name: 'Solar Panels', unit: 'PCS' },
+                          { name: 'Inverter', unit: 'PC' },
+                          { name: 'Battery', unit: 'PC' },
+                          { name: 'Materials', unit: 'LOT' },
+                          { name: 'Electrical', unit: 'LOT' },
+                          { name: 'Services', unit: '' },
+                          { name: 'Delivery Fees', unit: '' },
+                        ].map((cat) => (
+                          <button
+                            key={cat.name}
+                            type="button"
+                            onClick={() => {
+                              const newItem: LineItem = {
+                                id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                                description: cat.name,
+                                quantity: 1,
+                                rate: 0,
+                                unit: cat.unit,
+                              }
+                              update('lineItems', [...(invoice.lineItems || []), newItem])
+                            }}
+                            className="text-[10px] font-bold bg-secondary hover:bg-secondary/80 text-foreground px-2.5 py-1 rounded-[8px] border border-border cursor-pointer transition-all hover:scale-105 active:scale-95"
+                          >
+                            + {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Items List */}
+                    <div className="space-y-2 pt-1">
+                      {/* Column Header: No QTY, Rate - just Description and Final Total */}
+                      <div className="flex gap-2 px-2 items-center">
+                        <span className="flex-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Category / Description
+                        </span>
+                        <span className="w-36 text-[11px] font-bold text-muted-foreground uppercase tracking-wider text-right pr-2">
+                          Final Total (₱)
+                        </span>
+                        <span className="w-6" />
+                      </div>
+
+                      {(invoice.lineItems || []).map((item, idx) => {
+                        const dLower = (item.description || '').toLowerCase()
+                        let icon = '📦'
+                        if (dLower.includes('panel') || dLower.includes('module')) icon = '☀️'
+                        else if (dLower.includes('inverter')) icon = '⚡'
+                        else if (dLower.includes('battery')) icon = '🔋'
+                        else if (dLower.includes('material') || dLower.includes('rail') || dLower.includes('mount') || dLower.includes('clamp')) icon = '🔩'
+                        else if (dLower.includes('electrical') || dLower.includes('wire') || dLower.includes('cable') || dLower.includes('breaker') || dLower.includes('mcb')) icon = '🔌'
+                        else if (dLower.includes('service') || dLower.includes('labor') || dLower.includes('install') || dLower.includes('commission')) icon = '🛠️'
+                        else if (dLower.includes('delivery') || dLower.includes('freight') || dLower.includes('logistics')) icon = '🚚'
+
+                        return (
+                          <div
+                            key={item.id || idx}
+                            className="flex items-center gap-2 p-2.5 rounded-[12px] bg-secondary/40 border border-border hover:border-primary/50 transition-all"
+                            onMouseEnter={() => setHoveredField(item.id)}
+                            onMouseLeave={() => setHoveredField(null)}
+                          >
+                            <span className="text-sm shrink-0 select-none pl-1" title={item.description}>{icon}</span>
+                            <Input
+                              className="flex-1 text-xs font-sans h-9"
+                              value={item.description}
+                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                              placeholder="e.g. Solar Panels, Inverter, Materials, Electrical, Services, Delivery Fees..."
+                            />
+                            <div className="relative w-36 shrink-0">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground select-none">₱</span>
+                              <Input
+                                className="w-full pl-7 pr-2.5 text-right font-mono font-bold text-xs h-9"
+                                type="number"
+                                min="0"
+                                step="100"
+                                value={item.rate === 0 ? '' : item.rate}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0
+                                  const updated = (invoice.lineItems || []).map(it => it.id === item.id ? { ...it, rate: val, quantity: 1 } : it)
+                                  update('lineItems', updated)
+                                }}
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer transition-colors text-sm shrink-0"
+                              title="Delete category item"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )
+                      })}
+
+                      {/* Add Custom Item Button */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const newItem: LineItem = {
+                            id: `custom-${Date.now()}`,
+                            description: '',
+                            quantity: 1,
+                            rate: 0,
+                            unit: 'LOT',
+                          }
+                          update('lineItems', [...(invoice.lineItems || []), newItem])
+                        }}
+                        className="w-full h-9 border-dashed border-border hover:border-primary text-xs font-bold mt-1 cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Add Custom Category Item
+                      </Button>
+
+                      {/* Live Total Proposal Amount (Editable) */}
+                      <div className="mt-3 p-3.5 bg-card border border-border rounded-[14px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div>
+                          <span className="text-xs font-bold text-foreground block">
+                            Final Total Proposal Amount:
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {invoice.customTotal !== undefined && invoice.customTotal > 0
+                              ? "✨ Manual total override active"
+                              : "Calculated from items above. Type below to manually set total."}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="relative w-44 shrink-0">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground select-none">₱</span>
+                            <Input
+                              className="w-full pl-7 pr-3 text-right font-mono font-extrabold text-sm h-9 bg-background"
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={
+                                invoice.customTotal !== undefined && invoice.customTotal !== null
+                                  ? (invoice.customTotal === 0 ? '' : invoice.customTotal)
+                                  : (calculateSubtotal(invoice) === 0 ? '' : calculateSubtotal(invoice))
+                              }
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? undefined : parseFloat(e.target.value) || 0
+                                update('customTotal', val)
+                              }}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          {invoice.customTotal !== undefined && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => update('customTotal', undefined)}
+                              className="h-9 text-[10px] font-bold px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
+                              title="Reset to auto-calculated total from items"
+                            >
+                              Auto
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <SectionHeader>Line Items</SectionHeader>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <Field label="Rate Markup %" onMouseEnter={() => setHoveredField('rateMarkup')} onMouseLeave={() => setHoveredField(null)}>
+                        <Input
+                          type="number"
+                          min="-100"
+                          max="1000"
+                          value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? 30)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                          placeholder="30"
+                        />
+                      </Field>
                   <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
                     <Input
                       type="number"
@@ -4297,8 +4567,10 @@ export default function Home() {
                     Add item
                   </Button>
                 </div>
-              </section>
+              </>
             )}
+          </section>
+        )}
 
             {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
@@ -5237,6 +5509,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
+            onToggleCustom={(val) => handleToggleCustomMode(val)}
           />
         )}
       </div>

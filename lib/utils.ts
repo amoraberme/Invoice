@@ -323,9 +323,10 @@ export function formatPanelDescription(description: string, withBrandName: boole
   }
 }
 
-export function formatItemDescription(description: string, withBrandName: boolean): string {
+export function formatItemDescription(description: string, withBrandName: boolean = true, isCustom: boolean = false): string {
   const d = (description || '').trim()
   if (!d) return ''
+  if (isCustom) return d
   const lower = d.toLowerCase()
 
   // Panel check
@@ -402,8 +403,15 @@ export function formatBrandItemDescription(description: string): string {
 }
 
 export function getCondensedLineItems(invoice: Invoice): LineItem[] {
+  if (invoice.isCustom) {
+    return (invoice.lineItems || []).filter((item) => {
+      return !(invoice.excludeBattery && isBatteryItem(item.description))
+    })
+  }
+
   const rateMarkup = invoice.rateMarkup || 0
   const withBrand = invoice.withBrandName !== false
+  const isCustom = false
 
   const groups: Record<
     string,
@@ -423,9 +431,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   })
 
   for (const item of validItems) {
-    const formattedDesc = formatItemDescription(item.description, withBrand)
-    const descLower = formattedDesc.toLowerCase().trim()
-    const isLabor = isLaborItem(formattedDesc)
+    const formattedDesc = formatItemDescription(item.description, withBrand, isCustom)
+    const descLower = (item.description || '').toLowerCase().trim()
+    const isLabor = isLaborItem(item.description)
     const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
     const effectiveRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     const itemAmount = item.quantity * effectiveRate
@@ -567,6 +575,15 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
 }
 
 export function calculateSubtotal(invoice: Invoice): number {
+  if (invoice.customTotal !== undefined && invoice.customTotal !== null && invoice.customTotal > 0) {
+    return invoice.customTotal
+  }
+  if (invoice.isCustom) {
+    return (invoice.lineItems || []).reduce((sum, item) => {
+      if (invoice.excludeBattery && isBatteryItem(item.description)) return sum
+      return sum + (item.quantity || 1) * (item.rate || 0)
+    }, 0)
+  }
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems || [])
   return displayItems.reduce((sum, item) => {

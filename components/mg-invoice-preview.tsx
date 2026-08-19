@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription, sortLineItems } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, formatItemDescription, sortLineItems, calculateSubtotal } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -18,7 +18,8 @@ export function MGInvoicePreview({
   onOpenCheatsheet,
   onPagesChange,
   onToggleCondensed,
-  onToggleWithBrandName
+  onToggleWithBrandName,
+  onToggleCustom,
 }: { 
   invoice: Invoice; 
   hoveredField?: string | null;
@@ -26,6 +27,7 @@ export function MGInvoicePreview({
   onPagesChange?: (count: number) => void;
   onToggleCondensed?: (isCondensed: boolean) => void;
   onToggleWithBrandName?: (withBrandName: boolean) => void;
+  onToggleCustom?: (isCustom: boolean) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -57,20 +59,11 @@ export function MGInvoicePreview({
   }, [])
 
   const rateMarkup = invoice.rateMarkup || 0
-  const displayItems = invoice.isCondensed ? getCondensedLineItems(invoice) : sortLineItems(invoice.lineItems)
-  const subtotal = displayItems.reduce((sum, item) => {
-    const isCondensedItem = item.id.startsWith('condensed-')
-    if (isCondensedItem) {
-      return sum + item.quantity * item.rate
-    }
-    if (invoice.excludeBattery && isBatteryItem(item.description)) {
-      return sum
-    }
-    const isLabor = isLaborItem(item.description)
-    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
-    const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
-    return sum + item.quantity * adjustedRate
-  }, 0)
+  const displayItems = invoice.isCondensed
+    ? getCondensedLineItems(invoice)
+    : (invoice.isCustom ? invoice.lineItems : sortLineItems(invoice.lineItems))
+  const showPriceColumns = displayItems.some(it => (it.rate || 0) > 0)
+  const subtotal = calculateSubtotal(invoice)
   const vat = subtotal * (invoice.vatRate / 100)
   const total = subtotal + vat
 
@@ -302,6 +295,23 @@ export function MGInvoicePreview({
         >
           {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
         </button>
+
+        <div className="h-4 w-[1px] bg-border hidden sm:block" />
+
+        {/* Custom Mode Single Toggle Button */}
+        <button
+          type="button"
+          onClick={() => onToggleCustom?.(!invoice.isCustom)}
+          className={cn(
+            "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
+            invoice.isCustom
+              ? "bg-primary text-primary-foreground border-primary shadow-xs"
+              : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
+          )}
+          title={invoice.isCustom ? "Custom mode is ON. Custom user descriptions are strictly respected." : "Standard mode. Click to enable Custom mode."}
+        >
+          {invoice.isCustom ? "[Custom: ON]" : "[Custom: OFF]"}
+        </button>
       </div>
       {virtualPages.map((page, pageIndex) => {
         return (
@@ -409,51 +419,75 @@ export function MGInvoicePreview({
                 {/* Line items table */}
                 {page.items.length > 0 && (
                   <div className="mb-8">
-                    <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
-                      <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                        Description
-                      </span>
-                      <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                        Unit
-                      </span>
-                      <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                        Qty
-                      </span>
-                      <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
-                        Rate
-                      </span>
-                      <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                        Amount
-                      </span>
-                    </div>
-                    {page.items.map((item) => {
-                      const isCondensedItem = item.id.startsWith('condensed-')
-                      const isLabor = !isCondensedItem && isLaborItem(item.description)
-                      const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
-                      const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
-                      const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
-                      const descLower = item.description.toLowerCase().trim()
-                      const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
-                      return (
-                        <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                          <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                            {displayDesc || '—'}
+                    {showPriceColumns ? (
+                      <>
+                        <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
+                          <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                            Description
                           </span>
-                          <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
-                            {isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                          <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                            Unit
                           </span>
-                          <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
-                            {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                          <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                            Qty
                           </span>
-                          <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
-                            {isDeliveryOrLabor || item.rate === 0 ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                          <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
+                            Rate
                           </span>
-                          <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
-                            {item.rate === 0 ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                          <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                            Amount
                           </span>
                         </div>
-                      )
-                    })}
+                        {page.items.map((item) => {
+                          const isCondensedItem = item.id.startsWith('condensed-')
+                          const isLabor = !isCondensedItem && isLaborItem(item.description)
+                          const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
+                          const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
+                          const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false, invoice.isCustom)
+                          const descLower = item.description.toLowerCase().trim()
+                          const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
+                          const hasPrice = (item.rate || 0) > 0
+                          return (
+                            <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                              <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                                {displayDesc || '—'}
+                              </span>
+                              <span className="w-16 shrink-0 text-[13px] text-[#888888] text-center">
+                                {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                              </span>
+                              <span className="w-14 shrink-0 text-[13px] text-[#888888] text-center">
+                                {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                              </span>
+                              <span className={cn("w-24 shrink-0 text-[13px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
+                                {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                              </span>
+                              <span className="w-28 shrink-0 text-[13px] font-medium text-[#111111] text-right">
+                                {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex py-2.5 border-b-[1.5px] border-[#111111]">
+                          <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                            Description
+                          </span>
+                        </div>
+                        {page.items.map((item) => {
+                          const isCondensedItem = item.id.startsWith('condensed-') || invoice.isCustom
+                          const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false, invoice.isCustom)
+                          return (
+                            <div key={item.id} className={cn("flex py-2 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                              <span className="flex-1 text-[13px] text-[#111111] break-words whitespace-pre-wrap">
+                                {displayDesc || '—'}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
                   </div>
                 )}
 

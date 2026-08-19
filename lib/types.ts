@@ -35,6 +35,8 @@ export interface Invoice {
   excludeBattery: boolean
   isCondensed: boolean
   withBrandName: boolean
+  isCustom?: boolean
+  customTotal?: number
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
   lineItems: LineItem[]
   lalamoveCost: number
@@ -116,6 +118,8 @@ export const defaultInvoice: Invoice = {
   excludeBattery: false,
   isCondensed: false,
   withBrandName: true,
+  isCustom: false,
+  customTotal: undefined,
   theme: 'light',
   lineItems: [
     {

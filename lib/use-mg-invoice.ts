@@ -98,6 +98,13 @@ export function useMGInvoice() {
             } else {
               sanitized.terms = currentTerms
             }
+          } else if (key === 'customTotal') {
+            if (savedVal !== undefined && savedVal !== null && savedVal !== '') {
+              const p = parseFloat(String(savedVal))
+              sanitized.customTotal = !isNaN(p) && p > 0 ? p : undefined
+            } else {
+              sanitized.customTotal = undefined
+            }
           } else {
             ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
           }

@@ -106,6 +106,23 @@ export async function exportToPdfDirect({
             p.style.backgroundColor = '#ffffff'
             p.style.color = '#111111'
           })
+
+          // Sanitize any elements inside the clone that might have modern color functions (lab, oklch, etc.)
+          const allElements = clonedDoc.querySelectorAll<HTMLElement>('*')
+          allElements.forEach((el) => {
+            const style = el.style
+            if (style) {
+              if (style.color && (style.color.includes('lab') || style.color.includes('oklch') || style.color.includes('color('))) {
+                style.color = '#111111'
+              }
+              if (style.backgroundColor && (style.backgroundColor.includes('lab') || style.backgroundColor.includes('oklch') || style.backgroundColor.includes('color('))) {
+                style.backgroundColor = 'transparent'
+              }
+              if (style.borderColor && (style.borderColor.includes('lab') || style.borderColor.includes('oklch') || style.borderColor.includes('color('))) {
+                style.borderColor = '#e5e7eb'
+              }
+            }
+          })
         },
       })
 
