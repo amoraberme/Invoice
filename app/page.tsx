@@ -1,9 +1,10 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2 } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
+import { exportToPdfDirect } from '@/lib/pdf-export'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, defaultInvoice } from '@/lib/types'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
@@ -1194,6 +1195,8 @@ export default function Home() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [goodweModalOpen, setGoodweModalOpen] = useState(true)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [pdfExportStatus, setPdfExportStatus] = useState('')
 
 
 
@@ -2497,7 +2500,11 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [loaded, invoice.toName, invoice.invoiceNumber, invoice])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    if (isExportingPdf) return
+    setIsExportingPdf(true)
+    setPdfExportStatus('Preparing PDF...')
+
     const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
     setHistoryList(updatedHistory)
     const client = invoice.toName ? invoice.toName.trim() : 'Client'
@@ -2514,23 +2521,37 @@ export default function Home() {
       setActiveTab('quotation')
     }
 
-    // On mobile / small screens, ensure preview view is active so DOM is fully rendered for printing
+    // On mobile / small screens, switch to preview tab so that printable DOM is fully mounted
     if (activeView === 'edit' && typeof window !== 'undefined' && window.innerWidth < 1024) {
       setActiveView('preview')
     }
 
-    setTimeout(() => {
+    // Give DOM a tick to paint preview elements before canvas rasterization
+    setTimeout(async () => {
       try {
-        if (typeof window !== 'undefined' && typeof window.print === 'function') {
-          window.print()
-        } else {
-          alert('Printing/PDF download is not directly supported in this browser webview. Please open this website in Google Chrome or Safari to download as PDF.')
+        const success = await exportToPdfDirect({
+          filename: `${title}.pdf`,
+          onProgress: (status) => setPdfExportStatus(status),
+        })
+
+        if (!success) {
+          // Fallback to browser print if DOM rasterization had an issue
+          if (typeof window !== 'undefined' && typeof window.print === 'function') {
+            window.print()
+          } else {
+            alert('Could not generate PDF directly. Please use your browser menu: Share > Print / Save as PDF.')
+          }
         }
       } catch (err) {
-        console.error('Print trigger error:', err)
-        alert('Could not open print window. Please use your browser menu: Share > Print / Save as PDF.')
+        console.error('PDF export error:', err)
+        if (typeof window !== 'undefined' && typeof window.print === 'function') {
+          window.print()
+        }
+      } finally {
+        setIsExportingPdf(false)
+        setPdfExportStatus('')
       }
-    }, 200)
+    }, 180)
   }
 
   const handleSalesPersonChange = (val: string) => {
@@ -2618,11 +2639,16 @@ export default function Home() {
           {/* PDF Download */}
           <Button
             onClick={handleDownload}
+            disabled={isExportingPdf}
             size="sm"
             className="h-6 px-1.5 rounded-[6px] text-[10px] font-semibold gap-1 cursor-pointer flex items-center shrink-0"
           >
-            <Download size={10} strokeWidth={2.5} />
-            PDF
+            {isExportingPdf ? (
+              <Loader2 size={10} className="animate-spin" />
+            ) : (
+              <Download size={10} strokeWidth={2.5} />
+            )}
+            {isExportingPdf ? 'Saving...' : 'PDF'}
           </Button>
         </div>
       </div>
@@ -5106,10 +5132,15 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
               <Button
                 onClick={handleDownload}
-                className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer"
+                disabled={isExportingPdf}
+                className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer gap-2"
               >
-                <Download size={15} strokeWidth={2} />
-                Download PDF
+                {isExportingPdf ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Download size={15} strokeWidth={2} />
+                )}
+                {isExportingPdf ? (pdfExportStatus || 'Generating PDF...') : 'Download PDF'}
               </Button>
             </div>
           )}
