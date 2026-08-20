@@ -981,6 +981,15 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
     rollUnit: 'Unit',
   },
   {
+    code: 'GW16.1 BAT-LV-G10',
+    name: 'Goodwe Lithium Battery 16.1kWh 314Ah (51.2V)',
+    keywords: ['goodwe 314ah', 'goodwe 16.1kwh', 'goodwe battery 314ah', 'goodwe 51.2v 314ah', 'goodwe lithium battery', 'goodwe battery'],
+    meterPrice: 120000,
+    rollPrice: 120000,
+    meterUnit: 'Unit',
+    rollUnit: 'Unit',
+  },
+  {
     code: 'SOL-123',
     name: '10mm Battery Cable',
     keywords: ['battery cable 10mm', '10mm battery cable', '10mm cable'],

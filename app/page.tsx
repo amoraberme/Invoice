@@ -751,7 +751,7 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 18;
       } else if (lowerLine.includes('terminal lugs') || (lowerLine.includes('lugs') && !lowerLine.includes('block'))) {
         targetIndex = 19;
-      } else if (lowerLine.includes('dyness') || lowerLine.includes('oliter') || lowerLine.includes('alpsolar') || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
+      } else if (lowerLine.includes('dyness') || lowerLine.includes('oliter') || lowerLine.includes('alpsolar') || lowerLine.includes('cesc') || ((lowerLine.includes('goodwe') || lowerLine.includes('deye')) && lowerLine.includes('battery')) || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
         targetIndex = 20;
       } else if (lowerLine.includes('terminal block')) {
         targetIndex = 21;
@@ -3732,14 +3732,17 @@ export default function Home() {
 
                       let deyePrice = 125000
 
+                      let goodwePrice = 120000
+
+                      const isGoodweSelected = item.rate === goodwePrice || (descLower.includes('goodwe') && isBatteryItemRow)
                       const isDeyeSelected = item.rate === deyePrice || descLower.includes('deye')
                       const isGenixSelected = item.rate === genixPrice
                       const isDynessSelected = item.rate === dynessPrice
                       const isOliterSelected = item.rate === oliterPrice || descLower.includes('oliter')
                       const isAlpsolarSelected = item.rate === alpsolarPrice || descLower.includes('alpsolar')
-                      const isCescSelected = item.rate === cescPrice || (!isDeyeSelected && !isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
+                      const isCescSelected = item.rate === cescPrice || (!isGoodweSelected && !isDeyeSelected && !isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
 
-                      const activeBrand: 'deye' | 'genix' | 'dyness' | 'oliter' | 'alpsolar' | 'cesc' = isDeyeSelected ? 'deye' : isGenixSelected ? 'genix' : isDynessSelected ? 'dyness' : isOliterSelected ? 'oliter' : isAlpsolarSelected ? 'alpsolar' : 'cesc'
+                      const activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'oliter' | 'alpsolar' | 'cesc' = isGoodweSelected ? 'goodwe' : isDeyeSelected ? 'deye' : isGenixSelected ? 'genix' : isDynessSelected ? 'dyness' : isOliterSelected ? 'oliter' : isAlpsolarSelected ? 'alpsolar' : 'cesc'
 
                       const pricingInfo = getItemPricingInfo(item.description, item)
 
@@ -4076,8 +4079,10 @@ export default function Home() {
                               capKey = '100Ah'
                             }
 
-                            let activeBrand: 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
-                            if (descLower.includes('deye') || item.rate === 125000) {
+                            let activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
+                            if (descLower.includes('goodwe') || item.rate === 120000) {
+                              activeBrand = 'goodwe'
+                            } else if (descLower.includes('deye') || item.rate === 125000) {
                               activeBrand = 'deye'
                             } else if (descLower.includes('oliter')) {
                               activeBrand = 'oliter'
@@ -4109,6 +4114,10 @@ export default function Home() {
 
                             const getDeyeData = (cap: typeof capKey) => {
                               return { desc: 'DEYE 51.2V 314AH Battery', rate: 125000 }
+                            }
+
+                            const getGoodweData = (cap: typeof capKey) => {
+                              return { desc: 'Goodwe Lithium Battery 16.1kWh 314Ah (51.2V)', rate: 120000 }
                             }
 
                             const getOliterData = (cap: typeof capKey) => {
@@ -4220,6 +4229,23 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const data = getGoodweData('314Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'goodwe'
+                                        ? "bg-red-500/15 border-red-500 ring-2 ring-red-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                    )}
+                                    title="GoodWe Battery"
+                                  >
+                                    <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
                                       const cap = capKey === '314Ah' ? '314Ah' : '200Ah'
                                       const data = getAlpsolarData(cap)
                                       applySelection(data.desc, data.rate)
@@ -4252,6 +4278,23 @@ export default function Home() {
                                         "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
                                       )}
                                       title="314Ah - ₱125,000.00"
+                                    >
+                                      314Ah
+                                    </button>
+                                  )}
+
+                                  {/* GoodWe Capacities */}
+                                  {activeBrand === 'goodwe' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const data = getGoodweData('314Ah')
+                                        applySelection(data.desc, data.rate)
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                      )}
+                                      title="314Ah - ₱120,000.00"
                                     >
                                       314Ah
                                     </button>

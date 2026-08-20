@@ -165,18 +165,20 @@ export function getItemCategoryRank(description: string): number {
 
   // 2. Inverters
   if (
-    d.includes('inverter') ||
-    d.includes('anern') ||
-    d.includes('solis') ||
-    d.includes('goodwe') ||
-    d.includes('hypontech') ||
-    d.includes('solax') ||
-    d.includes('foxess') ||
-    d.includes('sunways') ||
-    d.includes('deye') ||
-    d.includes('growatt') ||
-    d.includes('sungrow') ||
-    d.includes('victron')
+    !isBatteryUnit(description) && (
+      d.includes('inverter') ||
+      d.includes('anern') ||
+      d.includes('solis') ||
+      d.includes('goodwe') ||
+      d.includes('hypontech') ||
+      d.includes('solax') ||
+      d.includes('foxess') ||
+      d.includes('sunways') ||
+      d.includes('deye') ||
+      d.includes('growatt') ||
+      d.includes('sungrow') ||
+      d.includes('victron')
+    )
   ) {
     return 2
   }
@@ -389,7 +391,7 @@ export function formatBrandItemDescription(description: string): string {
     !lower.includes('mccb') &&
     !lower.includes('switch')
   ) {
-    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar')
+    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar') || lower.includes('deye') || lower.includes('goodwe')
     if (!hasBrand) {
       if (lower.startsWith('battery')) {
         return `Genix ${d}`
@@ -505,7 +507,11 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     ) {
       categoryKey = 'panels'
     }
-    // Priority 5: Main Equipment - Inverter
+    // Priority 5: Main Equipment - Battery
+    else if (isBatteryUnit(formattedDesc)) {
+      categoryKey = 'battery'
+    }
+    // Priority 6: Main Equipment - Inverter
     else if (
       descLower.includes('inverter') ||
       descLower.includes('anern') ||
@@ -521,10 +527,6 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
       descLower.includes('victron')
     ) {
       categoryKey = 'inverter'
-    }
-    // Priority 6: Main Equipment - Battery
-    else if (isBatteryUnit(formattedDesc)) {
-      categoryKey = 'battery'
     }
 
     const grp = groups[categoryKey]
