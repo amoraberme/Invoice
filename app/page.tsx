@@ -93,6 +93,7 @@ function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable
 
 function getInverterKwFromLineItems(lineItems: LineItem[]): number {
   const inverterItem = lineItems.find(it => {
+    if (isBatteryUnit(it.description)) return false
     const d = it.description.toLowerCase()
     return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow')
   })
@@ -1642,6 +1643,7 @@ export default function Home() {
     let currentKw = explicitKw
     if (!currentKw) {
       const inverterItem = invoice.lineItems.find(item => {
+        if (isBatteryUnit(item.description)) return false
         const d = (item.description || '').toLowerCase()
         return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow')
       })
@@ -1673,6 +1675,7 @@ export default function Home() {
     update('excludeBattery', isExclude)
 
     let updatedItems = invoice.lineItems.map(item => {
+      if (isBatteryUnit(item.description)) return item
       const descLower = item.description.toLowerCase()
       if (
         descLower.includes('inverter') ||
@@ -1897,6 +1900,7 @@ export default function Home() {
 
     let detectedKw = 5
     const invItem = (invoice.lineItems || []).find(it => {
+      if (isBatteryUnit(it.description)) return false
       const d = (it.description || '').toLowerCase()
       return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways')
     })
@@ -3690,10 +3694,12 @@ export default function Home() {
                     })
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
-                      const isPanelItem = descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar')
+
+                      const isBatteryItemRow = isBatteryUnit(item.description)
+                      const isPanelItem = !isBatteryItemRow && (descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar'))
                       const isTongweiSelected = item.rate === 5456
 
-                      const isInverterItem = descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways')
+                      const isInverterItem = !isBatteryItemRow && !isPanelItem && (descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways') || descLower.includes('deye') || descLower.includes('sungrow'))
                       const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
                       const itemKw = kwMatch ? parseFloat(kwMatch[1]) : 12
                       const invBrandPrices = getInverterBrandPrices(itemKw)
@@ -3703,8 +3709,6 @@ export default function Home() {
                       const isInverterAnern = item.rate === invBrandPrices.anern
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
-
-                      const isBatteryItemRow = isBatteryUnit(item.description)
 
                       let genixPrice = 85000
                       if (descLower.includes('200ah')) {

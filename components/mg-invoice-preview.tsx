@@ -101,6 +101,7 @@ export function MGInvoicePreview({
 
     // B. Solar Inverter
     const inverterItem = items.find(it => {
+      if (isBatteryUnit(it.description)) return false
       const d = (it.description || '').toLowerCase()
       return d.includes('inverter') || d.includes('anern') || d.includes('solis') || d.includes('goodwe') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow') || d.includes('victron')
     })
