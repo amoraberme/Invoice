@@ -152,6 +152,67 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: AUGUST 25, 2026 (Dev) ──
+  {
+    id: 'cl-dev-ph-location-engine-aug25_v1',
+    timestamp: 'Aug 25, 2026, 01:10 PM',
+    itemDescription: 'Philippine 42,029 Barangays & 1,634 LGUs Driving Distance Engine',
+    changeType: 'system',
+    fieldChanged: 'Items Tab Delivery Location & Logistics Calculator',
+    oldValue: 'Manual flat delivery fee entry without location routing or PSGC data',
+    newValue: 'Offline tokenizer indexing 42,029 Barangays and 1,634 LGUs with Muntinlupa-calibrated driving road distances',
+    unit: 'SYSTEM',
+    note: '[Dev] Integrated complete PSGC directory (42,029 barangays + 1,634 cities/municipalities) with zero-latency offline tokenizer and real Google Maps driving route distances from Muntinlupa (Putatan) origin',
+    batch: 'August 25, 2026 Logistics Engine & Delivery System (Dev)'
+  },
+  {
+    id: 'cl-dev-delivery-calc-formula-aug25_v1',
+    timestamp: 'Aug 25, 2026, 12:45 PM',
+    itemDescription: 'Calibrated Logistics Pricing (₱5,000 Base + ₱100/km Extra)',
+    changeType: 'price',
+    fieldChanged: 'Delivery Fee Computation & Line Item Rate',
+    oldValue: 'Static ₱5,000 flat delivery rate',
+    newValue: '₱5,000 flat baseline for ≤20km + ₱100 per additional driving km (>20km)',
+    unit: 'RATE',
+    note: '[Dev] Implemented calibrated logistics formula: ≤20km = ₱5,000 base; >20km = ₱5,000 + (distance - 20) * ₱100. Delivery line items are strictly exempt from global rate markup multipliers (0% markup pass-through)',
+    batch: 'August 25, 2026 Logistics Engine & Delivery System (Dev)'
+  },
+  {
+    id: 'cl-dev-50km-service-tag-aug25_v1',
+    timestamp: 'Aug 25, 2026, 12:20 PM',
+    itemDescription: '50km Serviceable Area Boundary Tagging & Status Badges',
+    changeType: 'system',
+    fieldChanged: 'Location Search Dropdown & Selected Location Card',
+    oldValue: 'No serviceability indicators',
+    newValue: '≤50km "✓ ≤50km Serviceable" badge (emerald); >50km "⚠️ Exceeds 50km Service Area" badge (amber)',
+    unit: 'UI',
+    note: '[Dev] Added 50km standard service radius boundary from Muntinlupa with interactive status badges across autocomplete dropdown results and the active location summary card',
+    batch: 'August 25, 2026 Logistics Engine & Delivery System (Dev)'
+  },
+  {
+    id: 'cl-dev-service-advisory-note-aug25_v1',
+    timestamp: 'Aug 25, 2026, 12:15 PM',
+    itemDescription: 'Automated Service Area Advisory Quotation Note Manager',
+    changeType: 'system',
+    fieldChanged: 'Quotation Note / Special Instructions & Details Tab',
+    oldValue: 'Manual notes only',
+    newValue: 'Auto-attached [Service Area Advisory] note for sites >50km; Auto-cleaned on reset',
+    unit: 'NOTE',
+    note: '[Dev] Created automated quotation note manager that appends a formal regional mobilization advisory when an extended site (>50km) is selected and cleanly strips it when cleared or reset',
+    batch: 'August 25, 2026 Logistics Engine & Delivery System (Dev)'
+  },
+  {
+    id: 'cl-dev-address-sync-aug25_v1',
+    timestamp: 'Aug 25, 2026, 11:30 AM',
+    itemDescription: 'Region-Aware Client Address Auto-Synchronization',
+    changeType: 'system',
+    fieldChanged: 'Details Tab Client Address (toAddress)',
+    oldValue: 'Manual address entry',
+    newValue: 'Auto-fills formatted address (NCR vs Province format) based on selected location/barangay',
+    unit: 'SYNC',
+    note: '[Dev] Connected delivery location selection to automatically populate client address with PSGC standard formatting (Brgy., City, Province, Region Code)',
+    batch: 'August 25, 2026 Logistics Engine & Delivery System (Dev)'
+  },
   // ── SET DATE: AUGUST 19, 2026 (Dev) ──
   {
     id: 'cl-dev-scope-editor-aug19_v1',
@@ -857,6 +918,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasAug25Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-ph-location-engine-aug25_v1')
         const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-scope-editor-aug19_v1')
         const hasAug18LatestDevSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-remove-ocr-aug18_v1')
         const hasOldMsGAug18 = parsed.some((i: ChangelogItem) => 
@@ -865,7 +927,7 @@ export function getChangelogHistory(): ChangelogItem[] {
           (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
           (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
         )
-        if (!hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
+        if (!hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }
