@@ -7,7 +7,7 @@ import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
-import { PHILIPPINE_LGUS, type PhilippineLGU, calculateDeliveryFee, searchPhilippineLocations } from '@/lib/philippine-locations'
+import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1200,9 +1200,9 @@ export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [selectedPanelBrands, setSelectedPanelBrands] = useState<Record<string, string>>({})
 
-  // Philippine Location & Delivery Fee State
+  // Philippine Location & Delivery Fee State (42,029 Barangays & 1,634 LGUs with Driving Distances)
   const [locationSearchQuery, setLocationSearchQuery] = useState('')
-  const [selectedLgu, setSelectedLgu] = useState<PhilippineLGU | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<PhilippineLocationItem | null>(null)
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
   const locationDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -1222,16 +1222,16 @@ export default function Home() {
   useEffect(() => {
     if (!hasInitializedLocation.current && invoice.deliveryLocation) {
       hasInitializedLocation.current = true
-      const match = PHILIPPINE_LGUS.find(l => `${l.name}, ${l.province}` === invoice.deliveryLocation || l.name === invoice.deliveryLocation)
-      if (match) {
-        setSelectedLgu(match)
-        setLocationSearchQuery(`${match.name}, ${match.province}`)
+      const results = searchPhilippineLocations(invoice.deliveryLocation, 1)
+      if (results.length > 0) {
+        setSelectedLocation(results[0])
+        setLocationSearchQuery(results[0].displayName)
       }
     }
   }, [invoice.deliveryLocation])
 
   const handleClearLocation = () => {
-    setSelectedLgu(null)
+    setSelectedLocation(null)
     setLocationSearchQuery('')
     setIsLocationDropdownOpen(false)
 
@@ -1259,15 +1259,13 @@ export default function Home() {
     })
   }
 
-  const handleApplyLocation = (lgu: PhilippineLGU) => {
-    setSelectedLgu(lgu)
-    setLocationSearchQuery(`${lgu.name}, ${lgu.province}`)
+  const handleApplyLocation = (loc: PhilippineLocationItem) => {
+    setSelectedLocation(loc)
+    setLocationSearchQuery(loc.displayName)
     setIsLocationDropdownOpen(false)
 
-    const deliveryFee = calculateDeliveryFee(lgu.distanceKm)
-    const formattedAddress = lgu.regionCode === 'NCR'
-      ? `${lgu.name}, Metro Manila, ${lgu.regionCode}`
-      : `${lgu.name}, ${lgu.province}, ${lgu.regionCode}`
+    const deliveryFee = calculateDeliveryFee(loc.drivingDistanceKm)
+    const formattedAddress = loc.formattedAddress
 
     setInvoice((prev) => {
       const updatedLineItems = [...prev.lineItems]
@@ -1295,8 +1293,8 @@ export default function Home() {
 
       return {
         ...prev,
-        deliveryLocation: `${lgu.name}, ${lgu.province}`,
-        deliveryDistanceKm: lgu.distanceKm,
+        deliveryLocation: loc.displayName,
+        deliveryDistanceKm: loc.drivingDistanceKm,
         deliveryFee: deliveryFee,
         lalamoveCost: deliveryFee,
         toAddress: formattedAddress,
@@ -2653,7 +2651,7 @@ export default function Home() {
     })
 
     // 24. Delivery Fees
-    const calculatedDeliveryRate = selectedLgu ? calculateDeliveryFee(selectedLgu.distanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00)
+    const calculatedDeliveryRate = selectedLocation ? calculateDeliveryFee(selectedLocation.drivingDistanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00)
     items.push({
       id: `boq-delivery-${now}`,
       description: `Delivery Fees`,
@@ -3648,10 +3646,10 @@ export default function Home() {
                           }
                         }}
                         onFocus={() => setIsLocationDropdownOpen(true)}
-                        placeholder="Search Philippine City, Municipality, or Province (e.g. Muntinlupa, Calamba, Pasig, Baguio)..."
+                        placeholder="Search Barangay, City, Municipality, or Province (e.g. Alabang, Putatan, Calamba, Baguio)..."
                         className="flex-1 min-w-0 bg-transparent px-2.5 py-2 text-xs text-foreground outline-none font-medium placeholder:text-muted-foreground/60"
                       />
-                      {(locationSearchQuery || selectedLgu) && (
+                      {(locationSearchQuery || selectedLocation) && (
                         <button
                           type="button"
                           onClick={handleClearLocation}
@@ -3661,9 +3659,9 @@ export default function Home() {
                           ✕
                         </button>
                       )}
-                      {selectedLgu && (
+                      {selectedLocation && (
                         <span className="bg-primary/10 text-primary border-l border-border px-2.5 py-2 text-[10px] font-mono font-bold shrink-0">
-                          {selectedLgu.distanceKm} km · {formatCurrency(calculateDeliveryFee(selectedLgu.distanceKm), invoice.currency)}
+                          {selectedLocation.drivingDistanceKm} km · {formatCurrency(calculateDeliveryFee(selectedLocation.drivingDistanceKm), invoice.currency)}
                         </span>
                       )}
                     </div>
@@ -3672,23 +3670,23 @@ export default function Home() {
                     {isLocationDropdownOpen && (
                       <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl p-1 space-y-0.5">
                         {(() => {
-                          const results = searchPhilippineLocations(locationSearchQuery, 20)
+                          const results = searchPhilippineLocations(locationSearchQuery, 25)
                           if (results.length === 0) {
                             return (
                               <div className="p-3 text-center text-xs text-muted-foreground font-medium">
-                                No matching Philippine municipality, city, or province found.
+                                No matching Philippine barangay, municipality, city, or province found.
                               </div>
                             )
                           }
 
-                          return results.map((lgu, idx) => {
-                            const fee = calculateDeliveryFee(lgu.distanceKm)
-                            const isSelected = selectedLgu?.name === lgu.name && selectedLgu?.province === lgu.province
+                          return results.map((loc, idx) => {
+                            const fee = calculateDeliveryFee(loc.drivingDistanceKm)
+                            const isSelected = selectedLocation?.id === loc.id || (selectedLocation?.name === loc.name && selectedLocation?.province === loc.province && selectedLocation?.lguName === loc.lguName)
                             return (
                               <button
-                                key={`${lgu.name}-${lgu.province}-${idx}`}
+                                key={`${loc.id}-${loc.name}-${idx}`}
                                 type="button"
-                                onClick={() => handleApplyLocation(lgu)}
+                                onClick={() => handleApplyLocation(loc)}
                                 className={cn(
                                   "w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between gap-2 transition-all cursor-pointer select-none",
                                   isSelected
@@ -3698,16 +3696,24 @@ export default function Home() {
                               >
                                 <div className="min-w-0">
                                   <div className="font-bold flex items-center gap-1.5">
-                                    <span className="truncate">{lgu.name}</span>
+                                    <span className="truncate">
+                                      {loc.type === 'Barangay' ? `Brgy. ${loc.name}` : loc.name}
+                                    </span>
                                     <span className={cn(
                                       "text-[9px] px-1.5 py-0.2 rounded font-normal shrink-0",
-                                      isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-muted-foreground"
+                                      isSelected
+                                        ? "bg-primary-foreground/20 text-primary-foreground"
+                                        : loc.type === 'Barangay'
+                                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                          : loc.type === 'City'
+                                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                            : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                                     )}>
-                                      {lgu.type}
+                                      {loc.type}
                                     </span>
                                   </div>
                                   <p className={cn("text-[10px] truncate", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                                    {lgu.province} · {lgu.regionCode} ({lgu.island})
+                                    {loc.type === 'Barangay' ? `${loc.lguName}, ` : ''}{loc.province} · {loc.regionCode} ({loc.island})
                                   </p>
                                 </div>
                                 <div className="text-right shrink-0">
@@ -3715,7 +3721,7 @@ export default function Home() {
                                     {formatCurrency(fee, invoice.currency)}
                                   </div>
                                   <p className={cn("text-[9.5px] font-mono", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                                    {lgu.distanceKm} km from Origin
+                                    {loc.drivingDistanceKm} km Driving Route
                                   </p>
                                 </div>
                               </button>
@@ -3727,21 +3733,26 @@ export default function Home() {
                   </div>
 
                   {/* Selected Location Summary & Formula Card */}
-                  {selectedLgu && (
+                  {selectedLocation && (
                     <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5">
                       <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <CheckCircle2 size={13} className="text-primary shrink-0" />
                           <span className="font-bold text-foreground truncate">
-                            {selectedLgu.name}, {selectedLgu.province}
+                            {selectedLocation.displayName}, {selectedLocation.province}
                           </span>
-                          <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-secondary font-mono text-muted-foreground shrink-0">
-                            {selectedLgu.regionCode}
+                          <span className={cn(
+                            "text-[9.5px] px-1.5 py-0.5 rounded font-mono shrink-0",
+                            selectedLocation.type === 'Barangay'
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                              : "bg-secondary text-muted-foreground"
+                          )}>
+                            {selectedLocation.type} · {selectedLocation.regionCode}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="font-mono font-bold text-primary text-xs">
-                            {formatCurrency(calculateDeliveryFee(selectedLgu.distanceKm), invoice.currency)}
+                            {formatCurrency(calculateDeliveryFee(selectedLocation.drivingDistanceKm), invoice.currency)}
                           </div>
                           <button
                             type="button"
@@ -3756,13 +3767,13 @@ export default function Home() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[10px] font-mono">
                         <div>
-                          <span className="text-muted-foreground block">Distance from Origin:</span>
-                          <span className="font-bold text-foreground">{selectedLgu.distanceKm} km</span>
+                          <span className="text-muted-foreground block">Driving Distance:</span>
+                          <span className="font-bold text-foreground">{selectedLocation.drivingDistanceKm} km (from Putatan)</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground block">Rate Breakdown:</span>
                           <span className="text-foreground">
-                            ₱5,000 (≤20km) {selectedLgu.distanceKm > 20 ? `+ ₱${((selectedLgu.distanceKm - 20) * 100).toLocaleString()} (${(selectedLgu.distanceKm - 20).toFixed(1)}km × ₱100)` : '(Base Rate)'}
+                            ₱5,000 (≤20km) {selectedLocation.drivingDistanceKm > 20 ? `+ ₱${((selectedLocation.drivingDistanceKm - 20) * 100).toLocaleString()} (${(selectedLocation.drivingDistanceKm - 20).toFixed(1)}km × ₱100)` : '(Base Rate)'}
                           </span>
                         </div>
                         <div>
