@@ -3814,21 +3814,6 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Exceeds 50km Service Area Advisory Box */}
-                      {selectedLocation.drivingDistanceKm > SERVICEABLE_DISTANCE_KM && (
-                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-[11px] text-amber-900 dark:text-amber-200">
-                          <span className="font-bold text-amber-700 dark:text-amber-300 shrink-0">📍 Service Area Note:</span>
-                          <div className="space-y-1">
-                            <p>
-                              This installation location is <strong>{selectedLocation.drivingDistanceKm} km</strong> from Muntinlupa origin, exceeding our standard 50km service radius by <strong>{(selectedLocation.drivingDistanceKm - SERVICEABLE_DISTANCE_KM).toFixed(1)} km</strong>.
-                            </p>
-                            <p className="text-[10px] text-amber-700 dark:text-amber-300 font-medium">
-                              ✓ A <strong>[Service Area Advisory]</strong> note has been automatically attached to the quotation details.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[10px] font-mono">
                         <div>
                           <span className="text-muted-foreground block">Driving Distance:</span>
