@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem, defaultWarranties } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -614,8 +614,9 @@ export function MGInvoicePreview({
                           </div>
                           {page.items.map((item) => {
                             const isCondensedItem = item.id.startsWith('condensed-')
-                            const isLabor = !isCondensedItem && isLaborItem(item.description)
-                            const shouldApplyMarkup = !isCondensedItem && !(invoice.excludeLaborMarkup && isLabor)
+                            const isDelivery = !isCondensedItem && isDeliveryItem(item.description)
+                            const isLabor = !isCondensedItem && !isDelivery && isLaborItem(item.description)
+                            const shouldApplyMarkup = !isCondensedItem && !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
                             const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
                             const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
                             const descLower = item.description.toLowerCase().trim()

@@ -57,6 +57,9 @@ export interface Invoice {
   scopes?: ScopeOfWorkItem[]
   warranties?: WarrantyItem[]
   lalamoveCost: number
+  deliveryLocation?: string
+  deliveryDistanceKm?: number
+  deliveryFee?: number
   additionalExpenses: ExpenseItem[]
   bankBeneficiary: string
   bankName: string

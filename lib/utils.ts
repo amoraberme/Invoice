@@ -100,6 +100,20 @@ export function isLaborItem(description: string): boolean {
   )
 }
 
+export function isDeliveryItem(description: string): boolean {
+  const d = (description || '').toLowerCase().trim()
+  return (
+    d === 'delivery fees' ||
+    d === 'delivery fee' ||
+    d.startsWith('delivery fee') ||
+    d.includes('delivery fee') ||
+    d.includes('delivery charge') ||
+    d.includes('lalamove') ||
+    d === 'delivery' ||
+    d.includes('freight')
+  )
+}
+
 export function isBatteryUnit(description: string): boolean {
   const d = (description || '').toLowerCase()
   if (
@@ -427,8 +441,9 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
   for (const item of validItems) {
     const formattedDesc = formatItemDescription(item.description, withBrand)
     const descLower = (item.description || '').toLowerCase().trim()
-    const isLabor = isLaborItem(item.description)
-    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+    const isDelivery = isDeliveryItem(item.description)
+    const isLabor = !isDelivery && isLaborItem(item.description)
+    const shouldApplyMarkup = !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
     const effectiveRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     const itemAmount = item.quantity * effectiveRate
 
@@ -579,8 +594,9 @@ export function calculateSubtotal(invoice: Invoice): number {
     if (invoice.excludeBattery && isBatteryItem(item.description)) {
       return sum
     }
-    const isLabor = isLaborItem(item.description)
-    const shouldApplyMarkup = !(invoice.excludeLaborMarkup && isLabor)
+    const isDelivery = isDeliveryItem(item.description)
+    const isLabor = !isDelivery && isLaborItem(item.description)
+    const shouldApplyMarkup = !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
     const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
     return sum + item.quantity * adjustedRate
   }, 0)

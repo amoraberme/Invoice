@@ -1,12 +1,13 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
+import { PHILIPPINE_LGUS, type PhilippineLGU, calculateDeliveryFee, searchPhilippineLocations } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1198,6 +1199,111 @@ export default function Home() {
   } = useMGInvoice()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [selectedPanelBrands, setSelectedPanelBrands] = useState<Record<string, string>>({})
+
+  // Philippine Location & Delivery Fee State
+  const [locationSearchQuery, setLocationSearchQuery] = useState('')
+  const [selectedLgu, setSelectedLgu] = useState<PhilippineLGU | null>(null)
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
+  const locationDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const hasInitializedLocation = useRef(false)
+
+  // Sync initial delivery location once when invoice loads
+  useEffect(() => {
+    if (!hasInitializedLocation.current && invoice.deliveryLocation) {
+      hasInitializedLocation.current = true
+      const match = PHILIPPINE_LGUS.find(l => `${l.name}, ${l.province}` === invoice.deliveryLocation || l.name === invoice.deliveryLocation)
+      if (match) {
+        setSelectedLgu(match)
+        setLocationSearchQuery(`${match.name}, ${match.province}`)
+      }
+    }
+  }, [invoice.deliveryLocation])
+
+  const handleClearLocation = () => {
+    setSelectedLgu(null)
+    setLocationSearchQuery('')
+    setIsLocationDropdownOpen(false)
+
+    setInvoice((prev) => {
+      const defaultFee = 5000
+      const updatedLineItems = prev.lineItems.map((it) => {
+        if (
+          it.id.startsWith('boq-delivery') ||
+          it.description.toLowerCase().includes('delivery') ||
+          it.description.toLowerCase().includes('freight')
+        ) {
+          return { ...it, rate: defaultFee }
+        }
+        return it
+      })
+
+      return {
+        ...prev,
+        deliveryLocation: '',
+        deliveryDistanceKm: undefined,
+        deliveryFee: defaultFee,
+        lalamoveCost: defaultFee,
+        lineItems: updatedLineItems,
+      }
+    })
+  }
+
+  const handleApplyLocation = (lgu: PhilippineLGU) => {
+    setSelectedLgu(lgu)
+    setLocationSearchQuery(`${lgu.name}, ${lgu.province}`)
+    setIsLocationDropdownOpen(false)
+
+    const deliveryFee = calculateDeliveryFee(lgu.distanceKm)
+    const formattedAddress = lgu.regionCode === 'NCR'
+      ? `${lgu.name}, Metro Manila, ${lgu.regionCode}`
+      : `${lgu.name}, ${lgu.province}, ${lgu.regionCode}`
+
+    setInvoice((prev) => {
+      const updatedLineItems = [...prev.lineItems]
+      const deliveryIndex = updatedLineItems.findIndex(
+        (it) =>
+          it.id.startsWith('boq-delivery') ||
+          it.description.toLowerCase().includes('delivery') ||
+          it.description.toLowerCase().includes('freight')
+      )
+
+      if (deliveryIndex >= 0) {
+        updatedLineItems[deliveryIndex] = {
+          ...updatedLineItems[deliveryIndex],
+          rate: deliveryFee,
+        }
+      } else {
+        updatedLineItems.push({
+          id: `boq-delivery-${Date.now()}`,
+          description: 'Delivery Fees',
+          quantity: 1,
+          rate: deliveryFee,
+          unit: 'LOT',
+        })
+      }
+
+      return {
+        ...prev,
+        deliveryLocation: `${lgu.name}, ${lgu.province}`,
+        deliveryDistanceKm: lgu.distanceKm,
+        deliveryFee: deliveryFee,
+        lalamoveCost: deliveryFee,
+        toAddress: formattedAddress,
+        lineItems: updatedLineItems,
+      }
+    })
+  }
 
   const handleAddItem = () => {
     addItem()
@@ -2547,11 +2653,12 @@ export default function Home() {
     })
 
     // 24. Delivery Fees
+    const calculatedDeliveryRate = selectedLgu ? calculateDeliveryFee(selectedLgu.distanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00)
     items.push({
       id: `boq-delivery-${now}`,
       description: `Delivery Fees`,
       quantity: 1,
-      rate: prices.DeliveryFees || 5000.00,
+      rate: calculatedDeliveryRate,
       unit: 'LOT'
     })
 
@@ -2650,7 +2757,7 @@ export default function Home() {
       withoutMarkup: false,
     })
     setDownloadDocTypes({
-      quotation: true,
+      quotation: activeTab === 'items' || (activeTab !== 'checklist' && activeTab !== 'capital'),
       checklist: activeTab === 'checklist',
       capital: activeTab === 'capital',
     })
@@ -2667,32 +2774,25 @@ export default function Home() {
       isCondensed?: boolean
     }> = []
 
-    const hasQuotation = downloadDocTypes.quotation && (downloadQuotationMarkup.withMarkup || downloadQuotationMarkup.withoutMarkup)
-    const quoteModesCount = (downloadQuotationMarkup.withMarkup ? 1 : 0) + (downloadQuotationMarkup.withoutMarkup ? 1 : 0)
-    const totalSelectedDocs = (hasQuotation ? quoteModesCount : 0) + (downloadDocTypes.checklist ? 1 : 0) + (downloadDocTypes.capital ? 1 : 0)
+    const cleanBase = baseName.trim() || 'Quotation'
+    const layoutTag = downloadIsCondensed ? 'Compressed' : 'Expanded'
 
     if (downloadDocTypes.quotation) {
       if (downloadQuotationMarkup.withMarkup) {
-        const suffix = downloadQuotationMarkup.withoutMarkup
-          ? ' - With Markup'
-          : (totalSelectedDocs > 1 ? ' - Quotation' : '')
         tasks.push({
           id: 'quote-with-markup',
-          title: 'Quotation (With Markup)',
-          filename: `${baseName}${suffix}.pdf`,
+          title: `Quotation (${layoutTag}, With Rate Markup)`,
+          filename: `${cleanBase} - ${layoutTag} - With Rate Markup.pdf`,
           docType: 'quotation',
           withoutMarkup: false,
           isCondensed: downloadIsCondensed,
         })
       }
       if (downloadQuotationMarkup.withoutMarkup) {
-        const suffix = downloadQuotationMarkup.withMarkup
-          ? ' - Without Markup'
-          : (totalSelectedDocs > 1 ? ' - Quotation (0% Markup)' : '')
         tasks.push({
           id: 'quote-without-markup',
-          title: 'Quotation (Without Markup)',
-          filename: `${baseName}${suffix}.pdf`,
+          title: `Quotation (${layoutTag}, Without Rate Markup)`,
+          filename: `${cleanBase} - ${layoutTag} - Without Rate Markup.pdf`,
           docType: 'quotation',
           withoutMarkup: true,
           isCondensed: downloadIsCondensed,
@@ -2701,21 +2801,19 @@ export default function Home() {
     }
 
     if (downloadDocTypes.checklist) {
-      const suffix = totalSelectedDocs > 1 ? ' - Checklist' : ''
       tasks.push({
         id: 'checklist',
         title: 'Packing & Dispatch Checklist',
-        filename: `${baseName}${suffix}.pdf`,
+        filename: `${cleanBase} - Checklist.pdf`,
         docType: 'checklist',
       })
     }
 
     if (downloadDocTypes.capital) {
-      const suffix = totalSelectedDocs > 1 ? ' - Capital Breakdown' : ''
       tasks.push({
         id: 'capital',
         title: 'Capital & Expenses Breakdown',
-        filename: `${baseName}${suffix}.pdf`,
+        filename: `${cleanBase} - Capital Breakdown.pdf`,
         docType: 'capital',
       })
     }
@@ -2732,20 +2830,21 @@ export default function Home() {
       cleanName = cleanName.slice(0, -4).trim()
     }
     if (!cleanName) cleanName = 'Quotation'
-    const title = cleanName
 
     const tasks = getSelectedExportTasks(cleanName)
     if (tasks.length === 0) return
+
+    const exportTitle = tasks.length === 1 ? tasks[0].filename.replace(/\.pdf$/i, '') : `${cleanName} - Package`
 
     setIsExportingPdf(true)
     setPdfExportStatus('Preparing documents for export...')
 
     const updatedHistory = saveInvoiceToHistory(invoice, calculateTotal)
     setHistoryList(updatedHistory)
-    document.title = title
+    document.title = exportTitle
     const titleEl = document.querySelector('title')
     if (titleEl) {
-      titleEl.innerText = title
+      titleEl.innerText = exportTitle
     }
 
     // On mobile / small screens, switch to preview tab so that printable DOM is fully mounted
@@ -3513,6 +3612,170 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Client Location & Delivery Fee Calculator */}
+                <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Truck size={14} className="text-primary" />
+                      <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Client Location & Delivery Fee Calculator
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-secondary border border-border text-foreground flex items-center gap-1">
+                        <MapPin size={10} className="text-primary" /> Origin: Muntinlupa
+                      </span>
+                      <span className="text-[9px] font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+                        ₱5,000 (≤20km) + ₱100/km
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Search Field & Autocomplete Dropdown */}
+                  <div className="relative" ref={locationDropdownRef}>
+                    <div className="flex items-center rounded-[10px] border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-2xs">
+                      <div className="pl-3 text-muted-foreground">
+                        <Search size={14} />
+                      </div>
+                      <input
+                        type="text"
+                        value={locationSearchQuery}
+                        onChange={(e) => {
+                          setLocationSearchQuery(e.target.value)
+                          setIsLocationDropdownOpen(true)
+                          if (!e.target.value.trim()) {
+                            handleClearLocation()
+                          }
+                        }}
+                        onFocus={() => setIsLocationDropdownOpen(true)}
+                        placeholder="Search Philippine City, Municipality, or Province (e.g. Muntinlupa, Calamba, Pasig, Baguio)..."
+                        className="flex-1 min-w-0 bg-transparent px-2.5 py-2 text-xs text-foreground outline-none font-medium placeholder:text-muted-foreground/60"
+                      />
+                      {(locationSearchQuery || selectedLgu) && (
+                        <button
+                          type="button"
+                          onClick={handleClearLocation}
+                          className="px-2.5 text-muted-foreground hover:text-foreground text-xs cursor-pointer select-none font-bold"
+                          title="Clear selected location"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      {selectedLgu && (
+                        <span className="bg-primary/10 text-primary border-l border-border px-2.5 py-2 text-[10px] font-mono font-bold shrink-0">
+                          {selectedLgu.distanceKm} km · {formatCurrency(calculateDeliveryFee(selectedLgu.distanceKm), invoice.currency)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Dropdown Menu */}
+                    {isLocationDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl p-1 space-y-0.5">
+                        {(() => {
+                          const results = searchPhilippineLocations(locationSearchQuery, 20)
+                          if (results.length === 0) {
+                            return (
+                              <div className="p-3 text-center text-xs text-muted-foreground font-medium">
+                                No matching Philippine municipality, city, or province found.
+                              </div>
+                            )
+                          }
+
+                          return results.map((lgu, idx) => {
+                            const fee = calculateDeliveryFee(lgu.distanceKm)
+                            const isSelected = selectedLgu?.name === lgu.name && selectedLgu?.province === lgu.province
+                            return (
+                              <button
+                                key={`${lgu.name}-${lgu.province}-${idx}`}
+                                type="button"
+                                onClick={() => handleApplyLocation(lgu)}
+                                className={cn(
+                                  "w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between gap-2 transition-all cursor-pointer select-none",
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                                    : "hover:bg-accent text-foreground"
+                                )}
+                              >
+                                <div className="min-w-0">
+                                  <div className="font-bold flex items-center gap-1.5">
+                                    <span className="truncate">{lgu.name}</span>
+                                    <span className={cn(
+                                      "text-[9px] px-1.5 py-0.2 rounded font-normal shrink-0",
+                                      isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-muted-foreground"
+                                    )}>
+                                      {lgu.type}
+                                    </span>
+                                  </div>
+                                  <p className={cn("text-[10px] truncate", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                                    {lgu.province} · {lgu.regionCode} ({lgu.island})
+                                  </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className={cn("font-mono font-bold text-xs", isSelected ? "text-primary-foreground" : "text-foreground")}>
+                                    {formatCurrency(fee, invoice.currency)}
+                                  </div>
+                                  <p className={cn("text-[9.5px] font-mono", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                                    {lgu.distanceKm} km from Origin
+                                  </p>
+                                </div>
+                              </button>
+                            )
+                          })
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Location Summary & Formula Card */}
+                  {selectedLgu && (
+                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <CheckCircle2 size={13} className="text-primary shrink-0" />
+                          <span className="font-bold text-foreground truncate">
+                            {selectedLgu.name}, {selectedLgu.province}
+                          </span>
+                          <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-secondary font-mono text-muted-foreground shrink-0">
+                            {selectedLgu.regionCode}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-mono font-bold text-primary text-xs">
+                            {formatCurrency(calculateDeliveryFee(selectedLgu.distanceKm), invoice.currency)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleClearLocation}
+                            className="text-[9.5px] text-muted-foreground hover:text-foreground hover:bg-secondary px-1.5 py-0.5 rounded border border-border/80 transition-all cursor-pointer select-none font-semibold"
+                            title="Reset location and delivery fee to ₱5,000"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[10px] font-mono">
+                        <div>
+                          <span className="text-muted-foreground block">Distance from Origin:</span>
+                          <span className="font-bold text-foreground">{selectedLgu.distanceKm} km</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Rate Breakdown:</span>
+                          <span className="text-foreground">
+                            ₱5,000 (≤20km) {selectedLgu.distanceKm > 20 ? `+ ₱${((selectedLgu.distanceKm - 20) * 100).toLocaleString()} (${(selectedLgu.distanceKm - 20).toFixed(1)}km × ₱100)` : '(Base Rate)'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Line Item Status:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            ✓ Applied to Delivery Fees
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="pt-1">
                   <SectionHeader>Line Items</SectionHeader>
                 </div>
@@ -3794,12 +4057,14 @@ export default function Home() {
                               />
                               {invoice.rateMarkup !== 0 && (
                                 <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
-                                  (invoice.excludeLaborMarkup && isLaborItem(item.description))
-                                    ? 'Labor is excluded from rate markup'
-                                    : `Base: ${item.rate} + ${invoice.rateMarkup}%`
+                                  isDeliveryItem(item.description)
+                                    ? 'Delivery is a flat logistics fee (0% rate markup)'
+                                    : (invoice.excludeLaborMarkup && isLaborItem(item.description))
+                                      ? 'Labor is excluded from rate markup'
+                                      : `Base: ${item.rate} + ${invoice.rateMarkup}%`
                                 }>
                                   {formatCurrency(
-                                    (invoice.excludeLaborMarkup && isLaborItem(item.description))
+                                    (isDeliveryItem(item.description) || (invoice.excludeLaborMarkup && isLaborItem(item.description)))
                                       ? item.rate
                                       : item.rate * (1 + invoice.rateMarkup / 100),
                                     invoice.currency
@@ -5923,14 +6188,14 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
       {/* Download PDF Dialog with Document Selection, Layout, Pricing, and Save As */}
       <Dialog open={downloadModalOpen} onOpenChange={setDownloadModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-card text-foreground border border-border shadow-2xl rounded-[18px] p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
+        <DialogContent className="sm:max-w-[560px] w-[calc(100vw-2rem)] bg-card text-foreground border border-border shadow-2xl rounded-2xl p-6 gap-0 overflow-hidden">
+          <DialogHeader className="space-y-1 pb-3.5">
+            <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-foreground">
               <Download size={18} className="text-primary" />
-              Download & Export Document(s)
+              Download & Export
             </DialogTitle>
-            <p className="text-[11.5px] text-muted-foreground">
-              Choose the document types, layout style, pricing options, and save location.
+            <p className="text-xs text-muted-foreground">
+              Choose documents, layout format, and pricing version to export.
             </p>
           </DialogHeader>
 
@@ -5939,7 +6204,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               e.preventDefault()
               handleExecuteDownload()
             }}
-            className="space-y-4 pt-2"
+            className="space-y-4 pt-1"
           >
             {(() => {
               const selectedTasks = getSelectedExportTasks(downloadFileName || computeDefaultFileName())
@@ -5947,25 +6212,25 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
               return (
                 <>
-                  {/* Document Selection Section */}
-                  <div className="space-y-2">
+                  {/* 1. Document Selection Section */}
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        1. Select Document(s) to Export
+                        1. Select Document(s)
                       </label>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-[6px] bg-secondary border border-border text-foreground">
+                      <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-secondary border border-border text-foreground shrink-0">
                         {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} Selected {totalFiles > 1 ? '(ZIP)' : '(PDF)'}
                       </span>
                     </div>
 
                     <div className="space-y-2">
-                      {/* Quotation Option */}
+                      {/* Quotation Option Card */}
                       <div className={cn(
-                        "p-3 rounded-[12px] border transition-all",
-                        downloadDocTypes.quotation ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
+                        "rounded-xl border transition-all overflow-hidden",
+                        downloadDocTypes.quotation ? "bg-primary/[0.03] border-primary/40 shadow-2xs" : "bg-secondary/20 border-border"
                       )}>
-                        <div className="flex items-center justify-between">
-                          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <div className="p-3 sm:p-3.5 flex items-center justify-between gap-3">
+                          <label className="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
                             <input
                               type="checkbox"
                               checked={downloadDocTypes.quotation}
@@ -5976,152 +6241,133 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                   setDownloadQuotationMarkup({ withMarkup: true, withoutMarkup: false })
                                 }
                               }}
-                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
                             />
-                            <div>
-                              <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                                📄 Solar Quotation / Proposal
-                              </span>
-                              <span className="text-[10.5px] text-muted-foreground block">
-                                Client-facing quotation with itemized BOQ, system specs & warranties
-                              </span>
-                            </div>
+                            <span className="text-xs font-bold text-foreground truncate">
+                              📄 Solar Quotation
+                            </span>
                           </label>
+
+                          {downloadDocTypes.quotation && (
+                            <div className="flex items-center bg-secondary/90 p-0.5 rounded-lg border border-border shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setDownloadIsCondensed(false)}
+                                className={cn(
+                                  "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  !downloadIsCondensed
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                Expanded
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDownloadIsCondensed(true)}
+                                className={cn(
+                                  "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  downloadIsCondensed
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                Compressed
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Sub-options for Quotation */}
+                        {/* Quotation Pricing Options */}
                         {downloadDocTypes.quotation && (
-                          <div className="mt-3 pt-2.5 border-t border-border/60 space-y-3 pl-6">
-                            {/* Layout Format: Compressed vs Expanded */}
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <span className="text-[10.5px] font-semibold text-foreground">
-                                Quotation Layout:
-                              </span>
-                              <div className="flex gap-1 bg-secondary/80 p-0.5 rounded-[8px] border border-border">
-                                <button
-                                  type="button"
-                                  onClick={() => setDownloadIsCondensed(false)}
-                                  className={cn(
-                                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
-                                    !downloadIsCondensed
-                                      ? "bg-primary text-primary-foreground shadow-xs"
-                                      : "text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  📋 Expanded (Detailed)
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDownloadIsCondensed(true)}
-                                  className={cn(
-                                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
-                                    downloadIsCondensed
-                                      ? "bg-primary text-primary-foreground shadow-xs"
-                                      : "text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                  ⚡ Compressed (1-Page)
-                                </button>
-                              </div>
-                            </div>
+                          <div className="px-3 sm:px-3.5 pb-3 sm:pb-3.5 pt-0">
+                            <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-border/40">
+                              <label className={cn(
+                                "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
+                                downloadQuotationMarkup.withMarkup
+                                  ? "bg-background border-primary/40 text-foreground shadow-2xs"
+                                  : "bg-muted/30 border-border/60 text-muted-foreground hover:bg-muted/50"
+                              )}>
+                                <input
+                                  type="checkbox"
+                                  checked={downloadQuotationMarkup.withMarkup}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked
+                                    if (!checked && !downloadQuotationMarkup.withoutMarkup) return
+                                    setDownloadQuotationMarkup(prev => ({ ...prev, withMarkup: checked }))
+                                  }}
+                                  className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <span className="text-[11px] font-bold block truncate leading-tight">With Markup</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono">+{invoice.rateMarkup ?? 10}% client</span>
+                                </div>
+                              </label>
 
-                            {/* Pricing Modes: With Markup vs Without Markup (both can be checked!) */}
-                            <div className="pt-2 border-t border-border/40 space-y-1.5">
-                              <span className="text-[10.5px] font-semibold text-foreground block">
-                                Quotation Pricing Version(s):
-                              </span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <label className={cn(
-                                  "flex items-center gap-2 p-2 rounded-[8px] border transition-all cursor-pointer select-none",
-                                  downloadQuotationMarkup.withMarkup ? "bg-primary/10 border-primary/40 text-foreground" : "bg-background border-border text-muted-foreground"
-                                )}>
-                                  <input
-                                    type="checkbox"
-                                    checked={downloadQuotationMarkup.withMarkup}
-                                    onChange={(e) => {
-                                      const checked = e.target.checked
-                                      if (!checked && !downloadQuotationMarkup.withoutMarkup) return
-                                      setDownloadQuotationMarkup(prev => ({ ...prev, withMarkup: checked }))
-                                    }}
-                                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
-                                  />
-                                  <div>
-                                    <span className="text-[10.5px] font-bold block leading-tight">With Rate Markup</span>
-                                    <span className="text-[9px] text-muted-foreground block font-mono">+{invoice.rateMarkup ?? 10}% client price</span>
-                                  </div>
-                                </label>
-
-                                <label className={cn(
-                                  "flex items-center gap-2 p-2 rounded-[8px] border transition-all cursor-pointer select-none",
-                                  downloadQuotationMarkup.withoutMarkup ? "bg-primary/10 border-primary/40 text-foreground" : "bg-background border-border text-muted-foreground"
-                                )}>
-                                  <input
-                                    type="checkbox"
-                                    checked={downloadQuotationMarkup.withoutMarkup}
-                                    onChange={(e) => {
-                                      const checked = e.target.checked
-                                      if (!checked && !downloadQuotationMarkup.withMarkup) return
-                                      setDownloadQuotationMarkup(prev => ({ ...prev, withoutMarkup: checked }))
-                                    }}
-                                    className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
-                                  />
-                                  <div>
-                                    <span className="text-[10.5px] font-bold block leading-tight">Without Rate Markup</span>
-                                    <span className="text-[9px] text-muted-foreground block font-mono">0% raw base price</span>
-                                  </div>
-                                </label>
-                              </div>
-                              <p className="text-[9.5px] text-muted-foreground">
-                                {downloadQuotationMarkup.withMarkup && downloadQuotationMarkup.withoutMarkup
-                                  ? '⚡ Both selected: 2 separate Quotation PDFs (With & Without Markup) will be generated.'
-                                  : 'Select one or both. If both are selected, 2 separate PDF files will be generated.'}
-                              </p>
+                              <label className={cn(
+                                "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
+                                downloadQuotationMarkup.withoutMarkup
+                                  ? "bg-background border-primary/40 text-foreground shadow-2xs"
+                                  : "bg-muted/30 border-border/60 text-muted-foreground hover:bg-muted/50"
+                              )}>
+                                <input
+                                  type="checkbox"
+                                  checked={downloadQuotationMarkup.withoutMarkup}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked
+                                    if (!checked && !downloadQuotationMarkup.withMarkup) return
+                                    setDownloadQuotationMarkup(prev => ({ ...prev, withoutMarkup: checked }))
+                                  }}
+                                  className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <span className="text-[11px] font-bold block truncate leading-tight">Without Markup</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono">0% base price</span>
+                                </div>
+                              </label>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      {/* Checklist Option */}
-                      <div className={cn(
-                        "p-3 rounded-[12px] border transition-all",
-                        downloadDocTypes.checklist ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
-                      )}>
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      {/* Checklist & Capital Grid */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <label className={cn(
+                          "p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
+                          downloadDocTypes.checklist ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
+                        )}>
                           <input
                             type="checkbox"
                             checked={downloadDocTypes.checklist}
                             onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, checklist: e.target.checked }))}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
                           />
-                          <div>
-                            <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                              📋 Packing & Dispatch Checklist
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate text-foreground">
+                              📋 Checklist
                             </span>
-                            <span className="text-[10.5px] text-muted-foreground block">
-                              1-Page itemized warehouse checklist for solar panels, inverter, and hardware
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              Warehouse BOQ
                             </span>
                           </div>
                         </label>
-                      </div>
 
-                      {/* Capital Breakdown Option */}
-                      <div className={cn(
-                        "p-3 rounded-[12px] border transition-all",
-                        downloadDocTypes.capital ? "bg-primary/5 border-primary/40 shadow-2xs" : "bg-secondary/30 border-border"
-                      )}>
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <label className={cn(
+                          "p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
+                          downloadDocTypes.capital ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
+                        )}>
                           <input
                             type="checkbox"
                             checked={downloadDocTypes.capital}
                             onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, capital: e.target.checked }))}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
                           />
-                          <div>
-                            <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                              💰 Capital & Expenses Breakdown
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate text-foreground">
+                              💰 Capital
                             </span>
-                            <span className="text-[10.5px] text-muted-foreground block">
-                              Internal BOM cost, labor, transport, miscellaneous expenses, and profit margin
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              Cost & profit BOM
                             </span>
                           </div>
                         </label>
@@ -6129,12 +6375,12 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     </div>
                   </div>
 
-                  {/* Filename & Presets Section */}
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {/* 2. Base File Name & Quick Presets */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
                       2. Base File Name
                     </label>
-                    <div className="flex items-center rounded-[8px] border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-xs">
+                    <div className="flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-2xs">
                       <input
                         type="text"
                         value={downloadFileName}
@@ -6142,20 +6388,15 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => setDownloadFileName(e.target.value)}
                         placeholder="Quotation File Name"
-                        className="flex-1 bg-transparent px-3 py-2 text-sm text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
+                        className="flex-1 min-w-0 bg-transparent px-3 py-2 text-xs text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
                       />
-                      <span className="bg-muted/70 px-2.5 py-2 text-xs font-mono text-muted-foreground border-l border-border select-none">
+                      <span className="bg-muted/80 px-3 py-2 text-xs font-mono font-semibold text-muted-foreground border-l border-border select-none shrink-0 whitespace-nowrap">
                         {totalFiles > 1 ? '.zip' : '.pdf'}
                       </span>
                     </div>
-                  </div>
 
-                  {/* Quick Naming Presets */}
-                  <div className="space-y-1.5 pt-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Quick Naming Presets
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
+                    {/* Quick Naming Presets */}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {(() => {
                         const client = invoice.toName ? invoice.toName.trim() : 'Client'
                         const qNum = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : 'Quotation'
@@ -6177,7 +6418,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             key={idx}
                             type="button"
                             onClick={() => setDownloadFileName(p.val.replace(/[\\/:*?"<>|]/g, ''))}
-                            className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary border border-border rounded-[6px] text-foreground transition-all cursor-pointer select-none active:scale-[0.98]"
+                            className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary hover:text-foreground text-muted-foreground border border-border/80 rounded-md transition-all cursor-pointer select-none active:scale-[0.98]"
                           >
                             {p.label}
                           </button>
@@ -6186,21 +6427,45 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     </div>
                   </div>
 
+                  {/* 3. Generated Export File(s) Preview */}
+                  {selectedTasks.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+                          Export Preview
+                        </span>
+                        {totalFiles > 1 && (
+                          <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 truncate min-w-0">
+                            📦 {(downloadFileName.trim() || computeDefaultFileName())} - Package.zip
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5 overflow-hidden">
+                        {selectedTasks.map((t) => (
+                          <div key={t.id} className="flex items-center gap-2 text-[11px] font-mono text-foreground min-w-0">
+                            <span className="text-primary shrink-0">📄</span>
+                            <span className="truncate font-semibold min-w-0 flex-1">{t.filename}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Footer Buttons */}
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setDownloadModalOpen(false)}
                       disabled={isExportingPdf}
-                      className="h-9 px-3.5 rounded-[8px] text-xs font-semibold cursor-pointer"
+                      className="h-9 px-4 rounded-lg text-xs font-semibold cursor-pointer"
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
                       disabled={isExportingPdf || !downloadFileName.trim() || totalFiles === 0}
-                      className="h-9 px-4 rounded-[8px] text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+                      className="h-9 px-4 rounded-lg text-xs font-bold gap-2 cursor-pointer shadow-sm bg-foreground text-background hover:bg-foreground/90 transition-all active:scale-[0.98]"
                     >
                       {isExportingPdf ? (
                         <Loader2 size={14} className="animate-spin" />
@@ -6209,7 +6474,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       )}
                       {isExportingPdf
                         ? (pdfExportStatus || 'Exporting...')
-                        : (totalFiles > 1 ? `Download ZIP Package (${totalFiles} Files)` : 'Download PDF')}
+                        : (totalFiles > 1 ? `Download ZIP (${totalFiles} Files)` : 'Download PDF')}
                     </Button>
                   </div>
                 </>
