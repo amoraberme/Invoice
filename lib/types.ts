@@ -60,6 +60,7 @@ export interface Invoice {
   deliveryLocation?: string
   deliveryDistanceKm?: number
   deliveryFee?: number
+  isExceedingServiceArea?: boolean
   additionalExpenses: ExpenseItem[]
   bankBeneficiary: string
   bankName: string

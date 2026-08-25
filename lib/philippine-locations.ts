@@ -29,6 +29,7 @@ export interface PhilippineLocationItem {
   drivingDistanceKm: number
   distanceDisplay: string
   formattedAddress: string
+  isServiceable: boolean
 }
 
 interface RawData {
@@ -47,6 +48,12 @@ export const BASELINE_ORIGIN = {
   baselineKm: 20,
   baselineFee: 5000,
   extraPerKm: 100
+}
+
+export const SERVICEABLE_DISTANCE_KM = 50
+
+export function isWithinServiceableArea(distanceKm: number): boolean {
+  return (distanceKm || 0) <= SERVICEABLE_DISTANCE_KM
 }
 
 /**
@@ -108,7 +115,8 @@ export function searchPhilippineLocations(query: string, limit = 30): Philippine
       island: lgu.island,
       drivingDistanceKm: lgu.drivingDistanceKm,
       distanceDisplay: `${lgu.drivingDistanceKm} km`,
-      formattedAddress: formatPhilippineAddress(lgu)
+      formattedAddress: formatPhilippineAddress(lgu),
+      isServiceable: lgu.drivingDistanceKm <= SERVICEABLE_DISTANCE_KM
     }))
   }
 
@@ -134,7 +142,8 @@ export function searchPhilippineLocations(query: string, limit = 30): Philippine
         island: lgu.island,
         drivingDistanceKm: lgu.drivingDistanceKm,
         distanceDisplay: `${lgu.drivingDistanceKm} km (Driving)`,
-        formattedAddress: formatPhilippineAddress(lgu)
+        formattedAddress: formatPhilippineAddress(lgu),
+        isServiceable: lgu.drivingDistanceKm <= SERVICEABLE_DISTANCE_KM
       })
     }
   }
@@ -161,7 +170,8 @@ export function searchPhilippineLocations(query: string, limit = 30): Philippine
         island: lgu.island,
         drivingDistanceKm: drivingKm,
         distanceDisplay: `${drivingKm} km (Driving)`,
-        formattedAddress: formatPhilippineAddress(lgu, brgyName)
+        formattedAddress: formatPhilippineAddress(lgu, brgyName),
+        isServiceable: drivingKm <= SERVICEABLE_DISTANCE_KM
       })
 
       if (results.length >= limit * 3) {

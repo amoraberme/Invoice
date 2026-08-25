@@ -7,7 +7,7 @@ import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
-import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress } from '@/lib/philippine-locations'
+import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -1248,12 +1248,19 @@ export default function Home() {
         return it
       })
 
+      // Cleanly remove any existing service area advisory from note
+      const cleanedNote = (prev.note || '')
+        .replace(/\n\n\[Service Area Advisory\]:[\s\S]*?(?=\n\n|$)/g, '')
+        .trim()
+
       return {
         ...prev,
         deliveryLocation: '',
         deliveryDistanceKm: undefined,
         deliveryFee: defaultFee,
         lalamoveCost: defaultFee,
+        isExceedingServiceArea: false,
+        note: cleanedNote,
         lineItems: updatedLineItems,
       }
     })
@@ -1266,6 +1273,7 @@ export default function Home() {
 
     const deliveryFee = calculateDeliveryFee(loc.drivingDistanceKm)
     const formattedAddress = loc.formattedAddress
+    const isExceeding = loc.drivingDistanceKm > SERVICEABLE_DISTANCE_KM
 
     setInvoice((prev) => {
       const updatedLineItems = [...prev.lineItems]
@@ -1291,12 +1299,25 @@ export default function Home() {
         })
       }
 
+      // Base note without any previous service area advisory
+      const baseNote = (prev.note || '')
+        .replace(/\n\n\[Service Area Advisory\]:[\s\S]*?(?=\n\n|$)/g, '')
+        .trim()
+
+      const advisoryNote = isExceeding
+        ? `\n\n[Service Area Advisory]: The installation project site (${loc.displayName}) is ${loc.drivingDistanceKm} km from our Muntinlupa headquarters, which exceeds the standard ${SERVICEABLE_DISTANCE_KM}km service coverage (+${(loc.drivingDistanceKm - SERVICEABLE_DISTANCE_KM).toFixed(1)} km). Extended regional mobilization, ocular inspection scheduling, and logistics lead times apply.`
+        : ''
+
+      const finalNote = baseNote + advisoryNote
+
       return {
         ...prev,
         deliveryLocation: loc.displayName,
         deliveryDistanceKm: loc.drivingDistanceKm,
         deliveryFee: deliveryFee,
         lalamoveCost: deliveryFee,
+        isExceedingServiceArea: isExceeding,
+        note: finalNote,
         toAddress: formattedAddress,
         lineItems: updatedLineItems,
       }
@@ -3404,7 +3425,14 @@ export default function Home() {
 
                 {/* NOTES / SPECIAL INSTRUCTIONS */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Notes / Special Instructions</SectionHeader>
+                  <div className="flex items-center justify-between">
+                    <SectionHeader>Notes / Special Instructions</SectionHeader>
+                    {(invoice.isExceedingServiceArea || (invoice.deliveryDistanceKm && invoice.deliveryDistanceKm > 50)) && (
+                      <span className="text-[9.5px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        ⚠️ Extended Service Area Notice Active (&gt;50km)
+                      </span>
+                    )}
+                  </div>
                   <Textarea
                     value={invoice.note}
                     onChange={(e) => update('note', e.target.value)}
@@ -3682,6 +3710,7 @@ export default function Home() {
                           return results.map((loc, idx) => {
                             const fee = calculateDeliveryFee(loc.drivingDistanceKm)
                             const isSelected = selectedLocation?.id === loc.id || (selectedLocation?.name === loc.name && selectedLocation?.province === loc.province && selectedLocation?.lguName === loc.lguName)
+                            const isServiceable = loc.drivingDistanceKm <= SERVICEABLE_DISTANCE_KM
                             return (
                               <button
                                 key={`${loc.id}-${loc.name}-${idx}`}
@@ -3695,7 +3724,7 @@ export default function Home() {
                                 )}
                               >
                                 <div className="min-w-0">
-                                  <div className="font-bold flex items-center gap-1.5">
+                                  <div className="font-bold flex items-center gap-1.5 flex-wrap">
                                     <span className="truncate">
                                       {loc.type === 'Barangay' ? `Brgy. ${loc.name}` : loc.name}
                                     </span>
@@ -3710,6 +3739,16 @@ export default function Home() {
                                             : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                                     )}>
                                       {loc.type}
+                                    </span>
+                                    <span className={cn(
+                                      "text-[8.5px] px-1.5 py-0.2 rounded font-semibold shrink-0",
+                                      isSelected
+                                        ? "bg-primary-foreground/20 text-primary-foreground"
+                                        : isServiceable
+                                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                                    )}>
+                                      {isServiceable ? '✓ ≤50km Serviceable' : '⚠️ >50km Extended'}
                                     </span>
                                   </div>
                                   <p className={cn("text-[10px] truncate", isSelected ? "text-primary-foreground/80" : "text-muted-foreground")}>
@@ -3734,9 +3773,9 @@ export default function Home() {
 
                   {/* Selected Location Summary & Formula Card */}
                   {selectedLocation && (
-                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5">
+                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <CheckCircle2 size={13} className="text-primary shrink-0" />
                           <span className="font-bold text-foreground truncate">
                             {selectedLocation.displayName}, {selectedLocation.province}
@@ -3748,6 +3787,16 @@ export default function Home() {
                               : "bg-secondary text-muted-foreground"
                           )}>
                             {selectedLocation.type} · {selectedLocation.regionCode}
+                          </span>
+                          <span className={cn(
+                            "text-[9.5px] px-2 py-0.5 rounded font-mono font-bold shrink-0 border",
+                            selectedLocation.drivingDistanceKm <= SERVICEABLE_DISTANCE_KM
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25"
+                              : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25"
+                          )}>
+                            {selectedLocation.drivingDistanceKm <= SERVICEABLE_DISTANCE_KM
+                              ? '✓ Serviceable Area (≤50km)'
+                              : `⚠️ Exceeds 50km Service Area (+${(selectedLocation.drivingDistanceKm - SERVICEABLE_DISTANCE_KM).toFixed(1)}km)`}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -3764,6 +3813,21 @@ export default function Home() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Exceeds 50km Service Area Advisory Box */}
+                      {selectedLocation.drivingDistanceKm > SERVICEABLE_DISTANCE_KM && (
+                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 text-[11px] text-amber-900 dark:text-amber-200">
+                          <span className="font-bold text-amber-700 dark:text-amber-300 shrink-0">📍 Service Area Note:</span>
+                          <div className="space-y-1">
+                            <p>
+                              This installation location is <strong>{selectedLocation.drivingDistanceKm} km</strong> from Muntinlupa origin, exceeding our standard 50km service radius by <strong>{(selectedLocation.drivingDistanceKm - SERVICEABLE_DISTANCE_KM).toFixed(1)} km</strong>.
+                            </p>
+                            <p className="text-[10px] text-amber-700 dark:text-amber-300 font-medium">
+                              ✓ A <strong>[Service Area Advisory]</strong> note has been automatically attached to the quotation details.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/50 text-[10px] font-mono">
                         <div>
