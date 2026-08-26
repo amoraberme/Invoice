@@ -2984,19 +2984,16 @@ export default function Home() {
   return (
     <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:!bg-white print:!block print:!h-auto print:!overflow-visible", `theme-${invoice.theme || 'light'}`)}>
       {/* Mobile Header */}
-      <div className="flex lg:hidden items-center justify-between px-2.5 py-2 bg-card border-b border-border shrink-0 print:hidden gap-1 overflow-hidden">
-
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-bold text-[13px] text-foreground tracking-tight shrink-0">MG Invoice</span>
+      <div className="flex lg:hidden items-center justify-between px-2 sm:px-3 py-2 bg-card border-b border-border shrink-0 print:hidden gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 shrink">
+          <span className="font-bold text-xs sm:text-[13px] text-foreground tracking-tight shrink-0">MG Invoice</span>
           <button
             onClick={cycleTheme}
-
             className="h-6 w-6 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
             title={`Current Theme: ${THEME_NAMES[invoice.theme || 'light']} (Click to switch)`}
           >
             {THEME_EMOJIS[invoice.theme || 'light']}
           </button>
-
 
           <button
             onClick={() => setGoodweModalOpen(true)}
@@ -3013,21 +3010,20 @@ export default function Home() {
               <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
               <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", urgency.dotBg)}></span>
             </span>
-            <span className="font-extrabold shrink-0">⚡ 25th: {countdown.days}d</span>
+            <span className="font-extrabold shrink-0">⚡ {countdown.days}d</span>
           </button>
-
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           {/* Toggle */}
           <div className="flex bg-secondary p-0.5 rounded-[6px] border border-border gap-0.5 shrink-0">
             <button
               onClick={() => setActiveView('edit')}
               className={cn(
-                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
+                "px-1.5 sm:px-2 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
                 activeView === 'edit'
-                  ? "bg-[#111111] text-white shadow-xs"
-                  : "text-[#555555] hover:text-[#111111]"
+                  ? "bg-[#111111] text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
+                  : "text-[#555555] hover:text-[#111111] dark:text-zinc-400 dark:hover:text-zinc-100"
               )}
             >
               Edit
@@ -3035,10 +3031,10 @@ export default function Home() {
             <button
               onClick={() => setActiveView('preview')}
               className={cn(
-                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
+                "px-1.5 sm:px-2 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
                 activeView === 'preview'
-                  ? "bg-[#111111] text-white shadow-xs"
-                  : "text-[#555555] hover:text-[#111111]"
+                  ? "bg-[#111111] text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
+                  : "text-[#555555] hover:text-[#111111] dark:text-zinc-400 dark:hover:text-zinc-100"
               )}
             >
               Preview ({totalPages})
@@ -3050,12 +3046,12 @@ export default function Home() {
             onClick={handleOpenDownloadModal}
             disabled={isExportingPdf}
             size="sm"
-            className="h-6 px-1.5 rounded-[6px] text-[10px] font-semibold gap-1 cursor-pointer flex items-center shrink-0"
+            className="h-6 sm:h-7 px-2 rounded-[6px] text-[10px] sm:text-[11px] font-bold gap-1 cursor-pointer flex items-center shrink-0 bg-primary text-primary-foreground shadow-xs"
           >
             {isExportingPdf ? (
-              <Loader2 size={10} className="animate-spin" />
+              <Loader2 size={11} className="animate-spin" />
             ) : (
-              <Download size={10} strokeWidth={2.5} />
+              <Download size={11} strokeWidth={2.5} />
             )}
             {isExportingPdf ? 'Saving...' : 'PDF'}
           </Button>
@@ -5849,20 +5845,46 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
           {/* Download button */}
           {activeTab !== 'changelog' && (
-            <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
-              <Button
-                onClick={handleOpenDownloadModal}
-                disabled={isExportingPdf}
-                className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer gap-2"
-              >
-                {isExportingPdf ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Download size={15} strokeWidth={2} />
-                )}
-                {isExportingPdf ? (pdfExportStatus || 'Generating PDF...') : 'Download PDF'}
-              </Button>
-            </div>
+            <>
+              {/* Desktop Download button */}
+              <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
+                <Button
+                  onClick={handleOpenDownloadModal}
+                  disabled={isExportingPdf}
+                  className="w-full h-11 rounded-[10px] text-[14px] font-semibold cursor-pointer gap-2"
+                >
+                  {isExportingPdf ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Download size={15} strokeWidth={2} />
+                  )}
+                  {isExportingPdf ? (pdfExportStatus || 'Generating PDF...') : 'Download PDF'}
+                </Button>
+              </div>
+
+              {/* Mobile Edit Mode Bottom Action Bar */}
+              <div className="lg:hidden p-3 border-t border-border bg-card shrink-0 print:hidden">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setActiveView('preview')}
+                    className="flex-1 h-10 rounded-lg text-xs font-semibold border-border cursor-pointer"
+                  >
+                    Preview ({totalPages})
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleOpenDownloadModal}
+                    disabled={isExportingPdf}
+                    className="flex-[1.5] h-10 rounded-lg text-xs font-bold bg-primary text-primary-foreground shadow-xs cursor-pointer gap-1.5"
+                  >
+                    {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download PDF'}
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </aside>
@@ -5942,6 +5964,29 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
           />
+        )}
+
+        {/* Mobile Floating Action Bar in Preview Mode */}
+        {activeTab !== 'changelog' && (
+          <div className="lg:hidden sticky bottom-4 z-30 print:hidden flex items-center gap-2 w-full max-w-sm px-4 py-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setActiveView('edit')}
+              className="flex-1 h-10 rounded-xl text-xs font-bold bg-card/95 text-foreground backdrop-blur-md border border-border shadow-lg cursor-pointer"
+            >
+              ✏️ Edit Form
+            </Button>
+            <Button
+              type="button"
+              onClick={handleOpenDownloadModal}
+              disabled={isExportingPdf}
+              className="flex-[1.6] h-10 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-lg cursor-pointer gap-1.5"
+            >
+              {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download PDF'}
+            </Button>
+          </div>
         )}
       </div>
     </div>
@@ -6248,11 +6293,11 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
       {/* Download PDF Dialog with Document Selection, Layout, Pricing, and Save As */}
       <Dialog open={downloadModalOpen} onOpenChange={setDownloadModalOpen}>
-        <DialogContent className="sm:max-w-[560px] w-[calc(100vw-2rem)] bg-card text-foreground border border-border shadow-2xl rounded-2xl p-6 gap-0 overflow-hidden">
-          <DialogHeader className="space-y-1 pb-3.5">
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[540px] max-h-[88dvh] overflow-y-auto overflow-x-hidden bg-card text-foreground border border-border shadow-2xl rounded-2xl p-4 sm:p-6 gap-0">
+          <DialogHeader className="space-y-1 pb-3 text-left">
             <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-foreground">
-              <Download size={18} className="text-primary" />
-              Download & Export
+              <Download size={18} className="text-primary shrink-0" />
+              <span>Download & Export</span>
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
               Choose documents, layout format, and pricing version to export.
@@ -6264,7 +6309,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               e.preventDefault()
               handleExecuteDownload()
             }}
-            className="space-y-4 pt-1"
+            className="space-y-3.5 sm:space-y-4 pt-1 w-full min-w-0"
           >
             {(() => {
               const selectedTasks = getSelectedExportTasks(downloadFileName || computeDefaultFileName())
@@ -6273,24 +6318,24 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               return (
                 <>
                   {/* 1. Document Selection Section */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div className="space-y-2 w-full min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
                         1. Select Document(s)
                       </label>
-                      <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-secondary border border-border text-foreground shrink-0">
-                        {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} Selected {totalFiles > 1 ? '(ZIP)' : '(PDF)'}
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-secondary border border-border text-foreground shrink-0">
+                        {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} {totalFiles > 1 ? '(ZIP)' : '(PDF)'}
                       </span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 w-full min-w-0">
                       {/* Quotation Option Card */}
                       <div className={cn(
-                        "rounded-xl border transition-all overflow-hidden",
+                        "rounded-xl border transition-all overflow-hidden w-full min-w-0",
                         downloadDocTypes.quotation ? "bg-primary/[0.03] border-primary/40 shadow-2xs" : "bg-secondary/20 border-border"
                       )}>
-                        <div className="p-3 sm:p-3.5 flex items-center justify-between gap-3">
-                          <label className="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+                        <div className="p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2.5">
+                          <label className="flex items-center gap-2 cursor-pointer select-none min-w-0">
                             <input
                               type="checkbox"
                               checked={downloadDocTypes.quotation}
@@ -6309,12 +6354,12 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                           </label>
 
                           {downloadDocTypes.quotation && (
-                            <div className="flex items-center bg-secondary/90 p-0.5 rounded-lg border border-border shrink-0">
+                            <div className="flex items-center bg-secondary/90 p-0.5 rounded-lg border border-border shrink-0 ml-auto">
                               <button
                                 type="button"
                                 onClick={() => setDownloadIsCondensed(false)}
                                 className={cn(
-                                  "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
                                   !downloadIsCondensed
                                     ? "bg-primary text-primary-foreground shadow-xs"
                                     : "text-muted-foreground hover:text-foreground"
@@ -6326,7 +6371,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                 type="button"
                                 onClick={() => setDownloadIsCondensed(true)}
                                 className={cn(
-                                  "px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
                                   downloadIsCondensed
                                     ? "bg-primary text-primary-foreground shadow-xs"
                                     : "text-muted-foreground hover:text-foreground"
@@ -6340,10 +6385,10 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
                         {/* Quotation Pricing Options */}
                         {downloadDocTypes.quotation && (
-                          <div className="px-3 sm:px-3.5 pb-3 sm:pb-3.5 pt-0">
-                            <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-border/40">
+                          <div className="px-3 sm:px-3.5 pb-3 sm:pb-3.5 pt-0 w-full min-w-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2.5 border-t border-border/40 w-full min-w-0">
                               <label className={cn(
-                                "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
+                                "flex items-center gap-2 p-2 sm:p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
                                 downloadQuotationMarkup.withMarkup
                                   ? "bg-background border-primary/40 text-foreground shadow-2xs"
                                   : "bg-muted/30 border-border/60 text-muted-foreground hover:bg-muted/50"
@@ -6358,14 +6403,14 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                   }}
                                   className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer shrink-0"
                                 />
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <span className="text-[11px] font-bold block truncate leading-tight">With Markup</span>
-                                  <span className="text-[9.5px] text-muted-foreground block font-mono">+{invoice.rateMarkup ?? 10}% client</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">+{invoice.rateMarkup ?? 10}% client</span>
                                 </div>
                               </label>
 
                               <label className={cn(
-                                "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
+                                "flex items-center gap-2 p-2 sm:p-2.5 rounded-lg border transition-all cursor-pointer select-none min-w-0",
                                 downloadQuotationMarkup.withoutMarkup
                                   ? "bg-background border-primary/40 text-foreground shadow-2xs"
                                   : "bg-muted/30 border-border/60 text-muted-foreground hover:bg-muted/50"
@@ -6380,9 +6425,9 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                   }}
                                   className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer shrink-0"
                                 />
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <span className="text-[11px] font-bold block truncate leading-tight">Without Markup</span>
-                                  <span className="text-[9.5px] text-muted-foreground block font-mono">0% base price</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">0% base price</span>
                                 </div>
                               </label>
                             </div>
@@ -6391,9 +6436,9 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       </div>
 
                       {/* Checklist & Capital Grid */}
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full min-w-0">
                         <label className={cn(
-                          "p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
+                          "p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
                           downloadDocTypes.checklist ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
                         )}>
                           <input
@@ -6402,7 +6447,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, checklist: e.target.checked }))}
                             className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
                           />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <span className="text-xs font-bold block truncate text-foreground">
                               📋 Checklist
                             </span>
@@ -6413,7 +6458,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         </label>
 
                         <label className={cn(
-                          "p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
+                          "p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
                           downloadDocTypes.capital ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
                         )}>
                           <input
@@ -6422,7 +6467,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, capital: e.target.checked }))}
                             className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
                           />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <span className="text-xs font-bold block truncate text-foreground">
                               💰 Capital
                             </span>
@@ -6436,27 +6481,26 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   </div>
 
                   {/* 2. Base File Name & Quick Presets */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full min-w-0">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
                       2. Base File Name
                     </label>
-                    <div className="flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-2xs">
+                    <div className="flex items-center w-full rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-2xs min-w-0">
                       <input
                         type="text"
                         value={downloadFileName}
-                        autoFocus
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => setDownloadFileName(e.target.value)}
                         placeholder="Quotation File Name"
                         className="flex-1 min-w-0 bg-transparent px-3 py-2 text-xs text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
                       />
-                      <span className="bg-muted/80 px-3 py-2 text-xs font-mono font-semibold text-muted-foreground border-l border-border select-none shrink-0 whitespace-nowrap">
+                      <span className="bg-muted/80 px-2.5 sm:px-3 py-2 text-xs font-mono font-semibold text-muted-foreground border-l border-border select-none shrink-0 whitespace-nowrap">
                         {totalFiles > 1 ? '.zip' : '.pdf'}
                       </span>
                     </div>
 
                     {/* Quick Naming Presets */}
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <div className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5 w-full">
                       {(() => {
                         const client = invoice.toName ? invoice.toName.trim() : 'Client'
                         const qNum = invoice.invoiceNumber ? invoice.invoiceNumber.trim() : 'Quotation'
@@ -6464,7 +6508,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         const p1 = `${client} - ${qNum}`
                         const p2 = `${qNum}`
                         const p3 = `${activeKwSetup}kW ${systemTypeLabel} - ${client}`
-                        const p4 = `MG Solar Quotation - ${client}`
+                        const p4 = `MG Solar - ${client}`
 
                         const presets = [
                           { label: 'Client - Quote#', val: p1 },
@@ -6478,7 +6522,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                             key={idx}
                             type="button"
                             onClick={() => setDownloadFileName(p.val.replace(/[\\/:*?"<>|]/g, ''))}
-                            className="px-2.5 py-1 text-[10px] font-semibold bg-secondary/80 hover:bg-secondary hover:text-foreground text-muted-foreground border border-border/80 rounded-md transition-all cursor-pointer select-none active:scale-[0.98]"
+                            className="px-2 sm:px-2.5 py-1 text-[9.5px] sm:text-[10px] font-semibold bg-secondary/80 hover:bg-secondary hover:text-foreground text-muted-foreground border border-border/80 rounded-md transition-all cursor-pointer select-none active:scale-[0.98]"
                           >
                             {p.label}
                           </button>
@@ -6489,7 +6533,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
                   {/* 3. Generated Export File(s) Preview */}
                   {selectedTasks.length > 0 && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 w-full min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
                           Export Preview
@@ -6500,9 +6544,9 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                           </span>
                         )}
                       </div>
-                      <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5 overflow-hidden">
+                      <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5 overflow-hidden w-full min-w-0">
                         {selectedTasks.map((t) => (
-                          <div key={t.id} className="flex items-center gap-2 text-[11px] font-mono text-foreground min-w-0">
+                          <div key={t.id} className="flex items-center gap-2 text-[11px] font-mono text-foreground min-w-0 w-full">
                             <span className="text-primary shrink-0">📄</span>
                             <span className="truncate font-semibold min-w-0 flex-1">{t.filename}</span>
                           </div>
@@ -6512,29 +6556,31 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   )}
 
                   {/* Footer Buttons */}
-                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 w-full min-w-0">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setDownloadModalOpen(false)}
                       disabled={isExportingPdf}
-                      className="h-9 px-4 rounded-lg text-xs font-semibold cursor-pointer"
+                      className="h-9 px-3.5 sm:px-4 rounded-lg text-xs font-semibold cursor-pointer shrink-0"
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
                       disabled={isExportingPdf || !downloadFileName.trim() || totalFiles === 0}
-                      className="h-9 px-4 rounded-lg text-xs font-bold gap-2 cursor-pointer shadow-sm bg-foreground text-background hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                      className="h-9 px-4 sm:px-5 rounded-lg text-xs font-bold gap-1.5 cursor-pointer shadow-sm bg-foreground text-background hover:bg-foreground/90 transition-all active:scale-[0.98] shrink-0"
                     >
                       {isExportingPdf ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <Loader2 size={14} className="animate-spin shrink-0" />
                       ) : (
-                        <Download size={14} />
+                        <Download size={14} className="shrink-0" />
                       )}
-                      {isExportingPdf
-                        ? (pdfExportStatus || 'Exporting...')
-                        : (totalFiles > 1 ? `Download ZIP (${totalFiles} Files)` : 'Download PDF')}
+                      <span className="truncate">
+                        {isExportingPdf
+                          ? (pdfExportStatus || 'Exporting...')
+                          : (totalFiles > 1 ? `Download ZIP (${totalFiles} Files)` : 'Download PDF')}
+                      </span>
                     </Button>
                   </div>
                 </>

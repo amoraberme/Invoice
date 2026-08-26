@@ -17,16 +17,43 @@ export interface PdfExportResult {
 }
 
 /**
- * Saves a Blob to user's device using native Save As dialog if supported, or browser download.
+ * Saves a Blob to user's device using Web Share API (on iOS and supported mobile devices),
+ * File System Access API (showSaveFilePicker on desktop), or direct browser download.
  */
 export async function saveBlobWithPicker(
   blob: Blob,
   suggestedName: string,
   types?: Array<{ description: string; accept: Record<string, string[]> }>
 ): Promise<boolean> {
-  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window && !isIos()) {
+  const isZip = suggestedName.toLowerCase().endsWith('.zip')
+  const mimeType = isZip ? 'application/zip' : 'application/pdf'
+  const isIosDevice = isIos()
+
+  // 1. Web Share API (Primary and most reliable strategy for iOS Safari, and supported mobile browsers)
+  // On iOS, this opens the native iOS Share Sheet ("Save to Files", "AirDrop", "Print", "Mail", etc.)
+  if (isIosDevice && typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function') {
     try {
-      const defaultTypes = suggestedName.toLowerCase().endsWith('.zip')
+      const file = new File([blob], suggestedName, { type: mimeType, lastModified: Date.now() })
+      if ((navigator as any).canShare && (navigator as any).canShare({ files: [file] })) {
+        await (navigator as any).share({
+          files: [file],
+          title: suggestedName,
+        })
+        return true
+      }
+    } catch (shareErr: any) {
+      if (shareErr.name === 'AbortError') {
+        // User deliberately dismissed/cancelled the share sheet
+        return true
+      }
+      console.warn('iOS navigator.share failed, falling back to direct viewer/download:', shareErr)
+    }
+  }
+
+  // 2. Desktop File System Access API (showSaveFilePicker) for Chrome / Edge / Opera desktop
+  if (typeof window !== 'undefined' && 'showSaveFilePicker' in window && !isIosDevice) {
+    try {
+      const defaultTypes = isZip
         ? [
             {
               description: 'ZIP Archive (*.zip)',
@@ -57,16 +84,34 @@ export async function saveBlobWithPicker(
     }
   }
 
-  // Fallback direct download
+  // 3. Fallback direct download or iOS Safari PDF navigation
   try {
     const blobUrl = URL.createObjectURL(blob)
+
+    // On iOS Safari, if Web Share is not available/failed and it is a PDF,
+    // navigating to the PDF blob URL triggers Safari's native PDF preview reader
+    if (isIosDevice && !isZip) {
+      const opened = window.open(blobUrl, '_blank')
+      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+        window.location.href = blobUrl
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+      return true
+    }
+
     const a = document.createElement('a')
+    a.style.display = 'none'
     a.href = blobUrl
     a.download = suggestedName
+    a.rel = 'noopener noreferrer'
     document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+    setTimeout(() => {
+      try {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(blobUrl)
+      } catch {}
+    }, 15000)
     return true
   } catch (err) {
     console.error('Blob download failed:', err)
@@ -77,7 +122,7 @@ export async function saveBlobWithPicker(
 /**
  * Checks if current device is running iOS (iPhone, iPad, iPod)
  */
-function isIos(): boolean {
+export function isIos(): boolean {
   if (typeof navigator === 'undefined') return false
   const ua = navigator.userAgent || ''
   const isAppleMobile = /iPad|iPhone|iPod/.test(ua)
@@ -424,47 +469,8 @@ export async function exportToPdfDirect({
       }
     }
 
-    // Attempt native Save As file picker if supported by the browser (Chrome, Edge, Opera, Desktop Safari)
-    if (useSavePicker && typeof window !== 'undefined' && 'showSaveFilePicker' in window && !isIos()) {
-      try {
-        const handle = await (window as any).showSaveFilePicker({
-          suggestedName: cleanFilename,
-          types: [
-            {
-              description: 'PDF Document (*.pdf)',
-              accept: { 'application/pdf': ['.pdf'] },
-            },
-          ],
-        })
-        const writable = await handle.createWritable()
-        await writable.write(pdfBlob)
-        await writable.close()
-        return { success: true, blob: pdfBlob, filename: cleanFilename }
-      } catch (pickerErr: any) {
-        if (pickerErr.name === 'AbortError') {
-          // User deliberately cancelled the file picker dialog
-          return { success: true, blob: pdfBlob, filename: cleanFilename }
-        }
-        console.warn('showSaveFilePicker failed, falling back to standard download:', pickerErr)
-      }
-    }
-
-    // Standard download fallback
-    try {
-      pdf.save(cleanFilename)
-    } catch (saveError) {
-      console.warn('pdf.save fallback to blob URL:', saveError)
-      const blobUrl = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = cleanFilename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
-    }
-
-    return { success: true, blob: pdfBlob, filename: cleanFilename }
+    const saved = await saveBlobWithPicker(pdfBlob, cleanFilename)
+    return { success: saved, blob: pdfBlob, filename: cleanFilename }
   } catch (err) {
     console.error('Error during direct PDF export:', err)
     return { success: false, filename: filename || 'error.pdf' }
