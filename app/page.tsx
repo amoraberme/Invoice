@@ -2984,12 +2984,12 @@ export default function Home() {
   return (
     <div className={cn("flex flex-col h-dvh overflow-hidden bg-background text-foreground print:!bg-white print:!block print:!h-auto print:!overflow-visible", `theme-${invoice.theme || 'light'}`)}>
       {/* Mobile Header */}
-      <div className="flex lg:hidden items-center justify-between px-2 sm:px-3 py-2 bg-card border-b border-border shrink-0 print:hidden gap-1.5 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0 shrink">
-          <span className="font-bold text-xs sm:text-[13px] text-foreground tracking-tight shrink-0">MG Invoice</span>
+      <div className="flex lg:hidden items-center justify-between px-3 py-2.5 bg-card border-b border-border shrink-0 print:hidden min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-sm text-foreground tracking-tight shrink-0">MG Invoice</span>
           <button
             onClick={cycleTheme}
-            className="h-6 w-6 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
+            className="h-7 w-7 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
             title={`Current Theme: ${THEME_NAMES[invoice.theme || 'light']} (Click to switch)`}
           >
             {THEME_EMOJIS[invoice.theme || 'light']}
@@ -2998,7 +2998,7 @@ export default function Home() {
           <button
             onClick={() => setGoodweModalOpen(true)}
             className={cn(
-              "flex items-center gap-1 border rounded-full px-1.5 py-0.5 text-[9px] font-mono cursor-pointer transition-all shrink-0 select-none",
+              "flex items-center gap-1 border rounded-full px-2 py-0.5 text-[10px] font-mono cursor-pointer transition-all shrink-0 select-none",
               urgency.badgeBg,
               urgency.badgeText,
               urgency.badgeBorder,
@@ -3010,51 +3010,8 @@ export default function Home() {
               <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
               <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", urgency.dotBg)}></span>
             </span>
-            <span className="font-extrabold shrink-0">⚡ {countdown.days}d</span>
+            <span className="font-extrabold shrink-0">⚡ 25th: {countdown.days}d</span>
           </button>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-          {/* Toggle */}
-          <div className="flex bg-secondary p-0.5 rounded-[6px] border border-border gap-0.5 shrink-0">
-            <button
-              onClick={() => setActiveView('edit')}
-              className={cn(
-                "px-1.5 sm:px-2 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
-                activeView === 'edit'
-                  ? "bg-[#111111] text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
-                  : "text-[#555555] hover:text-[#111111] dark:text-zinc-400 dark:hover:text-zinc-100"
-              )}
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => setActiveView('preview')}
-              className={cn(
-                "px-1.5 sm:px-2 py-0.5 rounded-[4px] text-[10px] font-semibold transition-all duration-200 cursor-pointer select-none",
-                activeView === 'preview'
-                  ? "bg-[#111111] text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
-                  : "text-[#555555] hover:text-[#111111] dark:text-zinc-400 dark:hover:text-zinc-100"
-              )}
-            >
-              Preview ({totalPages})
-            </button>
-          </div>
-
-          {/* PDF Download */}
-          <Button
-            onClick={handleOpenDownloadModal}
-            disabled={isExportingPdf}
-            size="sm"
-            className="h-6 sm:h-7 px-2 rounded-[6px] text-[10px] sm:text-[11px] font-bold gap-1 cursor-pointer flex items-center shrink-0 bg-primary text-primary-foreground shadow-xs"
-          >
-            {isExportingPdf ? (
-              <Loader2 size={11} className="animate-spin" />
-            ) : (
-              <Download size={11} strokeWidth={2.5} />
-            )}
-            {isExportingPdf ? 'Saving...' : 'PDF'}
-          </Button>
         </div>
       </div>
 
