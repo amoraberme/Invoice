@@ -3640,7 +3640,7 @@ export default function Home() {
                             <div
                               className={cn(
                                 "pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 ease-out z-[999]",
-                                "absolute w-72 sm:w-[320px] p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-xl shadow-2xl border border-border text-left font-sans top-full mt-1.5",
+                                "absolute w-76 sm:w-[335px] p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-xl shadow-2xl border border-border text-left font-sans top-full mt-1.5",
                                 idx % 5 === 0
                                   ? "left-0"
                                   : idx % 5 === 4
@@ -3668,29 +3668,30 @@ export default function Home() {
                                 </span>
                               </div>
 
-                              {/* Human-Friendly Calculation Breakdown */}
+                              {/* Human-Friendly & Calculation Details */}
                               <div className="mt-2 space-y-2 text-[10.5px]">
-                                {/* 1. Solar Generation */}
-                                <div className="p-2 rounded-lg bg-secondary/60 border border-border/50 space-y-1">
+                                {/* 1. Solar Generation & Calculation */}
+                                <div className="p-2.5 rounded-lg bg-secondary/60 border border-border/50 space-y-1.5">
                                   <div className="flex justify-between items-center text-[10px]">
                                     <span className="text-muted-foreground font-medium">Solar Modules:</span>
-                                    <span className="font-mono font-bold text-foreground">{v2Item.packageModules} (620W Panels)</span>
+                                    <span className="font-mono font-bold text-foreground">{v2Item.packageModules} (620W)</span>
                                   </div>
                                   <div className="flex justify-between items-center text-[10px]">
                                     <span className="text-muted-foreground font-medium">DC System Size:</span>
-                                    <span className="font-mono font-bold text-foreground">{v2Item.actualDcCapacity}</span>
+                                    <span className="font-mono font-bold text-foreground">{v2Item.panelCount} panels × 620W = {v2Item.actualDcCapacity}</span>
                                   </div>
                                   <div className="flex justify-between items-center text-[10px] pt-1 border-t border-border/40">
                                     <span className="text-muted-foreground font-medium">Est. Solar Generation:</span>
                                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{v2Item.estMonthlyGen}</span>
                                   </div>
-                                  <div className="text-[8.5px] text-muted-foreground leading-tight">
-                                    Expected solar yield in Philippine climate (avg. 4.2 sun hours/day & 78% efficiency).
+                                  <div className="p-1.5 rounded bg-background/80 border border-border/40 text-[9px] font-mono text-muted-foreground leading-snug">
+                                    <span className="font-sans font-semibold text-foreground/80">⚡ Calculation: </span>
+                                    {v2Item.actualDcCapacity} × 4.20 PSH × 30 days × 78% PR = <span className="font-bold text-emerald-600 dark:text-emerald-400">{v2Item.estMonthlyGen}</span>
                                   </div>
                                 </div>
 
                                 {/* 2. Target Consumption & Recommended Bill */}
-                                <div className="p-2 rounded-lg bg-secondary/60 border border-border/50 space-y-1">
+                                <div className="p-2.5 rounded-lg bg-secondary/60 border border-border/50 space-y-1.5">
                                   <div className="flex justify-between items-center text-[10px]">
                                     <span className="text-muted-foreground font-medium">Recommended Electric Bill:</span>
                                     <span className="font-mono font-extrabold text-primary">{v2Item.derivedElectricBill}</span>
@@ -3703,15 +3704,22 @@ export default function Home() {
                                     <span>Daily Consumption:</span>
                                     <span className="font-mono">{minDailyKwh} – {maxDailyKwh} kWh / day</span>
                                   </div>
-                                  <div className="text-[8.5px] text-muted-foreground leading-tight pt-0.5 border-t border-border/40">
-                                    Best suited for monthly electric bills in this range (@ ₱15.00/kWh standard rate).
+                                  <div className="p-1.5 rounded bg-background/80 border border-border/40 text-[9px] font-mono text-muted-foreground leading-snug">
+                                    <span className="font-sans font-semibold text-foreground/80">💡 Calculation: </span>
+                                    ({v2Item.targetMonthlyKwh.replace(' kWh', '')}) × ₱15.00/kWh Tariff = <span className="font-bold text-primary">{v2Item.derivedElectricBill}</span>
                                   </div>
                                 </div>
 
-                                {/* 3. Solar Offset */}
-                                <div className="flex justify-between items-center px-1 text-[10px]">
-                                  <span className="text-muted-foreground font-medium">Estimated Bill Reduction:</span>
-                                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{v2Item.targetSolarOffset} bill offset</span>
+                                {/* 3. Solar Offset & Calculation */}
+                                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-1">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-medium">Estimated Bill Reduction:</span>
+                                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{v2Item.targetSolarOffset} Offset</span>
+                                  </div>
+                                  <div className="text-[9px] font-mono text-amber-800 dark:text-amber-300 leading-tight">
+                                    <span className="font-sans font-semibold">☀️ Calc: </span>
+                                    {v2Item.estMonthlyGen.replace(' kWh/mo', '')} kWh Solar ÷ ({v2Item.targetMonthlyKwh.replace(' kWh', '')} kWh Usage) = <span className="font-bold">{v2Item.targetSolarOffset}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
