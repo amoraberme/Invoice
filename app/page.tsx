@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
@@ -30,6 +30,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  SIZING_REFERENCE_V2,
+  KW_TO_ELECTRIC_BILL_V1,
+  getElectricBillRefV2,
+  getSizingReferenceItem,
+  type SizingReferenceV2Item,
+} from '@/components/SizingReferenceModal'
+
+
 
 
 
@@ -1010,18 +1019,7 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
   }
 ]
 
-const KW_TO_ELECTRIC_BILL: Record<number, string> = {
-  1.5: '₱3,000',
-  3: '₱5,000',
-  4: '₱6,500',
-  5: '₱8,000',
-  6: '₱9,000',
-  8: '₱10,000',
-  10: '₱15,000',
-  12: '₱20,000',
-  16: '₱30,000',
-  20: '₱40,000',
-}
+const KW_TO_ELECTRIC_BILL: Record<number, string> = KW_TO_ELECTRIC_BILL_V1
 
 const ELECTRIC_BILL_PRICE_REFERENCES = [
   { bill: '₱3,000', kw: 1.5 },
@@ -1034,11 +1032,17 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
   { bill: '₱20,000', kw: 12 },
   { bill: '₱30,000', kw: 16 },
   { bill: '₱40,000', kw: 20 },
+  { bill: '₱60,000', kw: 30 },
+  { bill: '₱100,000', kw: 50 },
 ]
 
-function getElectricBillRef(kw: number): string {
+function getElectricBillRef(kw: number, version: 'v1' | 'v2' = 'v2', short = true): string {
+  if (version === 'v2') {
+    return getElectricBillRefV2(kw, short)
+  }
   return KW_TO_ELECTRIC_BILL[kw] || `₱${Math.round(kw * 1600).toLocaleString()}`
 }
+
 
 const SOLAR_PRICES = {
   Inverter: 67000.00,
@@ -1462,8 +1466,9 @@ export default function Home() {
 
   const [hoveredField, setHoveredField] = useState<string | null>(null)
 
-  const [activeTab, setActiveTab] = useState<string>('sender')
-  const [previousTab, setPreviousTab] = useState<string>('items')
+  const [activeTab, setActiveTab] = useState<string>('items')
+  const [previousTab, setPreviousTab] = useState<string>('sender')
+
   const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({})
   const [checklistCopied, setChecklistCopied] = useState(false)
   const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit')
@@ -1485,7 +1490,10 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
+  const [sizingRefVersion, setSizingRefVersion] = useState<'v1' | 'v2'>('v2')
   const [rowsCount, setRowsCount] = useState<number>(1)
+
+
 
   const handleUpdateRows = (newRowsVal: number) => {
     const val = Math.max(1, newRowsVal)
@@ -2300,15 +2308,21 @@ export default function Home() {
 
   const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance', explicitSystemType?: 'hybrid' | 'ongrid') => {
     const effSystemType = explicitSystemType || systemType
+    const v2Item = getSizingReferenceItem(systemKw)
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
     if (preset === 'min') {
-      panelQty = Math.max(4, Math.round(maxPanels * 0.5))
+      panelQty = Math.max(3, Math.round(maxPanels * 0.5))
     } else if (preset === 'balance') {
-      panelQty = Math.max(4, Math.round(maxPanels * 0.75))
+      if (sizingRefVersion === 'v2' && v2Item) {
+        panelQty = v2Item.panelCount
+      } else {
+        panelQty = Math.max(4, Math.round(maxPanels * 0.75))
+      }
     }
     const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
     const batteryQty = 1
+
 
     const prices = SOLAR_PRICES
 
@@ -3018,6 +3032,8 @@ export default function Home() {
 
 
 
+
+
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row print:!block print:!h-auto print:!overflow-visible">
         {/* ── SIDEBAR ── */}
@@ -3098,6 +3114,8 @@ export default function Home() {
               >
                 {THEME_EMOJIS[invoice.theme || 'light']}
               </button>
+
+
 
             </div>
 
@@ -3451,12 +3469,54 @@ export default function Home() {
                 {/* Solar BOQ System Sizing & kW Setup */}
                 <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <Zap size={14} className="text-primary" />
-                      <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                        Electric Bill & Sizing Reference
-                      </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Zap size={14} className="text-primary" />
+                        <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                          Electric Bill & Sizing Reference
+                        </h4>
+                      </div>
+
+                      {/* Reference Version Switcher */}
+                      <div className="flex gap-0.5 bg-secondary/80 p-0.5 rounded-[8px] border border-border">
+                        <button
+                          type="button"
+                          onClick={() => setSizingRefVersion('v1')}
+                          className={cn(
+                            "px-2 py-0.5 text-[9px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
+                            sizingRefVersion === 'v1'
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                          title="Switch to Ref v1 (Classic price thresholds)"
+                        >
+                          Ref v1
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSizingRefVersion('v2')}
+                          className={cn(
+                            "px-2 py-0.5 text-[9px] font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1",
+                            sizingRefVersion === 'v2'
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                          title="Switch to Ref v2 (Commercial Packages, Module count, Derived bill range & offsets)"
+                        >
+                          <span>⚡ Ref v2</span>
+                          <span className={cn(
+                            "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold",
+                            sizingRefVersion === 'v2'
+                              ? "bg-amber-400/30 text-amber-100"
+                              : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                          )}>
+                            Temp
+                          </span>
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Hybrid / On-Grid Switch */}
                     <div className="flex gap-1 bg-secondary p-0.5 rounded-[8px] border border-border">
                       <button
                         type="button"
@@ -3493,18 +3553,25 @@ export default function Home() {
                     </div>
                   </div>
 
+
                   {/* kW Setup Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 gap-1.5">
                     {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
+
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
                       const isDisabled = systemType === 'ongrid' && !hasOnGridOption
+                      const v2Item = getSizingReferenceItem(kw)
 
                       const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
                       let calculatedPanelQty = maxPanels
                       if (activePreset === 'min') {
-                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.5))
+                        calculatedPanelQty = Math.max(3, Math.round(maxPanels * 0.5))
                       } else if (activePreset === 'balance') {
-                        calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
+                        if (sizingRefVersion === 'v2' && v2Item) {
+                          calculatedPanelQty = v2Item.panelCount
+                        } else {
+                          calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
+                        }
                       }
                       
                       const totalWatts = calculatedPanelQty * PANEL_WATTAGE
@@ -3513,9 +3580,13 @@ export default function Home() {
                       const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
 
                       const isSelected = activeKwSetup === kw
-                      const billRef = getElectricBillRef(kw)
-                      const billDescColor = isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
+                      const billRef = getElectricBillRef(kw, sizingRefVersion, true)
+                      const billDescColor = isSelected ? "text-primary-foreground/85 font-bold" : "text-muted-foreground"
                       const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
+
+                      const tooltipText = v2Item
+                        ? `${v2Item.commercialPackage} • ${v2Item.packageModules} (${v2Item.actualDcCapacity}) • Bill: ${v2Item.derivedElectricBill} • Target: ${v2Item.targetMonthlyKwh} • Gen: ${v2Item.estMonthlyGen} • Offset: ${v2Item.targetSolarOffset} • ${v2Item.electricalGrid}`
+                        : `${kw}kW Setup (Est. Bill: ${billRef})`
 
                       return (
                         <button
@@ -3526,9 +3597,9 @@ export default function Home() {
                             setActiveKwSetup(kw)
                             handleGenerateBoq(kw, activePreset)
                           }}
-                          title={isDisabled ? `Not available in On-Grid database` : `${kw}kW Setup (Est. Bill: ${billRef})`}
+                          title={isDisabled ? `Not available in On-Grid database` : tooltipText}
                           className={cn(
-                            "flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center",
+                            "flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative group",
                             isDisabled
                               ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
                               : isSelected
@@ -3536,9 +3607,31 @@ export default function Home() {
                                 : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                           )}
                         >
-                          <span className="font-bold text-xs">{kw}kW Setup</span>
-                          <span className={cn("text-[8.5px] mt-0.5 font-mono font-medium", billDescColor)}>{billRef}</span>
-                          <span className={cn("text-[8.5px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
+                          <div className="flex items-center gap-1 justify-center">
+                            <span className="font-bold text-xs">{kw}kW</span>
+                            {v2Item && (
+                              <span className={cn(
+                                "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold leading-none",
+                                isSelected
+                                  ? "bg-primary-foreground/20 text-primary-foreground"
+                                  : v2Item.phase === '3-Phase'
+                                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20"
+                                    : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20"
+                              )}>
+                                {v2Item.phase === '3-Phase' ? '3P' : '1P'}
+                              </span>
+                            )}
+                          </div>
+                          <span className={cn("text-[8.5px] mt-0.5 font-mono", billDescColor)}>{billRef}</span>
+                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
+                          {sizingRefVersion === 'v2' && v2Item && (
+                            <span className={cn(
+                              "text-[7.5px] mt-0.5 font-mono opacity-80",
+                              isSelected ? "text-primary-foreground/90" : "text-muted-foreground"
+                            )}>
+                              {v2Item.packageModules.split(' ')[0]} mods
+                            </span>
+                          )}
                         </button>
                       )
                     })}
@@ -3572,7 +3665,7 @@ export default function Home() {
                           : "bg-transparent text-foreground hover:bg-secondary shadow-none"
                       )}
                     >
-                      Balance Setup
+                      {sizingRefVersion === 'v2' ? "Standard v2 Setup" : "Balance Setup"}
                     </Button>
                     <Button
                       type="button"
@@ -3590,6 +3683,7 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
+
 
                 {/* Client Location & Delivery Fee Calculator */}
                 <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
@@ -6549,6 +6643,8 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
     </div>
   )
 }
+
+
 
 
 
