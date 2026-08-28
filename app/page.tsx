@@ -3556,8 +3556,7 @@ export default function Home() {
 
                   {/* kW Setup Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 gap-1.5">
-                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw) => {
-
+                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw, idx) => {
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
                       const isDisabled = systemType === 'ongrid' && !hasOnGridOption
                       const v2Item = getSizingReferenceItem(kw)
@@ -3584,58 +3583,141 @@ export default function Home() {
                       const billDescColor = isSelected ? "text-primary-foreground/85 font-bold" : "text-muted-foreground"
                       const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
 
-                      const tooltipText = v2Item
-                        ? `${v2Item.commercialPackage} • ${v2Item.packageModules} (${v2Item.actualDcCapacity}) • Bill: ${v2Item.derivedElectricBill} • Target: ${v2Item.targetMonthlyKwh} • Gen: ${v2Item.estMonthlyGen} • Offset: ${v2Item.targetSolarOffset} • ${v2Item.electricalGrid}`
-                        : `${kw}kW Setup (Est. Bill: ${billRef})`
+                      // Calculate daily consumption values for tooltip
+                      const minKwh = v2Item ? parseFloat(v2Item.targetMonthlyKwh.split(' - ')[0].replace(/,/g, '')) : 0
+                      const maxKwh = v2Item ? parseFloat(v2Item.targetMonthlyKwh.split(' - ')[1]?.replace(/,/g, '').replace(' kWh', '') || '0') : 0
+                      const minDailyKwh = (minKwh / 30).toFixed(1)
+                      const maxDailyKwh = (maxKwh / 30).toFixed(1)
 
                       return (
-                        <button
-                          key={kw}
-                          disabled={isDisabled}
-                          onClick={() => {
-                            if (isDisabled) return
-                            setActiveKwSetup(kw)
-                            handleGenerateBoq(kw, activePreset)
-                          }}
-                          title={isDisabled ? `Not available in On-Grid database` : tooltipText}
-                          className={cn(
-                            "flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative group",
-                            isDisabled
-                              ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
-                              : isSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                                : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                          )}
-                        >
-                          <div className="flex items-center gap-1 justify-center">
-                            <span className="font-bold text-xs">{kw}kW</span>
-                            {v2Item && (
+                        <div key={kw} className="relative group">
+                          <button
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => {
+                              if (isDisabled) return
+                              setActiveKwSetup(kw)
+                              handleGenerateBoq(kw, activePreset)
+                            }}
+                            className={cn(
+                              "w-full flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative",
+                              isDisabled
+                                ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
+                                : isSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                  : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                            )}
+                          >
+                            <div className="flex items-center gap-1 justify-center">
+                              <span className="font-bold text-xs">{kw}kW</span>
+                              {v2Item && (
+                                <span className={cn(
+                                  "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold leading-none",
+                                  isSelected
+                                    ? "bg-primary-foreground/20 text-primary-foreground"
+                                    : v2Item.phase === '3-Phase'
+                                      ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20"
+                                      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20"
+                                )}>
+                                  {v2Item.phase === '3-Phase' ? '3P' : '1P'}
+                                </span>
+                              )}
+                            </div>
+                            <span className={cn("text-[8.5px] mt-0.5 font-mono", billDescColor)}>{billRef}</span>
+                            <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
+                            {sizingRefVersion === 'v2' && v2Item && (
                               <span className={cn(
-                                "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold leading-none",
-                                isSelected
-                                  ? "bg-primary-foreground/20 text-primary-foreground"
-                                  : v2Item.phase === '3-Phase'
-                                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20"
-                                    : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20"
+                                "text-[7.5px] mt-0.5 font-mono opacity-80",
+                                isSelected ? "text-primary-foreground/90" : "text-muted-foreground"
                               )}>
-                                {v2Item.phase === '3-Phase' ? '3P' : '1P'}
+                                {v2Item.packageModules.split(' ')[0]} mods
                               </span>
                             )}
-                          </div>
-                          <span className={cn("text-[8.5px] mt-0.5 font-mono", billDescColor)}>{billRef}</span>
-                          <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
-                          {sizingRefVersion === 'v2' && v2Item && (
-                            <span className={cn(
-                              "text-[7.5px] mt-0.5 font-mono opacity-80",
-                              isSelected ? "text-primary-foreground/90" : "text-muted-foreground"
-                            )}>
-                              {v2Item.packageModules.split(' ')[0]} mods
-                            </span>
+                          </button>
+
+                          {/* Interactive Calculation Hover Tooltip */}
+                          {v2Item && (
+                            <div
+                              className={cn(
+                                "pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out z-[999]",
+                                "absolute w-72 sm:w-80 p-3 bg-popover/95 backdrop-blur-md text-popover-foreground rounded-xl shadow-2xl border border-border/80 text-left font-sans",
+                                idx < 5 ? "top-full mt-2" : "bottom-full mb-2",
+                                idx % 5 === 0
+                                  ? "left-0"
+                                  : idx % 5 === 4
+                                    ? "right-0"
+                                    : "left-1/2 -translate-x-1/2"
+                              )}
+                            >
+                              {/* Header */}
+                              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                                <div className="flex items-center gap-1.5">
+                                  <Zap size={13} className="text-amber-500 fill-amber-500/20" />
+                                  <span className="font-bold text-xs text-foreground">{v2Item.commercialPackage}</span>
+                                </div>
+                                <span className={cn(
+                                  "text-[8.5px] px-2 py-0.5 rounded-full font-bold font-mono tracking-tight",
+                                  v2Item.phase === '3-Phase'
+                                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30"
+                                    : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                                )}>
+                                  {v2Item.electricalGrid}
+                                </span>
+                              </div>
+
+                              {/* Calculation Derivation Details */}
+                              <div className="mt-2 space-y-2 text-[10.5px]">
+                                {/* 1. DC Capacity & Generation */}
+                                <div className="p-2 rounded-lg bg-secondary/60 border border-border/50 space-y-1">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-medium">Package Modules:</span>
+                                    <span className="font-mono font-bold text-foreground">{v2Item.packageModules} (620W)</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-medium">Actual DC Capacity:</span>
+                                    <span className="font-mono font-bold text-foreground">{v2Item.actualDcCapacity}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] pt-1 border-t border-border/40">
+                                    <span className="text-muted-foreground font-medium">Est. Solar Generation:</span>
+                                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{v2Item.estMonthlyGen}</span>
+                                  </div>
+                                  <div className="text-[8.5px] font-mono text-muted-foreground/80 leading-tight">
+                                    = {v2Item.actualDcCapacity} × 4.20 PSH × 30d × 0.78 PR
+                                  </div>
+                                </div>
+
+                                {/* 2. Target Consumption & Derived Bill */}
+                                <div className="p-2 rounded-lg bg-secondary/60 border border-border/50 space-y-1">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-medium">Target Monthly:</span>
+                                    <span className="font-mono font-bold text-foreground">{v2Item.targetMonthlyKwh}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-muted-foreground font-medium">Daily Consumption:</span>
+                                    <span className="font-mono text-muted-foreground">{minDailyKwh} – {maxDailyKwh} kWh/day</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] pt-1 border-t border-border/40">
+                                    <span className="text-muted-foreground font-medium">Derived Electric Bill:</span>
+                                    <span className="font-mono font-extrabold text-primary">{v2Item.derivedElectricBill}</span>
+                                  </div>
+                                  <div className="text-[8.5px] font-mono text-muted-foreground/80 leading-tight">
+                                    = ({v2Item.targetMonthlyKwh}) × ₱15.00/kWh Tariff
+                                  </div>
+                                </div>
+
+                                {/* 3. Solar Offset */}
+                                <div className="flex justify-between items-center px-1 text-[10px] font-mono">
+                                  <span className="text-muted-foreground font-sans font-medium">Target Solar Offset:</span>
+                                  <span className="font-bold text-amber-600 dark:text-amber-400">{v2Item.targetSolarOffset}</span>
+                                </div>
+                              </div>
+                            </div>
                           )}
-                        </button>
+                        </div>
                       )
                     })}
                   </div>
+
 
                   {/* Presets */}
                   <div className="flex gap-2 w-full pt-0.5">
