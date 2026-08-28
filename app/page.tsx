@@ -1492,6 +1492,8 @@ export default function Home() {
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
   const [sizingRefVersion, setSizingRefVersion] = useState<'v1' | 'v2'>('v2')
   const [rowsCount, setRowsCount] = useState<number>(1)
+  const [holdTooltipKw, setHoldTooltipKw] = useState<number | null>(null)
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null)
 
 
 
@@ -3597,12 +3599,32 @@ export default function Home() {
                       const actualDcKwp = ((panelsNeeded * 620) / 1000).toFixed(2)
                       const actualEstGen = (parseFloat(actualDcKwp) * yieldFactor).toFixed(1)
                       const finalOffsetAchieved = Math.round((parseFloat(actualEstGen) / monthlyKwh) * 100)
+                      const isTooltipOpenOnMobile = holdTooltipKw === kw
 
                       return (
                         <div key={kw} className="relative group">
                           <button
                             type="button"
                             disabled={isDisabled}
+                            onTouchStart={() => {
+                              if (isDisabled) return
+                              if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+                              holdTimerRef.current = setTimeout(() => {
+                                setHoldTooltipKw((prev) => (prev === kw ? null : kw))
+                              }, 200)
+                            }}
+                            onTouchEnd={() => {
+                              if (holdTimerRef.current) {
+                                clearTimeout(holdTimerRef.current)
+                                holdTimerRef.current = null
+                              }
+                            }}
+                            onTouchCancel={() => {
+                              if (holdTimerRef.current) {
+                                clearTimeout(holdTimerRef.current)
+                                holdTimerRef.current = null
+                              }
+                            }}
                             onClick={() => {
                               if (isDisabled) return
                               setActiveKwSetup(kw)
@@ -3644,12 +3666,15 @@ export default function Home() {
                             )}
                           </button>
 
-                          {/* Step-by-Step Mathematical Flow Hover Tooltip */}
+                          {/* Step-by-Step Mathematical Flow Hover/Hold Tooltip */}
                           {v2Item && (
                             <div
                               className={cn(
-                                "pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 ease-out z-[999]",
-                                "absolute w-80 sm:w-[365px] p-3.5 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans top-full mt-1.5",
+                                "transition-all duration-150 ease-out z-[999]",
+                                "absolute w-[310px] sm:w-[350px] p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans top-full mt-1.5",
+                                isTooltipOpenOnMobile
+                                  ? "opacity-100 visible pointer-events-auto"
+                                  : "pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible",
                                 idx % 5 === 0
                                   ? "left-0"
                                   : idx % 5 === 4
@@ -3680,75 +3705,74 @@ export default function Home() {
                               {/* Section Title */}
                               <div className="mt-2 mb-1.5 flex items-center justify-between">
                                 <span className="text-[10.5px] font-bold text-primary flex items-center gap-1">
-                                  📐 Step-by-Step Mathematical Flow
+                                  📐 Sizing & Derivation Flow
                                 </span>
                                 <span className="text-[8.5px] font-mono text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded">
                                   Tariff: ₱15.00/kWh
                                 </span>
                               </div>
 
-                              {/* Step by Step Flow Sequence */}
-                              <div className="space-y-1 text-[10px] font-mono bg-secondary/40 p-2.5 rounded-xl border border-border/50">
-                                {/* Step 1 */}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">1. Electric Bill Reference:</span>
-                                  <span className="font-bold text-primary font-mono">{minBillStr} ({v2Item.derivedElectricBill})</span>
-                                </div>
-                                
-                                {/* Down arrow & Step 2 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ (÷ ₱15.00 / kWh Tariff)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">2. Monthly Consumption:</span>
-                                  <span className="font-bold text-foreground">{monthlyKwh.toLocaleString()} kWh/month</span>
-                                </div>
-
-                                {/* Down arrow & Step 3 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ (÷ 30 days)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">3. Daily Consumption:</span>
-                                  <span className="font-bold text-foreground">{dailyKwh} kWh/day</span>
+                              {/* 3-Stage Mathematical Flow */}
+                              <div className="space-y-1.5 text-[10px]">
+                                {/* Stage 1: Consumption */}
+                                <div className="p-2 rounded-xl bg-secondary/50 border border-border/50 space-y-1">
+                                  <div className="flex items-center justify-between text-[10.5px]">
+                                    <span className="font-sans font-semibold text-foreground flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[8.5px]">1</span>
+                                      Electric Bill Reference
+                                    </span>
+                                    <span className="font-mono font-bold text-primary">{minBillStr} ({v2Item.derivedElectricBill})</span>
+                                  </div>
+                                  <div className="text-[9px] font-mono text-muted-foreground flex justify-between pt-0.5 border-t border-border/30">
+                                    <span>Monthly: <strong className="text-foreground">{monthlyKwh.toLocaleString()} kWh</strong> (÷ ₱15)</span>
+                                    <span>Daily: <strong className="text-foreground">{dailyKwh} kWh/d</strong></span>
+                                  </div>
                                 </div>
 
-                                {/* Down arrow & Step 4 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ (× Target Solar Offset ~{targetOffsetPct}%)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">4. Target Solar Generation:</span>
-                                  <span className="font-bold text-foreground">{targetSolarGen} kWh/mo <span className="text-[8.5px] text-muted-foreground font-normal">({targetSolarGenDaily} kWh/d)</span></span>
+                                {/* Stage 2: Sizing Derivation */}
+                                <div className="p-2 rounded-xl bg-secondary/50 border border-border/50 space-y-1">
+                                  <div className="flex items-center justify-between text-[10.5px]">
+                                    <span className="font-sans font-semibold text-foreground flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[8.5px]">2</span>
+                                      Target Solar Sizing
+                                    </span>
+                                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400">~{targetOffsetPct}% Offset</span>
+                                  </div>
+                                  <div className="text-[9px] font-mono text-muted-foreground space-y-0.5 pt-0.5 border-t border-border/30">
+                                    <div className="flex justify-between">
+                                      <span>Target Solar Energy:</span>
+                                      <span className="text-foreground font-semibold">{targetSolarGen} kWh/mo ({targetSolarGenDaily} kWh/d)</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Required PV Capacity:</span>
+                                      <span className="text-foreground font-semibold">{targetSolarGen} ÷ 98.28 = {requiredDcKwp} kWp</span>
+                                    </div>
+                                    <div className="flex justify-between pt-0.5 border-t border-border/20">
+                                      <span>Panels Needed (620W):</span>
+                                      <span className="font-bold text-amber-600 dark:text-amber-400">ceil({requiredDcKwp} ÷ 0.62) = {panelsNeeded} Panels</span>
+                                    </div>
+                                  </div>
                                 </div>
 
-                                {/* Down arrow & Step 5 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ (÷ [4.20 PSH × 30d × 0.78 PR] = 98.28 yield factor)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">5. Required DC Capacity:</span>
-                                  <span className="font-bold text-foreground">{requiredDcKwp} kWp</span>
-                                </div>
-
-                                {/* Down arrow & Step 6 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ (÷ 620W per panel = 0.62 kWp)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">6. Solar Panels Needed:</span>
-                                  <span className="font-bold text-amber-600 dark:text-amber-400">ceil({requiredDcKwp} ÷ 0.62) = {panelsNeeded} Panels (620W)</span>
-                                </div>
-
-                                {/* Down arrow & Step 7 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ ({panelsNeeded} panels × 620W)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">7. Actual Installed DC Size:</span>
-                                  <span className="font-bold text-foreground">{actualDcKwp} kWp</span>
-                                </div>
-
-                                {/* Down arrow & Step 8 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ ({actualDcKwp} kWp × 4.20 × 30 × 0.78)</div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-muted-foreground font-sans">8. Actual Est. Generation:</span>
-                                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{actualEstGen} kWh/month</span>
-                                </div>
-
-                                {/* Down arrow & Step 9 */}
-                                <div className="text-[8.5px] text-muted-foreground/70 pl-3">↓ ({actualEstGen} kWh ÷ {monthlyKwh} kWh)</div>
-                                <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[10.5px]">
-                                  <span className="text-muted-foreground font-sans font-bold">9. Final Bill Offset Achieved:</span>
-                                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">~{finalOffsetAchieved}% ({v2Item.targetSolarOffset})</span>
+                                {/* Stage 3: Actual Installed System & Result */}
+                                <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+                                  <div className="flex items-center justify-between text-[10.5px]">
+                                    <span className="font-sans font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[8.5px]">3</span>
+                                      Installed Package Output
+                                    </span>
+                                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{actualDcKwp} kWp DC</span>
+                                  </div>
+                                  <div className="text-[9px] font-mono space-y-0.5 pt-0.5 border-t border-emerald-500/20">
+                                    <div className="flex justify-between text-muted-foreground">
+                                      <span>Actual Est. Generation:</span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{actualEstGen} kWh/month</span>
+                                    </div>
+                                    <div className="flex justify-between pt-0.5 border-t border-emerald-500/20 text-[10px]">
+                                      <span className="text-muted-foreground font-medium font-sans">Final Solar Bill Offset:</span>
+                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">~{finalOffsetAchieved}% ({v2Item.targetSolarOffset})</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -3757,6 +3781,15 @@ export default function Home() {
                       )
                     })}
                   </div>
+
+                  {/* Backdrop for mobile hold dismiss */}
+                  {holdTooltipKw !== null && (
+                    <div
+                      className="fixed inset-0 z-[990] bg-transparent"
+                      onClick={() => setHoldTooltipKw(null)}
+                      onTouchStart={() => setHoldTooltipKw(null)}
+                    />
+                  )}
 
 
                   {/* Presets */}
