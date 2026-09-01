@@ -2853,6 +2853,11 @@ export default function Home() {
       })
     }
 
+    // When only a single document is selected for download, use the exact Base File Name
+    if (tasks.length === 1) {
+      tasks[0].filename = `${cleanBase}.pdf`
+    }
+
     return tasks
   }
 
@@ -2869,7 +2874,7 @@ export default function Home() {
     const tasks = getSelectedExportTasks(cleanName)
     if (tasks.length === 0) return
 
-    const exportTitle = tasks.length === 1 ? tasks[0].filename.replace(/\.pdf$/i, '') : `${cleanName} - Package`
+    const exportTitle = tasks.length === 1 ? tasks[0].filename.replace(/\.pdf$/i, '') : cleanName
 
     setIsExportingPdf(true)
     setPdfExportStatus('Preparing documents for export...')
@@ -2955,7 +2960,7 @@ export default function Home() {
           compression: 'DEFLATE',
           compressionOptions: { level: 6 },
         })
-        const zipFilename = `${cleanName} - Package.zip`
+        const zipFilename = `${cleanName}.zip`
         setPdfExportStatus('Saving ZIP package to device...')
         await saveBlobWithPicker(zipBlob, zipFilename)
       }
@@ -6746,7 +6751,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         </span>
                         {totalFiles > 1 && (
                           <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 truncate min-w-0">
-                            📦 {(downloadFileName.trim() || computeDefaultFileName())} - Package.zip
+                            📦 {(downloadFileName.trim() || computeDefaultFileName())}.zip
                           </span>
                         )}
                       </div>
