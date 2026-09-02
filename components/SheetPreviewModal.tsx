@@ -74,7 +74,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     id: 'hybrid',
     title: 'Hybrid Inverters',
     icon: Zap,
-    warranty: '5 Yrs Replacement / 10 Yrs when paired with Goodwe Battery',
+    warranty: 'GoodWe: 5 Yrs (10 Yrs when paired with GoodWe Battery) | Deye: 10 Yrs | Solis: 5 Yrs',
     items: [
       { code: 'DEYE-1P-6KW', name: 'DEYE 1P 6KW Hybrid Inverter 18/18A', srp: '₱47,000', installer: '₱45,000', wholesale: '₱44,000', subdealer: '₱43,500' },
       { code: 'DEYE-1P-8KW', name: 'DEYE 1P 8KW Hybrid Inverter 28/26A', srp: '₱63,000', installer: '₱60,000', wholesale: '₱59,000', subdealer: '₱58,000' },
@@ -126,7 +126,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     id: 'bess',
     title: 'Batteries & Storage (BESS)',
     icon: Battery,
-    warranty: 'Standard 5 Years Replacement Warranty',
+    warranty: 'Deye: 10 Yrs | CESC: 10 Yrs | GoodWe: 5 Yrs | Genix: 5 Yrs | Dyness: 5 Yrs',
     items: [
       { code: 'DEYE-51.2V-314AH', name: 'DEYE 51.2V 314AH Lithium Battery (16.07kWh)', srp: '₱130,000', installer: '₱125,000', wholesale: '₱122,000', subdealer: '₱120,000' },
       { code: 'SOL-028', name: 'Alpsolar 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },

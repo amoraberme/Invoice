@@ -756,16 +756,50 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
   })
   const inverterDesc = (inverterItem?.description || '').toLowerCase()
   const isGoodweInverter = inverterDesc.includes('goodwe')
+  const isDeyeInverter = inverterDesc.includes('deye')
+  const isSolisInverter = inverterDesc.includes('solis')
+  const isAnernInverter = inverterDesc.includes('anern')
 
   // Check battery item
   const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
   const hasBattery = !invoice.excludeBattery && !!batteryItem
   const batteryDesc = (batteryItem?.description || '').toLowerCase()
   const isGoodweBattery = hasBattery && batteryDesc.includes('goodwe')
+  const isDeyeBattery = hasBattery && batteryDesc.includes('deye')
+  const isCescBattery = hasBattery && batteryDesc.includes('cesc')
+  const isGenixBattery = hasBattery && batteryDesc.includes('genix')
+  const isDynessBattery = hasBattery && (batteryDesc.includes('dyness') || batteryDesc.includes('dynes'))
 
-  // Rule: GoodWe inverter & battery is 5 years, but if both are GoodWe the inverter warranty becomes 10 years. Solis is 5 years. Deye is 5 years.
-  const inverterCoverage = (isGoodweInverter && isGoodweBattery) ? '10 Years' : '5 Years'
-  const batteryCoverage = '5 Years'
+  // Calculate Inverter Warranty:
+  // - GoodWe: 5 Years alone, 10 Years when paired with GoodWe Battery
+  // - Deye: 10 Years
+  // - Solis: 5 Years
+  // - Anern: 5 Years
+  let inverterCoverage = '5 Years'
+  if (isDeyeInverter) {
+    inverterCoverage = '10 Years'
+  } else if (isGoodweInverter) {
+    inverterCoverage = isGoodweBattery ? '10 Years' : '5 Years'
+  } else if (isSolisInverter || isAnernInverter) {
+    inverterCoverage = '5 Years'
+  } else {
+    inverterCoverage = '5 Years'
+  }
+
+  // Calculate Battery Warranty:
+  // - Deye: 10 Years
+  // - Cesc: 10 Years
+  // - Goodwe: 5 Years
+  // - Genix: 5 Years
+  // - Dyness: 5 Years
+  let batteryCoverage = '5 Years'
+  if (isDeyeBattery || isCescBattery) {
+    batteryCoverage = '10 Years'
+  } else if (isGoodweBattery || isGenixBattery || isDynessBattery) {
+    batteryCoverage = '5 Years'
+  } else {
+    batteryCoverage = '5 Years'
+  }
 
   return [
     { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
