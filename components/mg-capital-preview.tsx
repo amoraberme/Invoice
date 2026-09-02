@@ -1,15 +1,27 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo, Fragment } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, isBatteryItem, isLaborItem, isDeliveryItem, calculateTotal, calculateSubtotal, calculateSalesCommission, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
+import { 
+  formatCurrency, 
+  formatDate, 
+  calculateSubtotal, 
+  calculateTotal, 
+  calculateSalesCommission, 
+  cn, 
+  isLaborItem, 
+  isBatteryItem, 
+  isDeliveryItem,
+  generateDefaultScopesFromInvoice,
+  generateDefaultWarrantiesFromInvoice
+} from '@/lib/utils'
 
 interface MGCapitalPreviewProps {
   invoice: Invoice
   hoveredField?: string | null
   version?: 'v1' | 'v2'
-  onVersionChange?: (v: 'v1' | 'v2') => void
+  onVersionChange?: (version: 'v1' | 'v2') => void
   onPagesChange?: (count: number) => void
 }
 
@@ -194,6 +206,7 @@ export function MGCapitalPreview({
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const [localVersion, setLocalVersion] = useState<'v1' | 'v2'>('v1')
+  const prevPagesCountRef = useRef<number>(0)
 
   const version = controlledVersion ?? localVersion
 
@@ -205,43 +218,58 @@ export function MGCapitalPreview({
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
+    let rafId: number | null = null
     const recalcScale = () => {
-      const available = el.clientWidth - 32
-      setScale(Math.min(available / PAPER_W, 1))
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        if (!el) return
+        const available = el.clientWidth - 32
+        const newScale = Math.min(available / PAPER_W, 1)
+        setScale(prev => (Math.abs(prev - newScale) > 0.005 ? newScale : prev))
+      })
     }
     recalcScale()
     const ro = new ResizeObserver(recalcScale)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      ro.disconnect()
+    }
   }, [])
 
   // Filter line items based on excludeBattery preference
-  const items = (invoice.lineItems || []).filter((item) => {
-    return !(invoice.excludeBattery && isBatteryItem(item.description))
-  })
+  const items = useMemo(() => {
+    return (invoice.lineItems || []).filter((item) => {
+      return !(invoice.excludeBattery && isBatteryItem(item.description))
+    })
+  }, [invoice.lineItems, invoice.excludeBattery])
 
   // 1. Base Items Capital (0% Markup)
-  const itemsBaseCapitalTotal = items.reduce((acc, item) => acc + (item.quantity * item.rate), 0)
+  const itemsBaseCapitalTotal = useMemo(() => {
+    return items.reduce((acc, item) => acc + (item.quantity * item.rate), 0)
+  }, [items])
 
   // 2. Logistics & Expenses
   const lalamove = invoice.lalamoveCost || 0
   const additionalExpList = invoice.additionalExpenses || []
-  const additionalExpTotal = additionalExpList.reduce((acc, exp) => acc + (exp.amount || 0), 0)
+  const additionalExpTotal = useMemo(() => {
+    return additionalExpList.reduce((acc, exp) => acc + (exp.amount || 0), 0)
+  }, [additionalExpList])
   const totalExpenses = lalamove + additionalExpTotal
 
   // Subtotal Capital Cost (Items + Expenses)
   const subtotalCapitalCost = itemsBaseCapitalTotal + totalExpenses
 
   // 3. Client Quotation Selling Price Total (WITH Markup + VAT)
-  const itemsSellingSubtotal = calculateSubtotal(invoice)
+  const itemsSellingSubtotal = useMemo(() => calculateSubtotal(invoice), [invoice])
   const discount = invoice.discountAmount || 0
   const vatRate = invoice.vatRate || 0
   const netSubtotalBeforeVat = Math.max(0, itemsSellingSubtotal - discount)
   const vatAmount = netSubtotalBeforeVat * (vatRate / 100)
-  const clientGrandTotal = calculateTotal(invoice)
+  const clientGrandTotal = useMemo(() => calculateTotal(invoice), [invoice])
 
   // 4. 2.5% Sales Commission (Calculated from Selling Total excluding Labor & Installation)
-  const salesMarkup25Pct = calculateSalesCommission(invoice)
+  const salesMarkup25Pct = useMemo(() => calculateSalesCommission(invoice), [invoice])
 
   // 5. Total Capital Cost (Subtotal Capital + 2.5% Sales Commission)
   const totalCapitalWithSalesMarkup = subtotalCapitalCost + salesMarkup25Pct
@@ -250,11 +278,16 @@ export function MGCapitalPreview({
   const netProfit = clientGrandTotal - totalCapitalWithSalesMarkup
   const netProfitMarginPct = clientGrandTotal > 0 ? (netProfit / clientGrandTotal) * 100 : 0
 
-  const virtualPages = version === 'v1' ? [null] : paginateCapital(invoice)
+  const virtualPages = useMemo(() => {
+    return version === 'v1' ? [null] : paginateCapital(invoice)
+  }, [version, invoice])
   const totalPages = virtualPages.length
 
   useEffect(() => {
-    onPagesChange?.(totalPages)
+    if (onPagesChange && prevPagesCountRef.current !== totalPages) {
+      prevPagesCountRef.current = totalPages
+      onPagesChange(totalPages)
+    }
   }, [totalPages, onPagesChange])
 
   const getHighlightClass = (field: string) => {
@@ -268,17 +301,21 @@ export function MGCapitalPreview({
   }
 
   // Scopes and Warranties for V1
-  const activeScopes = (invoice.scopes && invoice.scopes.length > 0)
-    ? invoice.scopes.filter(s => s.enabled !== false)
-    : generateDefaultScopesFromInvoice({ ...invoice, withBrandName: true })
+  const activeScopes = useMemo(() => {
+    return (invoice.scopes && invoice.scopes.length > 0)
+      ? invoice.scopes.filter(s => s.enabled !== false)
+      : generateDefaultScopesFromInvoice({ ...invoice, withBrandName: true })
+  }, [invoice.scopes, invoice])
 
-  const activeWarranties = (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
-    .filter((w) => {
-      if (w.component.toLowerCase().includes('battery') && invoice.excludeBattery) {
-        return false
-      }
-      return true
-    })
+  const activeWarranties = useMemo(() => {
+    return (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
+      .filter((w) => {
+        if (w.component.toLowerCase().includes('battery') && invoice.excludeBattery) {
+          return false
+        }
+        return true
+      })
+  }, [invoice.warranties, invoice.excludeBattery, invoice])
 
   return (
     <main

@@ -1611,6 +1611,336 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
   },
 ]
 
+function GoodweCountdownBadge({ onClick, compact = false }: { onClick: () => void; compact?: boolean }) {
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date()
+      let target = new Date(now.getFullYear(), now.getMonth(), 25, 0, 0, 0)
+      if (now.getTime() >= target.getTime()) {
+        target = new Date(now.getFullYear(), now.getMonth() + 1, 25, 0, 0, 0)
+      }
+      const diffMs = target.getTime() - now.getTime()
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((diffMs / (1000 * 60)) % 60)
+      const seconds = Math.floor((diffMs / 1000) % 60)
+      setCountdown({ days, hours, minutes, seconds })
+    }
+    updateCountdown()
+    const timer = setInterval(updateCountdown, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const getUrgencyConfig = (days: number) => {
+    if (days > 10) {
+      return {
+        badgeBg: 'bg-emerald-500/15 dark:bg-emerald-500/25',
+        badgeText: 'text-emerald-800 dark:text-emerald-300 font-extrabold',
+        badgeBorder: 'border-emerald-500/50 hover:border-emerald-500/80',
+        pingBg: 'bg-emerald-400',
+        dotBg: 'bg-emerald-500',
+        shakeClass: '',
+      }
+    } else if (days > 3) {
+      return {
+        badgeBg: 'bg-amber-500/15 dark:bg-amber-500/25',
+        badgeText: 'text-amber-800 dark:text-amber-300 font-extrabold',
+        badgeBorder: 'border-amber-500/50 hover:border-amber-500/80',
+        pingBg: 'bg-amber-400',
+        dotBg: 'bg-amber-500',
+        shakeClass: '',
+      }
+    } else if (days > 0) {
+      return {
+        badgeBg: 'bg-rose-500/20 dark:bg-rose-500/30',
+        badgeText: 'text-rose-800 dark:text-rose-200 font-extrabold',
+        badgeBorder: 'border-rose-500/70 hover:border-rose-500',
+        pingBg: 'bg-rose-400',
+        dotBg: 'bg-rose-500',
+        shakeClass: '',
+      }
+    } else {
+      return {
+        badgeBg: 'bg-rose-600 text-white font-black',
+        badgeText: 'text-white font-black',
+        badgeBorder: 'border-rose-600',
+        pingBg: 'bg-rose-300',
+        dotBg: 'bg-white',
+        shakeClass: 'animate-bounce duration-300',
+      }
+    }
+  }
+
+  const urgency = getUrgencyConfig(countdown.days)
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-1 border rounded-full px-2 py-0.5 text-[10px] font-mono cursor-pointer transition-all shrink-0 select-none",
+          urgency.badgeBg,
+          urgency.badgeText,
+          urgency.badgeBorder,
+          urgency.shakeClass
+        )}
+        title="Pricelist 25th Update Reminder"
+      >
+        <span className="flex h-1.5 w-1.5 relative shrink-0">
+          <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
+          <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", urgency.dotBg)}></span>
+        </span>
+        <span className="font-extrabold shrink-0">⚡ 25th: {countdown.days}d</span>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 border rounded-full px-3 py-1 transition-all shadow-xs cursor-pointer group text-xs font-mono select-none",
+        urgency.badgeBg,
+        urgency.badgeText,
+        urgency.badgeBorder,
+        urgency.shakeClass
+      )}
+      title="Click for Pricelist Update Reminder"
+    >
+      <span className="flex h-2 w-2 relative shrink-0">
+        <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
+        <span className={cn("relative inline-flex rounded-full h-2 w-2", urgency.dotBg)}></span>
+      </span>
+      <span className="font-extrabold text-[11px] tracking-tight">
+        ⚡ Pricelist 25th Update:
+      </span>
+      <span className="font-mono text-[11px] font-extrabold">
+        {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+      </span>
+    </button>
+  )
+}
+
+function GoodweReminderModal({
+  open,
+  onOpenChange,
+  theme,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  theme?: string
+}) {
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    const updateCountdown = () => {
+      const now = new Date()
+      let target = new Date(now.getFullYear(), now.getMonth(), 25, 0, 0, 0)
+      if (now.getTime() >= target.getTime()) {
+        target = new Date(now.getFullYear(), now.getMonth() + 1, 25, 0, 0, 0)
+      }
+      const diffMs = target.getTime() - now.getTime()
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
+      const minutes = Math.floor((diffMs / (1000 * 60)) % 60)
+      const seconds = Math.floor((diffMs / 1000) % 60)
+      setCountdown({ days, hours, minutes, seconds })
+    }
+    updateCountdown()
+    const timer = setInterval(updateCountdown, 1000)
+    return () => clearInterval(timer)
+  }, [open])
+
+  const getUrgencyConfig = (days: number) => {
+    if (days > 10) {
+      return {
+        badgeBg: 'bg-emerald-500/15 dark:bg-emerald-500/25',
+        badgeText: 'text-emerald-800 dark:text-emerald-300 font-extrabold',
+        badgeBorder: 'border-emerald-500/50 hover:border-emerald-500/80',
+        boxBg: 'bg-emerald-500/10 border-emerald-500/30',
+        timerNum: 'text-emerald-700 dark:text-emerald-400',
+        shakeClass: '',
+        statusText: '🟢 Pricelist Active & Good',
+      }
+    } else if (days > 3) {
+      return {
+        badgeBg: 'bg-amber-500/15 dark:bg-amber-500/25',
+        badgeText: 'text-amber-800 dark:text-amber-300 font-extrabold',
+        badgeBorder: 'border-amber-500/50 hover:border-amber-500/80',
+        boxBg: 'bg-amber-500/10 border-amber-500/30',
+        timerNum: 'text-amber-700 dark:text-amber-400',
+        shakeClass: '',
+        statusText: '🟡 Approaching 25th Update',
+      }
+    } else if (days > 0) {
+      return {
+        badgeBg: 'bg-rose-500/20 dark:bg-rose-500/30',
+        badgeText: 'text-rose-800 dark:text-rose-200 font-extrabold',
+        badgeBorder: 'border-rose-500/70 hover:border-rose-500',
+        boxBg: 'bg-rose-500/15 border-rose-500/40',
+        timerNum: 'text-rose-700 dark:text-rose-400',
+        shakeClass: '',
+        statusText: '🔴 UPDATE DUE IN A FEW DAYS!',
+      }
+    } else {
+      return {
+        badgeBg: 'bg-rose-600 text-white font-black',
+        badgeText: 'text-white font-black',
+        badgeBorder: 'border-rose-600',
+        boxBg: 'bg-rose-500/25 border-rose-600',
+        timerNum: 'text-rose-600 dark:text-rose-400 font-black',
+        shakeClass: 'animate-bounce duration-300',
+        statusText: '⚠️ UPDATE DUE TODAY!',
+      }
+    }
+  }
+
+  const urgency = getUrgencyConfig(countdown.days)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={cn("max-w-md w-[94vw] sm:w-full font-mono p-4 sm:p-6 rounded-[20px] border-2 shadow-2xl transition-all bg-card text-card-foreground overflow-hidden", `theme-${theme || 'light'}`, urgency.badgeBorder)}>
+        <DialogHeader className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-foreground">
+              <Sparkles className="w-4 h-4 animate-pulse text-amber-500" />
+              <span className={cn("text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border", urgency.badgeBg, urgency.badgeText, urgency.badgeBorder)}>
+                {urgency.statusText}
+              </span>
+            </div>
+          </div>
+          <DialogTitle className="text-base sm:text-lg font-black tracking-tight text-foreground flex items-center gap-2 pt-1">
+            ⚡ Pricelist Update Reminder
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3.5 my-1.5">
+          <div className={cn("border-2 rounded-xl p-3 sm:p-4 text-center transition-all", urgency.boxBg, urgency.shakeClass)}>
+            <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-foreground">
+              Countdown to 25th of Month Update:
+            </span>
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 font-mono">
+              <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{countdown.days}</span>
+                <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Days</span>
+              </div>
+              <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.hours).padStart(2, '0')}</span>
+                <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Hours</span>
+              </div>
+              <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.minutes).padStart(2, '0')}</span>
+                <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Mins</span>
+              </div>
+              <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
+                <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.seconds).padStart(2, '0')}</span>
+                <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Secs</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 text-xs leading-relaxed text-foreground bg-card p-3 sm:p-4 rounded-xl border-2 border-border shadow-xs">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+              <span className="font-medium">
+                <strong className="font-extrabold text-foreground">Internal Reminder:</strong> Price list review and update target is scheduled for the <strong className="font-black underline">25th of every month</strong>.
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <RefreshCw className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <span className="font-medium">
+                <strong className="font-extrabold text-foreground">Action Required:</strong> Please cross-reference inverter, panel, and accessory prices against the latest August 1 sheet before issuing quotes.
+              </span>
+            </div>
+            <div className="flex flex-col gap-2 pt-2 border-t-2 border-border">
+              <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      GEPC Aug 1 Pricelist Sheet
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
+                    </span>
+                  </div>
+                </div>
+                <a
+                  href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                  download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
+                  className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-amber-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                  title="Download GEPC Aug 1 Pricelist Sheet (.xlsx)"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      Angel Solar X Updated Price List (June 2026)
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      Angel Solar X Updated Price List June 2026.xlsx
+                    </span>
+                  </div>
+                </div>
+                <a
+                  href="/Angel Solar X Updated Price List June 2026.xlsx"
+                  download="Angel Solar X Updated Price List June 2026.xlsx"
+                  className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-emerald-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                  title="Download Angel Solar June 2026 Sheet (.xlsx)"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-black text-foreground truncate">
+                      Main QC Pricelist (Updated May 11)
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-mono truncate">
+                      Main QC pricelist.md
+                    </span>
+                  </div>
+                </div>
+                <a
+                  href="/Main QC pricelist.md"
+                  download="Main QC pricelist.md"
+                  className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-blue-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
+                  title="Download Main QC Pricelist (.md)"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end pt-2 border-t border-border gap-2">
+          <Button 
+            onClick={() => onOpenChange(false)}
+            className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer w-full sm:w-auto"
+          >
+            Close Reminder
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function Home() {
   const {
     invoice,
@@ -1771,93 +2101,9 @@ export default function Home() {
 
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
-  const [goodweModalOpen, setGoodweModalOpen] = useState(true)
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+  const [goodweModalOpen, setGoodweModalOpen] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [pdfExportStatus, setPdfExportStatus] = useState('')
-
-
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date()
-      let target = new Date(now.getFullYear(), now.getMonth(), 25, 0, 0, 0)
-      if (now.getTime() >= target.getTime()) {
-        target = new Date(now.getFullYear(), now.getMonth() + 1, 25, 0, 0, 0)
-      }
-      const diffMs = target.getTime() - now.getTime()
-      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-      const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
-      const minutes = Math.floor((diffMs / (1000 * 60)) % 60)
-      const seconds = Math.floor((diffMs / 1000) % 60)
-      setCountdown({ days, hours, minutes, seconds })
-    }
-    updateCountdown()
-    const timer = setInterval(updateCountdown, 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const getUrgencyConfig = (days: number) => {
-    if (days > 10) {
-      return {
-        badgeBg: 'bg-emerald-500/15 dark:bg-emerald-500/25',
-        badgeText: 'text-emerald-800 dark:text-emerald-300 font-extrabold',
-        badgeBorder: 'border-emerald-500/50 hover:border-emerald-500/80',
-        pingBg: 'bg-emerald-400',
-        dotBg: 'bg-emerald-500',
-        boxBg: 'bg-emerald-500/10 border-emerald-500/30',
-        boxText: 'text-emerald-700 dark:text-emerald-300',
-        timerNum: 'text-emerald-700 dark:text-emerald-400',
-        shakeClass: '',
-        statusText: '🟢 Pricelist Active & Good',
-        themeGradient: 'from-emerald-500/15 via-teal-500/15 to-emerald-500/15',
-      }
-    } else if (days > 3) {
-      return {
-        badgeBg: 'bg-amber-500/15 dark:bg-amber-500/25',
-        badgeText: 'text-amber-800 dark:text-amber-300 font-extrabold',
-        badgeBorder: 'border-amber-500/50 hover:border-amber-500/80',
-        pingBg: 'bg-amber-400',
-        dotBg: 'bg-amber-500',
-        boxBg: 'bg-amber-500/10 border-amber-500/30',
-        boxText: 'text-amber-700 dark:text-amber-300',
-        timerNum: 'text-amber-700 dark:text-amber-400',
-        shakeClass: '',
-        statusText: '🟡 Approaching 25th Update',
-        themeGradient: 'from-amber-500/15 via-orange-500/15 to-amber-500/15',
-      }
-    } else if (days > 0) {
-      return {
-        badgeBg: 'bg-rose-500/20 dark:bg-rose-500/30',
-        badgeText: 'text-rose-800 dark:text-rose-200 font-extrabold',
-        badgeBorder: 'border-rose-500/70 hover:border-rose-500',
-        pingBg: 'bg-rose-400',
-        dotBg: 'bg-rose-500',
-        boxBg: 'bg-rose-500/15 border-rose-500/40',
-        boxText: 'text-rose-700 dark:text-rose-300',
-        timerNum: 'text-rose-700 dark:text-rose-400',
-        shakeClass: '',
-        statusText: '🔴 UPDATE DUE IN A FEW DAYS!',
-        themeGradient: 'from-rose-500/20 via-red-500/20 to-rose-500/20',
-      }
-    } else {
-      return {
-        badgeBg: 'bg-rose-600 text-white font-black',
-        badgeText: 'text-white font-black',
-        badgeBorder: 'border-rose-600',
-        pingBg: 'bg-rose-300',
-        dotBg: 'bg-white',
-        boxBg: 'bg-rose-500/25 border-rose-600',
-        boxText: 'text-rose-800 dark:text-rose-200 font-bold',
-        timerNum: 'text-rose-600 dark:text-rose-400 font-black',
-        shakeClass: 'animate-bounce duration-300',
-        statusText: '⚠️ UPDATE DUE TODAY!',
-        themeGradient: 'from-rose-600 via-red-600 to-rose-600 text-white',
-      }
-    }
-  }
-
-  const urgency = getUrgencyConfig(countdown.days)
 
 
   const THEME_EMOJIS: Record<string, string> = {
@@ -3560,23 +3806,7 @@ export default function Home() {
             {THEME_EMOJIS[invoice.theme || 'light']}
           </button>
 
-          <button
-            onClick={() => setGoodweModalOpen(true)}
-            className={cn(
-              "flex items-center gap-1 border rounded-full px-2 py-0.5 text-[10px] font-mono cursor-pointer transition-all shrink-0 select-none",
-              urgency.badgeBg,
-              urgency.badgeText,
-              urgency.badgeBorder,
-              urgency.shakeClass
-            )}
-            title="Pricelist 25th Update Reminder"
-          >
-            <span className="flex h-1.5 w-1.5 relative shrink-0">
-              <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
-              <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", urgency.dotBg)}></span>
-            </span>
-            <span className="font-extrabold shrink-0">⚡ 25th: {countdown.days}d</span>
-          </button>
+          <GoodweCountdownBadge compact onClick={() => setGoodweModalOpen(true)} />
         </div>
       </div>
 
@@ -3634,28 +3864,7 @@ export default function Home() {
 
 
               {/* Countdown for Goodwe Pricelist update on the 25th */}
-              <button
-                onClick={() => setGoodweModalOpen(true)}
-                className={cn(
-                  "flex items-center gap-2 border rounded-full px-3 py-1 transition-all shadow-xs cursor-pointer group text-xs font-mono select-none",
-                  urgency.badgeBg,
-                  urgency.badgeText,
-                  urgency.badgeBorder,
-                  urgency.shakeClass
-                )}
-                title="Click for Pricelist Update Reminder"
-              >
-                <span className="flex h-2 w-2 relative shrink-0">
-                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", urgency.pingBg)}></span>
-                  <span className={cn("relative inline-flex rounded-full h-2 w-2", urgency.dotBg)}></span>
-                </span>
-                <span className="font-extrabold text-[11px] tracking-tight">
-                  ⚡ Pricelist 25th Update:
-                </span>
-                <span className="font-mono text-[11px] font-extrabold">
-                  {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
-                </span>
-              </button>
+              <GoodweCountdownBadge onClick={() => setGoodweModalOpen(true)} />
 
 
               <button
@@ -7096,145 +7305,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
       </Dialog>
 
       {/* Goodwe Pricelist Update Reminder Modal */}
-      <Dialog open={goodweModalOpen} onOpenChange={setGoodweModalOpen}>
-        <DialogContent className={cn("max-w-md w-[94vw] sm:w-full font-mono p-4 sm:p-6 rounded-[20px] border-2 shadow-2xl transition-all bg-card text-card-foreground overflow-hidden", `theme-${invoice.theme || 'light'}`, urgency.badgeBorder)}>
-
-          <DialogHeader className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-foreground">
-                <Sparkles className="w-4 h-4 animate-pulse text-amber-500" />
-                <span className={cn("text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border", urgency.badgeBg, urgency.badgeText, urgency.badgeBorder)}>
-                  {urgency.statusText}
-                </span>
-              </div>
-            </div>
-            <DialogTitle className="text-base sm:text-lg font-black tracking-tight text-foreground flex items-center gap-2 pt-1">
-              ⚡ Pricelist Update Reminder
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3.5 my-1.5">
-            {/* Live Countdown Box with Dynamic Color & High Contrast */}
-            <div className={cn("border-2 rounded-xl p-3 sm:p-4 text-center transition-all", urgency.boxBg, urgency.shakeClass)}>
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold block mb-2 text-foreground">
-                Countdown to 25th of Month Update:
-              </span>
-              <div className="grid grid-cols-4 gap-1 sm:gap-2 font-mono">
-                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{countdown.days}</span>
-                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Days</span>
-                </div>
-                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.hours).padStart(2, '0')}</span>
-                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Hours</span>
-                </div>
-                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.minutes).padStart(2, '0')}</span>
-                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Mins</span>
-                </div>
-                <div className="bg-card border-2 border-border rounded-lg p-1.5 sm:p-2 flex flex-col items-center shadow-xs">
-                  <span className={cn("text-base sm:text-xl font-black", urgency.timerNum)}>{String(countdown.seconds).padStart(2, '0')}</span>
-                  <span className="text-[8px] sm:text-[9px] text-foreground font-extrabold uppercase">Secs</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Reminder Details */}
-            <div className="space-y-2.5 text-xs leading-relaxed text-foreground bg-card p-3 sm:p-4 rounded-xl border-2 border-border shadow-xs">
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span className="font-medium">
-                  <strong className="font-extrabold text-foreground">Internal Reminder:</strong> Price list review and update target is scheduled for the <strong className="font-black underline">25th of every month</strong>.
-                </span>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <RefreshCw className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <span className="font-medium">
-                  <strong className="font-extrabold text-foreground">Action Required:</strong> Please cross-reference inverter, panel, and accessory prices against the latest August 1 sheet before issuing quotes.
-                </span>
-              </div>
-              <div className="flex flex-col gap-2 pt-2 border-t-2 border-border">
-                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-amber-500 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-black text-foreground truncate">
-                        GEPC Aug 1 Pricelist Sheet
-                      </span>
-                      <span className="text-[9px] text-muted-foreground font-mono truncate">
-                        GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx
-                      </span>
-                    </div>
-                  </div>
-                  <a
-                    href="/GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                    download="GEPC-PRICELIST-UPDATED-MG-SOLAR AUG 1.xlsx"
-                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-amber-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
-                    title="Download GEPC Aug 1 Pricelist Sheet (.xlsx)"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-black text-foreground truncate">
-                        Angel Solar X Updated Price List (June 2026)
-                      </span>
-                      <span className="text-[9px] text-muted-foreground font-mono truncate">
-                        Angel Solar X Updated Price List June 2026.xlsx
-                      </span>
-                    </div>
-                  </div>
-                  <a
-                    href="/Angel Solar X Updated Price List June 2026.xlsx"
-                    download="Angel Solar X Updated Price List June 2026.xlsx"
-                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-emerald-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
-                    title="Download Angel Solar June 2026 Sheet (.xlsx)"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 bg-secondary/80 p-2.5 rounded-lg border border-border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-black text-foreground truncate">
-                        Main QC Pricelist (Updated May 11)
-                      </span>
-                      <span className="text-[9px] text-muted-foreground font-mono truncate">
-                        Main QC pricelist.md
-                      </span>
-                    </div>
-                  </div>
-                  <a
-                    href="/Main QC pricelist.md"
-                    download="Main QC pricelist.md"
-                    className="p-2.5 rounded-2xl bg-secondary/80 hover:bg-secondary text-blue-500 border border-border transition-all shadow-2xs cursor-pointer select-none shrink-0 flex items-center justify-center"
-                    title="Download Main QC Pricelist (.md)"
-                  >
-                    <Download className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end pt-2 border-t border-border gap-2">
-            <Button 
-              onClick={() => setGoodweModalOpen(false)}
-              className="bg-foreground text-background hover:bg-foreground/90 font-extrabold text-xs rounded-lg px-4 py-2 cursor-pointer w-full sm:w-auto"
-            >
-              Close Reminder
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GoodweReminderModal open={goodweModalOpen} onOpenChange={setGoodweModalOpen} theme={invoice.theme} />
 
       {/* Add Custom Changelog Entry Dialog */}
       <Dialog open={addChangelogModalOpen} onOpenChange={setAddChangelogModalOpen}>

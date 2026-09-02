@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, Fragment } from 'react'
+import { useRef, useState, useEffect, useMemo, Fragment } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { formatDate, cn, isLaborItem, isBatteryItem } from '@/lib/utils'
@@ -233,32 +233,49 @@ export function MGChecklistPreview({
 }: MGChecklistPreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const prevPagesCountRef = useRef<number>(0)
 
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
+    let rafId: number | null = null
     const recalcScale = () => {
-      const available = el.clientWidth - 32
-      setScale(Math.min(available / PAPER_W, 1))
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        if (!el) return
+        const available = el.clientWidth - 32
+        const newScale = Math.min(available / PAPER_W, 1)
+        setScale(prev => (Math.abs(prev - newScale) > 0.005 ? newScale : prev))
+      })
     }
     recalcScale()
     const ro = new ResizeObserver(recalcScale)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      ro.disconnect()
+    }
   }, [])
 
   // Filter checklist items (exclude labor and excluded battery)
-  const checklistItems = invoice.lineItems.filter(item => {
-    if (isChecklistExcludedItem(item.description)) return false
-    if (invoice.excludeBattery && isBatteryItem(item.description)) return false
-    return true
-  })
+  const checklistItems = useMemo(() => {
+    return (invoice.lineItems || []).filter(item => {
+      if (isChecklistExcludedItem(item.description)) return false
+      if (invoice.excludeBattery && isBatteryItem(item.description)) return false
+      return true
+    })
+  }, [invoice.lineItems, invoice.excludeBattery])
 
-  const virtualPages = paginateChecklist(invoice)
+  const virtualPages = useMemo(() => {
+    return paginateChecklist(invoice)
+  }, [invoice])
   const totalPages = virtualPages.length
 
   useEffect(() => {
-    onPagesChange?.(totalPages)
+    if (onPagesChange && prevPagesCountRef.current !== totalPages) {
+      prevPagesCountRef.current = totalPages
+      onPagesChange(totalPages)
+    }
   }, [totalPages, onPagesChange])
 
   const totalCount = checklistItems.length

@@ -1,9 +1,35 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import { type Invoice, type LineItem, defaultWarranties } from '@/lib/types'
+import { useRef, useState, useEffect, useMemo } from 'react'
+import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
+import { 
+  formatCurrency, 
+  formatDate, 
+  calculateSubtotal, 
+  cn, 
+  getCondensedLineItems, 
+  sortLineItems, 
+  formatItemDescription,
+  extractPanelInfoFromLineItems,
+  getPanelDimensions,
+  isBatteryItem,
+  isBatteryUnit,
+  isLaborItem,
+  isDeliveryItem,
+  generateDefaultScopesFromInvoice,
+  generateDefaultWarrantiesFromInvoice
+} from '@/lib/utils'
+import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag } from 'lucide-react'
+
+interface MGInvoicePreviewProps {
+  invoice: Invoice
+  hoveredField?: string | null
+  onOpenCheatsheet?: () => void
+  onPagesChange?: (count: number) => void
+  onToggleCondensed?: (val: boolean) => void
+  onToggleWithBrandName?: (val: boolean) => void
+}
 
 interface PageData {
   items: LineItem[]
@@ -21,16 +47,10 @@ export function MGInvoicePreview({
   onPagesChange,
   onToggleCondensed,
   onToggleWithBrandName,
-}: { 
-  invoice: Invoice; 
-  hoveredField?: string | null;
-  onOpenCheatsheet?: () => void;
-  onPagesChange?: (count: number) => void;
-  onToggleCondensed?: (isCondensed: boolean) => void;
-  onToggleWithBrandName?: (withBrandName: boolean) => void;
-}) {
+}: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const prevPagesCountRef = useRef<number>(0)
 
   const getHighlightClass = (field: string) => {
     const isHovered = hoveredField === field || 
@@ -48,29 +68,44 @@ export function MGInvoicePreview({
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
+    let rafId: number | null = null
     const recalcScale = () => {
-      const available = el.clientWidth - 32 // 16px breathing room each side
-      setScale(Math.min(available / PAPER_W, 1))
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        if (!el) return
+        const available = el.clientWidth - 32 // 16px breathing room each side
+        const newScale = Math.min(available / PAPER_W, 1)
+        setScale(prev => (Math.abs(prev - newScale) > 0.005 ? newScale : prev))
+      })
     }
     recalcScale()
     const ro = new ResizeObserver(recalcScale)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      ro.disconnect()
+    }
   }, [])
 
   const rateMarkup = invoice.rateMarkup || 0
-  const displayItems = invoice.isCondensed
-    ? getCondensedLineItems(invoice)
-    : sortLineItems(invoice.lineItems)
-  const showPriceColumns = displayItems.some(it => (it.rate || 0) > 0)
-  const subtotal = calculateSubtotal(invoice)
+  const displayItems = useMemo(() => {
+    return invoice.isCondensed
+      ? getCondensedLineItems(invoice)
+      : sortLineItems(invoice.lineItems)
+  }, [invoice.isCondensed, invoice.lineItems])
+
+  const showPriceColumns = useMemo(() => {
+    return displayItems.some(it => (it.rate || 0) > 0)
+  }, [displayItems])
+
+  const subtotal = useMemo(() => calculateSubtotal(invoice), [invoice])
   const discount = invoice.discountAmount || 0
   const netSubtotal = Math.max(0, subtotal - discount)
   const vat = netSubtotal * (invoice.vatRate / 100)
   const total = netSubtotal + vat
 
   // Extracted Scope details for condensed/compressed mode
-  const scopeData = (() => {
+  const scopeData = useMemo(() => {
     const items = invoice.lineItems || []
     const withBrand = invoice.withBrandName !== false
 
@@ -143,7 +178,7 @@ export function MGInvoicePreview({
       materialsList,
       electricalList,
     }
-  })()
+  }, [invoice.lineItems, invoice.withBrandName, invoice.excludeBattery])
 
   // Helper to count wrapped lines in monospace font
   const getWrappedLines = (text: string, charsPerLine: number): number => {
@@ -178,24 +213,22 @@ export function MGInvoicePreview({
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
     const noteLines = getWrappedLines(inv.note, 65)
-    const noteHeight = inv.note ? (noteLines * 16 + 28) : 0
+    const noteHeight = inv.note ? (12 + noteLines * 14) : 0
     
     const termsLines = getWrappedLines(inv.terms, 65)
-    const termsHeight = inv.terms ? (termsLines * 16 + 28) : 0
+    const termsHeight = inv.terms ? (12 + termsLines * 14) : 0
     
-    const salesHeight = (inv.salesName || inv.salesPosition || inv.salesCompany || inv.salesContact || inv.salesEmail) ? 110 : 0
+    const salesContactHeight = 60
+    const closingHeight = 45
+    const ackHeight = 80
     
-    const closingLines = getWrappedLines(inv.closing, 65)
-    const closingHeight = inv.closing ? (20 + closingLines * 16) : 0
-
-    const ackHeight = inv.closing ? 130 : 0
-    
-    const footerBlockHeight = noteHeight + termsHeight + salesHeight + closingHeight + ackHeight + 15
+    const footerBlockHeight = noteHeight + termsHeight + salesContactHeight + closingHeight + ackHeight + 20
 
     // Available content height inside A4 borders (PAPER_H 1123 with safe bottom margins)
     const PAGE_MAX_H = 880
 
-    const getItemHeight = (item: LineItem): number => {
+    // Helper: calculate height of a line item
+    const getItemHeight = (item: LineItem) => {
       const desc = item.description || ''
       const lines = desc.split('\n')
       let itemLines = 0
@@ -341,11 +374,12 @@ export function MGInvoicePreview({
     return pages
   }
 
-  const virtualPages = paginateInvoice(invoice)
+  const virtualPages = useMemo(() => paginateInvoice(invoice), [invoice])
   const totalPages = virtualPages.length
 
   useEffect(() => {
-    if (onPagesChange) {
+    if (onPagesChange && prevPagesCountRef.current !== totalPages) {
+      prevPagesCountRef.current = totalPages
       onPagesChange(totalPages)
     }
   }, [totalPages, onPagesChange])
