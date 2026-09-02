@@ -1,8 +1,8 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
@@ -31,6 +31,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
   SIZING_REFERENCE_V2,
   KW_TO_ELECTRIC_BILL_V1,
   getElectricBillRefV2,
@@ -46,59 +51,218 @@ const PANEL_WATTAGE = 620
 const PANEL_WIDTH_FT = 3.72
 
 function getWireSize(inverterKw: number): string {
+  if (inverterKw >= 10) return '#6 & #8'
+  if (inverterKw === 8) return '6mm²'
   return '#8'
 }
 
-function getConduitDetails(inverterKw: number, runLength: number = 30) {
-  const rate = 124.00
-  const size = '40mm'
+function getConduitDetails(systemKw: number, runLength: number = 30) {
+  if (systemKw <= 6) {
+    return {
+      description: 'Flexible hose 32mm',
+      rate: 95.00,
+      quantity: 25,
+      unit: 'M',
+      size: '32mm'
+    }
+  }
+  if (systemKw <= 8) {
+    return {
+      description: 'Flexible hose 32mm',
+      rate: 95.00,
+      quantity: 50,
+      unit: 'M',
+      size: '32mm'
+    }
+  }
+  if (systemKw >= 20) {
+    return {
+      description: 'Flexible hose 40mm',
+      rate: 124.00,
+      quantity: 100,
+      unit: 'M',
+      size: '40mm'
+    }
+  }
   return {
-    description: `Flexible hose ${size}`,
-    rate,
+    description: 'Flexible hose 40mm',
+    rate: 124.00,
     quantity: 50,
-    unit: 'M'
+    unit: 'M',
+    size: '40mm'
   }
 }
 
-function getDynamicBreakerRatings(systemKw: number) {
-  const iAcRaw = Math.ceil(((systemKw * 1000) / (230 * 0.9)) * 1.25)
-  const acBreakerSizes = [20, 32, 50, 63, 80, 100, 125]
-  const acMcbAmp = acBreakerSizes.find(s => s >= iAcRaw) || Math.ceil(iAcRaw)
+function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: number, batteryAh?: number) {
+  let acMcb = 'AC MCB 100A'
+  let acMcbRate = 500.00
+  let acMcbQty = 2
 
-  const iDcRaw = Math.ceil((systemKw * 1000) / (48 * 0.85 * 0.80))
-  const dcMccbSizes = [100, 160, 200, 250, 300, 350, 500]
-  const dcMccbAmp = dcMccbSizes.find(s => s >= iDcRaw) || Math.ceil(iDcRaw)
+  if (systemKw <= 4) {
+    acMcb = 'AC MCB 80A'
+    acMcbRate = 450.00
+    acMcbQty = 2
+  } else if (systemKw <= 6) {
+    acMcb = 'AC MCB 100A'
+    acMcbRate = 500.00
+    acMcbQty = 2
+  } else if (systemKw <= 8) {
+    acMcb = 'AC MCB 125A'
+    acMcbRate = 500.00
+    acMcbQty = 2
+  } else if (systemKw >= 20) {
+    acMcb = 'AC MCCB'
+    acMcbRate = 1300.00
+    acMcbQty = 8
+  } else if (systemKw <= 16) {
+    acMcb = 'AC MCCB'
+    acMcbRate = 1300.00
+    acMcbQty = 4
+  }
 
-  let atsAmp = acMcbAmp
-  if (systemKw <= 3) atsAmp = Math.max(32, acMcbAmp)
-  else if (systemKw <= 10) atsAmp = Math.max(63, acMcbAmp)
-  else atsAmp = Math.max(80, acMcbAmp)
+  let ats = 'Automatic transfer switch 125A'
+  let atsRate = 4000.00
+  let atsAmp = 125
+  let atsQty = systemKw >= 20 ? 2 : 1
+
+  if (systemKw <= 4) {
+    ats = 'Automatic transfer switch 63A'
+    atsRate = 1500.00
+    atsAmp = 63
+  } else if (systemKw <= 8) {
+    ats = 'Automatic transfer switch 125A'
+    atsRate = 2000.00
+    atsAmp = 125
+  } else {
+    ats = 'Automatic transfer switch 125A'
+    atsRate = 4000.00
+    atsAmp = 125
+  }
+
+  const enclosure = systemKw <= 4
+    ? 'Breaker box / Metal Enclosure 50x40'
+    : 'Breaker box / Metal Enclosure 50x60'
+  const enclosureRate = systemKw <= 4 ? 1500.00 : 3000.00
+  const enclosureQty = systemKw >= 20 ? 2 : 1
+
+  const dcMcbQty = systemKw >= 20 ? 4 : (systemKw >= 12 ? 3 : 2)
+  const dcSpdQty = systemKw >= 20 ? 6 : (systemKw >= 8 ? 3 : 2)
+  const acSpdQty = systemKw >= 20 ? 4 : 2
+  const dcMccbQty = batteryCountOverride !== undefined && batteryCountOverride > 0
+    ? batteryCountOverride
+    : (systemKw >= 20 ? 2 : 1)
+
+  const dcMccb = 'DC MCCB 125A for battery'
 
   return {
-    iAcRaw,
-    acMcbAmp,
-    acMcb: `AC MCCB`,
-    iDcRaw,
-    dcMccbAmp,
-    dcMccb: `DC MCCB for battery`,
-    dcMcb: `DC MCB`,
-    acSpd: `AC SPD`,
-    dcSpdVoltage: systemKw < 8 ? '600V DC' : '1000V DC',
-    dcSpd: `DC SPD`,
+    acMcb,
+    acMcbRate,
+    acMcbQty,
+    ats,
+    atsRate,
     atsAmp,
-    ats: `Automatic transfer switch 125A`
+    atsQty,
+    enclosure,
+    enclosureRate,
+    enclosureQty,
+    dcMcbQty,
+    dcMcbRate: 420.00,
+    dcSpdQty,
+    dcSpdRate: 790.00,
+    acSpdQty,
+    acSpdRate: 570.00,
+    dcMccbQty,
+    dcMccbRate: 2500.00,
+    dcMccb,
+    dcMcb: 'DC MCB',
+    acSpd: 'AC SPD',
+    dcSpd: 'DC SPD'
   }
 }
 
-function getDynamicWireSize(systemKw: number, runLength: number = 30): { dcCable: string, groundWire: string, acWire: string } {
-  const groundWireGauge = systemKw >= 10 ? '10mm²' : '6mm²'
-  const acWireGauge = systemKw >= 10 ? 'AC Wire #6 & AC Wire #8' : 'AC Wire #8'
+function getDynamicWireSize(systemKw: number, runLength: number = 30, batteryCountOverride?: number) {
+  let groundWireMeters = 20
+  if (systemKw === 4) groundWireMeters = 50
+  else if (systemKw >= 20) groundWireMeters = 50
+  else if (systemKw >= 8) groundWireMeters = 25
+
+  let dcWireMeters = 60
+  if (systemKw === 8) dcWireMeters = 60
+  else if (systemKw >= 20) dcWireMeters = 160
+  else if (systemKw >= 10) dcWireMeters = 80
+
+  let batteryCableMeters = 6
+  let batteryCableDesc = 'Battery Cable (Black & Red) 50mm'
+  let batteryCableRate = 700.00
+
+  if (systemKw >= 20) {
+    batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 0) ? batteryCountOverride * 10 : 20
+    batteryCableDesc = 'Battery Cable (Black & Red) 50mm'
+    batteryCableRate = 700.00
+  } else if (systemKw >= 16) {
+    batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 1) ? batteryCountOverride * 10 : 10
+    batteryCableDesc = 'Battery Cable (Black & Red) 70mm'
+    batteryCableRate = 820.00
+  } else if (systemKw >= 8) {
+    batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 1) ? batteryCountOverride * 10 : 10
+    batteryCableDesc = 'Battery Cable (Black & Red) 50mm'
+    batteryCableRate = 700.00
+  } else {
+    batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 1) ? batteryCountOverride * 6 : 6
+    batteryCableDesc = 'Battery Cable (Black & Red) 50mm'
+    batteryCableRate = 700.00
+  }
+
+  const groundWireDesc = systemKw >= 12 ? 'Ground Wire #8' : 'Ground Wire'
+  const acWireGauge = systemKw >= 10 ? 'AC Wire #6 & AC Wire #8' : (systemKw === 8 ? 'AC Wire 6mm²' : 'AC Wire #8')
 
   return {
-    dcCable: `DC Wire`,
-    groundWire: `Ground Wire ${groundWireGauge}`,
-    acWire: acWireGauge
+    dcCable: systemKw === 8 ? 'DC Wire 6mm²' : 'DC Wire',
+    groundWire: groundWireDesc,
+    groundWireDesc,
+    acWire: acWireGauge,
+    groundWireMeters,
+    dcWireMeters,
+    batteryCableMeters,
+    batteryCableDesc,
+    batteryCableRate
   }
+}
+
+export interface PricingReconciliationInfo {
+  status: 'updated' | 'pending' | 'scaled' | 'deleted' | 'upgraded' | 'standard'
+  actionBadge: string
+  badgeClass: string
+  title: string
+  note: string
+  oldPrice?: string
+  newPrice?: string
+  isPendingQuote?: boolean
+}
+
+export function getPricingReconciliationNote(
+  item: LineItem,
+  systemKw: number
+): PricingReconciliationInfo | null {
+  const d = (item.description || '').toLowerCase().trim()
+
+  // Battery Cable 70mm² (Heavy-duty upgrade for 16kW: 5m Black + 5m Red)
+  if (
+    d.includes('70mm') ||
+    (d.includes('battery cable') && systemKw >= 16 && !d.includes('50mm'))
+  ) {
+    return {
+      status: 'upgraded',
+      actionBadge: '70MM² HEAVY-DUTY',
+      badgeClass: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+      title: '16kW 70mm² Battery Cable (Black & Red)',
+      note: '16kW maximum hybrid requires heavy-duty 70mm² cable (5m Black + 5m Red = 10m) @ ₱820.00/m (+35% copper gauge rating).',
+      oldPrice: '50mm² @ ₱700.00/m',
+      newPrice: '70mm² @ ₱820.00/m (10m)'
+    }
+  }
+
+  return null
 }
 
 function getInverterKwFromLineItems(lineItems: LineItem[]): number {
@@ -110,7 +274,9 @@ function getInverterKwFromLineItems(lineItems: LineItem[]): number {
   if (inverterItem) {
     const match = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kW/i)
     if (match) {
-      return parseFloat(match[1])
+      const baseKw = parseFloat(match[1])
+      const qty = inverterItem.quantity && inverterItem.quantity > 1 ? inverterItem.quantity : 1
+      return baseKw * qty
     }
   }
   const { totalWatts } = extractPanelInfoFromLineItems(lineItems)
@@ -123,8 +289,20 @@ function getInverterKwFromLineItems(lineItems: LineItem[]): number {
 function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: number): { updated: boolean, items: LineItem[] } {
   const inverterKw = getInverterKwFromLineItems(lineItems)
   const runLength = 30
-  const wireInfo = getDynamicWireSize(inverterKw, runLength)
-  const breakers = getDynamicBreakerRatings(inverterKw)
+  const batteryItems = lineItems.filter(it => isBatteryUnit(it.description))
+  const totalBatteryQty = batteryItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
+  const effectiveBatteryQty = totalBatteryQty > 0 ? totalBatteryQty : (inverterKw >= 20 ? 2 : 1)
+
+  let detectedBatteryAh: number | undefined
+  if (batteryItems.length > 0) {
+    const desc = batteryItems[0].description.toLowerCase()
+    if (desc.includes('100ah') || desc.includes('100 ah')) detectedBatteryAh = 100
+    else if (desc.includes('200ah') || desc.includes('200 ah')) detectedBatteryAh = 200
+    else if (desc.includes('314ah') || desc.includes('314 ah')) detectedBatteryAh = 314
+  }
+
+  const wireInfo = getDynamicWireSize(inverterKw, runLength, effectiveBatteryQty)
+  const breakers = getDynamicBreakerRatings(inverterKw, effectiveBatteryQty, detectedBatteryAh)
 
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
@@ -137,14 +315,26 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   const newMidClampQty = panelQty <= 0 ? 0 : Math.ceil(panelQty * 2.5)
   const newEndClampQty = effectiveRows * 6
   const newLFootQty = newRailingQty * 3
-  const newSpliceConnectorQty = Math.ceil(newRailingQty / 2)
+  const newSpliceConnectorQty = inverterKw <= 5 ? 6 : Math.ceil(newRailingQty / 2)
   
-  const newMc4Qty = 15
-  const newGroundLugQty = 5
+  const newMc4Qty = inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15))
+  const newGroundLugQty = inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2)
+  const newGroundWireQty = wireInfo.groundWireMeters
+  const newPvcMouldingQty = inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5)
+  const newCableTrayQty = inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1)
+  const newGroundRodQty = inverterKw >= 16 ? 2 : 1
+  let baseLugs50 = inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20))
+  if (effectiveBatteryQty > 1 && inverterKw < 20) {
+    baseLugs50 += (effectiveBatteryQty - 1) * 8
+  }
+  const newLugs50Qty = baseLugs50
+  const newLugs25Qty = inverterKw >= 20 ? 72 : (inverterKw <= 6 ? 0 : 36)
 
   let changed = false
   let seenAcWire6 = false
   let seenAcWire8 = false
+  let seenMccb100 = false
+  let seenMccb125 = false
 
   const mappedItems = lineItems.map(item => {
     const descLower = item.description.toLowerCase().trim()
@@ -197,35 +387,37 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 90 }
       }
     } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
-      const targetQty = inverterKw >= 10 ? 2 : 0
+      const targetQty = inverterKw >= 20 ? 4 : (inverterKw >= 10 ? 2 : 0)
       if (item.quantity !== targetQty || item.rate !== 550 || item.description !== 'MC4 2 String') {
         changed = true
         return { ...item, description: 'MC4 2 String', quantity: targetQty, rate: 550, unit: 'PCS' }
       }
     } else if (descLower.includes('clip lock') || descLower.includes('clip-lock')) {
-      if (item.description !== 'Clip lock 3/4' || item.rate !== 180 || item.unit !== 'SET') {
+      const targetQty = inverterKw >= 20 ? 2 : 1
+      if (item.description !== 'Clip lock 3/4' || item.quantity !== targetQty || item.rate !== 180 || item.unit !== 'SET') {
         changed = true
-        return { ...item, description: 'Clip lock 3/4', rate: 180, unit: 'SET' }
+        return { ...item, description: 'Clip lock 3/4', quantity: targetQty, rate: 180, unit: 'SET' }
       }
     } else if ((descLower.startsWith('mc4') || descLower.includes('mc4')) && !descLower.includes('2 string') && !descLower.includes('2-string') && !descLower.includes('2string')) {
-      if (item.quantity !== 15 || item.rate !== 60 || item.description !== 'MC4 1500V') {
+      if (item.quantity !== newMc4Qty || item.rate !== 60 || item.description !== 'MC4 1500V') {
         changed = true
-        return { ...item, description: 'MC4 1500V', quantity: 15, rate: 60 }
+        return { ...item, description: 'MC4 1500V', quantity: newMc4Qty, rate: 60 }
       }
     } else if (descLower.includes('grounding lug') || descLower.includes('solar grounding lug')) {
-      if (item.quantity !== 5 || item.rate !== 50) {
+      if (item.quantity !== newGroundLugQty || item.rate !== 50) {
         changed = true
-        return { ...item, description: 'Grounding Lugs', quantity: 5, rate: 50 }
+        return { ...item, description: 'Grounding Lugs', quantity: newGroundLugQty, rate: 50 }
       }
     } else if (descLower === 'cable tray' || descLower.includes('cable tray') || descLower === 'tray') {
-      if (item.description !== 'Cable Tray 2m' || item.rate !== 560) {
+      if (item.description !== 'Cable Tray 2m' || item.quantity !== newCableTrayQty || item.rate !== 560) {
         changed = true
-        return { ...item, description: 'Cable Tray 2m', rate: 560 }
+        return { ...item, description: 'Cable Tray 2m', quantity: newCableTrayQty, rate: 560 }
       }
     } else if (
       descLower === 'grounding conductor' ||
       descLower === 'grounding connector' ||
       descLower === 'ground wire' ||
+      descLower === 'ground wire #8' ||
       descLower === 'ground wire 30m' ||
       descLower.includes('grounding conductor') ||
       descLower.includes('grounding connector') ||
@@ -235,25 +427,26 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       descLower.includes('grounding electrode')
     ) {
       const groundWireRate = 5888 / 150
+      const targetDesc = wireInfo.groundWireDesc || (inverterKw >= 12 ? 'Ground Wire #8' : 'Ground Wire')
       if (
-        item.quantity !== 50 ||
-        item.description !== 'Ground Wire' ||
+        item.quantity !== newGroundWireQty ||
+        item.description !== targetDesc ||
         item.unit !== 'M' ||
         item.rate !== groundWireRate
       ) {
         changed = true
         return {
           ...item,
-          description: 'Ground Wire',
+          description: targetDesc,
           unit: 'M',
-          quantity: 50,
+          quantity: newGroundWireQty,
           rate: groundWireRate
         }
       }
     } else if (descLower === 'ground rod' || descLower.includes('ground rod')) {
-      if (item.description !== 'Ground Rod w/ Clamp 1.5 Meters' || item.rate !== 750) {
+      if (item.description !== 'Ground Rod w/ Clamp 1.5 Meters' || item.quantity !== newGroundRodQty || item.rate !== 750) {
         changed = true
-        return { ...item, description: 'Ground Rod w/ Clamp 1.5 Meters', rate: 750 }
+        return { ...item, description: 'Ground Rod w/ Clamp 1.5 Meters', quantity: newGroundRodQty, rate: 750 }
       }
     } else if (
       descLower === 'ac' ||
@@ -268,17 +461,17 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
 
         let targetDesc = 'AC Wire #6'
         let targetRate = 99.34
-        let targetQty = 50
+        let targetQty = inverterKw >= 20 ? 120 : 60
 
         if (isExplicit8 || (seenAcWire6 && !seenAcWire8)) {
           targetDesc = 'AC Wire #8'
           targetRate = 60.04
-          targetQty = 50
+          targetQty = inverterKw >= 20 ? 120 : 60
           seenAcWire8 = true
         } else {
           targetDesc = 'AC Wire #6'
           targetRate = 99.34
-          targetQty = 50
+          targetQty = inverterKw >= 20 ? 120 : 60
           seenAcWire6 = true
         }
 
@@ -292,9 +485,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
           return null
         }
         seenAcWire8 = true
-        const targetDesc = 'AC Wire #8'
+        const targetDesc = inverterKw === 8 ? 'AC Wire 6mm²' : 'AC Wire #8'
         const targetRate = 60.04
-        const targetQty = 100
+        const targetQty = 60
         if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty || item.unit !== 'M') {
           changed = true
           return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
@@ -311,62 +504,131 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       descLower.includes('pv wire') ||
       descLower.includes('dc cable')
     ) {
-      const targetDesc = 'DC Wire'
+      const targetDesc = inverterKw === 8 ? 'DC Wire 6mm²' : 'DC Wire'
       const targetRate = 125
-      const targetQty = 100
+      const targetQty = wireInfo.dcWireMeters
       if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
         return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
       }
-    } else if (descLower === 'ac mcb' || descLower.startsWith('ac mcb') || descLower.includes('ac mccb')) {
-      if (item.description !== 'AC MCCB' || item.quantity !== 4 || item.rate !== 850) {
-        changed = true
-        return { ...item, description: 'AC MCCB', quantity: 4, rate: 850 }
+    } else if (
+      descLower === 'ac mcb' ||
+      descLower.startsWith('ac mcb') ||
+      descLower.includes('ac mcb') ||
+      descLower === 'ac mccb' ||
+      descLower.startsWith('ac mccb') ||
+      descLower.includes('ac mccb')
+    ) {
+      if (inverterKw === 16) {
+        const isExplicit125 = descLower.includes('125')
+        const isExplicit100 = descLower.includes('100')
+
+        let targetDesc = 'AC MCCB 100A'
+        if (isExplicit125 || (seenMccb100 && !seenMccb125)) {
+          targetDesc = 'AC MCCB 125A'
+          seenMccb125 = true
+        } else {
+          targetDesc = 'AC MCCB 100A'
+          seenMccb100 = true
+        }
+
+        if (item.description !== targetDesc || item.quantity !== 2 || item.rate !== 1300 || item.unit !== 'PCS') {
+          changed = true
+          return { ...item, description: targetDesc, quantity: 2, rate: 1300, unit: 'PCS' }
+        }
+      } else {
+        if (seenMccb100) {
+          changed = true
+          return null
+        }
+        seenMccb100 = true
+        const targetDesc = breakers.acMcb
+        const targetRate = breakers.acMcbRate
+        const targetQty = breakers.acMcbQty
+        if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== targetRate || item.unit !== 'PCS') {
+          changed = true
+          return { ...item, description: targetDesc, quantity: targetQty, rate: targetRate, unit: 'PCS' }
+        }
       }
     } else if (descLower === 'ac spd' || descLower.startsWith('ac spd')) {
-      if (item.description !== 'AC SPD' || item.rate !== 570) {
+      const targetQty = breakers.acSpdQty
+      if (item.description !== 'AC SPD' || item.quantity !== targetQty || item.rate !== 570) {
         changed = true
-        return { ...item, description: 'AC SPD', rate: 570 }
+        return { ...item, description: 'AC SPD', quantity: targetQty, rate: 570 }
       }
     } else if (descLower === 'dc spd' || descLower.startsWith('dc spd')) {
-      if (item.description !== 'DC SPD' || item.rate !== 790) {
+      const targetQty = breakers.dcSpdQty
+      if (item.description !== 'DC SPD' || item.quantity !== targetQty || item.rate !== 790) {
         changed = true
-        return { ...item, description: 'DC SPD', rate: 790 }
+        return { ...item, description: 'DC SPD', quantity: targetQty, rate: 790 }
       }
     } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
-      if (item.description !== 'DC MCB' || item.rate !== 420) {
+      const targetQty = breakers.dcMcbQty
+      if (item.description !== 'DC MCB' || item.quantity !== targetQty || item.rate !== 420) {
         changed = true
-        return { ...item, description: 'DC MCB', rate: 420 }
+        return { ...item, description: 'DC MCB', quantity: targetQty, rate: 420 }
       }
     } else if (descLower.includes('dc mccb') || descLower.includes('mccb for battery')) {
-      if (item.description !== 'DC MCCB for battery' || item.rate !== 2000) {
+      const targetDesc = breakers.dcMccb
+      const targetQty = breakers.dcMccbQty
+      const targetRate = breakers.dcMccbRate || 2500.00
+      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== targetRate) {
         changed = true
-        return { ...item, description: 'DC MCCB for battery', rate: 2000 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: targetRate }
       }
     } else if (descLower.includes('automatic transfer switch') || descLower.includes('ats')) {
-      if (item.description !== 'Automatic transfer switch 125A' || item.rate !== 4000) {
+      const targetDesc = breakers.ats
+      const targetRate = breakers.atsRate
+      const targetQty = breakers.atsQty
+      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
-        return { ...item, description: 'Automatic transfer switch 125A', rate: 4000 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: targetRate }
       }
     } else if (descLower.includes('breaker box') || descLower.includes('metal enclosure')) {
-      if (item.description !== 'Breaker box / Metal Enclosure 50x60' || item.rate !== 3000) {
+      const targetDesc = breakers.enclosure
+      const targetRate = breakers.enclosureRate
+      const targetQty = breakers.enclosureQty
+      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
-        return { ...item, description: 'Breaker box / Metal Enclosure 50x60', rate: 3000 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: targetRate }
       }
-    } else if (descLower.includes('battery cable')) {
-      if (item.description !== 'Battery Cable (Black & Red) 50mm' || item.rate !== 700) {
+    } else if (descLower.includes('battery cable') || descLower.includes('battery wire')) {
+      const targetDesc = wireInfo.batteryCableDesc
+      const targetRate = wireInfo.batteryCableRate
+      const targetQty = wireInfo.batteryCableMeters
+      if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty) {
         changed = true
-        return { ...item, description: 'Battery Cable (Black & Red) 50mm', rate: 700 }
+        return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty }
       }
     } else if (descLower === 'pu sealant' || descLower.includes('pu sealant') || descLower.includes('sealant')) {
-      if (item.description !== 'PU Sealant' || item.rate !== 400) {
+      const targetQty = inverterKw >= 20 ? 2 : 1
+      if (item.description !== 'PU Sealant' || item.quantity !== targetQty || item.rate !== 400) {
         changed = true
-        return { ...item, description: 'PU Sealant', rate: 400 }
+        return { ...item, description: 'PU Sealant', quantity: targetQty, rate: 400 }
       }
     } else if (descLower === 'pvc moulding' || descLower.includes('moulding') || descLower.includes('molding')) {
-      if (item.description !== 'PVC Moulding' || item.quantity !== 5 || item.rate !== 449 || item.unit !== 'M') {
+      if (item.description !== 'PVC Moulding' || item.quantity !== newPvcMouldingQty || item.rate !== 449 || item.unit !== 'M') {
         changed = true
-        return { ...item, description: 'PVC Moulding', quantity: 5, rate: 449, unit: 'M' }
+        return { ...item, description: 'PVC Moulding', quantity: newPvcMouldingQty, rate: 449, unit: 'M' }
+      }
+    } else if (descLower.includes('terminal lugs 25mm') || (descLower.includes('terminal lug') && descLower.includes('25'))) {
+      if (newLugs25Qty === 0) {
+        changed = true
+        return null // Delete for 3k-6k
+      }
+      if (item.quantity !== newLugs25Qty || item.rate !== 40) {
+        changed = true
+        return { ...item, description: 'Terminal lugs 25mm', quantity: newLugs25Qty, rate: 40 }
+      }
+    } else if (descLower.includes('terminal lugs 50mm') || (descLower.includes('terminal lug') && descLower.includes('50'))) {
+      if (item.quantity !== newLugs50Qty || item.rate !== 50) {
+        changed = true
+        return { ...item, description: 'Terminal lugs 50mm', quantity: newLugs50Qty, rate: 50 }
+      }
+    } else if (descLower.includes('terminal block')) {
+      if (inverterKw <= 6 || inverterKw === 10) {
+        changed = true
+        return null // Delete for standard tiers
       }
     }
     return item
@@ -380,6 +642,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   if (inverterKw >= 10) {
     const hasAc6 = items.some(it => it.description.toLowerCase().includes('ac wire #6'))
     const hasAc8 = items.some(it => it.description.toLowerCase().includes('ac wire #8'))
+    const acWireTargetQty = inverterKw >= 20 ? 120 : 60
 
     if (!hasAc6 && panelQty > 0) {
       changed = true
@@ -388,7 +651,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       items.splice(insertIdx, 0, {
         id: `boq-ac6-${Date.now()}`,
         description: 'AC Wire #6',
-        quantity: 50,
+        quantity: acWireTargetQty,
         rate: 99.34,
         unit: 'M'
       })
@@ -401,9 +664,40 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       items.splice(insertIdx, 0, {
         id: `boq-ac8-${Date.now()}`,
         description: 'AC Wire #8',
-        quantity: 50,
+        quantity: acWireTargetQty,
         rate: 60.04,
         unit: 'M'
+      })
+    }
+  }
+
+  if (inverterKw === 16 && panelQty > 0) {
+    const hasMccb100 = items.some(it => it.description.toLowerCase().includes('100a') && it.description.toLowerCase().includes('mccb'))
+    const hasMccb125 = items.some(it => it.description.toLowerCase().includes('125a') && it.description.toLowerCase().includes('mccb'))
+
+    if (!hasMccb100) {
+      changed = true
+      const encIdx = items.findIndex(it => it.description.toLowerCase().includes('enclosure') || it.description.toLowerCase().includes('breaker box'))
+      const insertIdx = encIdx !== -1 ? encIdx + 1 : items.length
+      items.splice(insertIdx, 0, {
+        id: `boq-12-mccb100-${Date.now()}`,
+        description: 'AC MCCB 100A',
+        quantity: 2,
+        rate: 1300.00,
+        unit: 'PCS'
+      })
+    }
+
+    if (!hasMccb125) {
+      changed = true
+      const mccb100Idx = items.findIndex(it => it.description.toLowerCase().includes('100a') && it.description.toLowerCase().includes('mccb'))
+      const insertIdx = mccb100Idx !== -1 ? mccb100Idx + 1 : items.length
+      items.splice(insertIdx, 0, {
+        id: `boq-12-mccb125-${Date.now()}`,
+        description: 'AC MCCB 125A',
+        quantity: 2,
+        rate: 1300.00,
+        unit: 'PCS'
       })
     }
   }
@@ -444,7 +738,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     items.splice(insertIdx, 0, {
       id: `boq-moulding-${Date.now()}`,
       description: 'PVC Moulding',
-      quantity: 5,
+      quantity: newPvcMouldingQty,
       rate: 449,
       unit: 'M'
     })
@@ -468,11 +762,11 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     const d = it.description.toLowerCase()
     return d.includes('mc4 2 string') || d.includes('mc4 2-string') || d.includes('mc4 2string')
   })
-  if (!hasMc42String && inverterKw >= 16) {
+  if (!hasMc42String && inverterKw >= 10) {
     changed = true
     const mc4Idx = items.findIndex(it => it.description.toLowerCase().includes('mc4'))
     const insertIdx = mc4Idx !== -1 ? mc4Idx + 1 : items.length
-    const setsOf2Pcs = 1 + Math.floor((inverterKw - 16) / 4)
+    const setsOf2Pcs = inverterKw >= 16 ? (1 + Math.floor((inverterKw - 16) / 4)) : 1
     items.splice(insertIdx, 0, {
       id: `boq-mc4-2string-${Date.now()}`,
       description: 'MC4 2 String',
@@ -481,8 +775,120 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       unit: 'PCS'
     })
   }
+
+  if (inverterKw >= 8) {
+    const hasLugs25 = items.some(it => it.description.toLowerCase().includes('terminal lugs 25mm'))
+    if (!hasLugs25) {
+      changed = true
+      const lugs50Idx = items.findIndex(it => it.description.toLowerCase().includes('terminal lugs 50mm'))
+      const insertIdx = lugs50Idx !== -1 ? lugs50Idx : items.length
+      items.splice(insertIdx, 0, {
+        id: `boq-19-25mm-${Date.now()}`,
+        description: 'Terminal lugs 25mm',
+        quantity: 36,
+        rate: 40,
+        unit: 'PCS'
+      })
+    }
+  }
   
   return { updated: changed, items }
+}
+
+interface CapitalCalcPopoverProps {
+  title: string
+  formula: string
+  steps?: { label: string; value: string; note?: string; color?: string }[]
+  result: { label: string; value: string; color?: string }
+  description?: string
+  badge?: string
+}
+
+function CapitalCalcPopover({
+  title,
+  formula,
+  steps,
+  result,
+  description,
+  badge,
+}: CapitalCalcPopoverProps) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Calculation details for ${title}`}
+          className="inline-flex items-center justify-center p-0.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800/80 rounded transition-all cursor-pointer shrink-0 ml-1 select-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info size={12} className="text-current shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={6}
+        className="w-80 p-3.5 bg-zinc-950 text-zinc-100 border border-zinc-700 shadow-2xl rounded-xl font-mono text-xs space-y-2.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 font-sans">
+          <span className="font-bold text-[11px] text-zinc-100 flex items-center gap-1.5">
+            <Calculator size={13} className="text-amber-400 shrink-0" />
+            {title}
+          </span>
+          {badge && (
+            <span className="text-[8.5px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
+              {badge}
+            </span>
+          )}
+        </div>
+
+        {/* Formula Box */}
+        <div className="space-y-1">
+          <div className="text-[9px] text-zinc-400 uppercase font-sans font-bold tracking-wider">Formula</div>
+          <div className="bg-zinc-900 px-2 py-1.5 rounded-md border border-zinc-800 text-[10px] text-amber-300 font-mono leading-relaxed break-words">
+            {formula}
+          </div>
+        </div>
+
+        {/* Breakdown Steps */}
+        {steps && steps.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-[9px] text-zinc-400 uppercase font-sans font-bold tracking-wider">Calculation Steps</div>
+            <div className="space-y-1.5 bg-zinc-900/60 p-2 rounded-md border border-zinc-800/80">
+              {steps.map((step, idx) => (
+                <div key={idx} className="flex justify-between items-baseline text-[10px] gap-2">
+                  <span className="text-zinc-400 font-sans truncate">{step.label}</span>
+                  <div className="flex items-center gap-1 shrink-0 font-mono">
+                    <span className={step.color || "text-zinc-200 font-bold"}>{step.value}</span>
+                    {step.note && (
+                      <span className="text-[8.5px] text-zinc-500 font-sans">({step.note})</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Final Result Box */}
+        <div className="bg-zinc-900 border border-zinc-700/80 px-2.5 py-1.5 rounded-md flex justify-between items-center">
+          <span className="text-[10px] font-bold text-zinc-300 font-sans uppercase tracking-wider">{result.label}:</span>
+          <span className={cn("text-[11.5px] font-black font-mono", result.color || "text-amber-400")}>
+            {result.value}
+          </span>
+        </div>
+
+        {/* Explanatory Footer */}
+        {description && (
+          <p className="text-[9px] text-zinc-400 font-sans leading-tight pt-1 border-t border-zinc-800/80">
+            {description}
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 function SectionHeader({ children }: { children: ReactNode }) {
@@ -1053,26 +1459,44 @@ const SOLAR_PRICES = {
   LFoot: 90.00,
   SpliceConnector: 90.00,
   FlexconHDPE: 124.00,
+  FlexconHDPE32: 124.00,
+  FlexconHDPE40: 124.00,
   ACwire: 60.04,
+  ACwire6: 99.34,
   PVwire: 125.00,
   DCwire: 125.00,
   MC4: 60.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
   BreakerBox: 3000.00,
-  ACMCB: 850.00,
+  BreakerBox50x40: 1500.00,
+  BreakerBox50x60: 3000.00,
+  ACMCB: 1300.00,
+  ACMCB_80A: 450.00,
+  ACMCB_100A: 500.00,
+  ACMCB_125A: 500.00,
+  ACMCB_100A_MCCB: 1300.00,
+  ACMCB_125A_MCCB: 1300.00,
   ACSPD: 570.00,
   DCSPD: 790.00,
   DCMCB: 420.00,
-  DCMCCB: 2000.00,
+  DCMCCB: 2500.00,
   Raceway: 360.00,
   CableTray: 560.00,
   ATS: 4000.00,
+  ATS_63A: 1500.00,
+  ATS_125A_Tier2: 2000.00,
+  ATS_125A_Tier3: 4000.00,
   TerminalLugs25: 40.00,
   TerminalLugs50: 50.00,
+  Genix100Ah: 38000.00,
+  Genix200Ah: 65000.00,
+  Cesc314Ah: 88000.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 700.00,
+  BatteryCable50mm: 700.00,
+  BatteryCable70mm: 820.00,
   GroundRod: 750.00,
   GroundingLugs: 50.00,
   GroundWire: 5888 / 150,
@@ -1539,7 +1963,9 @@ export default function Home() {
   const [supplySearchQuery, setSupplySearchQuery] = useState('')
   const [supplyCategoryFilter, setSupplyCategoryFilter] = useState<'all' | 'goods' | 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'>('all')
   const [isSupplyMode, setIsSupplyMode] = useState(false)
+  const [showMasterReconMatrix, setShowMasterReconMatrix] = useState(false)
   const prevPanelQtyRef = useRef<number | null>(null)
+  const prevBatteryQtyRef = useRef<number | null>(null)
   const prevTotalWattsRef = useRef<number | null>(null)
   const prevPricePerWattRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
@@ -1784,7 +2210,11 @@ export default function Home() {
       })
       if (inverterItem) {
         const kwMatch = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
-        if (kwMatch) currentKw = parseFloat(kwMatch[1])
+        if (kwMatch) {
+          const baseKw = parseFloat(kwMatch[1])
+          const qty = inverterItem.quantity && inverterItem.quantity > 1 ? inverterItem.quantity : 1
+          currentKw = baseKw * qty
+        }
       }
     }
     if (!currentKw) {
@@ -1826,23 +2256,23 @@ export default function Home() {
         descLower.includes('sungrow')
       ) {
         const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
-        const kw = kwMatch ? parseFloat(kwMatch[1]) : currentKw!
+        const unitKw = kwMatch ? parseFloat(kwMatch[1]) : (item.quantity && item.quantity > 1 ? currentKw! / item.quantity : currentKw!)
 
         if (type === 'ongrid') {
-          const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(kw) !== null)
+          const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
           if (defaultBrand) {
-            const price = defaultBrand.getPrice(kw)!
+            const price = defaultBrand.getPrice(unitKw)!
             return {
               ...item,
-              description: `${defaultBrand.name} Inverter ${kw}kW On-Grid`,
+              description: `${defaultBrand.name} Inverter ${unitKw}kW On-Grid`,
               rate: price
             }
           }
         } else {
-          const brandPrices = getInverterBrandPrices(kw)
+          const brandPrices = getInverterBrandPrices(unitKw)
           return {
             ...item,
-            description: `Solis Inverter ${kw}kW Hybrid`,
+            description: `Solis Inverter ${unitKw}kW Hybrid`,
             rate: brandPrices.solis
           }
         }
@@ -2037,11 +2467,15 @@ export default function Home() {
     const invItem = (invoice.lineItems || []).find(it => {
       if (isBatteryUnit(it.description)) return false
       const d = (it.description || '').toLowerCase()
-      return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways')
+      return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow')
     })
     if (invItem) {
       const kwMatch = invItem.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
-      if (kwMatch) detectedKw = parseFloat(kwMatch[1])
+      if (kwMatch) {
+        const baseKw = parseFloat(kwMatch[1])
+        const qty = invItem.quantity && invItem.quantity > 1 ? invItem.quantity : 1
+        detectedKw = baseKw * qty
+      }
     } else {
       const { totalWatts } = extractPanelInfoFromLineItems(invoice.lineItems || [])
       if (totalWatts > 0) detectedKw = Math.round(totalWatts / 1000)
@@ -2097,11 +2531,14 @@ export default function Home() {
     const pricePerWatt = invoice.laborPricePerWatt ?? 6
     const expectedLaborRate = Math.round(totalWatts * pricePerWatt)
 
+    const batteryItems = (invoice.lineItems || []).filter(item => isBatteryUnit(item.description))
+    const totalBatteryQty = batteryItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
+
     let currentItems = invoice.lineItems
     let itemsModified = false
 
-    if (prevPanelQtyRef.current !== null) {
-      if (panelQty !== prevPanelQtyRef.current) {
+    if (prevPanelQtyRef.current !== null || prevBatteryQtyRef.current !== null) {
+      if (panelQty !== prevPanelQtyRef.current || totalBatteryQty !== prevBatteryQtyRef.current) {
         const { updated, items } = recalculateBoqAccessories(currentItems)
         if (updated) {
           currentItems = items
@@ -2138,6 +2575,7 @@ export default function Home() {
     }
 
     prevPanelQtyRef.current = panelQty
+    prevBatteryQtyRef.current = totalBatteryQty
     prevTotalWattsRef.current = totalWatts
     prevPricePerWattRef.current = pricePerWatt
   }, [invoice.lineItems, invoice.laborPricePerWatt, loaded, setInvoice, update])
@@ -2342,8 +2780,19 @@ export default function Home() {
     
     let inverterDesc = ''
     let inverterPrice = 0
+    let inverterQty = inverterKw === 20 ? 2 : 1
 
-    if (effSystemType === 'ongrid') {
+    if (inverterKw === 20) {
+      if (effSystemType === 'ongrid') {
+        const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(10) !== null)
+        inverterDesc = `Solis Inverter 10kW On-Grid`
+        inverterPrice = defaultBrand ? (defaultBrand.getPrice(10) || 37500) : 37500
+      } else {
+        const brandPrices = getInverterBrandPrices(10)
+        inverterDesc = `Solis Inverter 10kW Hybrid`
+        inverterPrice = brandPrices.solis
+      }
+    } else if (effSystemType === 'ongrid') {
       const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
       if (defaultBrand) {
         inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW On-Grid`
@@ -2372,27 +2821,41 @@ export default function Home() {
     items.push({
       id: `boq-1-${now}`,
       description: inverterDesc,
-      quantity: 1,
+      quantity: inverterQty,
       rate: inverterPrice,
       unit: 'PC'
     })
 
+    let bQty = systemKw >= 20 ? 2 : batteryQty
+
     // 3. Battery (included for Hybrid setup)
     if (effSystemType === 'hybrid') {
-      const isSmallSetup = systemKw <= 6
-      const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
-      const batteryRate = isSmallSetup ? 65000.00 : 88000.00
+      let batteryDesc = `CESC Battery 51.2V 314Ah`
+      let batteryRate = prices.Cesc314Ah || 88000.00
+
+      if (systemKw <= 5) {
+        batteryDesc = `Genix Battery 51.2V 100Ah`
+        batteryRate = prices.Genix100Ah || 38000.00
+      } else if (systemKw <= 6) {
+        batteryDesc = `Genix Battery 51.2V 200Ah`
+        batteryRate = prices.Genix200Ah || 65000.00
+      }
+
       items.push({
         id: `boq-20-${now}`,
         description: batteryDesc,
-        quantity: batteryQty,
+        quantity: bQty,
         rate: batteryRate,
         unit: 'PC'
       })
     }
 
-    const wireInfo = getDynamicWireSize(inverterKw, runLength)
-    const breakers = getDynamicBreakerRatings(inverterKw)
+    let initialBatteryAh = 314
+    if (systemKw <= 5) initialBatteryAh = 100
+    else if (systemKw <= 6) initialBatteryAh = 200
+
+    const wireInfo = getDynamicWireSize(inverterKw, runLength, bQty)
+    const breakers = getDynamicBreakerRatings(inverterKw, bQty, initialBatteryAh)
 
     // 3. Railings (QTY = Math.ceil((Panels / 2) * 3))
     const railingQty = panelQty <= 0 ? 0 : Math.ceil((panelQty / 2) * 3) + extraQty
@@ -2438,13 +2901,13 @@ export default function Home() {
     items.push({
       id: `boq-cliplock-${now}`,
       description: `Clip lock 3/4`,
-      quantity: 1,
+      quantity: inverterKw >= 20 ? 2 : 1,
       rate: prices.ClipLock34 || 180.00,
       unit: 'SET'
     })
 
-    // 6.5. Splice Connector (QTY = Math.ceil(Railings / 2))
-    const spliceConnectorQty = Math.ceil(railingQty / 2)
+    // 6.5. Splice Connector (3k-5k: 6 PCS; 6k+: Math.ceil(Railings / 2))
+    const spliceConnectorQty = inverterKw <= 5 ? 6 : Math.ceil(railingQty / 2)
     items.push({
       id: `boq-splice-${now}`,
       description: `Splice Connector`,
@@ -2457,21 +2920,22 @@ export default function Home() {
     items.push({
       id: `boq-sealant-${now}`,
       description: `PU Sealant`,
-      quantity: 1,
+      quantity: inverterKw >= 20 ? 2 : 1,
       rate: prices.PuSealant || 400,
       unit: 'PC'
     })
 
-    // 6.7. PVC Moulding (Always 5m)
+    // 6.7. PVC Moulding (3k-5k: 3m; 6k-16k: 5m; 20k: 10m)
+    const pvcMouldingMeters = inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5)
     items.push({
       id: `boq-moulding-${now}`,
       description: `PVC Moulding`,
-      quantity: 5,
+      quantity: pvcMouldingMeters,
       rate: prices.PvcMoulding || 449,
       unit: 'M'
     })
 
-    // 7. Flexible Hose (Tiers 25mm / 32mm / 40mm based on kW)
+    // 7. Flexible Hose (32mm 25m for <=6kW, 32mm 50m for 8kW, 40mm 50m for 10k-16k, 40mm 100m for 20k)
     const conduitDetails = getConduitDetails(inverterKw, runLength)
     items.push({
       id: `boq-7-${now}`,
@@ -2481,102 +2945,123 @@ export default function Home() {
       unit: conduitDetails.unit
     })
 
-    // 8. AC Wire (If >=10kW: AC Wire #6 50m + AC Wire #8 50m. Else AC Wire #8 100m)
+    // 8. AC Wire
     if (inverterKw >= 10) {
+      const acWireMeters = inverterKw >= 20 ? 120 : 60
       items.push({
         id: `boq-8-ac6-${now}`,
         description: 'AC Wire #6',
-        quantity: 50,
+        quantity: acWireMeters,
         rate: 99.34,
         unit: 'M'
       })
       items.push({
         id: `boq-8-ac8-${now}`,
         description: 'AC Wire #8',
-        quantity: 50,
+        quantity: acWireMeters,
         rate: 60.04,
         unit: 'M'
       })
     } else {
+      const acWireDesc = inverterKw === 8 ? 'AC Wire 6mm²' : 'AC Wire #8'
       items.push({
         id: `boq-8-${now}`,
-        description: 'AC Wire #8',
-        quantity: 100,
+        description: acWireDesc,
+        quantity: 60,
         rate: 60.04,
         unit: 'M'
       })
     }
 
-    // 9. DC Wire (Title case)
+    // 9. DC Wire (3k-8k: 60m; 10k-16k: 80m; 20k: 160m)
+    const dcWireDesc = inverterKw === 8 ? 'DC Wire 6mm²' : 'DC Wire'
     items.push({
       id: `boq-dc-${now}`,
-      description: 'DC Wire',
-      quantity: 100,
+      description: dcWireDesc,
+      quantity: wireInfo.dcWireMeters,
       rate: 125,
       unit: 'M'
     })
 
-    // 10. MC4 1500V (QTY = 15 | Price = ₱60)
+    // 10. MC4 1500V (3k-5k: 4 PCS; 6k: 10 PCS; 8k-16k: 15 PCS; 20k: 30 PCS)
+    const mc4Qty = inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15))
     items.push({
       id: `boq-10-${now}`,
       description: `MC4 1500V`,
-      quantity: 15,
+      quantity: mc4Qty,
       rate: 60.00,
       unit: 'PCS'
     })
 
-    // 10.5. MC4 2 String (If >= 10kW QTY = 2, Else 0)
+    // 10.5. MC4 2 String (If 20kW QTY = 4, If 10k-16k QTY = 2, Else 0)
     if (inverterKw >= 10) {
       items.push({
         id: `boq-mc4-2string-${now}`,
         description: `MC4 2 String`,
-        quantity: 2,
+        quantity: inverterKw >= 20 ? 4 : 2,
         rate: 550.00,
         unit: 'PCS'
       })
     }
 
-    // 11. Breaker Box / Metal Enclosure 50x60
+    // 11. Breaker Box / Metal Enclosure (50x40 for <=4kW @ ₱1,500; 50x60 for >=5kW @ ₱3,000; 2x for 20kW)
     items.push({
       id: `boq-11-${now}`,
-      description: `Breaker box / Metal Enclosure 50x60`,
-      quantity: 1,
-      rate: prices.BreakerBox,
+      description: breakers.enclosure,
+      quantity: breakers.enclosureQty,
+      rate: breakers.enclosureRate,
       unit: 'PC'
     })
 
-    // 12. AC MCCB (QTY = 4 | Price = ₱850)
-    items.push({
-      id: `boq-12-${now}`,
-      description: `AC MCCB`,
-      quantity: 4,
-      rate: 850.00,
-      unit: 'PCS'
-    })
+    // 12. AC Breakers (3k-4k: 2x 80A MCB; 5k-6k: 2x 100A MCB; 8k: 2x 125A MCB; 10k-12k: 4x MCCB; 16k: 2x 100A + 2x 125A MCCB; 20k: 8x MCCB)
+    if (inverterKw === 16) {
+      items.push({
+        id: `boq-12-mccb100-${now}`,
+        description: `AC MCCB 100A`,
+        quantity: 2,
+        rate: 1300.00,
+        unit: 'PCS'
+      })
+      items.push({
+        id: `boq-12-mccb125-${now}`,
+        description: `AC MCCB 125A`,
+        quantity: 2,
+        rate: 1300.00,
+        unit: 'PCS'
+      })
+    } else {
+      items.push({
+        id: `boq-12-${now}`,
+        description: breakers.acMcb,
+        quantity: breakers.acMcbQty,
+        rate: breakers.acMcbRate,
+        unit: 'PCS'
+      })
+    }
 
-    // 13. AC SPD (Price = ₱570)
+    // 13. AC SPD (Price = ₱570, 20k: 4 PCS, others: 2 PCS)
     items.push({
       id: `boq-13-${now}`,
       description: `AC SPD`,
-      quantity: 2,
+      quantity: breakers.acSpdQty,
       rate: 570.00,
       unit: 'PCS'
     })
 
-    // 14. DC SPD (Price = ₱790)
+    // 14. DC SPD (3k-6k: 2 PCS; 8k-16k: 3 PCS; 20k: 6 PCS | Price = ₱790)
     items.push({
       id: `boq-14-${now}`,
       description: `DC SPD`,
-      quantity: 2,
+      quantity: breakers.dcSpdQty,
       rate: 790.00,
       unit: 'PCS'
     })
 
-    // 15. DC MCB (Price = ₱420)
+    // 15. DC MCB (3k-10k: 2 PCS; 12k-16k: 3 PCS; 20k: 4 PCS | Price = ₱420)
     items.push({
       id: `boq-15-${now}`,
       description: `DC MCB`,
-      quantity: 2,
+      quantity: breakers.dcMcbQty,
       rate: 420.00,
       unit: 'PCS'
     })
@@ -2585,92 +3070,89 @@ export default function Home() {
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-16-${now}`,
-        description: `DC MCCB for battery`,
-        quantity: batteryQty,
-        rate: 2000.00,
+        description: breakers.dcMccb,
+        quantity: breakers.dcMccbQty,
+        rate: breakers.dcMccbRate || 2500.00,
         unit: 'PC'
       })
     }
 
-    // 17. Cable Tray 2m (Price = ₱560)
+    // 17. Cable Tray 2m (8k-16k: 2 PCS; 20k: 4 PCS; other tiers: 1 PC | Price = ₱560)
+    const cableTrayQty = inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1)
     items.push({
       id: `boq-17-${now}`,
       description: `Cable Tray 2m`,
-      quantity: 1,
+      quantity: cableTrayQty,
       rate: prices.CableTray || 560,
       unit: 'PCS'
     })
 
-    // 18. Automatic transfer switch 125A (included only for Hybrid setup)
+    // 18. Automatic transfer switch (3k-4k: 63A @ ₱1,500; 5k-8k: 125A @ ₱2,000; 10k-16k: 125A @ ₱4,000; 20k: 2x 125A @ ₱4,000)
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-18-${now}`,
-        description: `Automatic transfer switch 125A`,
-        quantity: 1,
-        rate: 4000.00,
+        description: breakers.ats,
+        quantity: breakers.atsQty,
+        rate: breakers.atsRate,
         unit: 'PC'
       })
     }
 
-    // 19. Terminal lugs (Split into 25mm QTY 30 @ ₱40 and 50mm QTY 5 @ ₱50)
-    items.push({
-      id: `boq-19-25mm-${now}`,
-      description: `Terminal lugs 25mm`,
-      quantity: 30,
-      rate: 40.00,
-      unit: 'PCS'
-    })
+    // 19. Terminal lugs (3k-6k: 8x 50mm, 0x 25mm; 8k-10k: 16x 50mm, 36x 25mm; 12k-16k: 20x 50mm, 36x 25mm; 20k: 32x 50mm, 72x 25mm)
+    if (inverterKw >= 8) {
+      items.push({
+        id: `boq-19-25mm-${now}`,
+        description: `Terminal lugs 25mm`,
+        quantity: inverterKw >= 20 ? 72 : 36,
+        rate: 40.00,
+        unit: 'PCS'
+      })
+    }
+    const lugs50Qty = inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20))
     items.push({
       id: `boq-19-50mm-${now}`,
       description: `Terminal lugs 50mm`,
-      quantity: 5,
+      quantity: lugs50Qty,
       rate: 50.00,
       unit: 'PCS'
     })
 
-    // 21. Terminal Block (Hardcode QTY = 2)
-    items.push({
-      id: `boq-21-${now}`,
-      description: `Terminal Block`,
-      quantity: 2,
-      rate: prices.TerminalBlock,
-      unit: 'PCS'
-    })
-
-    // 22. Battery Cable (included only for Hybrid setup)
+    // 22. Battery Cable (Hybrid: 3k-6k: 6m 50mm² @ ₱700; 8k-12k: 10m 50mm² @ ₱700; 16k: 10m 70mm² @ ₱950; 20k: 20m 50mm² @ ₱700)
     if (effSystemType !== 'ongrid') {
-      const cableLength = batteryQty * 2
       items.push({
         id: `boq-22-${now}`,
-        description: `Battery Cable (Black & Red) 50mm`,
-        quantity: cableLength,
-        rate: 700.00,
+        description: wireInfo.batteryCableDesc,
+        quantity: wireInfo.batteryCableMeters,
+        rate: wireInfo.batteryCableRate,
         unit: 'M'
       })
     }
 
-    // Grounding Lugs (Hardcode QTY = 5)
+    // Grounding Lugs (8k & 10k: 5 PCS; 20k: 10 PCS; others: 2 PCS @ ₱50)
+    const groundLugsQty = inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2)
     items.push({
       id: `boq-g1-${now}`,
       description: `Grounding Lugs`,
-      quantity: 5,
+      quantity: groundLugsQty,
       rate: prices.GroundingLugs || 50,
       unit: 'PCS'
     })
 
+    // Ground Wire (4k: 50m; 8k-16k: 25m; 20k: 50m; 3k/5k/6k: 20m)
     items.push({
       id: `boq-g2-${now}`,
-      description: `Ground Wire`,
-      quantity: 50,
+      description: wireInfo.groundWireDesc,
+      quantity: wireInfo.groundWireMeters,
       rate: prices.GroundWire || (5888 / 150),
       unit: 'M'
     })
 
-    // Ground Rod w/ Clamp 1.5 Meters
+    // Ground Rod w/ Clamp 1.5 Meters (16k & 20k: 2 PCS; others: 1 PC @ ₱750)
+    const groundRodQty = inverterKw >= 16 ? 2 : 1
     items.push({
       id: `boq-g3-${now}`,
       description: `Ground Rod w/ Clamp 1.5 Meters`,
-      quantity: 1,
+      quantity: groundRodQty,
       rate: prices.GroundRod || 750,
       unit: 'PC'
     })
@@ -2912,7 +3394,7 @@ export default function Home() {
           setInvoice(prev => ({
             ...prev,
             isCondensed: task.isCondensed ?? false,
-            rateMarkup: task.withoutMarkup ? 0 : (originalRateMarkup ?? 10),
+            rateMarkup: task.withoutMarkup ? 0 : (originalRateMarkup || 25),
           }))
           setActiveTab('items')
         } else if (task.docType === 'checklist') {
@@ -3675,20 +4157,21 @@ export default function Home() {
                           {v2Item && (
                             <div
                               className={cn(
-                                "transition-all duration-150 ease-out z-[999]",
-                                "absolute w-[310px] sm:w-[350px] p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans top-full mt-1.5",
+                                "transition-all duration-150 ease-out z-[9999]",
+                                "p-3.5 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans",
+                                "fixed sm:absolute left-3 right-3 sm:left-auto sm:right-auto bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 w-auto sm:w-[350px] max-h-[85vh] sm:max-h-none overflow-y-auto",
                                 isTooltipOpenOnMobile
-                                  ? "opacity-100 visible pointer-events-auto"
-                                  : "pointer-events-none opacity-0 invisible group-hover:opacity-100 group-hover:visible",
+                                  ? "opacity-100 visible pointer-events-auto ring-2 ring-primary/30"
+                                  : "pointer-events-none opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible",
                                 idx % 5 === 0
-                                  ? "left-0"
+                                  ? "sm:left-0"
                                   : idx % 5 === 4
-                                    ? "right-0"
+                                    ? "sm:right-0 sm:left-auto"
                                     : idx % 5 === 1
-                                      ? "left-0 sm:-left-4"
+                                      ? "sm:left-0 sm:-left-4"
                                       : idx % 5 === 3
-                                        ? "right-0 sm:-right-4 sm:left-auto"
-                                        : "left-1/2 -translate-x-1/2"
+                                        ? "sm:right-0 sm:-right-4 sm:left-auto"
+                                        : "sm:left-1/2 sm:-translate-x-1/2"
                               )}
                             >
                               {/* Header */}
@@ -3697,14 +4180,29 @@ export default function Home() {
                                   <Zap size={14} className="text-amber-500 fill-amber-500/20" />
                                   <span className="font-bold text-xs text-foreground">{v2Item.commercialPackage}</span>
                                 </div>
-                                <span className={cn(
-                                  "text-[8.5px] px-2 py-0.5 rounded-full font-bold font-mono tracking-tight",
-                                  v2Item.phase === '3-Phase'
-                                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30"
-                                    : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
-                                )}>
-                                  {v2Item.electricalGrid}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className={cn(
+                                    "text-[8.5px] px-2 py-0.5 rounded-full font-bold font-mono tracking-tight",
+                                    v2Item.phase === '3-Phase'
+                                      ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30"
+                                      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                                  )}>
+                                    {v2Item.electricalGrid}
+                                  </span>
+                                  {isTooltipOpenOnMobile && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setHoldTooltipKw(null)
+                                      }}
+                                      className="sm:hidden text-muted-foreground hover:text-foreground text-xs p-1 -mr-1 rounded-full hover:bg-secondary cursor-pointer"
+                                      title="Close"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Section Title */}
@@ -3790,7 +4288,7 @@ export default function Home() {
                   {/* Backdrop for mobile hold dismiss */}
                   {holdTooltipKw !== null && (
                     <div
-                      className="fixed inset-0 z-[990] bg-transparent"
+                      className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-xs transition-opacity duration-200"
                       onClick={() => setHoldTooltipKw(null)}
                       onTouchStart={() => setHoldTooltipKw(null)}
                     />
@@ -4053,10 +4551,10 @@ export default function Home() {
                           type="number"
                           min="-100"
                           max="1000"
-                          value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? 30)}
+                          value={invoice.rateMarkup === 0 ? '' : (invoice.rateMarkup ?? '')}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => update('rateMarkup', e.target.value === '' ? 0 : parseFloat(e.target.value))}
-                          placeholder="30"
+                          placeholder="25"
                         />
                       </Field>
                       <Field label="Price / Watt (₱)" onMouseEnter={() => setHoveredField('laborPricePerWatt')} onMouseLeave={() => setHoveredField(null)}>
@@ -4103,6 +4601,22 @@ export default function Home() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Button
                       type="button"
+                      variant={showMasterReconMatrix ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowMasterReconMatrix(!showMasterReconMatrix)}
+                      className={cn(
+                        "h-7 text-[9px] font-extrabold rounded-[6px] cursor-pointer transition-all select-none px-2 flex items-center gap-1",
+                        showMasterReconMatrix
+                          ? "bg-amber-600 text-white hover:bg-amber-700 border-amber-600 shadow-xs"
+                          : "text-[#555555] hover:text-[#111111] hover:bg-[#EBEBEB] border-[#E5E5E5]"
+                      )}
+                      title="Toggle Master Specification Matrix and Pricing Reconciliation Notes"
+                    >
+                      📋 {showMasterReconMatrix ? "Hide Pricing Matrix" : "Pricing Reconciliation Matrix"}
+                    </Button>
+
+                    <Button
+                      type="button"
                       variant={isSupplyMode ? "default" : "outline"}
                       size="sm"
                       onClick={handleToggleSupplyMode}
@@ -4136,6 +4650,79 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+
+                {showMasterReconMatrix && (
+                  <div className="p-3 bg-amber-500/5 dark:bg-amber-500/10 rounded-[12px] border border-amber-500/30 space-y-3 animate-in fade-in duration-200 text-[11px]">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-amber-500/20">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider text-[10px]">
+                          ⚡ Master System Sizing & Pricing Reconciliation (3kW – 16kW)
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                        Internal Standard Guidelines (Excluded from Customer Preview)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">1. Flexible Hose 32mm HDPE</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          32mm standard for 3kW–8kW (25m for ≤6kW, 50m for 8kW) priced at <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">₱95.00/m</span>. 40mm standard for ≥10kW (50m) priced at <span className="font-mono font-bold text-foreground">₱124.00/m</span>.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">2. Breaker Box / Enclosure</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Downsized from 50x60 (₱3,000) to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">50x40 @ ₱1,500.00</span> for 3kW & 4kW packages. 5kW+ uses standard 50x60 enclosure @ ₱3,000.00.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">3. AC Breakers (MCB vs MCCB)</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 2 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 2 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 2 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300/pc</span> so they are never mixed up.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">4. Automatic Transfer Switch (ATS)</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Scaled unit price: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">63A Taxnelle @ ₱1,500</span> (3k–4k), <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">125A @ ₱2,000</span> (5k–8k), and <span className="font-mono font-bold text-foreground">125A Heavy-Duty @ ₱4,000</span> (10k–16k).
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">5. Battery Unit Capacity</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Default hybrid storage downsized to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">51.2V 100Ah @ ₱38,000.00</span> for 3k–5k systems, 200Ah @ ₱65,000 for 6k, and 314Ah @ ₱88,000 for 8k–16k.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">6. Battery Cable Heavy-Duty Gauge</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Standard 50mm² @ ₱700/m (6m for 3k–6k, 10m for 8k–12k). 16kW upgraded to <span className="font-mono font-bold text-purple-600 dark:text-purple-400">70mm² @ ₱820/m (10m)</span>.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">7. Tier Deletions (3k–6k)</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          <span className="font-bold text-rose-600 dark:text-rose-400">Deleted</span> 25mm Terminal Lugs (0 pcs in 3k–6k, 36 pcs in 8k+) and Terminal Block (0 pcs across standard packages).
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
+                        <span className="font-bold text-foreground block">8. Scaled Quantities & Grounding</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          50mm Lugs: 8 (3k–6k), 16 (8k–10k), 20 (12k–16k). MC4: 4 (3k–5k), 10 (6k), 15 (8k+). Ground Rod: 1 pc (3k–12k), 2 pcs (16kW).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {isSupplyMode && (
                   <div className="p-3 bg-secondary/50 rounded-[12px] border border-border space-y-2.5 animate-in fade-in duration-200">
@@ -4207,7 +4794,9 @@ export default function Home() {
                   </div>
 
                   {/* Item rows */}
-                  {invoice.lineItems
+                  {(() => {
+                    const currentSystemKw = getInverterKwFromLineItems(invoice.lineItems)
+                    return invoice.lineItems
                     .filter((item) => {
                       if (invoice.excludeBattery && isBatteryItem(item.description)) return false
                       if (isSupplyMode) {
@@ -4224,6 +4813,7 @@ export default function Home() {
                     })
                     .map((item) => {
                       const descLower = item.description.toLowerCase()
+                      const reconInfo = getPricingReconciliationNote(item, currentSystemKw)
 
                       const isBatteryItemRow = isBatteryUnit(item.description)
                       const isPanelItem = !isBatteryItemRow && (descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar'))
@@ -4283,12 +4873,14 @@ export default function Home() {
                       return (
                         <div key={item.id} className="flex flex-col gap-1 p-1.5 rounded-lg hover:bg-[#F9F9F9] dark:hover:bg-[#1A1A1A] transition-colors border border-transparent hover:border-[#E5E5E5] dark:hover:border-[#333333]" onMouseEnter={() => setHoveredField(item.id)} onMouseLeave={() => setHoveredField(null)}>
                           <div className="flex gap-2 items-start">
-                            <Input
-                              className="flex-1"
-                              value={item.description}
-                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                              placeholder="Item description"
-                            />
+                            <div className="relative flex-1 flex items-center">
+                              <Input
+                                className="w-full"
+                                value={item.description}
+                                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                                placeholder="Item description"
+                              />
+                            </div>
                             {isLaborItem(item.description) || descLower.includes('delivery') || descLower.includes('freight') ? (
                               <div className="w-[96px] shrink-0 text-center text-[11px] font-mono text-muted-foreground self-center py-1 bg-secondary/30 rounded border border-dashed border-border/50">
                                 —
@@ -5032,7 +5624,8 @@ export default function Home() {
 
                         </div>
                       )
-                    })}
+                    })
+                  })()}
 
                   {/* Add item */}
                   <Button
@@ -5229,13 +5822,44 @@ export default function Home() {
                   const itemsSellingSubtotal = calculateSubtotal(invoice)
                   const itemsMarkupGain = Math.max(0, itemsSellingSubtotal - itemsBaseCapital)
 
+                  // Categorized base totals for tooltips
+                  const panelsBaseTotal = itemsList.filter(it => {
+                    const d = it.description.toLowerCase()
+                    return d.includes('panel') || d.includes('tongwei') || d.includes('ja solar') || d.includes('pv module')
+                  }).reduce((acc, it) => acc + (it.quantity * it.rate), 0)
+
+                  const invertersBatteriesBaseTotal = itemsList.filter(it => {
+                    const d = it.description.toLowerCase()
+                    return d.includes('inverter') || isBatteryItem(it.description) || d.includes('solis') || d.includes('deye')
+                  }).reduce((acc, it) => acc + (it.quantity * it.rate), 0)
+
+                  const laborBaseTotal = itemsList.filter(it => isLaborItem(it.description)).reduce((acc, it) => acc + (it.quantity * it.rate), 0)
+                  const materialsBaseTotal = Math.max(0, itemsBaseCapital - panelsBaseTotal - invertersBatteriesBaseTotal - laborBaseTotal)
+
+                  // Labor selling total
+                  const laborSellingTotal = itemsList.filter(it => isLaborItem(it.description)).reduce((acc, it) => {
+                    const isDelivery = isDeliveryItem(it.description)
+                    const isLabor = !isDelivery && isLaborItem(it.description)
+                    const shouldApplyMarkup = !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
+                    const rate = shouldApplyMarkup ? it.rate * (1 + (invoice.rateMarkup || 0) / 100) : it.rate
+                    return acc + (it.quantity * rate)
+                  }, 0)
+
+                  const discount = invoice.discountAmount || 0
+                  const vatRate = invoice.vatRate || 0
+                  const netSubtotalBeforeVat = Math.max(0, itemsSellingSubtotal - discount)
+                  const vatAmount = netSubtotalBeforeVat * (vatRate / 100)
+                  const clientSellingTotal = calculateTotal(invoice)
+
                   const lalamove = invoice.lalamoveCost || 0
-                  const additionalTotal = (invoice.additionalExpenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0)
+                  const additionalExpenses = invoice.additionalExpenses || []
+                  const additionalTotal = additionalExpenses.reduce((acc, exp) => acc + (exp.amount || 0), 0)
                   const totalExpenses = lalamove + additionalTotal
                   const subtotalCapital = itemsBaseCapital + totalExpenses
-                  const clientSellingTotal = calculateTotal(invoice)
-                  const salesMarkup3Pct = clientSellingTotal * 0.03
-                  const totalCapitalWithSales = subtotalCapital + salesMarkup3Pct
+
+                  const salesMarkup25Pct = calculateSalesCommission(invoice)
+                  const commissionableSellingBase = Math.max(0, clientSellingTotal - laborBaseTotal)
+                  const totalCapitalWithSales = subtotalCapital + salesMarkup25Pct
                   const netProfit = clientSellingTotal - totalCapitalWithSales
                   const netMargin = clientSellingTotal > 0 ? (netProfit / clientSellingTotal) * 100 : 0
 
@@ -5254,8 +5878,20 @@ export default function Home() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                         <div className="col-span-2 sm:col-span-3 bg-blue-950/70 p-3 rounded-lg border border-blue-500/40 flex justify-between items-center">
                           <div>
-                            <div className="text-[9.5px] uppercase font-sans text-blue-300 font-bold tracking-wider">
-                              Quotation Selling Value (+{invoice.rateMarkup}% Client Markup)
+                            <div className="text-[9.5px] uppercase font-sans text-blue-300 font-bold tracking-wider flex items-center gap-1">
+                              <span>Quotation Selling Value (+{invoice.rateMarkup}% Client Markup)</span>
+                              <CapitalCalcPopover
+                                title="Quotation Selling Price"
+                                badge="Selling Total"
+                                formula="Subtotal (with Markup) - Discount + VAT = Grand Total"
+                                steps={[
+                                  { label: "Items Selling Subtotal", value: formatCurrency(itemsSellingSubtotal, invoice.currency), color: "text-blue-300" },
+                                  ...(discount > 0 ? [{ label: "Client Discount", value: `-${formatCurrency(discount, invoice.currency)}`, color: "text-rose-400" }] : []),
+                                  ...(vatRate > 0 ? [{ label: `VAT (${vatRate}%)`, value: `+${formatCurrency(vatAmount, invoice.currency)}`, color: "text-amber-400" }] : []),
+                                ]}
+                                result={{ label: "Grand Total", value: formatCurrency(clientSellingTotal, invoice.currency), color: "text-blue-200" }}
+                                description="The official selling price billed to the client on the Quotation sheet with all item markups applied."
+                              />
                             </div>
                             <div className="text-[10px] text-zinc-300 font-sans">
                               Grand Total billed to client (+{invoice.rateMarkup}% markup applied to items + VAT)
@@ -5267,50 +5903,144 @@ export default function Home() {
                         </div>
 
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
-                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold">Items Base Capital (0% Markup)</div>
+                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold flex items-center justify-between">
+                            <span>Items Base Capital (0%)</span>
+                            <CapitalCalcPopover
+                              title="Items Base Capital (0% Markup)"
+                              badge="Direct Cost"
+                              formula="∑ (Line Item Qty × Supplier Base Rate)"
+                              steps={[
+                                { label: "Solar Panels", value: formatCurrency(panelsBaseTotal, invoice.currency) },
+                                { label: "Inverters & Storage", value: formatCurrency(invertersBatteriesBaseTotal, invoice.currency) },
+                                { label: "Balance of System / Mounting", value: formatCurrency(materialsBaseTotal, invoice.currency) },
+                                { label: "Labor & Installation Base", value: formatCurrency(laborBaseTotal, invoice.currency) },
+                              ]}
+                              result={{ label: "Base Capital", value: formatCurrency(itemsBaseCapital, invoice.currency), color: "text-zinc-100" }}
+                              description="Procurement cost of physical hardware, solar modules, inverters, balance of system, and base labor at 0% markup."
+                            />
+                          </div>
                           <div className="font-bold text-zinc-100 mt-0.5">
                             {formatCurrency(itemsBaseCapital, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-500/30">
-                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Rate Markup Margin (+{invoice.rateMarkup}%)</div>
+                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold flex items-center justify-between">
+                            <span>Rate Markup Margin (+{invoice.rateMarkup}%)</span>
+                            <CapitalCalcPopover
+                              title="Rate Markup Margin"
+                              badge={`+${invoice.rateMarkup}%`}
+                              formula="Items Selling Subtotal - Items Base Capital Cost"
+                              steps={[
+                                { label: "Selling Subtotal (+Markup)", value: formatCurrency(itemsSellingSubtotal, invoice.currency), color: "text-emerald-300" },
+                                { label: "Base Capital Cost (0%)", value: `-${formatCurrency(itemsBaseCapital, invoice.currency)}`, color: "text-zinc-400" },
+                              ]}
+                              result={{ label: "Markup Gross Gain", value: `+${formatCurrency(itemsMarkupGain, invoice.currency)}`, color: "text-emerald-300" }}
+                              description={`Gross value added by applying the +${invoice.rateMarkup}% client rate markup on hardware and equipment.`}
+                            />
+                          </div>
                           <div className="font-bold text-emerald-300 mt-0.5">
                             +{formatCurrency(itemsMarkupGain, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-zinc-700">
-                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold">Logistics & Expenses</div>
+                          <div className="text-[9px] uppercase font-sans text-zinc-400 font-bold flex items-center justify-between">
+                            <span>Logistics & Expenses</span>
+                            <CapitalCalcPopover
+                              title="Logistics & Job Expenses"
+                              badge="Expenses"
+                              formula="Lalamove Delivery Cost + ∑ Additional Project Expenses"
+                              steps={[
+                                { label: "Lalamove / Transport", value: formatCurrency(lalamove, invoice.currency), color: "text-amber-300" },
+                                { label: `Project Expenses (${additionalExpenses.length} items)`, value: `+${formatCurrency(additionalTotal, invoice.currency)}`, color: "text-amber-300" },
+                              ]}
+                              result={{ label: "Total Expenses", value: formatCurrency(totalExpenses, invoice.currency), color: "text-amber-400" }}
+                              description="Direct operational costs (freight, transportation, food, fuel, permits, and lodging) to complete the installation."
+                            />
+                          </div>
                           <div className="font-bold text-amber-400 mt-0.5">
                             {formatCurrency(totalExpenses, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-zinc-800/80 p-2.5 rounded-lg border border-amber-500/40">
-                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">3% Sales Commission</div>
+                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold flex items-center justify-between">
+                            <span>2.5% Sales Commission</span>
+                            <CapitalCalcPopover
+                              title="2.5% Sales Commission"
+                              badge="2.5% Commission"
+                              formula="(Quotation Total - Base Labor Cost) × 2.5%"
+                              steps={[
+                                { label: "Quotation Selling Total", value: formatCurrency(clientSellingTotal, invoice.currency) },
+                                { label: "Less Base Labor (0% Markup)", value: `-${formatCurrency(laborBaseTotal, invoice.currency)}`, note: "Base Labor Deducted", color: "text-rose-400" },
+                                { label: "Commissionable Base", value: formatCurrency(commissionableSellingBase, invoice.currency), color: "text-amber-300 font-bold" },
+                                { label: "Commission Rate", value: "2.5%", color: "text-amber-400" },
+                              ]}
+                              result={{ label: "Sales Commission", value: `+${formatCurrency(salesMarkup25Pct, invoice.currency)}`, color: "text-amber-300" }}
+                              description="Agent/sales commission calculated from Quotation Selling Total less the 0% base subcontractor labor cost (Labor markup remains commissionable)."
+                            />
+                          </div>
                           <div className="font-bold text-amber-300 mt-0.5">
-                            {formatCurrency(salesMarkup3Pct, invoice.currency)}
+                            {formatCurrency(salesMarkup25Pct, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-zinc-950 p-2.5 rounded-lg border border-amber-500/40">
-                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold">Total Net Capital Cost</div>
+                          <div className="text-[9px] uppercase font-sans text-amber-400 font-bold flex items-center justify-between">
+                            <span>Total Net Capital Cost</span>
+                            <CapitalCalcPopover
+                              title="Total Net Capital Cost"
+                              badge="Net Outflow"
+                              formula="Items Base Capital + Total Expenses + 2.5% Sales Commission"
+                              steps={[
+                                { label: "Items Base Capital (0%)", value: formatCurrency(itemsBaseCapital, invoice.currency) },
+                                { label: "Logistics & Expenses", value: `+${formatCurrency(totalExpenses, invoice.currency)}`, color: "text-amber-400" },
+                                { label: "2.5% Sales Commission", value: `+${formatCurrency(salesMarkup25Pct, invoice.currency)}`, color: "text-amber-400" },
+                              ]}
+                              result={{ label: "Total Net Capital", value: formatCurrency(totalCapitalWithSales, invoice.currency), color: "text-amber-300" }}
+                              description="The total project outlay required to deliver and fulfill the solar contract before retained profit."
+                            />
+                          </div>
                           <div className="font-bold text-amber-300 mt-0.5">
                             {formatCurrency(totalCapitalWithSales, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
-                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold">Est. Net Profit</div>
+                          <div className="text-[9px] uppercase font-sans text-emerald-400 font-bold flex items-center justify-between">
+                            <span>Est. Net Profit</span>
+                            <CapitalCalcPopover
+                              title="Estimated Net Profit"
+                              badge="Retained Profit"
+                              formula="Quotation Selling Value - Total Net Capital Cost"
+                              steps={[
+                                { label: "Quotation Selling Price", value: formatCurrency(clientSellingTotal, invoice.currency), color: "text-blue-300" },
+                                { label: "Less Total Net Capital", value: `-${formatCurrency(totalCapitalWithSales, invoice.currency)}`, color: "text-amber-400" },
+                              ]}
+                              result={{ label: "Net Profit", value: formatCurrency(netProfit, invoice.currency), color: "text-emerald-300" }}
+                              description="Net income retained after paying all suppliers, logistics, site expenses, and sales commissions."
+                            />
+                          </div>
                           <div className="font-bold text-emerald-300 mt-0.5">
                             {formatCurrency(netProfit, invoice.currency)}
                           </div>
                         </div>
 
                         <div className="col-span-2 sm:col-span-3 bg-emerald-950/90 p-2.5 rounded-lg border border-emerald-500/60 flex justify-between items-center">
-                          <span className="text-[10px] uppercase font-sans text-emerald-300 font-bold tracking-wider">
-                            NET GROSS PROFIT MARGIN (% OF SELLING PRICE):
+                          <span className="text-[10px] uppercase font-sans text-emerald-300 font-bold tracking-wider flex items-center gap-1">
+                            <span>NET GROSS PROFIT MARGIN (% OF SELLING PRICE):</span>
+                            <CapitalCalcPopover
+                              title="Net Gross Profit Margin"
+                              badge="Margin %"
+                              formula="(Net Profit ÷ Quotation Selling Price) × 100%"
+                              steps={[
+                                { label: "Net Profit Amount", value: formatCurrency(netProfit, invoice.currency), color: "text-emerald-300" },
+                                { label: "Quotation Selling Price", value: formatCurrency(clientSellingTotal, invoice.currency), color: "text-blue-300" },
+                              ]}
+                              result={{ label: "Net Profit Margin", value: `${netMargin.toFixed(1)}%`, color: "text-emerald-200" }}
+                              description="Percentage of the total client quotation value that represents pure retained profit."
+                            />
                           </span>
                           <span className="font-extrabold text-sm text-emerald-200">
                             {formatCurrency(netProfit, invoice.currency)} ({netMargin.toFixed(1)}%)
@@ -5331,7 +6061,19 @@ export default function Home() {
                   </div>
 
                   {/* Lalamove Cost */}
-                  <Field label="Lalamove / Transport Delivery Cost (₱)" onMouseEnter={() => setHoveredField('lalamoveCost')} onMouseLeave={() => setHoveredField(null)}>
+                  <div className="space-y-1.5" onMouseEnter={() => setHoveredField('lalamoveCost')} onMouseLeave={() => setHoveredField(null)}>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-semibold text-muted-foreground tracking-widest uppercase flex items-center gap-1">
+                        <span>Lalamove / Transport Delivery Cost (₱)</span>
+                        <CapitalCalcPopover
+                          title="Lalamove Logistics Cost"
+                          badge="Delivery"
+                          formula="Actual out-of-pocket shipping & transport fee"
+                          result={{ label: "Current Cost", value: formatCurrency(invoice.lalamoveCost || 0, invoice.currency) }}
+                          description="Direct delivery fee for transporting equipment and panels to the installation site. Deducted directly from project margin."
+                        />
+                      </Label>
+                    </div>
                     <Input
                       type="number"
                       min="0"
@@ -5342,13 +6084,29 @@ export default function Home() {
                       placeholder="e.g. 1500"
                       className="font-mono"
                     />
-                  </Field>
+                  </div>
 
                   {/* Additional Expenses List */}
                   <div className="space-y-2 pt-2 border-t border-border">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-[11px] font-bold text-muted-foreground uppercase">Project Expenses</Label>
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                          <span>Project Expenses</span>
+                          <CapitalCalcPopover
+                            title="Additional Project Expenses"
+                            badge="Site Expenses"
+                            formula="∑ (Individual Incidental Expenses)"
+                            steps={(invoice.additionalExpenses || []).map(exp => ({
+                              label: exp.description || 'Expense Item',
+                              value: formatCurrency(exp.amount || 0, invoice.currency)
+                            }))}
+                            result={{
+                              label: "Total Expenses",
+                              value: formatCurrency((invoice.additionalExpenses || []).reduce((acc, exp) => acc + (exp.amount || 0), 0), invoice.currency)
+                            }}
+                            description="Job-specific expenses such as meals/allowance, diesel/transport, permits, safety gear, and rentals."
+                          />
+                        </Label>
                         <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
                           ({(invoice.additionalExpenses || []).length}/7 Max)
                         </span>
@@ -6616,7 +7374,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                 />
                                 <div className="min-w-0 flex-1">
                                   <span className="text-[11px] font-bold block truncate leading-tight">With Markup</span>
-                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">+{invoice.rateMarkup ?? 10}% client</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">+{invoice.rateMarkup || 25}% client</span>
                                 </div>
                               </label>
 

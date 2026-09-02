@@ -16,7 +16,7 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   dueDate: sampleDue.toISOString().split('T')[0],
   currency: 'PHP',
   vatRate: 0,
-  rateMarkup: 30,
+  rateMarkup: 0,
   laborPricePerWatt: 6,
   excludeLaborMarkup: false,
   excludeBattery: false,

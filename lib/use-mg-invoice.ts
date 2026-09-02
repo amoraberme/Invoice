@@ -75,9 +75,6 @@ export function useMGInvoice() {
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             let numVal = !isNaN(parsed) ? parsed : defaultVal
-            if (key === 'rateMarkup' && (numVal === 25 || numVal === 28 || savedVal === undefined || savedVal === null || savedVal === '25' || savedVal === '28')) {
-              numVal = 30
-            }
             if (key === 'laborPricePerWatt' && (savedVal === undefined || savedVal === null)) {
               numVal = 6
             }
@@ -172,9 +169,6 @@ export function useMGInvoice() {
         } else if (typeof defaultInvoice[field] === 'number') {
           let numVal = parseFloat(value)
           if (isNaN(numVal)) numVal = defaultInvoice[field] as number
-          if (field === 'rateMarkup' && numVal === 25) {
-            numVal = 28
-          }
           (overrides as unknown as Record<string, number>)[field] = numVal
         } else if (field !== 'lineItems' && field !== 'additionalExpenses') {
           if (value !== 'undefined') {

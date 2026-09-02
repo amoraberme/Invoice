@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, isBatteryItem, isLaborItem, calculateTotal } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, isBatteryItem, isLaborItem, calculateTotal, calculateSalesCommission } from '@/lib/utils'
 
 interface MGCapitalPreviewProps {
   invoice: Invoice
@@ -223,11 +223,11 @@ export function MGCapitalPreview({
   // 3. Client Quotation Selling Price Total (WITH Markup + VAT)
   const clientGrandTotal = calculateTotal(invoice)
 
-  // 4. 3% Sales Markup (Calculated from Selling Total)
-  const salesMarkup3Pct = clientGrandTotal * 0.03
+  // 4. 2.5% Sales Commission (Calculated from Selling Total excluding Labor & Installation)
+  const salesMarkup25Pct = calculateSalesCommission(invoice)
 
-  // 5. Total Capital Cost (Subtotal Capital + 3% Sales Markup)
-  const totalCapitalWithSalesMarkup = subtotalCapitalCost + salesMarkup3Pct
+  // 5. Total Capital Cost (Subtotal Capital + 2.5% Sales Commission)
+  const totalCapitalWithSalesMarkup = subtotalCapitalCost + salesMarkup25Pct
 
   // 6. Net Profit & Margin
   const netProfit = clientGrandTotal - totalCapitalWithSalesMarkup
@@ -574,9 +574,9 @@ export function MGCapitalPreview({
                     </div>
 
                     <div className="bg-[#D97706]/5 px-1.5 py-1 rounded-xs border border-[#D97706]/30">
-                      <div className="text-[7.5px] uppercase text-[#D97706] font-bold tracking-wider font-sans">3% Sales Commission</div>
+                      <div className="text-[7.5px] uppercase text-[#D97706] font-bold tracking-wider font-sans">2.5% Sales Commission</div>
                       <div className="text-[10.5px] font-bold text-[#D97706] font-mono mt-0.5">
-                        + {formatCurrency(salesMarkup3Pct, invoice.currency)}
+                        + {formatCurrency(salesMarkup25Pct, invoice.currency)}
                       </div>
                     </div>
 
@@ -606,7 +606,7 @@ export function MGCapitalPreview({
               <div className="pt-2.5 border-t border-[#E5E5E5] flex justify-between items-end text-[9px] text-[#888888]">
                 <div>
                   <p className="font-semibold text-[#111111]">CONFIDENTIAL INTERNAL COST SHEET</p>
-                  <p>Comparing 0% Base Capital Rates vs +{invoice.rateMarkup}% Client Selling Price (+ 3% Sales Commission deducted from selling total).</p>
+                  <p>Comparing 0% Base Capital Rates vs +{invoice.rateMarkup}% Client Selling Price (+ 2.5% Sales Commission deducted from selling total, excluding labor).</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono">Page {pageIdx + 1} of {totalPages} • {invoice.invoiceNumber || 'DRAFT'}</p>

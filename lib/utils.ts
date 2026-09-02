@@ -610,6 +610,26 @@ export function calculateTotal(invoice: Invoice): number {
   return netSubtotal + vat
 }
 
+export function calculateBaseLaborTotal(invoice: Invoice): number {
+  const validItems = (invoice.lineItems || []).filter((item) => {
+    return !(invoice.excludeBattery && isBatteryItem(item.description))
+  })
+  return validItems
+    .filter((item) => isLaborItem(item.description))
+    .reduce((sum, item) => sum + item.quantity * item.rate, 0)
+}
+
+export function calculateCommissionableBase(invoice: Invoice): number {
+  const clientGrandTotal = calculateTotal(invoice)
+  const baseLaborTotal = calculateBaseLaborTotal(invoice)
+  return Math.max(0, clientGrandTotal - baseLaborTotal)
+}
+
+export function calculateSalesCommission(invoice: Invoice): number {
+  const commissionableBase = calculateCommissionableBase(invoice)
+  return commissionableBase * 0.025
+}
+
 export function generateDefaultScopesFromInvoice(invoice: Partial<Invoice>): ScopeOfWorkItem[] {
   const items = invoice.lineItems || []
   const withBrand = invoice.withBrandName !== false

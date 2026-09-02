@@ -150,7 +150,7 @@ export const defaultInvoice: Invoice = {
   dueDate: defaultDue.toISOString().slice(0, 10),
   currency: 'PHP',
   vatRate: 0,
-  rateMarkup: 30,
+  rateMarkup: 0,
   laborPricePerWatt: 6,
   excludeLaborMarkup: false,
   excludeBattery: false,
