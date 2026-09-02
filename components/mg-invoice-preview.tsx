@@ -527,8 +527,16 @@ export function MGInvoicePreview({
                                 <div key={scopeItem.id || idx} className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
                                   <div className="flex items-start gap-2">
                                     <span 
-                                      className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] w-[18px] h-[18px] flex items-center justify-center rounded-[2px] leading-none select-none shadow-xs mt-0.5" 
-                                      style={{ color: '#ffffff', backgroundColor: '#111111' }}
+                                      className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] rounded-[2px] select-none shadow-xs mt-0.5" 
+                                      style={{ 
+                                        color: '#ffffff', 
+                                        backgroundColor: '#111111',
+                                        display: 'inline-block',
+                                        width: '18px',
+                                        height: '18px',
+                                        lineHeight: '18px',
+                                        textAlign: 'center',
+                                      }}
                                     >
                                       {scopeItem.letter || String.fromCharCode(65 + idx)}
                                     </span>

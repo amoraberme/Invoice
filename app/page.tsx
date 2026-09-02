@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
-import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
+import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
 import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
@@ -2011,6 +2011,10 @@ export default function Home() {
     withMarkup: true,
     withoutMarkup: false,
   })
+  const [capitalVersion, setCapitalVersion] = useState<'v1' | 'v2'>('v1')
+  const [downloadCapitalVersion, setDownloadCapitalVersion] = useState<'v1' | 'v2'>('v1')
+  const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'png'>('pdf')
+  const [downloadUseZip, setDownloadUseZip] = useState<boolean>(false)
 
   useEffect(() => {
     setHistoryList(getInvoiceHistory())
@@ -3294,6 +3298,7 @@ export default function Home() {
   const handleOpenDownloadModal = () => {
     setDownloadFileName(computeDefaultFileName())
     setDownloadIsCondensed(invoice.isCondensed ?? false)
+    setDownloadCapitalVersion(capitalVersion || 'v1')
     setDownloadQuotationMarkup({
       withMarkup: true,
       withoutMarkup: false,
@@ -3303,6 +3308,7 @@ export default function Home() {
       checklist: activeTab === 'checklist',
       capital: activeTab === 'capital',
     })
+    setDownloadUseZip(false)
     setDownloadModalOpen(true)
   }
 
@@ -3314,17 +3320,19 @@ export default function Home() {
       docType: 'quotation' | 'checklist' | 'capital'
       withoutMarkup?: boolean
       isCondensed?: boolean
+      capitalVersion?: 'v1' | 'v2'
     }> = []
 
     const cleanBase = baseName.trim() || 'Quotation'
     const layoutTag = downloadIsCondensed ? 'Compressed' : 'Expanded'
+    const ext = downloadFormat === 'png' ? 'png' : 'pdf'
 
     if (downloadDocTypes.quotation) {
       if (downloadQuotationMarkup.withMarkup) {
         tasks.push({
           id: 'quote-with-markup',
           title: `Quotation (${layoutTag}, With Rate Markup)`,
-          filename: `${cleanBase} - ${layoutTag} - With Rate Markup.pdf`,
+          filename: `${cleanBase} - ${layoutTag} - With Rate Markup.${ext}`,
           docType: 'quotation',
           withoutMarkup: false,
           isCondensed: downloadIsCondensed,
@@ -3334,7 +3342,7 @@ export default function Home() {
         tasks.push({
           id: 'quote-without-markup',
           title: `Quotation (${layoutTag}, Without Rate Markup)`,
-          filename: `${cleanBase} - ${layoutTag} - Without Rate Markup.pdf`,
+          filename: `${cleanBase} - ${layoutTag} - Without Rate Markup.${ext}`,
           docType: 'quotation',
           withoutMarkup: true,
           isCondensed: downloadIsCondensed,
@@ -3346,23 +3354,25 @@ export default function Home() {
       tasks.push({
         id: 'checklist',
         title: 'Packing & Dispatch Checklist',
-        filename: `${cleanBase} - Checklist.pdf`,
+        filename: `${cleanBase} - Checklist.${ext}`,
         docType: 'checklist',
       })
     }
 
     if (downloadDocTypes.capital) {
+      const capTag = downloadCapitalVersion === 'v1' ? 'V1 (1-Page)' : 'V2 (Detailed)'
       tasks.push({
         id: 'capital',
-        title: 'Capital & Expenses Breakdown',
-        filename: `${cleanBase} - Capital Breakdown.pdf`,
+        title: `Capital & Expenses (${capTag})`,
+        filename: `${cleanBase} - Capital ${downloadCapitalVersion === 'v1' ? 'V1' : 'V2'}.${ext}`,
         docType: 'capital',
+        capitalVersion: downloadCapitalVersion,
       })
     }
 
     // When only a single document is selected for download, use the exact Base File Name
     if (tasks.length === 1) {
-      tasks[0].filename = `${cleanBase}.pdf`
+      tasks[0].filename = `${cleanBase}.${ext}`
     }
 
     return tasks
@@ -3376,12 +3386,15 @@ export default function Home() {
     if (cleanName.toLowerCase().endsWith('.pdf')) {
       cleanName = cleanName.slice(0, -4).trim()
     }
+    if (cleanName.toLowerCase().endsWith('.png')) {
+      cleanName = cleanName.slice(0, -4).trim()
+    }
     if (!cleanName) cleanName = 'Quotation'
 
     const tasks = getSelectedExportTasks(cleanName)
     if (tasks.length === 0) return
 
-    const exportTitle = tasks.length === 1 ? tasks[0].filename.replace(/\.pdf$/i, '') : cleanName
+    const exportTitle = tasks.length === 1 ? tasks[0].filename.replace(/\.(pdf|png)$/i, '') : cleanName
 
     setIsExportingPdf(true)
     setPdfExportStatus('Preparing documents for export...')
@@ -3407,10 +3420,12 @@ export default function Home() {
     const originalTab = activeTab
     const originalIsCondensed = invoice.isCondensed
     const originalRateMarkup = invoice.rateMarkup
+    const originalCapitalVersion = capitalVersion
 
     try {
       const generatedFiles: Array<{ filename: string; blob: Blob }> = []
 
+      // PHASE 1: GENERATE ALL DOCUMENTS FIRST IN MEMORY
       for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i]
         setPdfExportStatus(`[${i + 1}/${tasks.length}] Generating ${task.title}...`)
@@ -3425,22 +3440,27 @@ export default function Home() {
         } else if (task.docType === 'checklist') {
           setActiveTab('checklist')
         } else if (task.docType === 'capital') {
+          setCapitalVersion(task.capitalVersion || downloadCapitalVersion || 'v1')
           setActiveTab('capital')
         }
 
         await new Promise(r => setTimeout(r, 260))
 
-        if (tasks.length === 1) {
-          // Single file: directly export and trigger Save As dialog for PDF
-          setPdfExportStatus(`Saving ${task.filename}...`)
-          await exportToPdfDirect({
+        if (downloadFormat === 'png') {
+          const res = await exportToPngDirect({
             filename: task.filename,
-            onProgress: (status) => setPdfExportStatus(status),
-            useSavePicker: true,
-            returnBlobOnly: false,
+            onProgress: (status) => setPdfExportStatus(`[${i + 1}/${tasks.length}] ${status}`),
+            returnBlobOnly: true,
           })
+          if (res.success && res.pages && res.pages.length > 0) {
+            generatedFiles.push(...res.pages)
+          } else if (res.success && res.blob) {
+            generatedFiles.push({
+              filename: task.filename,
+              blob: res.blob,
+            })
+          }
         } else {
-          // Multiple files: generate blob in memory for ZIP package
           const res = await exportToPdfDirect({
             filename: task.filename,
             onProgress: (status) => setPdfExportStatus(`[${i + 1}/${tasks.length}] ${status}`),
@@ -3455,8 +3475,14 @@ export default function Home() {
         }
       }
 
-      // If multiple files selected, bundle into ZIP and trigger Save As for ZIP
-      if (tasks.length > 1 && generatedFiles.length > 0) {
+      // PHASE 2: DOWNLOADING - ONLY AFTER ALL DOCUMENTS FINISHED GENERATING
+      if (generatedFiles.length === 1 && !downloadUseZip) {
+        // Single file: directly save with picker if supported
+        const file = generatedFiles[0]
+        setPdfExportStatus(`Saving ${file.filename}...`)
+        await saveBlobWithPicker(file.blob, file.filename, undefined, true)
+      } else if (generatedFiles.length > 1 && downloadUseZip) {
+        // Multiple files with ZIP: package into single ZIP archive
         setPdfExportStatus('Packaging files into ZIP archive...')
         const zip = new JSZip()
         for (const item of generatedFiles) {
@@ -3469,22 +3495,33 @@ export default function Home() {
         })
         const zipFilename = `${cleanName}.zip`
         setPdfExportStatus('Saving ZIP package to device...')
-        await saveBlobWithPicker(zipBlob, zipFilename)
+        await saveBlobWithPicker(zipBlob, zipFilename, undefined, true)
+      } else if (generatedFiles.length > 0) {
+        // Multiple files without ZIP: download one by one sequentially after all loading is finished
+        for (let j = 0; j < generatedFiles.length; j++) {
+          const file = generatedFiles[j]
+          setPdfExportStatus(`[${j + 1}/${generatedFiles.length}] Saving ${file.filename}...`)
+          await saveBlobWithPicker(file.blob, file.filename, undefined, false)
+          await new Promise(r => setTimeout(r, 350))
+        }
       }
 
+      setPdfExportStatus('Download complete!')
+      await new Promise(r => setTimeout(r, 400))
       setDownloadModalOpen(false)
     } catch (err) {
-      console.error('Direct PDF export error:', err)
+      console.error('Direct export error:', err)
       if (typeof window !== 'undefined' && typeof window.print === 'function') {
         window.print()
       }
     } finally {
-      // Restore original invoice settings and active tab
+      // Restore original invoice settings, capitalVersion, and active tab
       setInvoice(prev => ({
         ...prev,
         isCondensed: originalIsCondensed,
         rateMarkup: originalRateMarkup,
       }))
+      setCapitalVersion(originalCapitalVersion)
       setActiveTab(originalTab)
       setIsExportingPdf(false)
       setPdfExportStatus('')
@@ -5838,6 +5875,34 @@ export default function Home() {
                   </p>
                 </div>
 
+                {/* Capital Version Switcher (V1 vs V2) */}
+                <div className="flex items-center gap-1.5 p-1 bg-secondary/80 rounded-xl border border-border shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCapitalVersion('v1')}
+                    className={cn(
+                      "flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                      capitalVersion === 'v1'
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
+                  >
+                    <span>⚡ V1 (Compressed 1-Page)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCapitalVersion('v2')}
+                    className={cn(
+                      "flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                      capitalVersion === 'v2'
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
+                  >
+                    <span>📑 V2 (Detailed BOQ Worksheet)</span>
+                  </button>
+                </div>
+
                 {/* Profitability Executive Summary Card */}
                 {(() => {
                   const itemsList = (invoice.lineItems || []).filter((item) => {
@@ -6852,7 +6917,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                   ) : (
                     <Download size={15} strokeWidth={2} />
                   )}
-                  {isExportingPdf ? (pdfExportStatus || 'Generating PDF...') : 'Download PDF'}
+                  {isExportingPdf ? (pdfExportStatus || 'Generating...') : 'Download'}
                 </Button>
               </div>
 
@@ -6874,7 +6939,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     className="flex-[1.5] h-10 rounded-lg text-xs font-bold bg-primary text-primary-foreground shadow-xs cursor-pointer gap-1.5"
                   >
                     {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download PDF'}
+                    {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download'}
                   </Button>
                 </div>
               </div>
@@ -6947,6 +7012,8 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           <MGCapitalPreview
             invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
             hoveredField={hoveredField}
+            version={capitalVersion}
+            onVersionChange={setCapitalVersion}
             onPagesChange={setTotalPages}
           />
         ) : (
@@ -6978,7 +7045,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               className="flex-[1.6] h-10 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-lg cursor-pointer gap-1.5"
             >
               {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download PDF'}
+              {isExportingPdf ? (pdfExportStatus || 'Exporting...') : 'Download'}
             </Button>
           </div>
         )}
@@ -7311,14 +7378,60 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
 
               return (
                 <>
-                  {/* 1. Document Selection Section */}
+                  {/* 1. Format Selection (PDF vs PNG) */}
+                  <div className="space-y-1.5 w-full min-w-0">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      1. Export Format
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => setDownloadFormat('pdf')}
+                        className={cn(
+                          "p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-2 select-none",
+                          downloadFormat === 'pdf'
+                            ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+                            : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70 font-semibold"
+                        )}
+                      >
+                        <span className="text-base">📄</span>
+                        <div className="text-left">
+                          <div className="text-xs leading-tight">PDF Document</div>
+                          <div className={cn("text-[9.5px]", downloadFormat === 'pdf' ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                            Printable (.pdf)
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDownloadFormat('png')}
+                        className={cn(
+                          "p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-2 select-none",
+                          downloadFormat === 'png'
+                            ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+                            : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70 font-semibold"
+                        )}
+                      >
+                        <span className="text-base">🖼️</span>
+                        <div className="text-left">
+                          <div className="text-xs leading-tight">PNG Image</div>
+                          <div className={cn("text-[9.5px]", downloadFormat === 'png' ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                            High-res graphic (.png)
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Document Selection Section */}
                   <div className="space-y-2 w-full min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
-                        1. Select Document(s)
+                        2. Select Document(s)
                       </label>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-secondary border border-border text-foreground shrink-0">
-                        {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} {totalFiles > 1 ? '(ZIP)' : '(PDF)'}
+                        {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} {totalFiles > 1 ? (downloadUseZip ? '(ZIP)' : '(Separate)') : `(${downloadFormat.toUpperCase()})`}
                       </span>
                     </div>
 
@@ -7429,55 +7542,130 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         )}
                       </div>
 
-                      {/* Checklist & Capital Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full min-w-0">
-                        <label className={cn(
-                          "p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
-                          downloadDocTypes.checklist ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
-                        )}>
-                          <input
-                            type="checkbox"
-                            checked={downloadDocTypes.checklist}
-                            onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, checklist: e.target.checked }))}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs font-bold block truncate text-foreground">
-                              📋 Checklist
-                            </span>
-                            <span className="text-[10px] text-muted-foreground block truncate">
-                              Warehouse BOQ
-                            </span>
-                          </div>
-                        </label>
+                      {/* Capital Option Card */}
+                      <div className={cn(
+                        "rounded-xl border transition-all overflow-hidden w-full min-w-0",
+                        downloadDocTypes.capital ? "bg-primary/[0.03] border-primary/40 shadow-2xs" : "bg-secondary/20 border-border"
+                      )}>
+                        <div className="p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2.5">
+                          <label className="flex items-center gap-2 cursor-pointer select-none min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={downloadDocTypes.capital}
+                              onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, capital: e.target.checked }))}
+                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-foreground block truncate">
+                                💰 Capital Sheet
+                              </span>
+                              <span className="text-[10px] text-muted-foreground block truncate">
+                                Internal cost & profit breakdown
+                              </span>
+                            </div>
+                          </label>
 
-                        <label className={cn(
-                          "p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
-                          downloadDocTypes.capital ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
-                        )}>
-                          <input
-                            type="checkbox"
-                            checked={downloadDocTypes.capital}
-                            onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, capital: e.target.checked }))}
-                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs font-bold block truncate text-foreground">
-                              💰 Capital
-                            </span>
-                            <span className="text-[10px] text-muted-foreground block truncate">
-                              Cost & profit BOM
-                            </span>
-                          </div>
-                        </label>
+                          {downloadDocTypes.capital && (
+                            <div className="flex items-center bg-secondary/90 p-0.5 rounded-lg border border-border shrink-0 ml-auto">
+                              <button
+                                type="button"
+                                onClick={() => setDownloadCapitalVersion('v1')}
+                                className={cn(
+                                  "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  downloadCapitalVersion === 'v1'
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                ⚡ V1 (1-Page)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDownloadCapitalVersion('v2')}
+                                className={cn(
+                                  "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                                  downloadCapitalVersion === 'v2'
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                📑 V2 (Detailed BOQ)
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Checklist Option Card */}
+                      <label className={cn(
+                        "p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer select-none flex items-center gap-2.5 min-w-0",
+                        downloadDocTypes.checklist ? "bg-primary/[0.03] border-primary/40 shadow-2xs text-foreground" : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
+                      )}>
+                        <input
+                          type="checkbox"
+                          checked={downloadDocTypes.checklist}
+                          onChange={(e) => setDownloadDocTypes(prev => ({ ...prev, checklist: e.target.checked }))}
+                          className="w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-bold block truncate text-foreground">
+                            📋 Packing & Dispatch Checklist
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block truncate">
+                            Warehouse dispatch & packaging BOQ
+                          </span>
+                        </div>
+                      </label>
                     </div>
                   </div>
 
-                  {/* 2. Base File Name & Quick Presets */}
+                  {/* Multi-file Packaging Option (Separate Files vs ZIP) */}
+                  {totalFiles > 1 && (
+                    <div className="p-3 rounded-xl border bg-secondary/30 border-border flex items-center justify-between gap-2.5 select-none w-full min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-base shrink-0">{downloadUseZip ? '📦' : '📂'}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold block text-foreground truncate">
+                            {downloadUseZip ? 'Bundle as ZIP Archive' : 'Separate Files (No ZIP)'}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block truncate">
+                            {downloadUseZip ? 'Packages all files into a single .zip' : 'Downloads all files individually to your device'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center bg-secondary p-0.5 rounded-lg border border-border shrink-0 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => setDownloadUseZip(false)}
+                          className={cn(
+                            "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                            !downloadUseZip
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          Individual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDownloadUseZip(true)}
+                          className={cn(
+                            "px-2 sm:px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer select-none",
+                            downloadUseZip
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          ZIP Archive
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Base File Name & Quick Presets */}
                   <div className="space-y-2 w-full min-w-0">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      2. Base File Name
+                      3. Base File Name
                     </label>
                     <div className="flex items-center w-full rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary overflow-hidden shadow-2xs min-w-0">
                       <input
@@ -7489,7 +7677,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         className="flex-1 min-w-0 bg-transparent px-3 py-2 text-xs text-foreground outline-none font-medium placeholder:text-muted-foreground/50"
                       />
                       <span className="bg-muted/80 px-2.5 sm:px-3 py-2 text-xs font-mono font-semibold text-muted-foreground border-l border-border select-none shrink-0 whitespace-nowrap">
-                        {totalFiles > 1 ? '.zip' : '.pdf'}
+                        {totalFiles > 1 && downloadUseZip ? '.zip' : (downloadFormat === 'png' ? '.png' : '.pdf')}
                       </span>
                     </div>
 
@@ -7525,7 +7713,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                     </div>
                   </div>
 
-                  {/* 3. Generated Export File(s) Preview */}
+                  {/* 4. Generated Export File(s) Preview */}
                   {selectedTasks.length > 0 && (
                     <div className="space-y-1.5 w-full min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -7534,14 +7722,16 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                         </span>
                         {totalFiles > 1 && (
                           <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 truncate min-w-0">
-                            📦 {(downloadFileName.trim() || computeDefaultFileName())}.zip
+                            {downloadUseZip
+                              ? `📦 ${(downloadFileName.trim() || computeDefaultFileName())}.zip`
+                              : `📂 ${totalFiles} Separate Files`}
                           </span>
                         )}
                       </div>
                       <div className="p-2.5 rounded-xl bg-secondary/40 border border-border space-y-1.5 overflow-hidden w-full min-w-0">
                         {selectedTasks.map((t) => (
                           <div key={t.id} className="flex items-center gap-2 text-[11px] font-mono text-foreground min-w-0 w-full">
-                            <span className="text-primary shrink-0">📄</span>
+                            <span className="text-primary shrink-0">{downloadFormat === 'png' ? '🖼️' : '📄'}</span>
                             <span className="truncate font-semibold min-w-0 flex-1">{t.filename}</span>
                           </div>
                         ))}
@@ -7573,7 +7763,9 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                       <span className="truncate">
                         {isExportingPdf
                           ? (pdfExportStatus || 'Exporting...')
-                          : (totalFiles > 1 ? `Download ZIP (${totalFiles} Files)` : 'Download PDF')}
+                          : (totalFiles > 1
+                              ? (downloadUseZip ? `Download ZIP (${totalFiles} Files)` : `Download All (${totalFiles} Files)`)
+                              : `Download ${downloadFormat.toUpperCase()}`)}
                       </span>
                     </Button>
                   </div>
