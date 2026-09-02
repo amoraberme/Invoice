@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { type Invoice, type LineItem, defaultWarranties } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
-import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
+import { formatDate, formatCurrency, cn, getCondensedLineItems, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, formatItemDescription, sortLineItems, calculateSubtotal, getPanelDimensions, extractPanelInfoFromLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 
 interface PageData {
   items: LineItem[]
@@ -571,7 +571,7 @@ export function MGInvoicePreview({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
-                            {(Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
+                            {(Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
                               .filter((w) => {
                                 if (w.component.toLowerCase().includes('battery') && !scopeData.hasBattery) {
                                   return false

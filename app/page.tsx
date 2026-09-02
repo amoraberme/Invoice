@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
@@ -2428,7 +2428,7 @@ export default function Home() {
     update('scopes', generateDefaultScopesFromInvoice(invoice))
   }
 
-  const getSafeWarranties = () => (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : defaultWarranties)
+  const getSafeWarranties = () => (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
 
   const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
     const list = getSafeWarranties()
@@ -2448,10 +2448,10 @@ export default function Home() {
   }
 
   const handleResetWarranties = () => {
-    update('warranties', defaultWarranties)
+    update('warranties', generateDefaultWarrantiesFromInvoice(invoice))
   }
 
-  // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
+  // Auto-sync systemType, activeKwSetup, warranties, and fix any mismatched Subject/Salutation on all devices and users
   useEffect(() => {
     if (!loaded) return
 
@@ -2483,6 +2483,31 @@ export default function Home() {
 
     setSystemType((prev) => (prev !== detectedType ? detectedType : prev))
     setActiveKwSetup((prev) => (prev !== detectedKw ? detectedKw : prev))
+
+    // Auto-sync standard inverter / battery warranty coverage (e.g. GoodWe Inverter + GoodWe Battery -> 10 Years, otherwise 5 Years)
+    const defWarr = generateDefaultWarrantiesFromInvoice(invoice)
+    const invCoverage = defWarr.find(w => w.component.toLowerCase().includes('inverter'))?.coverage || '5 Years'
+    const battCoverage = defWarr.find(w => w.component.toLowerCase().includes('battery'))?.coverage || '5 Years'
+
+    if (Array.isArray(invoice.warranties) && invoice.warranties.length > 0) {
+      const needsInvUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('inverter') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== invCoverage)
+      const needsBattUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== battCoverage)
+
+      if (needsInvUpdate || needsBattUpdate) {
+        setInvoice(prev => ({
+          ...prev,
+          warranties: (prev.warranties || []).map(w => {
+            if (w.component.toLowerCase().includes('inverter') && (w.coverage === '5 Years' || w.coverage === '10 Years')) {
+              return { ...w, coverage: invCoverage }
+            }
+            if (w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years')) {
+              return { ...w, coverage: battCoverage }
+            }
+            return w
+          })
+        }))
+      }
+    }
 
     if (isOngrid) {
       const subjectHasHybrid = /hybrid/i.test(invoice.subject || '')
@@ -3394,7 +3419,7 @@ export default function Home() {
           setInvoice(prev => ({
             ...prev,
             isCondensed: task.isCondensed ?? false,
-            rateMarkup: task.withoutMarkup ? 0 : (originalRateMarkup || 25),
+            rateMarkup: task.withoutMarkup ? 0 : (originalRateMarkup ?? 0),
           }))
           setActiveTab('items')
         } else if (task.docType === 'checklist') {
@@ -7374,7 +7399,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
                                 />
                                 <div className="min-w-0 flex-1">
                                   <span className="text-[11px] font-bold block truncate leading-tight">With Markup</span>
-                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">+{invoice.rateMarkup || 25}% client</span>
+                                  <span className="text-[9.5px] text-muted-foreground block font-mono truncate">+{invoice.rateMarkup ?? 0}% client</span>
                                 </div>
                               </label>
 

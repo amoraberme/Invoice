@@ -129,7 +129,7 @@ export function newScopeItem(letter = 'A', title = '', subtitle = '', descriptio
 export const defaultWarranties: WarrantyItem[] = [
   { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
   { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: '5 Years' },
-  { id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: '10 Years' },
+  { id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: '5 Years' },
   { id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '1 Year' },
 ]
 
@@ -150,7 +150,7 @@ export const defaultInvoice: Invoice = {
   dueDate: defaultDue.toISOString().slice(0, 10),
   currency: 'PHP',
   vatRate: 0,
-  rateMarkup: 0,
+  rateMarkup: 25,
   laborPricePerWatt: 6,
   excludeLaborMarkup: false,
   excludeBattery: false,

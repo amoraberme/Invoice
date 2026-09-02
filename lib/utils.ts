@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { type Invoice, type LineItem, type ScopeOfWorkItem } from './types'
+import { type Invoice, type LineItem, type ScopeOfWorkItem, type WarrantyItem } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -742,6 +742,36 @@ export function generateDefaultScopesFromInvoice(invoice: Partial<Invoice>): Sco
       description: 'Complete engineering design, mobilization, structural mounting, electrical cabling, commissioning, logistics & handover orientation.',
       enabled: true
     }
+  ]
+}
+
+export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>): WarrantyItem[] {
+  const items = invoice.lineItems || []
+
+  // Check inverter item
+  const inverterItem = items.find(it => {
+    if (isBatteryUnit(it.description)) return false
+    const d = (it.description || '').toLowerCase()
+    return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('anern') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('sungrow') || d.includes('victron')
+  })
+  const inverterDesc = (inverterItem?.description || '').toLowerCase()
+  const isGoodweInverter = inverterDesc.includes('goodwe')
+
+  // Check battery item
+  const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
+  const hasBattery = !invoice.excludeBattery && !!batteryItem
+  const batteryDesc = (batteryItem?.description || '').toLowerCase()
+  const isGoodweBattery = hasBattery && batteryDesc.includes('goodwe')
+
+  // Rule: GoodWe inverter & battery is 5 years, but if both are GoodWe the inverter warranty becomes 10 years. Solis is 5 years. Deye is 5 years.
+  const inverterCoverage = (isGoodweInverter && isGoodweBattery) ? '10 Years' : '5 Years'
+  const batteryCoverage = '5 Years'
+
+  return [
+    { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
+    { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: inverterCoverage },
+    { id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: batteryCoverage },
+    { id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '1 Year' },
   ]
 }
 
