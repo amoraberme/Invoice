@@ -805,13 +805,15 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
   // Calculate Battery Warranty:
   // - Deye: 10 Years
   // - Cesc: 10 Years
-  // - Goodwe: 5 Years
+  // - Goodwe: 10 Years when paired with GoodWe Inverter, otherwise 5 Years
   // - Genix: 5 Years
   // - Dyness: 5 Years
   let batteryCoverage = '5 Years'
   if (isDeyeBattery || isCescBattery) {
     batteryCoverage = '10 Years'
-  } else if (isGoodweBattery || isGenixBattery || isDynessBattery) {
+  } else if (isGoodweBattery) {
+    batteryCoverage = isGoodweInverter ? '10 Years' : '5 Years'
+  } else if (isGenixBattery || isDynessBattery) {
     batteryCoverage = '5 Years'
   } else {
     batteryCoverage = '5 Years'
