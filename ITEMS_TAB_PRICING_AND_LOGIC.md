@@ -81,7 +81,7 @@ $$\text{VAT} = \text{Net Subtotal} \times \left(\frac{\text{vatRate}}{100}\right
 $$\text{Grand Total} = \text{Net Subtotal} + \text{VAT}$$
 
 ### 3.5 Sales Commission Formula (Capital & Internal Profitability)
-$$\text{Base Labor Cost} = \sum_{i \in \text{Labor}} (\text{quantity}_i \times \text{item.rate}_i) \quad (\text{at 0\% base markup})$$
-$$\text{Commissionable Base} = \max(0, \text{Quotation Grand Total} - \text{Base Labor Cost})$$
+$$\text{Total Labor} = \sum_{i \in \text{Labor}} (\text{quantity}_i \times \text{Effective Rate}_i)$$
+$$\text{Commissionable Base} = \max(0, \text{Quotation Grand Total} - \text{Total Labor})$$
 $$\text{Sales Commission} = \text{Commissionable Base} \times 2.5\%$$
-*(Note: Only the 0% base subcontractor labor cost is deducted; any labor rate markup remains commissionable for the sales agent).*
+*(Note: The total labor and installation cost is completely excluded from the commissionable base).*

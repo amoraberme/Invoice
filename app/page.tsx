@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
@@ -6157,7 +6157,7 @@ export default function Home() {
                   const subtotalCapital = itemsBaseCapital + totalExpenses
 
                   const salesMarkup25Pct = calculateSalesCommission(invoice)
-                  const commissionableSellingBase = Math.max(0, clientSellingTotal - laborBaseTotal)
+                  const commissionableSellingBase = calculateCommissionableBase(invoice)
                   const totalCapitalWithSales = subtotalCapital + salesMarkup25Pct
                   const netProfit = clientSellingTotal - totalCapitalWithSales
                   const netMargin = clientSellingTotal > 0 ? (netProfit / clientSellingTotal) * 100 : 0
@@ -6269,15 +6269,15 @@ export default function Home() {
                             <CapitalCalcPopover
                               title="2.5% Sales Commission"
                               badge="2.5% Commission"
-                              formula="(Quotation Total - Base Labor Cost) × 2.5%"
+                              formula="(Quotation Total - Total Labor) × 2.5%"
                               steps={[
                                 { label: "Quotation Selling Total", value: formatCurrency(clientSellingTotal, invoice.currency) },
-                                { label: "Less Base Labor (0% Markup)", value: `-${formatCurrency(laborBaseTotal, invoice.currency)}`, note: "Base Labor Deducted", color: "text-rose-400" },
+                                { label: "Less Total Labor", value: `-${formatCurrency(laborSellingTotal, invoice.currency)}`, note: "Labor Deducted", color: "text-rose-400" },
                                 { label: "Commissionable Base", value: formatCurrency(commissionableSellingBase, invoice.currency), color: "text-amber-300 font-bold" },
                                 { label: "Commission Rate", value: "2.5%", color: "text-amber-400" },
                               ]}
                               result={{ label: "Sales Commission", value: `+${formatCurrency(salesMarkup25Pct, invoice.currency)}`, color: "text-amber-300" }}
-                              description="Agent/sales commission calculated from Quotation Selling Total less the 0% base subcontractor labor cost (Labor markup remains commissionable)."
+                              description="Agent/sales commission calculated from Quotation Selling Total less total Labor & Installation (Labor is completely excluded from commission)."
                             />
                           </div>
                           <div className="font-bold text-amber-300 mt-0.5">

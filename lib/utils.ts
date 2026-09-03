@@ -619,10 +619,26 @@ export function calculateBaseLaborTotal(invoice: Invoice): number {
     .reduce((sum, item) => sum + item.quantity * item.rate, 0)
 }
 
+export function calculateLaborTotal(invoice: Invoice): number {
+  const rateMarkup = invoice.rateMarkup || 0
+  const validItems = (invoice.lineItems || []).filter((item) => {
+    return !(invoice.excludeBattery && isBatteryItem(item.description))
+  })
+  return validItems
+    .filter((item) => isLaborItem(item.description))
+    .reduce((sum, item) => {
+      const isDelivery = isDeliveryItem(item.description)
+      const isLabor = !isDelivery && isLaborItem(item.description)
+      const shouldApplyMarkup = !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
+      const adjustedRate = shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate
+      return sum + item.quantity * adjustedRate
+    }, 0)
+}
+
 export function calculateCommissionableBase(invoice: Invoice): number {
   const clientGrandTotal = calculateTotal(invoice)
-  const baseLaborTotal = calculateBaseLaborTotal(invoice)
-  return Math.max(0, clientGrandTotal - baseLaborTotal)
+  const laborTotal = calculateLaborTotal(invoice)
+  return Math.max(0, clientGrandTotal - laborTotal)
 }
 
 export function calculateSalesCommission(invoice: Invoice): number {
