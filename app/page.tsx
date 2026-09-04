@@ -56,7 +56,7 @@ function getWireSize(inverterKw: number): string {
   return '#8'
 }
 
-function getConduitDetails(systemKw: number, runLength: number = 30) {
+function getConduitDetails(systemKw: number, runLength: number = 30, isOld20Kw?: boolean) {
   if (systemKw <= 6) {
     return {
       description: 'Flexible hose 32mm',
@@ -79,7 +79,7 @@ function getConduitDetails(systemKw: number, runLength: number = 30) {
     return {
       description: 'Flexible hose 40mm',
       rate: 124.00,
-      quantity: 100,
+      quantity: isOld20Kw ? 50 : 100,
       unit: 'M',
       size: '40mm'
     }
@@ -93,7 +93,7 @@ function getConduitDetails(systemKw: number, runLength: number = 30) {
   }
 }
 
-function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: number, batteryAh?: number) {
+function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: number, batteryAh?: number, isOld20Kw?: boolean) {
   let acMcb = 'AC MCB 100A'
   let acMcbRate = 500.00
   let acMcbQty = 2
@@ -112,8 +112,8 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     acMcbQty = 2
   } else if (systemKw >= 20) {
     acMcb = 'AC MCCB'
-    acMcbRate = 1300.00
-    acMcbQty = 8
+    acMcbRate = isOld20Kw ? 850.00 : 1300.00
+    acMcbQty = isOld20Kw ? 4 : 8
   } else if (systemKw <= 16) {
     acMcb = 'AC MCCB'
     acMcbRate = 1300.00
@@ -123,7 +123,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
   let ats = 'Automatic transfer switch 125A'
   let atsRate = 4000.00
   let atsAmp = 125
-  let atsQty = systemKw >= 20 ? 2 : 1
+  let atsQty = (systemKw >= 20 && !isOld20Kw) ? 2 : 1
 
   if (systemKw <= 4) {
     ats = 'Automatic transfer switch 63A'
@@ -143,16 +143,17 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     ? 'Breaker box / Metal Enclosure 50x40'
     : 'Breaker box / Metal Enclosure 50x60'
   const enclosureRate = systemKw <= 4 ? 1500.00 : 3000.00
-  const enclosureQty = systemKw >= 20 ? 2 : 1
+  const enclosureQty = (systemKw >= 20 && !isOld20Kw) ? 2 : 1
 
-  const dcMcbQty = systemKw >= 20 ? 4 : (systemKw >= 12 ? 3 : 2)
-  const dcSpdQty = systemKw >= 20 ? 6 : (systemKw >= 8 ? 3 : 2)
-  const acSpdQty = systemKw >= 20 ? 4 : 2
+  const dcMcbQty = (systemKw >= 20 && !isOld20Kw) ? 4 : (systemKw >= 12 && !isOld20Kw ? 3 : 2)
+  const dcSpdQty = (systemKw >= 20 && !isOld20Kw) ? 6 : (systemKw >= 8 && !isOld20Kw ? 3 : 2)
+  const acSpdQty = (systemKw >= 20 && !isOld20Kw) ? 4 : 2
   const dcMccbQty = batteryCountOverride !== undefined && batteryCountOverride > 0
     ? batteryCountOverride
-    : (systemKw >= 20 ? 2 : 1)
+    : ((systemKw >= 20 && !isOld20Kw) ? 2 : 1)
 
-  const dcMccb = 'DC MCCB 125A for battery'
+  const dcMccb = isOld20Kw ? 'DC MCCB for battery' : 'DC MCCB 125A for battery'
+  const dcMccbRate = isOld20Kw ? 2000.00 : 2500.00
 
   return {
     acMcb,
@@ -172,7 +173,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     acSpdQty,
     acSpdRate: 570.00,
     dcMccbQty,
-    dcMccbRate: 2500.00,
+    dcMccbRate,
     dcMccb,
     dcMcb: 'DC MCB',
     acSpd: 'AC SPD',
@@ -180,7 +181,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
   }
 }
 
-function getDynamicWireSize(systemKw: number, runLength: number = 30, batteryCountOverride?: number) {
+function getDynamicWireSize(systemKw: number, runLength: number = 30, batteryCountOverride?: number, isOld20Kw?: boolean) {
   let groundWireMeters = 20
   if (systemKw === 4) groundWireMeters = 50
   else if (systemKw >= 20) groundWireMeters = 50
@@ -188,7 +189,7 @@ function getDynamicWireSize(systemKw: number, runLength: number = 30, batteryCou
 
   let dcWireMeters = 60
   if (systemKw === 8) dcWireMeters = 60
-  else if (systemKw >= 20) dcWireMeters = 160
+  else if (systemKw >= 20) dcWireMeters = isOld20Kw ? 100 : 160
   else if (systemKw >= 10) dcWireMeters = 80
 
   let batteryCableMeters = 6
@@ -196,7 +197,11 @@ function getDynamicWireSize(systemKw: number, runLength: number = 30, batteryCou
   let batteryCableRate = 700.00
 
   if (systemKw >= 20) {
-    batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 0) ? batteryCountOverride * 10 : 20
+    if (isOld20Kw) {
+      batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 0) ? batteryCountOverride * 2 : 2
+    } else {
+      batteryCableMeters = (batteryCountOverride !== undefined && batteryCountOverride > 0) ? batteryCountOverride * 10 : 20
+    }
     batteryCableDesc = 'Battery Cable (Black & Red) 50mm'
     batteryCableRate = 700.00
   } else if (systemKw >= 16) {
@@ -286,12 +291,22 @@ function getInverterKwFromLineItems(lineItems: LineItem[]): number {
   return 5
 }
 
-function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: number): { updated: boolean, items: LineItem[] } {
+function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: number, twentyKwModeOverride?: 'parallel' | 'single'): { updated: boolean, items: LineItem[] } {
   const inverterKw = getInverterKwFromLineItems(lineItems)
+  const inverterItem = lineItems.find(it => {
+    if (isBatteryUnit(it.description)) return false
+    const d = it.description.toLowerCase()
+    return d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('anern') || d.includes('growatt')
+  })
+  const isOld20Kw = inverterKw === 20 && (
+    twentyKwModeOverride === 'single' ||
+    (twentyKwModeOverride === undefined && inverterItem?.quantity === 1)
+  )
+
   const runLength = 30
   const batteryItems = lineItems.filter(it => isBatteryUnit(it.description))
   const totalBatteryQty = batteryItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
-  const effectiveBatteryQty = totalBatteryQty > 0 ? totalBatteryQty : (inverterKw >= 20 ? 2 : 1)
+  const effectiveBatteryQty = totalBatteryQty > 0 ? totalBatteryQty : ((inverterKw >= 20 && !isOld20Kw) ? 2 : 1)
 
   let detectedBatteryAh: number | undefined
   if (batteryItems.length > 0) {
@@ -302,8 +317,8 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     else if (desc.includes('410ah') || desc.includes('410 ah')) detectedBatteryAh = 410
   }
 
-  const wireInfo = getDynamicWireSize(inverterKw, runLength, effectiveBatteryQty)
-  const breakers = getDynamicBreakerRatings(inverterKw, effectiveBatteryQty, detectedBatteryAh)
+  const wireInfo = getDynamicWireSize(inverterKw, runLength, effectiveBatteryQty, isOld20Kw)
+  const breakers = getDynamicBreakerRatings(inverterKw, effectiveBatteryQty, detectedBatteryAh, isOld20Kw)
 
   const panelItem = lineItems.find(it => it.description.toLowerCase().includes('panel'))
   const panelQty = panelItem ? panelItem.quantity : 0
@@ -318,18 +333,18 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   const newLFootQty = newRailingQty * 3
   const newSpliceConnectorQty = inverterKw <= 5 ? 6 : Math.ceil(newRailingQty / 2)
   
-  const newMc4Qty = inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15))
-  const newGroundLugQty = inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2)
+  const newMc4Qty = isOld20Kw ? 15 : (inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15)))
+  const newGroundLugQty = isOld20Kw ? 5 : (inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2))
   const newGroundWireQty = wireInfo.groundWireMeters
-  const newPvcMouldingQty = inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5)
-  const newCableTrayQty = inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1)
-  const newGroundRodQty = inverterKw >= 16 ? 2 : 1
-  let baseLugs50 = inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20))
+  const newPvcMouldingQty = isOld20Kw ? 5 : (inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5))
+  const newCableTrayQty = isOld20Kw ? 1 : (inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1))
+  const newGroundRodQty = isOld20Kw ? 1 : (inverterKw >= 16 ? 2 : 1)
+  let baseLugs50 = isOld20Kw ? 5 : (inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20)))
   if (effectiveBatteryQty > 1 && inverterKw < 20) {
     baseLugs50 += (effectiveBatteryQty - 1) * 8
   }
   const newLugs50Qty = baseLugs50
-  const newLugs25Qty = inverterKw >= 20 ? 72 : (inverterKw <= 6 ? 0 : 36)
+  const newLugs25Qty = isOld20Kw ? 30 : (inverterKw >= 20 ? 72 : (inverterKw <= 6 ? 0 : 36))
 
   let changed = false
   let seenAcWire6 = false
@@ -346,7 +361,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       descLower.includes('hdpe') ||
       (descLower.includes('hose') && !descLower.includes('battery'))
     ) {
-      const details = getConduitDetails(inverterKw, runLength)
+      const details = getConduitDetails(inverterKw, runLength, isOld20Kw)
       if (
         item.description !== details.description ||
         item.quantity !== details.quantity ||
@@ -372,10 +387,10 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         changed = true
         return { ...item, description: 'End Clamp', quantity: newEndClampQty }
       }
-    } else if (descLower === 'mid clamp' || descLower.includes('mid clamp')) {
-      if (item.quantity !== newMidClampQty) {
+    } else if (descLower === 'mid clamp' || descLower.includes('mid clamp') || descLower.startsWith('mid clamp')) {
+      if (item.quantity !== newMidClampQty || item.description !== 'Mid Clamp') {
         changed = true
-        return { ...item, quantity: newMidClampQty }
+        return { ...item, description: 'Mid Clamp', quantity: newMidClampQty }
       }
     } else if (descLower === 'l foot' || descLower.includes('l foot')) {
       if (item.quantity !== newLFootQty) {
@@ -388,13 +403,13 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 90 }
       }
     } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
-      const targetQty = inverterKw >= 20 ? 4 : (inverterKw >= 10 ? 2 : 0)
+      const targetQty = (inverterKw >= 20 && !isOld20Kw) ? 4 : (inverterKw >= 10 ? 2 : 0)
       if (item.quantity !== targetQty || item.rate !== 550 || item.description !== 'MC4 2 String') {
         changed = true
         return { ...item, description: 'MC4 2 String', quantity: targetQty, rate: 550, unit: 'PCS' }
       }
     } else if (descLower.includes('clip lock') || descLower.includes('clip-lock')) {
-      const targetQty = inverterKw >= 20 ? 2 : 1
+      const targetQty = (inverterKw >= 20 && !isOld20Kw) ? 2 : 1
       if (item.description !== 'Clip lock 3/4' || item.quantity !== targetQty || item.rate !== 180 || item.unit !== 'SET') {
         changed = true
         return { ...item, description: 'Clip lock 3/4', quantity: targetQty, rate: 180, unit: 'SET' }
@@ -462,17 +477,17 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
 
         let targetDesc = 'AC Wire #6'
         let targetRate = 99.34
-        let targetQty = inverterKw >= 20 ? 120 : 60
+        let targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
 
         if (isExplicit8 || (seenAcWire6 && !seenAcWire8)) {
           targetDesc = 'AC Wire #8'
           targetRate = 60.04
-          targetQty = inverterKw >= 20 ? 120 : 60
+          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
           seenAcWire8 = true
         } else {
           targetDesc = 'AC Wire #6'
           targetRate = 99.34
-          targetQty = inverterKw >= 20 ? 120 : 60
+          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
           seenAcWire6 = true
         }
 
@@ -487,11 +502,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         }
         seenAcWire8 = true
         const targetDesc = inverterKw === 8 ? 'AC Wire 6mm²' : 'AC Wire #8'
-        const targetRate = 60.04
-        const targetQty = 60
-        if (item.description !== targetDesc || item.rate !== targetRate || item.quantity !== targetQty || item.unit !== 'M') {
+        if (item.description !== targetDesc || item.rate !== 60.04 || item.quantity !== 60 || item.unit !== 'M') {
           changed = true
-          return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty, unit: 'M' }
+          return { ...item, description: targetDesc, rate: 60.04, quantity: 60, unit: 'M' }
         }
       }
     } else if (
@@ -602,7 +615,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: targetDesc, rate: targetRate, quantity: targetQty }
       }
     } else if (descLower === 'pu sealant' || descLower.includes('pu sealant') || descLower.includes('sealant')) {
-      const targetQty = inverterKw >= 20 ? 2 : 1
+      const targetQty = (inverterKw >= 20 && !isOld20Kw) ? 2 : 1
       if (item.description !== 'PU Sealant' || item.quantity !== targetQty || item.rate !== 400) {
         changed = true
         return { ...item, description: 'PU Sealant', quantity: targetQty, rate: 400 }
@@ -627,7 +640,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: 'Terminal lugs 50mm', quantity: newLugs50Qty, rate: 50 }
       }
     } else if (descLower.includes('terminal block')) {
-      if (inverterKw <= 6 || inverterKw === 10) {
+      if ((inverterKw <= 6 || inverterKw === 10) && !isOld20Kw) {
         changed = true
         return null // Delete for standard tiers
       }
@@ -643,7 +656,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   if (inverterKw >= 10) {
     const hasAc6 = items.some(it => it.description.toLowerCase().includes('ac wire #6'))
     const hasAc8 = items.some(it => it.description.toLowerCase().includes('ac wire #8'))
-    const acWireTargetQty = inverterKw >= 20 ? 120 : 60
+    const acWireTargetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
 
     if (!hasAc6 && panelQty > 0) {
       changed = true
@@ -2163,6 +2176,7 @@ export default function Home() {
   const [customKwInput, setCustomKwInput] = useState<string>('')
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
+  const [twentyKwMode, setTwentyKwMode] = useState<'parallel' | 'single'>('parallel')
   const [sizingRefVersion, setSizingRefVersion] = useState<'v1' | 'v2'>('v2')
   const [rowsCount, setRowsCount] = useState<number>(1)
   const [holdTooltipKw, setHoldTooltipKw] = useState<number | null>(null)
@@ -2822,7 +2836,7 @@ export default function Home() {
 
     if (prevPanelQtyRef.current !== null || prevBatteryQtyRef.current !== null) {
       if (panelQty !== prevPanelQtyRef.current || totalBatteryQty !== prevBatteryQtyRef.current) {
-        const { updated, items } = recalculateBoqAccessories(currentItems)
+        const { updated, items } = recalculateBoqAccessories(currentItems, rowsCount, twentyKwMode)
         if (updated) {
           currentItems = items
           itemsModified = true
@@ -2865,7 +2879,7 @@ export default function Home() {
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
     setActivePreset(preset)
-    handleGenerateBoq(activeKwSetup, preset)
+    handleGenerateBoq(activeKwSetup, preset, undefined, twentyKwMode)
   }
 
   const handleDailyKwhChange = (val: string) => {
@@ -3029,8 +3043,16 @@ export default function Home() {
     }
   }
 
-  const handleGenerateBoq = (systemKw: number, preset: 'min' | 'balance' | 'max' = 'balance', explicitSystemType?: 'hybrid' | 'ongrid') => {
+  const handleGenerateBoq = (
+    systemKw: number,
+    preset: 'min' | 'balance' | 'max' = 'balance',
+    explicitSystemType?: 'hybrid' | 'ongrid',
+    explicitTwentyKwMode?: 'parallel' | 'single'
+  ) => {
     const effSystemType = explicitSystemType || systemType
+    const effTwentyKwMode = explicitTwentyKwMode || twentyKwMode
+    const isOld20Kw = systemKw === 20 && effTwentyKwMode === 'single'
+
     const v2Item = getSizingReferenceItem(systemKw)
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
@@ -3063,9 +3085,9 @@ export default function Home() {
     
     let inverterDesc = ''
     let inverterPrice = 0
-    let inverterQty = inverterKw === 20 ? 2 : 1
+    let inverterQty = (inverterKw === 20 && !isOld20Kw) ? 2 : 1
 
-    if (inverterKw === 20) {
+    if (inverterKw === 20 && !isOld20Kw) {
       if (effSystemType === 'ongrid') {
         const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(10) !== null)
         inverterDesc = `Solis Inverter 10kW On-Grid`
@@ -3109,7 +3131,7 @@ export default function Home() {
       unit: 'PC'
     })
 
-    let bQty = systemKw >= 20 ? 2 : batteryQty
+    let bQty = (systemKw >= 20 && !isOld20Kw) ? 2 : batteryQty
 
     // 3. Battery (included for Hybrid setup)
     if (effSystemType === 'hybrid') {
@@ -3137,8 +3159,8 @@ export default function Home() {
     if (systemKw <= 5) initialBatteryAh = 100
     else if (systemKw <= 6) initialBatteryAh = 200
 
-    const wireInfo = getDynamicWireSize(inverterKw, runLength, bQty)
-    const breakers = getDynamicBreakerRatings(inverterKw, bQty, initialBatteryAh)
+    const wireInfo = getDynamicWireSize(inverterKw, runLength, bQty, isOld20Kw)
+    const breakers = getDynamicBreakerRatings(inverterKw, bQty, initialBatteryAh, isOld20Kw)
 
     // 3. Railings (QTY = Math.ceil((Panels / 2) * 3))
     const railingQty = panelQty <= 0 ? 0 : Math.ceil((panelQty / 2) * 3) + extraQty
@@ -3180,11 +3202,12 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 6.1. Clip lock 3/4
+    // 6.1. Clip lock 3/4 (Old 8197ea9: 1 SET; New 20kW: 2 SETS)
+    const clipLockQty = (inverterKw >= 20 && !isOld20Kw) ? 2 : 1
     items.push({
       id: `boq-cliplock-${now}`,
       description: `Clip lock 3/4`,
-      quantity: inverterKw >= 20 ? 2 : 1,
+      quantity: clipLockQty,
       rate: prices.ClipLock34 || 180.00,
       unit: 'SET'
     })
@@ -3199,17 +3222,18 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 6.6. PU Sealant
+    // 6.6. PU Sealant (Old 8197ea9: 1 PC; New 20kW: 2 PCS)
+    const puSealantQty = (inverterKw >= 20 && !isOld20Kw) ? 2 : 1
     items.push({
       id: `boq-sealant-${now}`,
       description: `PU Sealant`,
-      quantity: inverterKw >= 20 ? 2 : 1,
+      quantity: puSealantQty,
       rate: prices.PuSealant || 400,
       unit: 'PC'
     })
 
-    // 6.7. PVC Moulding (3k-5k: 3m; 6k-16k: 5m; 20k: 10m)
-    const pvcMouldingMeters = inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5)
+    // 6.7. PVC Moulding (Old 8197ea9: 5m; New 20kW: 10m; 3k-5k: 3m; 6k-16k: 5m)
+    const pvcMouldingMeters = (inverterKw >= 20 && !isOld20Kw) ? 10 : (inverterKw <= 5 ? 3 : 5)
     items.push({
       id: `boq-moulding-${now}`,
       description: `PVC Moulding`,
@@ -3218,8 +3242,8 @@ export default function Home() {
       unit: 'M'
     })
 
-    // 7. Flexible Hose (32mm 25m for <=6kW, 32mm 50m for 8kW, 40mm 50m for 10k-16k, 40mm 100m for 20k)
-    const conduitDetails = getConduitDetails(inverterKw, runLength)
+    // 7. Flexible Hose (Old 8197ea9: 40mm 50m; New 20kW: 40mm 100m; <=6kW: 32mm 25m; 8kW: 32mm 50m; 10k-16k: 40mm 50m)
+    const conduitDetails = getConduitDetails(inverterKw, runLength, isOld20Kw)
     items.push({
       id: `boq-7-${now}`,
       description: conduitDetails.description,
@@ -3228,9 +3252,9 @@ export default function Home() {
       unit: conduitDetails.unit
     })
 
-    // 8. AC Wire
+    // 8. AC Wire (Old 8197ea9: 50m #6 + 50m #8; New 20kW: 120m #6 + 120m #8; 10k-16k: 60m #6 + 60m #8)
     if (inverterKw >= 10) {
-      const acWireMeters = inverterKw >= 20 ? 120 : 60
+      const acWireMeters = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
       items.push({
         id: `boq-8-ac6-${now}`,
         description: 'AC Wire #6',
@@ -3256,7 +3280,7 @@ export default function Home() {
       })
     }
 
-    // 9. DC Wire (3k-8k: 60m; 10k-16k: 80m; 20k: 160m)
+    // 9. DC Wire (Old 8197ea9: 100m; New 20kW: 160m; 3k-8k: 60m; 10k-16k: 80m)
     const dcWireDesc = inverterKw === 8 ? 'DC Wire 6mm²' : 'DC Wire'
     items.push({
       id: `boq-dc-${now}`,
@@ -3266,8 +3290,8 @@ export default function Home() {
       unit: 'M'
     })
 
-    // 10. MC4 1500V (3k-5k: 4 PCS; 6k: 10 PCS; 8k-16k: 15 PCS; 20k: 30 PCS)
-    const mc4Qty = inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15))
+    // 10. MC4 1500V (Old 8197ea9: 15 PCS; New 20kW: 30 PCS; 3k-5k: 4 PCS; 6k: 10 PCS; 8k-16k: 15 PCS)
+    const mc4Qty = isOld20Kw ? 15 : (inverterKw >= 20 ? 30 : (inverterKw <= 5 ? 4 : (inverterKw === 6 ? 10 : 15)))
     items.push({
       id: `boq-10-${now}`,
       description: `MC4 1500V`,
@@ -3276,28 +3300,37 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 10.5. MC4 2 String (If 20kW QTY = 4, If 10k-16k QTY = 2, Else 0)
+    // 10.5. MC4 2 String (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; 10k-16k: 2 PCS)
     if (inverterKw >= 10) {
+      const mc4TwoStringQty = (inverterKw >= 20 && !isOld20Kw) ? 4 : 2
       items.push({
         id: `boq-mc4-2string-${now}`,
         description: `MC4 2 String`,
-        quantity: inverterKw >= 20 ? 4 : 2,
+        quantity: mc4TwoStringQty,
         rate: 550.00,
         unit: 'PCS'
       })
     }
 
-    // 11. Breaker Box / Metal Enclosure (50x40 for <=4kW @ ₱1,500; 50x60 for >=5kW @ ₱3,000; 2x for 20kW)
+    // 11. Breaker Box / Metal Enclosure (Old 8197ea9: 1 PC 50x60 @ ₱3,000; New 20kW: 2x 50x60 @ ₱3,000)
     items.push({
       id: `boq-11-${now}`,
-      description: breakers.enclosure,
-      quantity: breakers.enclosureQty,
-      rate: breakers.enclosureRate,
+      description: isOld20Kw ? `Breaker box / Metal Enclosure 50x60` : breakers.enclosure,
+      quantity: isOld20Kw ? 1 : breakers.enclosureQty,
+      rate: isOld20Kw ? prices.BreakerBox : breakers.enclosureRate,
       unit: 'PC'
     })
 
-    // 12. AC Breakers (3k-4k: 2x 80A MCB; 5k-6k: 2x 100A MCB; 8k: 2x 125A MCB; 10k-12k: 4x MCCB; 16k: 2x 100A + 2x 125A MCCB; 20k: 8x MCCB)
-    if (inverterKw === 16) {
+    // 12. AC Breakers (Old 8197ea9: 4x AC MCCB @ ₱850; New 20kW: 8x AC MCCB @ ₱1,300)
+    if (isOld20Kw) {
+      items.push({
+        id: `boq-12-${now}`,
+        description: `AC MCCB`,
+        quantity: 4,
+        rate: 850.00,
+        unit: 'PCS'
+      })
+    } else if (inverterKw === 16) {
       items.push({
         id: `boq-12-mccb100-${now}`,
         description: `AC MCCB 100A`,
@@ -3322,7 +3355,7 @@ export default function Home() {
       })
     }
 
-    // 13. AC SPD (Price = ₱570, 20k: 4 PCS, others: 2 PCS)
+    // 13. AC SPD (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; others: 2 PCS | Price = ₱570)
     items.push({
       id: `boq-13-${now}`,
       description: `AC SPD`,
@@ -3331,7 +3364,7 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 14. DC SPD (3k-6k: 2 PCS; 8k-16k: 3 PCS; 20k: 6 PCS | Price = ₱790)
+    // 14. DC SPD (Old 8197ea9: 2 PCS; New 20kW: 6 PCS; 3k-6k: 2 PCS; 8k-16k: 3 PCS | Price = ₱790)
     items.push({
       id: `boq-14-${now}`,
       description: `DC SPD`,
@@ -3340,7 +3373,7 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 15. DC MCB (3k-10k: 2 PCS; 12k-16k: 3 PCS; 20k: 4 PCS | Price = ₱420)
+    // 15. DC MCB (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; 3k-10k: 2 PCS; 12k-16k: 3 PCS | Price = ₱420)
     items.push({
       id: `boq-15-${now}`,
       description: `DC MCB`,
@@ -3349,19 +3382,19 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 16. DC MCCB for battery (included only for Hybrid setup)
+    // 16. DC MCCB for battery (included only for Hybrid setup) (Old 8197ea9: 1 PC @ ₱2,000; New 20kW: 2 PCS @ ₱2,500)
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-16-${now}`,
-        description: breakers.dcMccb,
-        quantity: breakers.dcMccbQty,
-        rate: breakers.dcMccbRate || 2500.00,
+        description: isOld20Kw ? `DC MCCB for battery` : breakers.dcMccb,
+        quantity: isOld20Kw ? 1 : breakers.dcMccbQty,
+        rate: isOld20Kw ? 2000.00 : (breakers.dcMccbRate || 2500.00),
         unit: 'PC'
       })
     }
 
-    // 17. Cable Tray 2m (8k-16k: 2 PCS; 20k: 4 PCS; other tiers: 1 PC | Price = ₱560)
-    const cableTrayQty = inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1)
+    // 17. Cable Tray 2m (Old 8197ea9: 1 PC; New 20kW: 4 PCS; 8k-16k: 2 PCS; other tiers: 1 PC | Price = ₱560)
+    const cableTrayQty = isOld20Kw ? 1 : (inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1))
     items.push({
       id: `boq-17-${now}`,
       description: `Cable Tray 2m`,
@@ -3370,49 +3403,74 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 18. Automatic transfer switch (3k-4k: 63A @ ₱1,500; 5k-8k: 125A @ ₱2,000; 10k-16k: 125A @ ₱4,000; 20k: 2x 125A @ ₱4,000)
+    // 18. Automatic transfer switch (Old 8197ea9: 1 PC 125A @ ₱4,000; New 20kW: 2 PCS 125A @ ₱4,000)
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-18-${now}`,
-        description: breakers.ats,
-        quantity: breakers.atsQty,
-        rate: breakers.atsRate,
+        description: isOld20Kw ? `Automatic transfer switch 125A` : breakers.ats,
+        quantity: isOld20Kw ? 1 : breakers.atsQty,
+        rate: isOld20Kw ? 4000.00 : breakers.atsRate,
         unit: 'PC'
       })
     }
 
-    // 19. Terminal lugs (3k-6k: 8x 50mm, 0x 25mm; 8k-10k: 16x 50mm, 36x 25mm; 12k-16k: 20x 50mm, 36x 25mm; 20k: 32x 50mm, 72x 25mm)
-    if (inverterKw >= 8) {
+    // 19. Terminal lugs (Old 8197ea9: 30x 25mm, 5x 50mm; New 20kW: 72x 25mm, 32x 50mm)
+    if (isOld20Kw) {
       items.push({
         id: `boq-19-25mm-${now}`,
         description: `Terminal lugs 25mm`,
-        quantity: inverterKw >= 20 ? 72 : 36,
+        quantity: 30,
         rate: 40.00,
         unit: 'PCS'
       })
+      items.push({
+        id: `boq-19-50mm-${now}`,
+        description: `Terminal lugs 50mm`,
+        quantity: 5,
+        rate: 50.00,
+        unit: 'PCS'
+      })
+      // 21. Terminal Block (in Old 8197ea9 20kW: 2 PCS @ ₱160)
+      items.push({
+        id: `boq-21-${now}`,
+        description: `Terminal Block`,
+        quantity: 2,
+        rate: prices.TerminalBlock,
+        unit: 'PCS'
+      })
+    } else {
+      if (inverterKw >= 8) {
+        items.push({
+          id: `boq-19-25mm-${now}`,
+          description: `Terminal lugs 25mm`,
+          quantity: inverterKw >= 20 ? 72 : 36,
+          rate: 40.00,
+          unit: 'PCS'
+        })
+      }
+      const lugs50Qty = inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20))
+      items.push({
+        id: `boq-19-50mm-${now}`,
+        description: `Terminal lugs 50mm`,
+        quantity: lugs50Qty,
+        rate: 50.00,
+        unit: 'PCS'
+      })
     }
-    const lugs50Qty = inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20))
-    items.push({
-      id: `boq-19-50mm-${now}`,
-      description: `Terminal lugs 50mm`,
-      quantity: lugs50Qty,
-      rate: 50.00,
-      unit: 'PCS'
-    })
 
-    // 22. Battery Cable (Hybrid: 3k-6k: 6m 50mm² @ ₱700; 8k-12k: 10m 50mm² @ ₱700; 16k: 10m 70mm² @ ₱950; 20k: 20m 50mm² @ ₱700)
+    // 22. Battery Cable (Old 8197ea9: 2m 50mm @ ₱700; New 20kW: 20m 50mm @ ₱700)
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-22-${now}`,
-        description: wireInfo.batteryCableDesc,
-        quantity: wireInfo.batteryCableMeters,
-        rate: wireInfo.batteryCableRate,
+        description: isOld20Kw ? `Battery Cable (Black & Red) 50mm` : wireInfo.batteryCableDesc,
+        quantity: isOld20Kw ? 2 : wireInfo.batteryCableMeters,
+        rate: isOld20Kw ? 700.00 : wireInfo.batteryCableRate,
         unit: 'M'
       })
     }
 
-    // Grounding Lugs (8k & 10k: 5 PCS; 20k: 10 PCS; others: 2 PCS @ ₱50)
-    const groundLugsQty = inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2)
+    // Grounding Lugs (Old 8197ea9: 5 PCS; New 20kW: 10 PCS; 8k & 10k: 5 PCS; others: 2 PCS @ ₱50)
+    const groundLugsQty = isOld20Kw ? 5 : (inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2))
     items.push({
       id: `boq-g1-${now}`,
       description: `Grounding Lugs`,
@@ -3424,14 +3482,14 @@ export default function Home() {
     // Ground Wire (4k: 50m; 8k-16k: 25m; 20k: 50m; 3k/5k/6k: 20m)
     items.push({
       id: `boq-g2-${now}`,
-      description: wireInfo.groundWireDesc,
-      quantity: wireInfo.groundWireMeters,
+      description: isOld20Kw ? `Ground Wire` : wireInfo.groundWireDesc,
+      quantity: isOld20Kw ? 50 : wireInfo.groundWireMeters,
       rate: prices.GroundWire || (5888 / 150),
       unit: 'M'
     })
 
-    // Ground Rod w/ Clamp 1.5 Meters (16k & 20k: 2 PCS; others: 1 PC @ ₱750)
-    const groundRodQty = inverterKw >= 16 ? 2 : 1
+    // Ground Rod w/ Clamp 1.5 Meters (Old 8197ea9: 1 PC; New 20kW: 2 PCS; 16k: 2 PCS; others: 1 PC @ ₱750)
+    const groundRodQty = isOld20Kw ? 1 : (inverterKw >= 16 ? 2 : 1)
     items.push({
       id: `boq-g3-${now}`,
       description: `Ground Rod w/ Clamp 1.5 Meters`,
@@ -4402,8 +4460,14 @@ export default function Home() {
                             }}
                             onClick={() => {
                               if (isDisabled) return
-                              setActiveKwSetup(kw)
-                              handleGenerateBoq(kw, activePreset)
+                              if (isSelected && kw === 20) {
+                                const nextMode = twentyKwMode === 'parallel' ? 'single' : 'parallel'
+                                setTwentyKwMode(nextMode)
+                                handleGenerateBoq(20, activePreset, systemType, nextMode)
+                              } else {
+                                setActiveKwSetup(kw)
+                                handleGenerateBoq(kw, activePreset, systemType, kw === 20 ? twentyKwMode : undefined)
+                              }
                             }}
                             className={cn(
                               "w-full flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative",
@@ -4429,6 +4493,44 @@ export default function Home() {
                                 </span>
                               )}
                             </div>
+                            {kw === 20 && (
+                              <div className="flex items-center gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                                <span
+                                  role="button"
+                                  onClick={() => {
+                                    setTwentyKwMode('parallel')
+                                    setActiveKwSetup(20)
+                                    handleGenerateBoq(20, activePreset, systemType, 'parallel')
+                                  }}
+                                  className={cn(
+                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer",
+                                    twentyKwMode === 'parallel'
+                                      ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
+                                      : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
+                                  )}
+                                  title="Dual 10kW Inverters Parallel Setup"
+                                >
+                                  10k×2
+                                </span>
+                                <span
+                                  role="button"
+                                  onClick={() => {
+                                    setTwentyKwMode('single')
+                                    setActiveKwSetup(20)
+                                    handleGenerateBoq(20, activePreset, systemType, 'single')
+                                  }}
+                                  className={cn(
+                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer",
+                                    twentyKwMode === 'single'
+                                      ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
+                                      : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
+                                  )}
+                                  title="Original Single 20kW Inverter Setup (Commit 8197ea9)"
+                                >
+                                  Old 20k
+                                </span>
+                              </div>
+                            )}
                             <span className={cn("text-[8.5px] mt-0.5 font-mono", billDescColor)}>{billRef}</span>
                             <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
                             {sizingRefVersion === 'v2' && v2Item && (
@@ -4582,6 +4684,53 @@ export default function Home() {
                     />
                   )}
 
+                  {/* Dedicated 20kW Architecture Mode Banner */}
+                  {activeKwSetup === 20 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 transition-all animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-bold text-foreground flex items-center gap-1.5">
+                          ⚡ 20kW Architecture:
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {twentyKwMode === 'parallel'
+                            ? "Dual 10kW Inverters (Parallel) + 2x 314Ah Batteries + Dual Enclosures"
+                            : "Single 20kW Inverter + 1x 314Ah Battery + Single Enclosure (Commit 8197ea9)"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-lg border border-border">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTwentyKwMode('parallel')
+                            handleGenerateBoq(20, activePreset, systemType, 'parallel')
+                          }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                            twentyKwMode === 'parallel'
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          ✨ 10kW × 2 Parallel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTwentyKwMode('single')
+                            handleGenerateBoq(20, activePreset, systemType, 'single')
+                          }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                            twentyKwMode === 'single'
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          ⏪ Old 20kW (8197ea9)
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Presets */}
                   <div className="flex gap-2 w-full pt-0.5">

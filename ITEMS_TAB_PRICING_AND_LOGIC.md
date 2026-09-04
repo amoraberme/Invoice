@@ -35,6 +35,38 @@ This document details all hardcoded prices, component rates, brand-specific tier
 
 ---
 
+### 1.1 20kW Dual Configuration Modes (Toggled Architecture)
+
+The system supports toggling between two distinct 20kW architectures via the 20kW preset button or architecture toggle banner:
+
+| Component Parameter | New 20kW Hybrid (10kW × 2 Parallel) | Old 20kW Hybrid (Commit `8197ea9` Single Inverter) |
+| :--- | :--- | :--- |
+| **Inverter** | 2x 10kW Hybrid Inverters (Parallel) | 1x 20kW Hybrid Inverter (Solis @ ₱97,000 / Deye @ ₱80,000) |
+| **Battery Storage** | 2x CESC 51.2V 314Ah (₱88,000 each = ₱176,000) | 1x CESC 51.2V 314Ah (₱88,000) |
+| **Breaker Box / Enclosure** | 2x 50x60 Enclosures (₱3,000 each = ₱6,000) | 1x 50x60 Enclosure (₱3,000) |
+| **AC MCCB Breakers** | 8x AC MCCB @ ₱1,300 each | 4x AC MCCB @ ₱850 each |
+| **AC SPD Surge Protection** | 4 pcs @ ₱570 | 2 pcs @ ₱570 |
+| **DC SPD Surge Protection** | 6 pcs @ ₱790 | 2 pcs @ ₱790 |
+| **DC MCB Protection** | 4 pcs @ ₱420 | 2 pcs @ ₱420 |
+| **DC MCCB for Battery** | 2x DC MCCB @ ₱2,500 each | 1x DC MCCB @ ₱2,000 |
+| **Automatic Transfer Switch (ATS)**| 2x 125A @ ₱4,000 each | 1x 125A @ ₱4,000 |
+| **Battery Cable** | 20m 50mm² @ ₱700/m | 2m 50mm² @ ₱700/m |
+| **Terminal Lugs 25mm** | 72 pcs @ ₱40 | 30 pcs @ ₱40 |
+| **Terminal Lugs 50mm** | 32 pcs @ ₱50 | 5 pcs @ ₱50 |
+| **Terminal Block** | 0 pcs (Omitted in parallel) | 2 pcs @ ₱160 |
+| **Conduit (Flexible Hose)** | 100m 40mm @ ₱124/m | 50m 40mm @ ₱124/m |
+| **AC Wire Gauge & Length** | #6 (120m) + #8 (120m) | #6 (50m) + #8 (50m) |
+| **DC Wire Length** | 160m @ ₱125/m | 100m @ ₱125/m |
+| **MC4 Connectors 1500V** | 30 pcs @ ₱60 | 15 pcs @ ₱60 |
+| **MC4 2-String Branch** | 4 pcs @ ₱550 | 2 pcs @ ₱550 |
+| **Cable Tray 2m** | 4 pcs @ ₱560 | 1 pc @ ₱560 |
+| **Ground Lugs** | 10 pcs @ ₱50 | 5 pcs @ ₱50 |
+| **Ground Rod w/ Clamp** | 2 pcs @ ₱750 | 1 pc @ ₱750 |
+| **PVC Moulding** | 10 Meters @ ₱449 | 5 Meters @ ₱449 |
+| **Clip Lock & PU Sealant** | 2 Clip lock @ ₱180, 2 PU Sealant @ ₱400 | 1 Clip lock @ ₱180, 1 PU Sealant @ ₱400 |
+
+---
+
 ## 2. Pricing Reconciliation Notes & Audit Rules
 
 Every item in the **Items Tab** displays an informative badge and audit reconciliation note (kept strictly internal to the editor and excluded from client proposal preview/PDF):
