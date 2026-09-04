@@ -722,19 +722,19 @@ export function MGInvoicePreview({
                                       {displayDesc || '—'}
                                     </span>
                                     <span className="w-12 shrink-0 text-[11.5px] text-[#888888] text-center">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                      {!hasPrice ? '—' : (item.unit || '—')}
                                     </span>
                                     <span className="w-10 shrink-0 text-[11.5px] text-[#888888] text-center">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                      {!hasPrice ? '—' : (item.quantity || '—')}
                                     </span>
                                     <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.rate, invoice.currency)}
+                                      {!hasPrice ? '—' : formatCurrency(item.rate, invoice.currency)}
                                     </span>
                                     <span className="w-26 shrink-0 text-[11.5px] text-[#666666] text-right px-1 font-mono tabular-nums">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.quantity * item.rate, invoice.currency)}
+                                      {!hasPrice ? '—' : formatCurrency(item.quantity * item.rate, invoice.currency)}
                                     </span>
                                     <span className={cn("w-22 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums", getHighlightClass('rateMarkup'))}>
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                                      {!hasPrice ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                                     </span>
                                     <span className="w-28 shrink-0 text-[11.5px] font-medium text-[#111111] text-right pr-1 font-mono tabular-nums">
                                       {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
