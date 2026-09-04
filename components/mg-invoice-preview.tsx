@@ -22,13 +22,16 @@ import {
 } from '@/lib/utils'
 import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag } from 'lucide-react'
 
-interface MGInvoicePreviewProps {
+export interface MGInvoicePreviewProps {
   invoice: Invoice
   hoveredField?: string | null
   onOpenCheatsheet?: () => void
   onPagesChange?: (count: number) => void
   onToggleCondensed?: (val: boolean) => void
   onToggleWithBrandName?: (val: boolean) => void
+  showCapital?: boolean
+  capitalVersion?: 'v1' | 'v2'
+  onToggleCapitalVersion?: (v: 'v1' | 'v2') => void
 }
 
 interface PageData {
@@ -47,6 +50,9 @@ export function MGInvoicePreview({
   onPagesChange,
   onToggleCondensed,
   onToggleWithBrandName,
+  showCapital,
+  capitalVersion = 'v1',
+  onToggleCapitalVersion,
 }: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -192,11 +198,11 @@ export function MGInvoicePreview({
   }
 
   // Dynamic Pagination Algorithm
-  const paginateInvoice = (inv: Invoice): PageData[] => {
-    // 1. Calculate heights of top elements (Header, Bill To, Subject, Salutation)
-    const headerHeight = 85
-    const billToHeight = 55
-    const continuationHeaderHeight = 28
+  const paginateInvoice = (inv: Invoice, isCapitalMode = false): PageData[] => {
+    // 1. Measure fixed heights (Header + Bill To + Meta)
+    const headerHeight = 110
+    const billToHeight = 90
+    const continuationHeaderHeight = 35
     
     const subjectLines = getWrappedLines(inv.subject, 65)
     const subjectHeight = inv.subject ? (12 + subjectLines * 14) : 0
@@ -207,8 +213,8 @@ export function MGInvoicePreview({
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
     const tableHeaderHeight = 28
     
-    // 2. Totals height
-    const totalsLines = 3 // Subtotal + VAT + Total
+    // 2. Totals height (includes Capital row in Capital mode)
+    const totalsLines = isCapitalMode ? 4 : 3 // Subtotal + VAT + Total (+ Capital)
     let totalsHeight = totalsLines * 20 + 30
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
@@ -231,9 +237,10 @@ export function MGInvoicePreview({
     const getItemHeight = (item: LineItem) => {
       const desc = item.description || ''
       const lines = desc.split('\n')
+      const charsPerLine = (isCapitalMode && !inv.isCondensed) ? 32 : 45
       let itemLines = 0
       for (const line of lines) {
-        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / 45))
+        itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / charsPerLine))
       }
       return 20 + itemLines * 16
     }
@@ -374,8 +381,13 @@ export function MGInvoicePreview({
     return pages
   }
 
-  const virtualPages = useMemo(() => paginateInvoice(invoice), [invoice])
+  const virtualPages = useMemo(() => paginateInvoice(invoice, showCapital), [invoice, showCapital])
   const totalPages = virtualPages.length
+
+  const itemsBaseCapitalTotal = useMemo(() => {
+    const items = (invoice.lineItems || []).filter(item => !(invoice.excludeBattery && isBatteryItem(item.description)))
+    return items.reduce((acc, item) => acc + (item.quantity * item.rate), 0)
+  }, [invoice.lineItems, invoice.excludeBattery])
 
   useEffect(() => {
     if (onPagesChange && prevPagesCountRef.current !== totalPages) {
@@ -406,22 +418,53 @@ export function MGInvoicePreview({
           {invoice.isCondensed ? "[Compressed]" : "[Expanded]"}
         </button>
 
-        <div className="h-4 w-[1px] bg-border hidden sm:block" />
+        {/* Brand Name Single Toggle Button (Hidden in Capital mode) */}
+        {!showCapital && (
+          <>
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <button
+              type="button"
+              onClick={() => onToggleWithBrandName?.(invoice.withBrandName === false)}
+              className={cn(
+                "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
+                invoice.withBrandName !== false
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
+              )}
+              title={invoice.withBrandName !== false ? "Brand names included. Click to hide brand names." : "Brand names hidden. Click to show brand names."}
+            >
+              {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
+            </button>
+          </>
+        )}
 
-        {/* Brand Name Single Toggle Button */}
-        <button
-          type="button"
-          onClick={() => onToggleWithBrandName?.(invoice.withBrandName === false)}
-          className={cn(
-            "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
-            invoice.withBrandName !== false
-              ? "bg-primary text-primary-foreground border-primary shadow-xs"
-              : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
-          )}
-          title={invoice.withBrandName !== false ? "Brand names included. Click to hide brand names." : "Brand names hidden. Click to show brand names."}
-        >
-          {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
-        </button>
+        {showCapital && onToggleCapitalVersion && (
+          <>
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <button
+              type="button"
+              onClick={() => onToggleCapitalVersion(capitalVersion === 'v1' ? 'v2' : 'v1')}
+              className={cn(
+                "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
+                capitalVersion === 'v2'
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
+              )}
+              title={capitalVersion === 'v2' ? "Currently in Detailed BOQ Worksheet. Click to switch to Proposal View." : "Currently in Proposal View. Click to switch to Detailed BOQ Worksheet."}
+            >
+              {capitalVersion === 'v2' ? "[Detailed BOQ Worksheet]" : "[BOQ Worksheet]"}
+            </button>
+          </>
+        )}
+
+        {showCapital && (
+          <>
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <span className="text-[10px] font-mono text-muted-foreground">
+              ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
+            </span>
+          </>
+        )}
       </div>
       {virtualPages.map((page, pageIndex) => {
         return (
@@ -637,53 +680,121 @@ export function MGInvoicePreview({
                     <div className="mb-4">
                       {showPriceColumns ? (
                         <>
-                          <div className="flex py-2 border-b-[1.5px] border-[#111111]">
-                            <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
-                              Description
-                            </span>
-                            <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                              Unit
-                            </span>
-                            <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
-                              Qty
-                            </span>
-                            <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
-                              Rate
-                            </span>
-                            <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
-                              Amount
-                            </span>
-                          </div>
-                          {page.items.map((item) => {
-                            const isCondensedItem = item.id.startsWith('condensed-')
-                            const isDelivery = !isCondensedItem && isDeliveryItem(item.description)
-                            const isLabor = !isCondensedItem && !isDelivery && isLaborItem(item.description)
-                            const shouldApplyMarkup = !isCondensedItem && !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
-                            const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
-                            const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
-                            const descLower = item.description.toLowerCase().trim()
-                            const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
-                            const hasPrice = (item.rate || 0) > 0
-                            return (
-                              <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                                <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap pr-4">
-                                  {displayDesc || '—'}
+                          {showCapital && !invoice.isCondensed ? (
+                            /* Capital Expanded View: Original (Base/Capital) + Selling (Marked up) columns */
+                            <>
+                              <div className="flex py-2 border-b-[1.5px] border-[#111111] items-center text-[10px] font-semibold text-[#111111] tracking-[0.05em] uppercase">
+                                <span className="flex-1">
+                                  Description
                                 </span>
-                                <span className="w-16 shrink-0 text-[12.5px] text-[#888888] text-center">
-                                  {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                <span className="w-12 shrink-0 text-center">
+                                  Unit
                                 </span>
-                                <span className="w-14 shrink-0 text-[12.5px] text-[#888888] text-center">
-                                  {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                <span className="w-10 shrink-0 text-center">
+                                  Qty
                                 </span>
-                                <span className={cn("w-24 shrink-0 text-[12.5px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
-                                  {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                                <span className="w-20 shrink-0 text-right px-1">
+                                  Orig Rate
                                 </span>
-                                <span className="w-28 shrink-0 text-[12.5px] font-medium text-[#111111] text-right">
-                                  {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                                <span className="w-22 shrink-0 text-right px-1">
+                                  Orig Amt
+                                </span>
+                                <span className={cn("w-22 shrink-0 text-right px-1", getHighlightClass('rateMarkup'))}>
+                                  Rate {rateMarkup > 0 ? `(+${rateMarkup}%)` : (rateMarkup < 0 ? `(${rateMarkup}%)` : '')}
+                                </span>
+                                <span className="w-24 shrink-0 text-right pr-1">
+                                  Amount
                                 </span>
                               </div>
-                            )
-                          })}
+                              {page.items.map((item) => {
+                                const isCondensedItem = item.id.startsWith('condensed-')
+                                const isDelivery = !isCondensedItem && isDeliveryItem(item.description)
+                                const isLabor = !isCondensedItem && !isDelivery && isLaborItem(item.description)
+                                const shouldApplyMarkup = !isCondensedItem && !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
+                                const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
+                                const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
+                                const descLower = item.description.toLowerCase().trim()
+                                const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
+                                const hasPrice = (item.rate || 0) > 0
+                                return (
+                                  <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                    <span className="flex-1 text-[12px] text-[#111111] break-words whitespace-pre-wrap pr-3">
+                                      {displayDesc || '—'}
+                                    </span>
+                                    <span className="w-12 shrink-0 text-[11.5px] text-[#888888] text-center">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                    </span>
+                                    <span className="w-10 shrink-0 text-[11.5px] text-[#888888] text-center">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                    </span>
+                                    <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.rate, invoice.currency)}
+                                    </span>
+                                    <span className="w-22 shrink-0 text-[11.5px] text-[#666666] text-right px-1 font-mono">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.quantity * item.rate, invoice.currency)}
+                                    </span>
+                                    <span className={cn("w-22 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono", getHighlightClass('rateMarkup'))}>
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                                    </span>
+                                    <span className="w-24 shrink-0 text-[11.5px] font-medium text-[#111111] text-right pr-1 font-mono">
+                                      {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </>
+                          ) : (
+                            /* Standard / Default View */
+                            <>
+                              <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                                <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
+                                  Description
+                                </span>
+                                <span className="w-16 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                                  Unit
+                                </span>
+                                <span className="w-14 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-center">
+                                  Qty
+                                </span>
+                                <span className={cn("w-24 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right px-1", getHighlightClass('rateMarkup'))}>
+                                  Rate
+                                </span>
+                                <span className="w-28 shrink-0 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase text-right">
+                                  Amount
+                                </span>
+                              </div>
+                              {page.items.map((item) => {
+                                const isCondensedItem = item.id.startsWith('condensed-')
+                                const isDelivery = !isCondensedItem && isDeliveryItem(item.description)
+                                const isLabor = !isCondensedItem && !isDelivery && isLaborItem(item.description)
+                                const shouldApplyMarkup = !isCondensedItem && !isDelivery && !(invoice.excludeLaborMarkup && isLabor)
+                                const adjustedRate = isCondensedItem ? item.rate : (shouldApplyMarkup ? item.rate * (1 + rateMarkup / 100) : item.rate)
+                                const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
+                                const descLower = item.description.toLowerCase().trim()
+                                const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
+                                const hasPrice = (item.rate || 0) > 0
+                                return (
+                                  <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                    <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                                      {displayDesc || '—'}
+                                    </span>
+                                    <span className="w-16 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                    </span>
+                                    <span className="w-14 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                    </span>
+                                    <span className={cn("w-24 shrink-0 text-[12.5px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
+                                    </span>
+                                    <span className="w-28 shrink-0 text-[12.5px] font-medium text-[#111111] text-right">
+                                      {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </>
+                          )}
                         </>
                       ) : (
                         <>
@@ -713,38 +824,50 @@ export function MGInvoicePreview({
                 {page.showTotals && (
                   <>
                     <div className={cn(
-                      "flex flex-col items-end print:break-inside-avoid",
+                      "flex flex-col items-end print:break-inside-avoid pr-1",
                       invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
                     )}>
                       <div className="flex gap-8 items-center">
                         <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
-                        <span className={cn("font-medium text-[#111111] w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                        <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
                           {formatCurrency(subtotal, invoice.currency)}
                         </span>
                       </div>
                       {discount > 0 && (
                         <div className="flex gap-8 items-center">
                           <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
-                          <span className={cn("font-semibold text-emerald-600 w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                          <span className={cn("font-semibold text-emerald-600 w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
                             - {formatCurrency(discount, invoice.currency)}
                           </span>
                         </div>
                       )}
                       <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
                         <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>VAT {invoice.vatRate || 0}%</span>
-                        <span className={cn("font-medium text-[#111111] w-36 text-right", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                        <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
                           {formatCurrency(vat, invoice.currency)}
                         </span>
                       </div>
                       <div className={cn("bg-[#E5E5E5]", invoice.isCondensed ? "w-48 h-px" : "w-52 h-px")} />
                       <div className="flex gap-8 items-center">
                         <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
-                          {invoice.isCondensed ? 'Final Total Price' : 'Total'}
+                          {showCapital 
+                            ? `Final Total Price ${(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}`
+                            : (invoice.isCondensed ? 'Final Total Price' : 'Total')}
                         </span>
-                        <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                        <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
                           {formatCurrency(total, invoice.currency)}
                         </span>
                       </div>
+                      {showCapital && (
+                        <div className="flex gap-8 items-center">
+                          <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                            Capital
+                          </span>
+                          <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                            {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

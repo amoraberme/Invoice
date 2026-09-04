@@ -823,7 +823,7 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
     { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
     { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: inverterCoverage },
     { id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: batteryCoverage },
-    { id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '1 Year' },
+    { id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '2 Years' },
   ]
 }
 

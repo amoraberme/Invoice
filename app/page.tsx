@@ -2742,8 +2742,9 @@ export default function Home() {
     if (Array.isArray(invoice.warranties) && invoice.warranties.length > 0) {
       const needsInvUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('inverter') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== invCoverage)
       const needsBattUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== battCoverage)
+      const needsWorkmanshipUpdate = invoice.warranties.some(w => (w.component.toLowerCase().includes('full system') || w.warrantyType.toLowerCase().includes('workmanship')) && w.coverage === '1 Year')
 
-      if (needsInvUpdate || needsBattUpdate) {
+      if (needsInvUpdate || needsBattUpdate || needsWorkmanshipUpdate) {
         setInvoice(prev => ({
           ...prev,
           warranties: (prev.warranties || []).map(w => {
@@ -2752,6 +2753,9 @@ export default function Home() {
             }
             if (w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years')) {
               return { ...w, coverage: battCoverage }
+            }
+            if ((w.component.toLowerCase().includes('full system') || w.warrantyType.toLowerCase().includes('workmanship')) && w.coverage === '1 Year') {
+              return { ...w, coverage: '2 Years' }
             }
             return w
           })
@@ -3606,13 +3610,16 @@ export default function Home() {
     }
 
     if (downloadDocTypes.capital) {
-      const capTag = downloadCapitalVersion === 'v1' ? 'V1 (1-Page)' : 'V2 (Detailed)'
+      const capTag = downloadCapitalVersion === 'v1' 
+        ? (downloadIsCondensed ? 'V1 (Compressed)' : 'V1 (Expanded)') 
+        : 'V2 (Detailed)'
       tasks.push({
         id: 'capital',
         title: `Capital & Expenses (${capTag})`,
-        filename: `${cleanBase} - Capital ${downloadCapitalVersion === 'v1' ? 'V1' : 'V2'}.${ext}`,
+        filename: `${cleanBase} - Capital ${downloadCapitalVersion === 'v1' ? (downloadIsCondensed ? 'Compressed' : 'Expanded') : 'V2'}.${ext}`,
         docType: 'capital',
         capitalVersion: downloadCapitalVersion,
+        isCondensed: downloadIsCondensed,
       })
     }
 
@@ -3687,6 +3694,12 @@ export default function Home() {
           setActiveTab('checklist')
         } else if (task.docType === 'capital') {
           setCapitalVersion(task.capitalVersion || downloadCapitalVersion || 'v1')
+          if (task.isCondensed !== undefined) {
+            setInvoice(prev => ({
+              ...prev,
+              isCondensed: task.isCondensed ?? false,
+            }))
+          }
           setActiveTab('capital')
         }
 
@@ -6096,7 +6109,7 @@ export default function Home() {
                         : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                     )}
                   >
-                    <span>⚡ V1 (Compressed 1-Page)</span>
+                    <span>⚡ V1 (Proposal with Capital)</span>
                   </button>
                   <button
                     type="button"
@@ -7224,6 +7237,8 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             version={capitalVersion}
             onVersionChange={setCapitalVersion}
             onPagesChange={setTotalPages}
+            onToggleCondensed={(val) => update('isCondensed', val)}
+            onToggleWithBrandName={(val) => update('withBrandName', val)}
           />
         ) : (
           <MGInvoicePreview

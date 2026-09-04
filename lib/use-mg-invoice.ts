@@ -44,12 +44,20 @@ export function useMGInvoice() {
 
           if (key === 'warranties') {
             const rawWarr = Array.isArray(savedObj.warranties) ? savedObj.warranties : defaultWarranties
-            sanitized.warranties = (rawWarr as Record<string, unknown>[]).map((w, idx) => ({
-              id: typeof w?.id === 'string' ? w.id : `warr-${idx}-${Date.now()}`,
-              component: w?.component && w.component !== 'undefined' ? String(w.component) : '',
-              warrantyType: w?.warrantyType && w.warrantyType !== 'undefined' ? String(w.warrantyType) : 'Manufacturer Warranty',
-              coverage: w?.coverage && w.coverage !== 'undefined' ? String(w.coverage) : '',
-            }))
+            sanitized.warranties = (rawWarr as Record<string, unknown>[]).map((w, idx) => {
+              let cov = w?.coverage && w.coverage !== 'undefined' ? String(w.coverage) : ''
+              const comp = w?.component && w.component !== 'undefined' ? String(w.component) : ''
+              const wType = w?.warrantyType && w.warrantyType !== 'undefined' ? String(w.warrantyType) : 'Manufacturer Warranty'
+              if (cov === '1 Year' && (comp.toLowerCase().includes('full system') || wType.toLowerCase().includes('workmanship'))) {
+                cov = '2 Years'
+              }
+              return {
+                id: typeof w?.id === 'string' ? w.id : `warr-${idx}-${Date.now()}`,
+                component: comp,
+                warrantyType: wType,
+                coverage: cov,
+              }
+            })
             continue
           }
 

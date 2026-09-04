@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useMemo, Fragment } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import { type Invoice, type LineItem } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { 
@@ -13,16 +13,18 @@ import {
   isLaborItem, 
   isBatteryItem, 
   isDeliveryItem,
-  generateDefaultScopesFromInvoice,
-  generateDefaultWarrantiesFromInvoice
 } from '@/lib/utils'
 
-interface MGCapitalPreviewProps {
+import { MGInvoicePreview } from './mg-invoice-preview'
+
+export interface MGCapitalPreviewProps {
   invoice: Invoice
   hoveredField?: string | null
   version?: 'v1' | 'v2'
   onVersionChange?: (version: 'v1' | 'v2') => void
   onPagesChange?: (count: number) => void
+  onToggleCondensed?: (val: boolean) => void
+  onToggleWithBrandName?: (val: boolean) => void
 }
 
 interface CapitalVirtualPage {
@@ -202,18 +204,64 @@ export function MGCapitalPreview({
   version: controlledVersion,
   onVersionChange,
   onPagesChange,
+  onToggleCondensed,
+  onToggleWithBrandName,
 }: MGCapitalPreviewProps) {
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
   const [localVersion, setLocalVersion] = useState<'v1' | 'v2'>('v1')
-  const prevPagesCountRef = useRef<number>(0)
-
   const version = controlledVersion ?? localVersion
 
   const handleSetVersion = (v: 'v1' | 'v2') => {
     setLocalVersion(v)
     onVersionChange?.(v)
   }
+
+  if (version === 'v1') {
+    return (
+      <MGInvoicePreview
+        invoice={invoice}
+        hoveredField={hoveredField}
+        onPagesChange={onPagesChange}
+        onToggleCondensed={onToggleCondensed}
+        onToggleWithBrandName={onToggleWithBrandName}
+        showCapital={true}
+        capitalVersion={version}
+        onToggleCapitalVersion={handleSetVersion}
+      />
+    )
+  }
+
+  return (
+    <MGCapitalBoqWorksheet
+      invoice={invoice}
+      hoveredField={hoveredField}
+      onPagesChange={onPagesChange}
+      onToggleCondensed={onToggleCondensed}
+      onToggleWithBrandName={onToggleWithBrandName}
+      onSwitchToV1={() => handleSetVersion('v1')}
+    />
+  )
+}
+
+interface MGCapitalBoqWorksheetProps {
+  invoice: Invoice
+  hoveredField?: string | null
+  onPagesChange?: (count: number) => void
+  onToggleCondensed?: (val: boolean) => void
+  onToggleWithBrandName?: (val: boolean) => void
+  onSwitchToV1: () => void
+}
+
+function MGCapitalBoqWorksheet({
+  invoice,
+  hoveredField,
+  onPagesChange,
+  onToggleCondensed,
+  onToggleWithBrandName,
+  onSwitchToV1,
+}: MGCapitalBoqWorksheetProps) {
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  const prevPagesCountRef = useRef<number>(0)
 
   useEffect(() => {
     const el = canvasRef.current
@@ -279,8 +327,8 @@ export function MGCapitalPreview({
   const netProfitMarginPct = clientGrandTotal > 0 ? (netProfit / clientGrandTotal) * 100 : 0
 
   const virtualPages = useMemo(() => {
-    return version === 'v1' ? [null] : paginateCapital(invoice)
-  }, [version, invoice])
+    return paginateCapital(invoice)
+  }, [invoice])
   const totalPages = virtualPages.length
 
   useEffect(() => {
@@ -300,288 +348,52 @@ export function MGCapitalPreview({
       : 'transition-all duration-200'
   }
 
-  // Scopes and Warranties for V1
-  const activeScopes = useMemo(() => {
-    return (invoice.scopes && invoice.scopes.length > 0)
-      ? invoice.scopes.filter(s => s.enabled !== false)
-      : generateDefaultScopesFromInvoice({ ...invoice, withBrandName: true })
-  }, [invoice.scopes, invoice])
-
-  const activeWarranties = useMemo(() => {
-    return (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
-      .filter((w) => {
-        if (w.component.toLowerCase().includes('battery') && invoice.excludeBattery) {
-          return false
-        }
-        return true
-      })
-  }, [invoice.warranties, invoice.excludeBattery, invoice])
-
   return (
     <main
       ref={canvasRef}
-      className="w-full bg-[#EBEBEB] dark:bg-zinc-900 flex flex-col items-center py-6 select-none print:py-0 print:w-full"
+      className="w-full bg-[#EBEBEB] dark:bg-zinc-900 flex flex-col items-center py-8 print:block print:bg-white print:overflow-visible print:py-0 select-none print:w-full"
     >
-      {/* Version Selector Pill (Screen only) */}
-      <div className="mb-3 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border shadow-xs z-10 select-none">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          Capital Layout:
-        </span>
-        <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-full border border-border">
-          <button
-            type="button"
-            onClick={() => handleSetVersion('v1')}
-            className={cn(
-              "px-3 py-1 rounded-full text-[10.5px] font-bold transition-all cursor-pointer flex items-center gap-1",
-              version === 'v1'
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <span>⚡ V1 (Compressed 1-Page)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetVersion('v2')}
-            className={cn(
-              "px-3 py-1 rounded-full text-[10.5px] font-bold transition-all cursor-pointer flex items-center gap-1",
-              version === 'v2'
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <span>📑 V2 (Detailed BOQ Worksheet)</span>
-          </button>
-        </div>
+      {/* Floating Controls Toolbar: Format, Brand Name & Worksheet Single Toggles */}
+      <div className="mb-4 print:hidden flex items-center gap-2.5 bg-white/95 dark:bg-[#1A1A1A]/95 backdrop-blur-md px-4 py-1.5 rounded-full border border-border shadow-xs z-10 select-none flex-wrap justify-center">
+        {/* Format Single Toggle Button */}
+        <button
+          type="button"
+          onClick={() => {
+            onSwitchToV1()
+            onToggleCondensed?.(!invoice.isCondensed)
+          }}
+          className={cn(
+            "px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border",
+            invoice.isCondensed
+              ? "bg-primary text-primary-foreground border-primary shadow-xs"
+              : "bg-secondary/80 text-foreground hover:bg-secondary border-border"
+          )}
+          title={invoice.isCondensed ? "Currently in Compressed mode. Click to switch to Expanded view." : "Currently in Expanded mode. Click to switch to Compressed view."}
+        >
+          {invoice.isCondensed ? "[Compressed]" : "[Expanded]"}
+        </button>
+
+        <div className="h-4 w-[1px] bg-border hidden sm:block" />
+
+        {/* BOQ Worksheet Toggle Button */}
+        <button
+          type="button"
+          onClick={onSwitchToV1}
+          className="px-3.5 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer select-none flex items-center gap-1.5 border bg-primary text-primary-foreground border-primary shadow-xs"
+          title="Currently in Detailed BOQ Worksheet. Click to switch to Proposal View."
+        >
+          <span>[Detailed BOQ Worksheet]</span>
+        </button>
+
+        <div className="h-4 w-[1px] bg-border hidden sm:block" />
+
         <span className="text-[10px] font-mono text-muted-foreground">
           ({totalPages} {totalPages === 1 ? 'Page' : 'Pages'})
         </span>
       </div>
 
-      {/* ===================== VERSION 1: EXACT COMPRESSED PAGE 1 WITH CAPITAL ===================== */}
-      {version === 'v1' ? (
-        <div className="w-full flex justify-center mb-6 last:mb-0 print:block print:m-0 print:p-0 print-break-last">
-          <div 
-            style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
-            className="print-wrapper"
-          >
-            <div
-              className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13 py-10"
-              style={{
-                width: `${PAPER_W}px`,
-                height: `${PAPER_H}px`,
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-              }}
-            >
-              <div>
-                {/* Header */}
-                <div className="flex justify-between items-start mb-3.5">
-                  <div className={cn("max-w-xs p-0.5", getHighlightClass('sender'))}>
-                    <p className="font-bold text-[#111111] tracking-tight leading-none text-[19px]">
-                      {invoice.fromName || 'Your Company'}
-                    </p>
-                    {invoice.fromEmail && (
-                      <p className="text-[#888888] text-[10.5px] mt-1">{invoice.fromEmail}</p>
-                    )}
-                    {invoice.fromPhone && (
-                      <p className="text-[#888888] text-[10.5px]">{invoice.fromPhone}</p>
-                    )}
-                    {invoice.fromAddress && (
-                      <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.fromAddress}</p>
-                    )}
-                  </div>
-                  <div className={cn("text-right flex flex-col items-end p-0.5", getHighlightClass('invoiceNumber'))}>
-                    <img
-                      src="/mg.png"
-                      alt="INVOICE"
-                      className="w-auto object-contain h-[68px] mb-0.5"
-                    />
-                    <p className="font-medium tracking-tight text-[#888888] text-[11px] mt-0.5">
-                      {invoice.invoiceNumber || '—'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bill To + Dates */}
-                <div className="flex justify-between items-start mb-3">
-                  <div className={cn("max-w-xs p-0.5", getHighlightClass('client'))}>
-                    <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
-                      Bill To
-                    </p>
-                    <p className="font-bold text-[#111111] tracking-tight text-[13px]">
-                      {invoice.toName || '—'}
-                    </p>
-                    {invoice.toEmail && (
-                      <p className="text-[#888888] text-[10.5px] mt-0.5">{invoice.toEmail}</p>
-                    )}
-                    {invoice.toAddress && (
-                      <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.toAddress}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-6">
-                    {invoice.issueDate && (
-                      <div className={cn("text-right p-0.5", getHighlightClass('issueDate'))}>
-                        <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
-                          Issue Date
-                        </p>
-                        <p className="font-medium text-[#111111] text-[10.5px]" suppressHydrationWarning>
-                          {formatDate(invoice.issueDate)}
-                        </p>
-                      </div>
-                    )}
-                    {invoice.dueDate && (
-                      <div className={cn("text-right p-0.5", getHighlightClass('dueDate'))}>
-                        <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
-                          Validity
-                        </p>
-                        <p className="font-medium text-[#111111] text-[10.5px]" suppressHydrationWarning>
-                          {formatDate(invoice.dueDate)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Subject Line */}
-                {invoice.subject && (
-                  <div className={cn(
-                    "border-b border-[#E5E5E5]/50 flex gap-2 p-0.5 mb-2 pb-1 text-[11px]",
-                    getHighlightClass('subject')
-                  )}>
-                    <span className="font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
-                    <span className="font-bold text-[#111111]">{invoice.subject}</span>
-                  </div>
-                )}
-
-                {/* Salutation / Intro */}
-                {invoice.salutation && (
-                  <div className={cn("mb-2.5 p-0.5", getHighlightClass('salutation'))}>
-                    <p className="text-[#555555] whitespace-pre-wrap text-[10.5px] leading-relaxed">
-                      {invoice.salutation}
-                    </p>
-                  </div>
-                )}
-
-                {/* Structured Scope of Equipment & Works */}
-                <div className="mb-3">
-                  <div className="flex py-1 border-b-[1.5px] border-[#111111] mb-2">
-                    <span className="text-[9.5px] font-bold text-[#111111] tracking-[0.08em] uppercase">
-                      Scope of Equipment & Works
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-[10.5px] text-[#222222]">
-                    {activeScopes.map((scopeItem, idx) => (
-                      <div key={scopeItem.id || idx} className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                        <div className="flex items-start gap-2">
-                          <span 
-                            className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] rounded-[2px] select-none shadow-xs mt-0.5" 
-                            style={{ 
-                              color: '#ffffff', 
-                              backgroundColor: '#111111',
-                              display: 'inline-block',
-                              width: '18px',
-                              height: '18px',
-                              lineHeight: '18px',
-                              textAlign: 'center',
-                            }}
-                          >
-                            {scopeItem.letter || String.fromCharCode(65 + idx)}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-[#111111] text-[11px] leading-snug">
-                              {scopeItem.title}
-                              {scopeItem.subtitle ? (
-                                <>: <span className="font-semibold text-[#333333]">{scopeItem.subtitle}</span></>
-                              ) : null}
-                            </div>
-                            {scopeItem.description && (
-                              <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5 whitespace-pre-line">
-                                {scopeItem.description}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Warranty Coverage Table */}
-                <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
-                  <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
-                    <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
-                      Warranty Coverage
-                    </span>
-                  </div>
-                  <table className="w-full text-left text-[10px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#E5E5E5] bg-[#F8F8F8]">
-                        <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-5/12">Component / Service</th>
-                        <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-4/12">Warranty Type</th>
-                        <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-3/12 text-right">Coverage Period</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E5E5E5] bg-white">
-                      {activeWarranties.map((w) => (
-                        <tr key={w.id}>
-                          <td className="py-1 px-3 font-semibold text-[#111111]">{w.component}</td>
-                          <td className="py-1 px-3 text-[#555555]">{w.warrantyType}</td>
-                          <td className="py-1 px-3 font-bold text-[#111111] text-right">{w.coverage}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Totals + Capital */}
-                <div className="flex flex-col items-end gap-1.5 mb-2 mt-2 print:break-inside-avoid">
-                  <div className="flex gap-8 items-center">
-                    <span className="text-[#888888] text-[11.5px]">Standard Price</span>
-                    <span className="font-medium text-[#111111] w-36 text-right text-[12px]">
-                      {formatCurrency(itemsSellingSubtotal, invoice.currency)}
-                    </span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex gap-8 items-center">
-                      <span className="text-[#888888] text-[11.5px]">Discount Amount</span>
-                      <span className="font-semibold text-emerald-600 w-36 text-right text-[12px]">
-                        - {formatCurrency(discount, invoice.currency)}
-                      </span>
-                    </div>
-                  )}
-                  <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
-                    <span className="text-[#888888] text-[11.5px]">VAT {vatRate}%</span>
-                    <span className="font-medium text-[#111111] w-36 text-right text-[12px]">
-                      {formatCurrency(vatAmount, invoice.currency)}
-                    </span>
-                  </div>
-                  <div className="bg-[#E5E5E5] w-48 h-px" />
-                  <div className="flex gap-8 items-center">
-                    <span className="font-bold text-[#111111] tracking-tight text-[14px]">
-                      Final Total Price {(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}
-                    </span>
-                    <span className="font-bold text-[#111111] tracking-tight w-36 text-right text-[18px]">
-                      {formatCurrency(clientGrandTotal, invoice.currency)}
-                    </span>
-                  </div>
-                  <div className="flex gap-8 items-center">
-                    <span className="font-bold text-[#111111] tracking-tight text-[14px]">
-                      Capital
-                    </span>
-                    <span className="font-bold text-[#111111] tracking-tight w-36 text-right text-[18px]">
-                      {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* ===================== VERSION 2: MULTI-PAGE DETAILED BOQ WORKSHEET ===================== */
-        virtualPages.map((page, pageIdx) => (
+      {/* ===================== VERSION 2: MULTI-PAGE DETAILED BOQ WORKSHEET ===================== */}
+      {virtualPages.map((page, pageIdx) => (
           <div key={pageIdx} className={cn("w-full flex justify-center mb-6 last:mb-0 print:block print:m-0 print:p-0", pageIdx < totalPages - 1 ? "print-break" : "print-break-last")}>
             <div 
               style={{ width: PAPER_W * scale, height: PAPER_H * scale }} 
@@ -938,8 +750,7 @@ export function MGCapitalPreview({
             </div>
           </div>
         </div>
-        ))
-      )}
+      ))}
     </main>
   )
 }
