@@ -851,38 +851,39 @@ export function MGInvoicePreview({
                           </span>
                         </div>
 
-                        {/* Divider Rule aligned under Orig Amt and Amount */}
-                        <div className="flex items-center px-1 my-1.5">
-                          <span className="flex-1" />
-                          <div className="w-26 shrink-0 px-1">
-                            <div className="bg-[#111111] h-[1.5px] w-full" />
-                          </div>
-                          <span className="w-22 shrink-0" />
-                          <div className="w-28 shrink-0 pr-1">
-                            <div className="bg-[#111111] h-[1.5px] w-full" />
-                          </div>
+                        {/* Divider rule across price columns (Orig Amt through Amount: 104px + 88px + 112px = 304px) */}
+                        <div className="flex justify-end w-full my-1.5 px-1">
+                          <div className="w-[304px] border-t-[1.5px] border-[#111111]" />
                         </div>
 
-                        {/* Final Total Price */}
-                        <div className="flex items-center px-1 py-0.5">
-                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[13px] tracking-tight">
-                            Final Total Price {(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}
+                        {/* Unified Summary Row: Capital in Orig Amt, Final Total in Amount */}
+                        <div className="flex items-end px-1 pt-0.5 pb-1">
+                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[12px] uppercase tracking-wider">
+                            Total
                           </span>
-                          <span className="w-28 shrink-0 text-right pr-1 font-bold text-[#111111] font-mono tabular-nums text-[15px] tracking-tight">
-                            {formatCurrency(total, invoice.currency)}
-                          </span>
-                        </div>
-
-                        {/* Capital Total */}
-                        <div className="flex items-center px-1 py-0.5">
-                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[13px] tracking-tight">
-                            Capital
-                          </span>
-                          <span className="w-26 shrink-0 text-right px-1 font-bold text-[#111111] font-mono tabular-nums text-[14px] tracking-tight">
-                            {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
-                          </span>
+                          <span className="w-12 shrink-0" />
+                          <span className="w-10 shrink-0" />
+                          <span className="w-20 shrink-0" />
+                          {/* Capital under Orig Amt */}
+                          <div className="w-26 shrink-0 text-right px-1 flex flex-col items-end">
+                            <span className="text-[9.5px] font-bold text-[#777777] uppercase tracking-wider mb-0.5">
+                              Capital
+                            </span>
+                            <span className="font-bold text-[#111111] font-mono tabular-nums text-[14.5px] tracking-tight">
+                              {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                            </span>
+                          </div>
+                          {/* Spacer under Rate */}
                           <span className="w-22 shrink-0" />
-                          <span className="w-28 shrink-0 pr-1" />
+                          {/* Final Total under Amount */}
+                          <div className="w-28 shrink-0 text-right pr-1 flex flex-col items-end">
+                            <span className="text-[9.5px] font-bold text-[#777777] uppercase tracking-wider mb-0.5 whitespace-nowrap">
+                              Final Total {(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ''}
+                            </span>
+                            <span className="font-bold text-[#111111] font-mono tabular-nums text-[15px] tracking-tight">
+                              {formatCurrency(total, invoice.currency)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ) : (
