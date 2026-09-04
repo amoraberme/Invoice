@@ -696,13 +696,13 @@ export function MGInvoicePreview({
                                 <span className="w-20 shrink-0 text-right px-1">
                                   Orig Rate
                                 </span>
-                                <span className="w-22 shrink-0 text-right px-1">
+                                <span className="w-26 shrink-0 text-right px-1">
                                   Orig Amt
                                 </span>
                                 <span className={cn("w-22 shrink-0 text-right px-1", getHighlightClass('rateMarkup'))}>
                                   Rate {rateMarkup > 0 ? `(+${rateMarkup}%)` : (rateMarkup < 0 ? `(${rateMarkup}%)` : '')}
                                 </span>
-                                <span className="w-24 shrink-0 text-right pr-1">
+                                <span className="w-28 shrink-0 text-right pr-1">
                                   Amount
                                 </span>
                               </div>
@@ -727,16 +727,16 @@ export function MGInvoicePreview({
                                     <span className="w-10 shrink-0 text-[11.5px] text-[#888888] text-center">
                                       {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                                     </span>
-                                    <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono">
+                                    <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums">
                                       {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.rate, invoice.currency)}
                                     </span>
-                                    <span className="w-22 shrink-0 text-[11.5px] text-[#666666] text-right px-1 font-mono">
+                                    <span className="w-26 shrink-0 text-[11.5px] text-[#666666] text-right px-1 font-mono tabular-nums">
                                       {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.quantity * item.rate, invoice.currency)}
                                     </span>
-                                    <span className={cn("w-22 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono", getHighlightClass('rateMarkup'))}>
+                                    <span className={cn("w-22 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums", getHighlightClass('rateMarkup'))}>
                                       {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                                     </span>
-                                    <span className="w-24 shrink-0 text-[11.5px] font-medium text-[#111111] text-right pr-1 font-mono">
+                                    <span className="w-28 shrink-0 text-[11.5px] font-medium text-[#111111] text-right pr-1 font-mono tabular-nums">
                                       {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
                                     </span>
                                   </div>
@@ -824,47 +824,65 @@ export function MGInvoicePreview({
                 {page.showTotals && (
                   <>
                     {showCapital && !invoice.isCondensed ? (
-                      <div className="flex flex-col items-end print:break-inside-avoid w-full gap-2 mb-4 mt-3 px-1">
-                        <div className="flex items-center w-full">
-                          <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">Standard Price</span>
-                          <span className="w-24 shrink-0 text-right pr-1 font-mono font-medium text-[#111111] text-[12px]">
+                      <div className="w-full mb-4 mt-2 print:break-inside-avoid">
+                        {/* Standard Price */}
+                        <div className="flex items-center px-1 py-0.5">
+                          <span className="flex-1 text-right text-[#888888] pr-3 text-[11.5px]">Standard Price</span>
+                          <span className="w-28 shrink-0 text-right pr-1 font-mono tabular-nums font-medium text-[#111111] text-[11.5px]">
                             {formatCurrency(subtotal, invoice.currency)}
                           </span>
                         </div>
+
+                        {/* Discount Amount */}
                         {discount > 0 && (
-                          <div className="flex items-center w-full">
-                            <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">Discount Amount</span>
-                            <span className="w-24 shrink-0 text-right pr-1 font-mono font-semibold text-emerald-600 text-[12px]">
+                          <div className="flex items-center px-1 py-0.5">
+                            <span className="flex-1 text-right text-[#888888] pr-3 text-[11.5px]">Discount Amount</span>
+                            <span className="w-28 shrink-0 text-right pr-1 font-mono tabular-nums font-semibold text-emerald-600 text-[11.5px]">
                               - {formatCurrency(discount, invoice.currency)}
                             </span>
                           </div>
                         )}
-                        <div className={cn("flex items-center w-full", getHighlightClass('vatRate'))}>
-                          <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">VAT {invoice.vatRate || 0}%</span>
-                          <span className="w-24 shrink-0 text-right pr-1 font-mono font-medium text-[#111111] text-[12px]">
+
+                        {/* VAT */}
+                        <div className={cn("flex items-center px-1 py-0.5", getHighlightClass('vatRate'))}>
+                          <span className="flex-1 text-right text-[#888888] pr-3 text-[11.5px]">VAT {invoice.vatRate || 0}%</span>
+                          <span className="w-28 shrink-0 text-right pr-1 font-mono tabular-nums font-medium text-[#111111] text-[11.5px]">
                             {formatCurrency(vat, invoice.currency)}
                           </span>
                         </div>
-                        <div className="flex justify-end w-full my-1">
-                          <div className="w-[272px] bg-[#E5E5E5] h-px" />
+
+                        {/* Divider Rule aligned under Orig Amt and Amount */}
+                        <div className="flex items-center px-1 my-1.5">
+                          <span className="flex-1" />
+                          <div className="w-26 shrink-0 px-1">
+                            <div className="bg-[#111111] h-[1.5px] w-full" />
+                          </div>
+                          <span className="w-22 shrink-0" />
+                          <div className="w-28 shrink-0 pr-1">
+                            <div className="bg-[#111111] h-[1.5px] w-full" />
+                          </div>
                         </div>
-                        <div className="flex items-center w-full">
-                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[15px] tracking-tight">
+
+                        {/* Final Total Price */}
+                        <div className="flex items-center px-1 py-0.5">
+                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[13px] tracking-tight">
                             Final Total Price {(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}
                           </span>
-                          <span className="w-24 shrink-0 text-right pr-1 font-bold text-[#111111] font-mono text-[20px] tracking-tight">
+                          <span className="w-28 shrink-0 text-right pr-1 font-bold text-[#111111] font-mono tabular-nums text-[15px] tracking-tight">
                             {formatCurrency(total, invoice.currency)}
                           </span>
                         </div>
-                        <div className="flex items-center w-full">
-                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[15px] tracking-tight">
+
+                        {/* Capital Total */}
+                        <div className="flex items-center px-1 py-0.5">
+                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[13px] tracking-tight">
                             Capital
                           </span>
-                          <span className="w-22 shrink-0 text-right px-1 font-bold text-[#111111] font-mono text-[18px] tracking-tight">
+                          <span className="w-26 shrink-0 text-right px-1 font-bold text-[#111111] font-mono tabular-nums text-[14px] tracking-tight">
                             {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
                           </span>
                           <span className="w-22 shrink-0" />
-                          <span className="w-24 shrink-0 pr-1" />
+                          <span className="w-28 shrink-0 pr-1" />
                         </div>
                       </div>
                     ) : (
