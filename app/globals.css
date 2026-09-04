@@ -468,5 +468,10 @@ html {
   .print-page [class*="bg-[#F5F5F5]"] {
     background-color: var(--secondary) !important;
   }
+
+  .print-page [class*="text-[#059669]"],
+  .print-page [class*="text-emerald-600"] {
+    color: #059669 !important;
+  }
 }
 

@@ -839,7 +839,10 @@ export function MGInvoicePreview({
                         {discount > 0 && (
                           <div className="flex items-center px-1 py-0.5">
                             <span className="flex-1 text-right text-[#888888] pr-3 text-[11.5px]">Discount Amount</span>
-                            <span className="w-28 shrink-0 text-right pr-1 font-mono tabular-nums font-semibold text-emerald-600 text-[11.5px]">
+                            <span
+                              style={{ color: '#059669' }}
+                              className="w-28 shrink-0 text-right pr-1 font-mono tabular-nums font-semibold text-[#059669] text-[11.5px]"
+                            >
                               - {formatCurrency(discount, invoice.currency)}
                             </span>
                           </div>
@@ -902,7 +905,10 @@ export function MGInvoicePreview({
                         {discount > 0 && (
                           <div className="flex gap-8 items-center">
                             <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
-                            <span className={cn("font-semibold text-emerald-600 w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                            <span
+                              style={{ color: '#059669' }}
+                              className={cn("font-semibold text-[#059669] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}
+                            >
                               - {formatCurrency(discount, invoice.currency)}
                             </span>
                           </div>

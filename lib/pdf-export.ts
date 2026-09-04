@@ -346,8 +346,19 @@ function prepareClonedDocument(clonedDoc: Document): void {
       print-color-adjust: exact !important;
       box-shadow: none !important;
     }
+    .text-emerald-600, [class*="text-emerald-600"], [class*="text-[#059669]"] {
+      color: #059669 !important;
+    }
   `
   clonedDoc.head?.appendChild(resetStyle)
+
+  // 11. Defensively assign solid hex color to discount elements so html2canvas never drops them due to oklch
+  const emeraldNodes = clonedDoc.querySelectorAll<HTMLElement>(
+    '.text-emerald-600, [class*="text-emerald-600"], [class*="text-[#059669]"]'
+  )
+  emeraldNodes.forEach((node) => {
+    node.style.color = '#059669'
+  })
 }
 
 /**
