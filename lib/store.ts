@@ -152,7 +152,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
-  // ── SET DATE: AUGUST 25, 2026 (Dev) ──
+  // ── SET DATE: SEPTEMBER 04, 2026 (Dev) ──
+  {
+    id: 'cl-dev-ubetter-battery-sep04_v1',
+    timestamp: 'Sep 04, 2026, 02:50 PM',
+    itemDescription: 'Ubetter Battery 48V 410Ah BESS Storage Added',
+    changeType: 'addition',
+    fieldChanged: 'Battery Storage Brands & Pricelist (Ubetter 410Ah @ ₱138,000)',
+    oldValue: 'CESC, Genix Green, Dyness, Oliter, DEYE, GoodWe, Alpsolar only',
+    newValue: 'Added Ubetter 48V 410Ah (₱138,000.00) with brand SVG logo, selector, and capacity controls',
+    unit: 'PC',
+    note: '[Dev] Added Ubetter brand battery (48V 410Ah @ ₱138,000) with official logo, brand switcher button, capacity selectors, and system-wide BOQ compatibility',
+    batch: 'September 04, 2026 Equipment & Storage Updates (Dev)'
+  },
   {
     id: 'cl-dev-ph-location-engine-aug25_v1',
     timestamp: 'Aug 25, 2026, 01:10 PM',
@@ -1015,6 +1027,15 @@ export interface PriceListItem {
 }
 
 export const SOLAR_PRICELIST_2026: PriceListItem[] = [
+  {
+    code: 'SOL-UB410',
+    name: 'Ubetter Battery 48V 410Ah',
+    keywords: ['ubetter 48v 410ah', 'ubetter 410ah', 'ubetter battery', 'ubetter battery 48v 410ah', 'ubetter 48v', '410ah 48v', '48v 410ah', 'ubetter'],
+    meterPrice: 138000,
+    rollPrice: 138000,
+    meterUnit: 'PC',
+    rollUnit: 'PC',
+  },
   {
     code: 'SOL-028',
     name: 'Alpsolar 10.24kWh 200Ah Lithium Battery',

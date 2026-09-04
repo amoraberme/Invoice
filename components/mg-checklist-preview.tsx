@@ -46,6 +46,7 @@ const getChecklistCategory = (description: string): { key: 'equipment' | 'mounti
     d.includes('dyness') ||
     d.includes('oliter') ||
     d.includes('alpsolar') ||
+    d.includes('ubetter') ||
     d.includes('ja solar') ||
     d.includes('tongwei') ||
     d.includes('gokin') ||

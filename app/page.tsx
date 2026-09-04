@@ -299,6 +299,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     if (desc.includes('100ah') || desc.includes('100 ah')) detectedBatteryAh = 100
     else if (desc.includes('200ah') || desc.includes('200 ah')) detectedBatteryAh = 200
     else if (desc.includes('314ah') || desc.includes('314 ah')) detectedBatteryAh = 314
+    else if (desc.includes('410ah') || desc.includes('410 ah')) detectedBatteryAh = 410
   }
 
   const wireInfo = getDynamicWireSize(inverterKw, runLength, effectiveBatteryQty)
@@ -1009,6 +1010,7 @@ function parseTechnicalSpec(text: string): ParsedSpec {
     else if (lower.includes('ja solar') || lower.includes('jasolar')) brand = 'JA Solar';
     else if (lower.includes('oliter')) brand = 'Oliter';
     else if (lower.includes('alpsolar') || lower.includes('alp solar')) brand = 'Alpsolar';
+    else if (lower.includes('ubetter')) brand = 'Ubetter';
     else if (lower.includes('daikin')) brand = 'Daikin';
     else if (lower.includes('dyness')) brand = 'Dyness';
     else if (lower.includes('mitsubishi')) brand = 'Mitsubishi';
@@ -1108,10 +1110,10 @@ function extractLineItemsFromText(text: string) {
   const lineItems: LineItem[] = [];
   const addedIndices = new Set<number>();
   
-  const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Oliter') || text.includes('Alpsolar') || text.includes('Inverter') || text.includes('Railings');
+  const isSolarQuote = text.includes('Anern') || text.includes('JA Solar') || text.includes('Dyness') || text.includes('Oliter') || text.includes('Alpsolar') || text.includes('Ubetter') || text.includes('Inverter') || text.includes('Railings');
 
   // Handle line breaks or inline text anomalies by normalizing line streams
-  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4 2 String|MC4|Clip lock|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Genix|CESC|Oliter|Alpsolar|AlpSolarr|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
+  const normalizedText = text.replace(/(\d+)(Inverter|Panel|Railings|Mid|End|L Foot|Splice|Flexcon|AC wire|PV wire|MC4 2 String|MC4|Clip lock|Breaker|AC MCB|AC SPD|DC SPD|DC MCB|DC MCCB|Cable|Automatic|Terminal|Dyness|Genix|CESC|Oliter|Alpsolar|AlpSolarr|Ubetter|Battery|PU Sealant|Sealant|PVC Moulding|Moulding|Molding)/g, '\n$1 $2');
 
   const lines = normalizedText.split('\n');
 
@@ -1168,7 +1170,7 @@ function extractLineItemsFromText(text: string) {
         targetIndex = 18;
       } else if (lowerLine.includes('terminal lugs') || (lowerLine.includes('lugs') && !lowerLine.includes('block'))) {
         targetIndex = 19;
-      } else if (lowerLine.includes('dyness') || lowerLine.includes('oliter') || lowerLine.includes('alpsolar') || lowerLine.includes('cesc') || ((lowerLine.includes('goodwe') || lowerLine.includes('deye')) && lowerLine.includes('battery')) || (lowerLine.includes('battery') && lowerLine.includes('314ah'))) {
+      } else if (lowerLine.includes('dyness') || lowerLine.includes('oliter') || lowerLine.includes('alpsolar') || lowerLine.includes('cesc') || lowerLine.includes('ubetter') || ((lowerLine.includes('goodwe') || lowerLine.includes('deye')) && lowerLine.includes('battery')) || (lowerLine.includes('battery') && (lowerLine.includes('314ah') || lowerLine.includes('410ah')))) {
         targetIndex = 20;
       } else if (lowerLine.includes('terminal block')) {
         targetIndex = 21;
@@ -1492,6 +1494,7 @@ const SOLAR_PRICES = {
   Genix100Ah: 38000.00,
   Genix200Ah: 65000.00,
   Cesc314Ah: 88000.00,
+  Ubetter410Ah: 138000.00,
   DynessBattery: 88000.00,
   TerminalBlock: 160.00,
   BatteryCable: 700.00,
@@ -2419,7 +2422,8 @@ export default function Home() {
       d.includes('growatt') ||
       d.includes('victron') ||
       d.includes('genix') ||
-      d.includes('cesc')
+      d.includes('cesc') ||
+      d.includes('ubetter')
     ) {
       return { key: 'equipment', label: 'Major Equipment', badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' }
     }
@@ -5142,15 +5146,18 @@ export default function Home() {
 
                       let goodwePrice = 120000
 
+                      let ubetterPrice = 138000
+
                       const isGoodweSelected = item.rate === goodwePrice || (descLower.includes('goodwe') && isBatteryItemRow)
                       const isDeyeSelected = item.rate === deyePrice || descLower.includes('deye')
                       const isGenixSelected = item.rate === genixPrice
                       const isDynessSelected = item.rate === dynessPrice
                       const isOliterSelected = item.rate === oliterPrice || descLower.includes('oliter')
                       const isAlpsolarSelected = item.rate === alpsolarPrice || descLower.includes('alpsolar')
-                      const isCescSelected = item.rate === cescPrice || (!isGoodweSelected && !isDeyeSelected && !isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected)
+                      const isUbetterSelected = item.rate === ubetterPrice || descLower.includes('ubetter')
+                      const isCescSelected = item.rate === cescPrice || (!isGoodweSelected && !isDeyeSelected && !isGenixSelected && !isDynessSelected && !isOliterSelected && !isAlpsolarSelected && !isUbetterSelected)
 
-                      const activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'oliter' | 'alpsolar' | 'cesc' = isGoodweSelected ? 'goodwe' : isDeyeSelected ? 'deye' : isGenixSelected ? 'genix' : isDynessSelected ? 'dyness' : isOliterSelected ? 'oliter' : isAlpsolarSelected ? 'alpsolar' : 'cesc'
+                      const activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'oliter' | 'alpsolar' | 'cesc' | 'ubetter' = isGoodweSelected ? 'goodwe' : isDeyeSelected ? 'deye' : isGenixSelected ? 'genix' : isDynessSelected ? 'dyness' : isOliterSelected ? 'oliter' : isAlpsolarSelected ? 'alpsolar' : isUbetterSelected ? 'ubetter' : 'cesc'
 
                       const pricingInfo = getItemPricingInfo(item.description, item)
 
@@ -5482,16 +5489,18 @@ export default function Home() {
                             </div>
                           )}
                           {isBatteryItemRow && (() => {
-                            let capKey: '100Ah' | '200Ah' | '314Ah' | '261kW' = '314Ah'
+                            let capKey: '100Ah' | '200Ah' | '314Ah' | '410Ah' | '261kW' = '314Ah'
                             if (descLower.includes('261') || descLower.includes('power')) {
                               capKey = '261kW'
+                            } else if (descLower.includes('410ah')) {
+                              capKey = '410Ah'
                             } else if (descLower.includes('200ah')) {
                               capKey = '200Ah'
                             } else if (descLower.includes('100ah') || descLower.includes('102.4v')) {
                               capKey = '100Ah'
                             }
 
-                            let activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' = 'cesc'
+                            let activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' | 'ubetter' = 'cesc'
                             if (descLower.includes('goodwe') || item.rate === 120000) {
                               activeBrand = 'goodwe'
                             } else if (descLower.includes('deye') || item.rate === 125000) {
@@ -5500,6 +5509,8 @@ export default function Home() {
                               activeBrand = 'oliter'
                             } else if (descLower.includes('alpsolar') || descLower.includes('alp solar')) {
                               activeBrand = 'alpsolar'
+                            } else if (descLower.includes('ubetter') || item.rate === 138000) {
+                              activeBrand = 'ubetter'
                             } else if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
                               activeBrand = 'genix'
                             } else if (descLower.includes('dyness') || item.rate === 43000 || item.rate === 111000) {
@@ -5541,6 +5552,10 @@ export default function Home() {
                               return { desc: 'Alpsolar 10.24kWh 200Ah Lithium Battery', rate: 70000 }
                             }
 
+                            const getUbetterData = (cap: typeof capKey) => {
+                              return { desc: 'Ubetter Battery 48V 410Ah', rate: 138000 }
+                            }
+
                             const applySelection = (newDesc: string, newRate: number) => {
                               updateItem(item.id, 'description', newDesc)
                               updateItem(item.id, 'rate', newRate)
@@ -5553,7 +5568,7 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const cap = capKey === '261kW' ? '314Ah' : capKey
+                                      const cap = (capKey === '261kW' || capKey === '410Ah') ? '314Ah' : capKey
                                       const data = getGenixData(cap)
                                       applySelection(data.desc, data.rate)
                                     }}
@@ -5571,7 +5586,7 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const cap = (capKey === '200Ah' || capKey === '261kW') ? '314Ah' : capKey
+                                      const cap = (capKey === '200Ah' || capKey === '261kW' || capKey === '410Ah') ? '314Ah' : capKey
                                       const data = getDynessData(cap)
                                       applySelection(data.desc, data.rate)
                                     }}
@@ -5589,7 +5604,7 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const cap = (capKey === '100Ah' || capKey === '200Ah') ? '314Ah' : capKey
+                                      const cap = (capKey === '100Ah' || capKey === '200Ah' || capKey === '410Ah') ? '314Ah' : capKey
                                       const data = getCescData(cap)
                                       applySelection(data.desc, data.rate)
                                     }}
@@ -5671,6 +5686,23 @@ export default function Home() {
                                     title="Alpsolar Battery"
                                   >
                                     <img src="/AlpSolarr.svg" alt="Alpsolar" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const data = getUbetterData('410Ah')
+                                      applySelection(data.desc, data.rate)
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                      activeBrand === 'ubetter'
+                                        ? "bg-emerald-500/15 border-emerald-500 ring-2 ring-emerald-500/40 shadow-sm"
+                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                    )}
+                                    title="Ubetter Battery"
+                                  >
+                                    <img src="/Ubetter.svg" alt="Ubetter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
                                   </button>
                                 </div>
 
@@ -5900,6 +5932,23 @@ export default function Home() {
                                         261kW
                                       </button>
                                     </>
+                                  )}
+
+                                  {/* Ubetter Capacities */}
+                                  {activeBrand === 'ubetter' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const data = getUbetterData('410Ah')
+                                        applySelection(data.desc, data.rate)
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                      )}
+                                      title="410Ah - ₱138,000.00"
+                                    >
+                                      410Ah
+                                    </button>
                                   )}
                                 </div>
                               </div>

@@ -135,6 +135,8 @@ export function isBatteryUnit(description: string): boolean {
     d.includes('cesc') ||
     d.includes('oliter') ||
     d.includes('alpsolar') ||
+    d.includes('ubetter') ||
+    d.includes('410ah') ||
     d.includes('314ah') ||
     d.includes('200ah') ||
     d.includes('100ah') ||
@@ -284,7 +286,7 @@ export function stripBrandName(description: string): string {
   if (!description) return ''
   let d = description.trim()
 
-  const brandRegex = /\b(Tongwei|JA\s+Solar|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC|Oliter|Alpsolar|Alp\s+Solar|AlpSolarr)\b\s*/gi
+  const brandRegex = /\b(Tongwei|JA\s+Solar|Runergy|Jinko|Gokin|Longi|Ian\s+Solar|Seraphim|Trina\s+Solar|Trina|Lesso|Solis|Anern|GoodWe|Hypontech|Solax|FoxESS|Sunways|Sungrow|Deye|Growatt|Victron|Genix\s+Green|Genix|Dyness|CESC|Oliter|Alpsolar|Alp\s+Solar|AlpSolarr|Ubetter)\b\s*/gi
 
   d = d.replace(brandRegex, '').replace(/\s{2,}/g, ' ').trim()
   return d
@@ -405,7 +407,7 @@ export function formatBrandItemDescription(description: string): string {
     !lower.includes('mccb') &&
     !lower.includes('switch')
   ) {
-    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar') || lower.includes('deye') || lower.includes('goodwe')
+    const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar') || lower.includes('deye') || lower.includes('goodwe') || lower.includes('ubetter')
     if (!hasBrand) {
       if (lower.startsWith('battery')) {
         return `Genix ${d}`
@@ -785,6 +787,7 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
   const isCescBattery = hasBattery && batteryDesc.includes('cesc')
   const isGenixBattery = hasBattery && batteryDesc.includes('genix')
   const isDynessBattery = hasBattery && (batteryDesc.includes('dyness') || batteryDesc.includes('dynes'))
+  const isUbetterBattery = hasBattery && batteryDesc.includes('ubetter')
 
   // Calculate Inverter Warranty:
   // - GoodWe: 5 Years alone, 10 Years when paired with GoodWe Battery
@@ -808,12 +811,13 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
   // - Goodwe: 10 Years when paired with GoodWe Inverter, otherwise 5 Years
   // - Genix: 5 Years
   // - Dyness: 5 Years
+  // - Ubetter: 5 Years
   let batteryCoverage = '5 Years'
   if (isDeyeBattery || isCescBattery) {
     batteryCoverage = '10 Years'
   } else if (isGoodweBattery) {
     batteryCoverage = isGoodweInverter ? '10 Years' : '5 Years'
-  } else if (isGenixBattery || isDynessBattery) {
+  } else if (isGenixBattery || isDynessBattery || isUbetterBattery) {
     batteryCoverage = '5 Years'
   } else {
     batteryCoverage = '5 Years'

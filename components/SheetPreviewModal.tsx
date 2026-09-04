@@ -126,9 +126,10 @@ const PRICELIST_DATA: PriceCategory[] = [
     id: 'bess',
     title: 'Batteries & Storage (BESS)',
     icon: Battery,
-    warranty: 'Deye: 10 Yrs | CESC: 10 Yrs | GoodWe: 5 Yrs (10 Yrs when paired with GoodWe Inverter) | Genix: 5 Yrs | Dyness: 5 Yrs',
+    warranty: 'Deye: 10 Yrs | CESC: 10 Yrs | GoodWe: 5 Yrs (10 Yrs when paired with GoodWe Inverter) | Genix: 5 Yrs | Dyness: 5 Yrs | Ubetter: 5 Yrs',
     items: [
       { code: 'DEYE-51.2V-314AH', name: 'DEYE 51.2V 314AH Lithium Battery (16.07kWh)', srp: '₱130,000', installer: '₱125,000', wholesale: '₱122,000', subdealer: '₱120,000' },
+      { code: 'UB-48V-410AH', name: 'Ubetter Battery 48V 410Ah (19.68kWh)', srp: '₱145,000', installer: '₱138,000', wholesale: '₱138,000', subdealer: '₱135,000' },
       { code: 'SOL-028', name: 'Alpsolar 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
       { code: 'SOL-029', name: 'Alpsolar 16.07kWh 314Ah Lithium Battery', srp: '₱95,000', installer: '₱93,000', wholesale: '₱93,000', subdealer: '₱89,000' },
       { code: 'SOL-030', name: 'Oliter 10.24kWh 200Ah Lithium Battery', srp: '₱72,000', installer: '₱70,000', wholesale: '₱70,000', subdealer: '₱67,000' },
