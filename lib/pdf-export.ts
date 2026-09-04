@@ -140,6 +140,217 @@ export function isIos(): boolean {
 }
 
 /**
+ * Canonical A4 pixel dimensions used across preview components
+ */
+const A4_WIDTH_PX = 794
+const A4_HEIGHT_PX = 1123
+
+/**
+ * Filter modern CSS color warnings during rasterization
+ */
+function isColorFunctionWarning(args: unknown[]): boolean {
+  try {
+    const fullMsg = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')
+    return (
+      fullMsg.includes('unsupported color') ||
+      fullMsg.includes('color function') ||
+      fullMsg.includes('"lab"') ||
+      fullMsg.includes('lab(') ||
+      fullMsg.includes('"oklch"') ||
+      fullMsg.includes('oklch(') ||
+      fullMsg.includes('color-mix')
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Synchronously prepares and stabilizes the cloned document created by html2canvas.
+ * Guarantees that:
+ * 1. Base URL is preserved for resolving assets in the about:blank iframe.
+ * 2. All CSS stylesheets from the parent document are directly inlined as <style> elements,
+ *    preventing missing styles in Next.js production builds / sandboxed iframes.
+ * 3. Relative <link rel="stylesheet"> elements in the iframe are removed so they don't trigger broken network fetches.
+ * 4. Print wrappers and pages are forced to canonical A4 dimensions (794x1123px) without scaling distortion.
+ * 5. Non-printable UI nodes (modals, dialogs, overlays) are safely stripped.
+ * 6. Critical image dimensions (e.g. logo) are hard-clamped so natural image dimensions never blow up layout.
+ * 7. Modern CSS color variables are mapped to solid fallback hex codes for robust rasterization.
+ */
+function prepareClonedDocument(clonedDoc: Document): void {
+  // 1. Reset all scroll positions so content is never cropped
+  if (clonedDoc.defaultView) {
+    try { clonedDoc.defaultView.scrollTo(0, 0) } catch {}
+  }
+  if (clonedDoc.documentElement) {
+    clonedDoc.documentElement.scrollTop = 0
+    clonedDoc.documentElement.scrollLeft = 0
+  }
+  if (clonedDoc.body) {
+    clonedDoc.body.scrollTop = 0
+    clonedDoc.body.scrollLeft = 0
+  }
+
+  // 2. Mute iframe console warnings for unsupported modern CSS color functions
+  if (clonedDoc.defaultView) {
+    clonedDoc.defaultView.console.error = (...args: unknown[]) => {
+      if (isColorFunctionWarning(args)) return
+    }
+    clonedDoc.defaultView.console.warn = (...args: unknown[]) => {
+      if (isColorFunctionWarning(args)) return
+    }
+    clonedDoc.defaultView.console.log = (...args: unknown[]) => {
+      if (isColorFunctionWarning(args)) return
+    }
+  }
+
+  // 3. Set <base> href in cloned document so any relative assets resolve against host origin
+  try {
+    let baseEl = clonedDoc.querySelector('base')
+    if (!baseEl) {
+      baseEl = clonedDoc.createElement('base')
+      if (clonedDoc.head) {
+        clonedDoc.head.insertBefore(baseEl, clonedDoc.head.firstChild)
+      }
+    }
+    baseEl.href = window.location.origin + '/'
+  } catch {}
+
+  // 4. In production Next.js, styles are served via <link rel="stylesheet"> which html2canvas
+  // fails to load inside its about:blank iframe. We extract all parsed cssRules from the host document
+  // and inline them directly into clonedDoc.head as <style> tags.
+  try {
+    const hostSheets = Array.from(document.styleSheets)
+    hostSheets.forEach((sheet) => {
+      try {
+        const rules = sheet.cssRules || (sheet as any).rules
+        if (rules && rules.length > 0) {
+          let cssText = ''
+          for (let r = 0; r < rules.length; r++) {
+            const rule = rules[r]
+            if (rule && rule.cssText) {
+              cssText += rule.cssText + '\n'
+            }
+          }
+          if (cssText.trim()) {
+            const styleEl = clonedDoc.createElement('style')
+            styleEl.textContent = cssText
+            clonedDoc.head?.appendChild(styleEl)
+          }
+        }
+      } catch {
+        // Cross-origin stylesheets (e.g. Google Fonts) throw SecurityError on cssRules access; safe to ignore
+      }
+    })
+  } catch (e) {
+    console.warn('Failed to inline stylesheets into cloned document:', e)
+  }
+
+  // 5. Remove relative/same-origin <link rel="stylesheet"> elements from clone to prevent iframe network errors
+  try {
+    const clonedLinks = clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+    clonedLinks.forEach((link) => {
+      try {
+        const href = link.getAttribute('href') || ''
+        if (href.startsWith('/') || href.startsWith('./') || href.includes(window.location.host)) {
+          link.remove()
+        }
+      } catch {}
+    })
+  } catch {}
+
+  // 6. Remove non-printable UI elements (modals, aside, toolbars, overlays) in the clone
+  const nonPrintableNodes = clonedDoc.querySelectorAll<HTMLElement>(
+    'aside, nav, [role="dialog"], .radix-dialog-overlay, [data-state="open"]:not(.print-page):not(.print-wrapper)'
+  )
+  nonPrintableNodes.forEach((node) => {
+    if (!node.contains(clonedDoc.querySelector('.print-page'))) {
+      try { node.remove() } catch {}
+    }
+  })
+
+  // 7. Reset all scale wrappers in the cloned document so content is rendered at true 794x1123px
+  const clonedWrappers = clonedDoc.querySelectorAll<HTMLElement>('.print-wrapper')
+  clonedWrappers.forEach((w) => {
+    w.style.width = `${A4_WIDTH_PX}px`
+    w.style.height = `${A4_HEIGHT_PX}px`
+    w.style.maxWidth = `${A4_WIDTH_PX}px`
+    w.style.maxHeight = `${A4_HEIGHT_PX}px`
+    w.style.transform = 'none'
+    w.style.overflow = 'visible'
+  })
+
+  // 8. Force print pages to exact canonical A4 dimensions and white background
+  const clonedPages = clonedDoc.querySelectorAll<HTMLElement>('.print-page')
+  clonedPages.forEach((p) => {
+    p.style.width = `${A4_WIDTH_PX}px`
+    p.style.height = `${A4_HEIGHT_PX}px`
+    p.style.minHeight = `${A4_HEIGHT_PX}px`
+    p.style.maxHeight = `${A4_HEIGHT_PX}px`
+    p.style.transform = 'none'
+    p.style.transformOrigin = 'top left'
+    p.style.boxShadow = 'none'
+    p.style.borderRadius = '0'
+    p.style.border = 'none'
+    p.style.backgroundColor = '#ffffff'
+    p.style.color = '#111111'
+  })
+
+  // 9. Defensively lock down logo and brand image dimensions in the cloned document so
+  // natural 1000px+ image dimensions never blow up layout under any circumstance
+  const images = clonedDoc.querySelectorAll<HTMLImageElement>('img')
+  images.forEach((img) => {
+    const src = img.getAttribute('src') || ''
+    const alt = (img.getAttribute('alt') || '').toLowerCase()
+    if (src.includes('mg.png') || alt.includes('invoice')) {
+      img.style.height = '68px'
+      img.style.maxHeight = '68px'
+      img.style.width = 'auto'
+      img.style.objectFit = 'contain'
+    } else if (src.includes('logo.svg') || alt.includes('logo')) {
+      img.style.height = '40px'
+      img.style.maxHeight = '40px'
+      img.style.width = 'auto'
+      img.style.objectFit = 'contain'
+    }
+  })
+
+  // 10. Inject fallback CSS variables and print media adjustments into clonedDoc.head
+  const resetStyle = clonedDoc.createElement('style')
+  resetStyle.textContent = `
+    :root, [data-theme], html, body, * {
+      --background: #ffffff !important;
+      --foreground: #111111 !important;
+      --card: #ffffff !important;
+      --card-foreground: #111111 !important;
+      --popover: #ffffff !important;
+      --popover-foreground: #111111 !important;
+      --primary: #111111 !important;
+      --primary-foreground: #ffffff !important;
+      --secondary: #f4f4f5 !important;
+      --secondary-foreground: #111111 !important;
+      --muted: #f4f4f5 !important;
+      --muted-foreground: #71717a !important;
+      --accent: #f4f4f5 !important;
+      --accent-foreground: #111111 !important;
+      --destructive: #ef4444 !important;
+      --destructive-foreground: #ffffff !important;
+      --border: #e4e4e7 !important;
+      --input: #e4e4e7 !important;
+      --ring: #18181b !important;
+      outline: none !important;
+      outline-color: transparent !important;
+    }
+    .print-page, .print-page * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      box-shadow: none !important;
+    }
+  `
+  clonedDoc.head?.appendChild(resetStyle)
+}
+
+/**
  * Exports the active quotation / capital / checklist preview directly to a pure A4 PDF file or Blob.
  */
 export async function exportToPdfDirect({
@@ -194,32 +405,11 @@ export async function exportToPdfDirect({
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = pdf.internal.pageSize.getHeight()
 
-    // Canonical A4 pixel dimensions used across preview components
-    const A4_WIDTH_PX = 794
-    const A4_HEIGHT_PX = 1123
-
     // Global logger filters during PDF rasterization to prevent noisy parser warnings
     const origWarn = console.warn
     const origError = console.error
     const origLog = console.log
     const origInfo = console.info
-
-    const isColorFunctionWarning = (args: unknown[]) => {
-      try {
-        const fullMsg = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')
-        return (
-          fullMsg.includes('unsupported color') ||
-          fullMsg.includes('color function') ||
-          fullMsg.includes('"lab"') ||
-          fullMsg.includes('lab(') ||
-          fullMsg.includes('"oklch"') ||
-          fullMsg.includes('oklch(') ||
-          fullMsg.includes('color-mix')
-        )
-      } catch {
-        return false
-      }
-    }
 
     console.warn = (...args: unknown[]) => {
       if (isColorFunctionWarning(args)) return
@@ -239,6 +429,12 @@ export async function exportToPdfDirect({
     }
 
     try {
+      if (typeof document !== 'undefined' && (document as any).fonts && (document as any).fonts.ready) {
+        try {
+          await (document as any).fonts.ready
+        } catch {}
+      }
+
       for (let i = 0; i < totalPages; i++) {
         const pageEl = targetPages[i]
         onProgress?.(`Rendering page ${i + 1} of ${totalPages}...`)
@@ -260,193 +456,7 @@ export async function exportToPdfDirect({
           logging: false,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
-            // Reset all scroll positions to ensure top and bottom are never cropped
-            if (clonedDoc.defaultView) {
-              try { clonedDoc.defaultView.scrollTo(0, 0) } catch {}
-            }
-            if (clonedDoc.documentElement) {
-              clonedDoc.documentElement.scrollTop = 0
-              clonedDoc.documentElement.scrollLeft = 0
-            }
-            if (clonedDoc.body) {
-              clonedDoc.body.scrollTop = 0
-              clonedDoc.body.scrollLeft = 0
-            }
-
-            // Mute iframe console warnings for unsupported modern CSS color functions
-            if (clonedDoc.defaultView) {
-              clonedDoc.defaultView.console.error = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origError(...args)
-              }
-              clonedDoc.defaultView.console.warn = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origWarn(...args)
-              }
-              clonedDoc.defaultView.console.log = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origLog(...args)
-              }
-
-              // Intercept window.getComputedStyle to completely neutralize lab(), oklch(), color-mix()
-              if (typeof clonedDoc.defaultView.getComputedStyle === 'function') {
-                const origGetComputedStyle = clonedDoc.defaultView.getComputedStyle.bind(clonedDoc.defaultView)
-                
-                const sanitizeColorValue = (val: string, propKey: string = ''): string => {
-                  if (!val || typeof val !== 'string') return val
-                  if (
-                    val.includes('lab(') ||
-                    val.includes('oklch(') ||
-                    val.includes('oklab(') ||
-                    val.includes('lch(') ||
-                    val.includes('color(') ||
-                    val.includes('color-mix(')
-                  ) {
-                    const lowerKey = propKey.toLowerCase()
-                    if (lowerKey.includes('background') || lowerKey.includes('bg')) {
-                      return 'rgba(0, 0, 0, 0)'
-                    }
-                    if (lowerKey.includes('border') || lowerKey.includes('outline')) {
-                      return 'rgb(229, 231, 235)'
-                    }
-                    if (lowerKey.includes('shadow')) {
-                      return 'none'
-                    }
-                    return 'rgb(17, 17, 17)'
-                  }
-                  return val
-                }
-
-                clonedDoc.defaultView.getComputedStyle = function(el: Element, pseudo?: string | null) {
-                  const style = origGetComputedStyle(el, pseudo)
-                  return new Proxy(style, {
-                    get(target, prop: string | symbol) {
-                      const val = (target as any)[prop]
-                      if (typeof val === 'string') {
-                        return sanitizeColorValue(val, typeof prop === 'string' ? prop : '')
-                      }
-                      if (typeof val === 'function') {
-                        if (prop === 'getPropertyValue') {
-                          return function(propertyName: string) {
-                            const res = target.getPropertyValue(propertyName)
-                            return sanitizeColorValue(res, propertyName)
-                          }
-                        }
-                        return val.bind(target)
-                      }
-                      return val
-                    }
-                  })
-                }
-              }
-            }
-
-            // Remove non-printable UI elements (modals, aside, toolbars) in the clone
-            const nonPrintableNodes = clonedDoc.querySelectorAll<HTMLElement>(
-              'aside, nav, [role="dialog"], .radix-dialog-overlay, [data-state="open"]:not(.print-page):not(.print-wrapper)'
-            )
-            nonPrintableNodes.forEach((node) => {
-              if (!node.contains(clonedDoc.querySelector('.print-page'))) {
-                try {
-                  node.remove()
-                } catch {}
-              }
-            })
-
-            // Reset all scale wrappers in the cloned document so content is rendered at true 794x1123px
-            const clonedWrappers = clonedDoc.querySelectorAll<HTMLElement>('.print-wrapper')
-            clonedWrappers.forEach((w) => {
-              w.style.width = `${A4_WIDTH_PX}px`
-              w.style.height = `${A4_HEIGHT_PX}px`
-              w.style.maxWidth = `${A4_WIDTH_PX}px`
-              w.style.maxHeight = `${A4_HEIGHT_PX}px`
-              w.style.transform = 'none'
-              w.style.overflow = 'visible'
-            })
-
-            const clonedPages = clonedDoc.querySelectorAll<HTMLElement>('.print-page')
-            clonedPages.forEach((p) => {
-              p.style.width = `${A4_WIDTH_PX}px`
-              p.style.height = `${A4_HEIGHT_PX}px`
-              p.style.minHeight = `${A4_HEIGHT_PX}px`
-              p.style.maxHeight = `${A4_HEIGHT_PX}px`
-              p.style.transform = 'none'
-              p.style.transformOrigin = 'top left'
-              p.style.boxShadow = 'none'
-              p.style.borderRadius = '0'
-              p.style.border = 'none'
-              p.style.backgroundColor = '#ffffff'
-              p.style.color = '#111111'
-            })
-
-            // Sanitize all style tags in the cloned document to eliminate lab/oklch/lch/color-mix functions
-            const styleTags = clonedDoc.querySelectorAll('style')
-            styleTags.forEach((st) => {
-              if (st.textContent) {
-                st.textContent = st.textContent
-                  .replace(/lab\([^)]*\)/gi, '#111111')
-                  .replace(/oklch\([^)]*\)/gi, '#111111')
-                  .replace(/oklab\([^)]*\)/gi, '#111111')
-                  .replace(/lch\([^)]*\)/gi, '#111111')
-                  .replace(/color-mix\([^)]*\)/gi, '#111111')
-              }
-            })
-
-            // Sanitize stylesheets and elements inside the clone that might have modern color functions (lab, oklch, color-mix)
-            const resetStyle = clonedDoc.createElement('style')
-            resetStyle.textContent = `
-              :root, [data-theme], html, body, * {
-                --background: #ffffff !important;
-                --foreground: #111111 !important;
-                --card: #ffffff !important;
-                --card-foreground: #111111 !important;
-                --popover: #ffffff !important;
-                --popover-foreground: #111111 !important;
-                --primary: #111111 !important;
-                --primary-foreground: #ffffff !important;
-                --secondary: #f4f4f5 !important;
-                --secondary-foreground: #111111 !important;
-                --muted: #f4f4f5 !important;
-                --muted-foreground: #71717a !important;
-                --accent: #f4f4f5 !important;
-                --accent-foreground: #111111 !important;
-                --destructive: #ef4444 !important;
-                --destructive-foreground: #ffffff !important;
-                --border: #e4e4e7 !important;
-                --input: #e4e4e7 !important;
-                --ring: #18181b !important;
-                outline: none !important;
-                outline-color: transparent !important;
-              }
-              .print-page, .print-page * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                box-shadow: none !important;
-              }
-            `
-            clonedDoc.head?.appendChild(resetStyle)
-
-            const allElements = clonedDoc.querySelectorAll<HTMLElement>('*')
-            allElements.forEach((el) => {
-              const style = el.style
-              if (style) {
-                if (style.color && (style.color.includes('lab') || style.color.includes('oklch') || style.color.includes('color(') || style.color.includes('color-mix') || style.color.includes('lch'))) {
-                  style.color = '#111111'
-                }
-                if (style.backgroundColor && (style.backgroundColor.includes('lab') || style.backgroundColor.includes('oklch') || style.backgroundColor.includes('color(') || style.backgroundColor.includes('color-mix') || style.backgroundColor.includes('lch'))) {
-                  style.backgroundColor = 'transparent'
-                }
-                if (style.borderColor && (style.borderColor.includes('lab') || style.borderColor.includes('oklch') || style.borderColor.includes('color(') || style.borderColor.includes('color-mix') || style.borderColor.includes('lch'))) {
-                  style.borderColor = '#e5e7eb'
-                }
-                if (style.outlineColor && (style.outlineColor.includes('lab') || style.outlineColor.includes('oklch') || style.outlineColor.includes('color(') || style.outlineColor.includes('color-mix') || style.outlineColor.includes('lch'))) {
-                  style.outlineColor = 'transparent'
-                }
-                if (style.boxShadow && (style.boxShadow.includes('lab') || style.boxShadow.includes('oklch') || style.boxShadow.includes('color(') || style.boxShadow.includes('lch'))) {
-                  style.boxShadow = 'none'
-                }
-              }
-            })
+            prepareClonedDocument(clonedDoc)
           },
         })
 
@@ -616,184 +626,7 @@ export async function exportToPngDirect({
           logging: false,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
-            if (clonedDoc.defaultView) {
-              try { clonedDoc.defaultView.scrollTo(0, 0) } catch {}
-            }
-            if (clonedDoc.documentElement) {
-              clonedDoc.documentElement.scrollTop = 0
-              clonedDoc.documentElement.scrollLeft = 0
-            }
-            if (clonedDoc.body) {
-              clonedDoc.body.scrollTop = 0
-              clonedDoc.body.scrollLeft = 0
-            }
-
-            if (clonedDoc.defaultView) {
-              clonedDoc.defaultView.console.error = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origError(...args)
-              }
-              clonedDoc.defaultView.console.warn = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origWarn(...args)
-              }
-              clonedDoc.defaultView.console.log = (...args: unknown[]) => {
-                if (isColorFunctionWarning(args)) return
-                origLog(...args)
-              }
-
-              if (typeof clonedDoc.defaultView.getComputedStyle === 'function') {
-                const origGetComputedStyle = clonedDoc.defaultView.getComputedStyle.bind(clonedDoc.defaultView)
-                
-                const sanitizeColorValue = (val: string, propKey: string = ''): string => {
-                  if (!val || typeof val !== 'string') return val
-                  if (
-                    val.includes('lab(') ||
-                    val.includes('oklch(') ||
-                    val.includes('oklab(') ||
-                    val.includes('lch(') ||
-                    val.includes('color(') ||
-                    val.includes('color-mix(')
-                  ) {
-                    const lowerKey = propKey.toLowerCase()
-                    if (lowerKey.includes('background') || lowerKey.includes('bg')) {
-                      return 'rgba(0, 0, 0, 0)'
-                    }
-                    if (lowerKey.includes('border') || lowerKey.includes('outline')) {
-                      return 'rgb(229, 231, 235)'
-                    }
-                    if (lowerKey.includes('shadow')) {
-                      return 'none'
-                    }
-                    return 'rgb(17, 17, 17)'
-                  }
-                  return val
-                }
-
-                clonedDoc.defaultView.getComputedStyle = function(el: Element, pseudo?: string | null) {
-                  const style = origGetComputedStyle(el, pseudo)
-                  return new Proxy(style, {
-                    get(target, prop: string | symbol) {
-                      const val = (target as any)[prop]
-                      if (typeof val === 'string') {
-                        return sanitizeColorValue(val, typeof prop === 'string' ? prop : '')
-                      }
-                      if (typeof val === 'function') {
-                        if (prop === 'getPropertyValue') {
-                          return function(propertyName: string) {
-                            const res = target.getPropertyValue(propertyName)
-                            return sanitizeColorValue(res, propertyName)
-                          }
-                        }
-                        return val.bind(target)
-                      }
-                      return val
-                    }
-                  })
-                }
-              }
-            }
-
-            const nonPrintableNodes = clonedDoc.querySelectorAll<HTMLElement>(
-              'aside, nav, [role="dialog"], .radix-dialog-overlay, [data-state="open"]:not(.print-page):not(.print-wrapper)'
-            )
-            nonPrintableNodes.forEach((node) => {
-              if (!node.contains(clonedDoc.querySelector('.print-page'))) {
-                try { node.remove() } catch {}
-              }
-            })
-
-            const clonedWrappers = clonedDoc.querySelectorAll<HTMLElement>('.print-wrapper')
-            clonedWrappers.forEach((w) => {
-              w.style.width = `${A4_WIDTH_PX}px`
-              w.style.height = `${A4_HEIGHT_PX}px`
-              w.style.maxWidth = `${A4_WIDTH_PX}px`
-              w.style.maxHeight = `${A4_HEIGHT_PX}px`
-              w.style.transform = 'none'
-              w.style.overflow = 'visible'
-            })
-
-            const clonedPages = clonedDoc.querySelectorAll<HTMLElement>('.print-page')
-            clonedPages.forEach((p) => {
-              p.style.width = `${A4_WIDTH_PX}px`
-              p.style.height = `${A4_HEIGHT_PX}px`
-              p.style.minHeight = `${A4_HEIGHT_PX}px`
-              p.style.maxHeight = `${A4_HEIGHT_PX}px`
-              p.style.transform = 'none'
-              p.style.transformOrigin = 'top left'
-              p.style.boxShadow = 'none'
-              p.style.borderRadius = '0'
-              p.style.border = 'none'
-              p.style.backgroundColor = '#ffffff'
-              p.style.color = '#111111'
-            })
-
-            const styleTags = clonedDoc.querySelectorAll('style')
-            styleTags.forEach((st) => {
-              if (st.textContent) {
-                st.textContent = st.textContent
-                  .replace(/lab\([^)]*\)/gi, '#111111')
-                  .replace(/oklch\([^)]*\)/gi, '#111111')
-                  .replace(/oklab\([^)]*\)/gi, '#111111')
-                  .replace(/lch\([^)]*\)/gi, '#111111')
-                  .replace(/color-mix\([^)]*\)/gi, '#111111')
-              }
-            })
-
-            const resetStyle = clonedDoc.createElement('style')
-            resetStyle.textContent = `
-              :root, [data-theme], html, body, * {
-                --background: #ffffff !important;
-                --foreground: #111111 !important;
-                --card: #ffffff !important;
-                --card-foreground: #111111 !important;
-                --popover: #ffffff !important;
-                --popover-foreground: #111111 !important;
-                --primary: #111111 !important;
-                --primary-foreground: #ffffff !important;
-                --secondary: #f4f4f5 !important;
-                --secondary-foreground: #111111 !important;
-                --muted: #f4f4f5 !important;
-                --muted-foreground: #71717a !important;
-                --accent: #f4f4f5 !important;
-                --accent-foreground: #111111 !important;
-                --destructive: #ef4444 !important;
-                --destructive-foreground: #ffffff !important;
-                --border: #e4e4e7 !important;
-                --input: #e4e4e7 !important;
-                --ring: #18181b !important;
-                outline: none !important;
-                outline-color: transparent !important;
-              }
-              .print-page, .print-page * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                box-shadow: none !important;
-              }
-            `
-            clonedDoc.head?.appendChild(resetStyle)
-
-            const allElements = clonedDoc.querySelectorAll<HTMLElement>('*')
-            allElements.forEach((el) => {
-              const style = el.style
-              if (style) {
-                if (style.color && (style.color.includes('lab') || style.color.includes('oklch') || style.color.includes('color(') || style.color.includes('color-mix') || style.color.includes('lch'))) {
-                  style.color = '#111111'
-                }
-                if (style.backgroundColor && (style.backgroundColor.includes('lab') || style.backgroundColor.includes('oklch') || style.backgroundColor.includes('color(') || style.backgroundColor.includes('color-mix') || style.backgroundColor.includes('lch'))) {
-                  style.backgroundColor = 'transparent'
-                }
-                if (style.borderColor && (style.borderColor.includes('lab') || style.borderColor.includes('oklch') || style.borderColor.includes('color(') || style.borderColor.includes('color-mix') || style.borderColor.includes('lch'))) {
-                  style.borderColor = '#e5e7eb'
-                }
-                if (style.outlineColor && (style.outlineColor.includes('lab') || style.outlineColor.includes('oklch') || style.outlineColor.includes('color(') || style.outlineColor.includes('color-mix') || style.outlineColor.includes('lch'))) {
-                  style.outlineColor = 'transparent'
-                }
-                if (style.boxShadow && (style.boxShadow.includes('lab') || style.boxShadow.includes('oklch') || style.boxShadow.includes('color(') || style.boxShadow.includes('lch'))) {
-                  style.boxShadow = 'none'
-                }
-              }
-            })
+            prepareClonedDocument(clonedDoc)
           },
         })
 

@@ -348,6 +348,8 @@ export function MGChecklistPreview({
                       <img 
                         src="/logo.svg" 
                         alt="MG Solar Logo" 
+                        height={40}
+                        style={{ height: '40px', width: 'auto', maxHeight: '40px' }}
                         className="h-10 w-auto object-contain mb-1"
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                       />

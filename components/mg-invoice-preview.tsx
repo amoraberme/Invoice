@@ -501,6 +501,8 @@ export function MGInvoicePreview({
                       <img
                         src="/mg.png"
                         alt="INVOICE"
+                        height={68}
+                        style={{ height: '68px', width: 'auto', maxHeight: '68px' }}
                         className="w-auto object-contain h-[68px] mb-0.5"
                       />
                       <p className="font-medium tracking-tight text-[#888888] text-[11px] mt-0.5">

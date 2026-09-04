@@ -3,6 +3,7 @@ const path = require('path')
 
 function patchFile(filePath) {
   if (!fs.existsSync(filePath)) return
+  if (filePath.endsWith('.map') || filePath.endsWith('.d.ts')) return
   let content = fs.readFileSync(filePath, 'utf8')
   let modified = false
 
@@ -37,7 +38,7 @@ function findAndPatch(dir) {
       const fullPath = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         findAndPatch(fullPath)
-      } else if (entry.isFile() && (entry.name.includes('html2canvas') || entry.name === 'color.js')) {
+      } else if (entry.isFile() && entry.name.endsWith('.js') && (entry.name.includes('html2canvas') || entry.name === 'color.js')) {
         patchFile(fullPath)
       }
     }
