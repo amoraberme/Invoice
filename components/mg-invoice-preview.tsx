@@ -683,7 +683,7 @@ export function MGInvoicePreview({
                           {showCapital && !invoice.isCondensed ? (
                             /* Capital Expanded View: Original (Base/Capital) + Selling (Marked up) columns */
                             <>
-                              <div className="flex py-2 border-b-[1.5px] border-[#111111] items-center text-[10px] font-semibold text-[#111111] tracking-[0.05em] uppercase">
+                              <div className="flex py-2 border-b-[1.5px] border-[#111111] items-center text-[10px] font-semibold text-[#111111] tracking-[0.05em] uppercase px-1">
                                 <span className="flex-1">
                                   Description
                                 </span>
@@ -823,52 +823,98 @@ export function MGInvoicePreview({
                 {/* Totals + Bank Details (directly below items) */}
                 {page.showTotals && (
                   <>
-                    <div className={cn(
-                      "flex flex-col items-end print:break-inside-avoid pr-1",
-                      invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
-                    )}>
-                      <div className="flex gap-8 items-center">
-                        <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
-                        <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
-                          {formatCurrency(subtotal, invoice.currency)}
-                        </span>
-                      </div>
-                      {discount > 0 && (
-                        <div className="flex gap-8 items-center">
-                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
-                          <span className={cn("font-semibold text-emerald-600 w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
-                            - {formatCurrency(discount, invoice.currency)}
+                    {showCapital && !invoice.isCondensed ? (
+                      <div className="flex flex-col items-end print:break-inside-avoid w-full gap-2 mb-4 mt-3 px-1">
+                        <div className="flex items-center w-full">
+                          <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">Standard Price</span>
+                          <span className="w-24 shrink-0 text-right pr-1 font-mono font-medium text-[#111111] text-[12px]">
+                            {formatCurrency(subtotal, invoice.currency)}
                           </span>
                         </div>
-                      )}
-                      <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
-                        <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>VAT {invoice.vatRate || 0}%</span>
-                        <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
-                          {formatCurrency(vat, invoice.currency)}
-                        </span>
-                      </div>
-                      <div className={cn("bg-[#E5E5E5]", invoice.isCondensed ? "w-48 h-px" : "w-52 h-px")} />
-                      <div className="flex gap-8 items-center">
-                        <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
-                          {showCapital 
-                            ? `Final Total Price ${(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}`
-                            : (invoice.isCondensed ? 'Final Total Price' : 'Total')}
-                        </span>
-                        <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
-                          {formatCurrency(total, invoice.currency)}
-                        </span>
-                      </div>
-                      {showCapital && (
-                        <div className="flex gap-8 items-center">
-                          <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                        {discount > 0 && (
+                          <div className="flex items-center w-full">
+                            <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">Discount Amount</span>
+                            <span className="w-24 shrink-0 text-right pr-1 font-mono font-semibold text-emerald-600 text-[12px]">
+                              - {formatCurrency(discount, invoice.currency)}
+                            </span>
+                          </div>
+                        )}
+                        <div className={cn("flex items-center w-full", getHighlightClass('vatRate'))}>
+                          <span className="flex-1 text-right text-[#888888] pr-3 text-[12px]">VAT {invoice.vatRate || 0}%</span>
+                          <span className="w-24 shrink-0 text-right pr-1 font-mono font-medium text-[#111111] text-[12px]">
+                            {formatCurrency(vat, invoice.currency)}
+                          </span>
+                        </div>
+                        <div className="flex justify-end w-full my-1">
+                          <div className="w-[272px] bg-[#E5E5E5] h-px" />
+                        </div>
+                        <div className="flex items-center w-full">
+                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[15px] tracking-tight">
+                            Final Total Price {(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}
+                          </span>
+                          <span className="w-24 shrink-0 text-right pr-1 font-bold text-[#111111] font-mono text-[20px] tracking-tight">
+                            {formatCurrency(total, invoice.currency)}
+                          </span>
+                        </div>
+                        <div className="flex items-center w-full">
+                          <span className="flex-1 text-right font-bold text-[#111111] pr-3 text-[15px] tracking-tight">
                             Capital
                           </span>
-                          <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                          <span className="w-22 shrink-0 text-right px-1 font-bold text-[#111111] font-mono text-[18px] tracking-tight">
                             {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
                           </span>
+                          <span className="w-22 shrink-0" />
+                          <span className="w-24 shrink-0 pr-1" />
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className={cn(
+                        "flex flex-col items-end print:break-inside-avoid pr-1",
+                        invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
+                      )}>
+                        <div className="flex gap-8 items-center">
+                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
+                          <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                            {formatCurrency(subtotal, invoice.currency)}
+                          </span>
+                        </div>
+                        {discount > 0 && (
+                          <div className="flex gap-8 items-center">
+                            <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
+                            <span className={cn("font-semibold text-emerald-600 w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                              - {formatCurrency(discount, invoice.currency)}
+                            </span>
+                          </div>
+                        )}
+                        <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
+                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>VAT {invoice.vatRate || 0}%</span>
+                          <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                            {formatCurrency(vat, invoice.currency)}
+                          </span>
+                        </div>
+                        <div className={cn("bg-[#E5E5E5]", invoice.isCondensed ? "w-48 h-px" : "w-52 h-px")} />
+                        <div className="flex gap-8 items-center">
+                          <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                            {showCapital 
+                              ? `Final Total Price ${(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}`
+                              : (invoice.isCondensed ? 'Final Total Price' : 'Total')}
+                          </span>
+                          <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                            {formatCurrency(total, invoice.currency)}
+                          </span>
+                        </div>
+                        {showCapital && (
+                          <div className="flex gap-8 items-center">
+                            <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                              Capital
+                            </span>
+                            <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                              {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 
