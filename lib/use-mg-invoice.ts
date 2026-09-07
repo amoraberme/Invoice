@@ -48,7 +48,15 @@ export function useMGInvoice() {
               let cov = w?.coverage && w.coverage !== 'undefined' ? String(w.coverage) : ''
               const comp = w?.component && w.component !== 'undefined' ? String(w.component) : ''
               const wType = w?.warrantyType && w.warrantyType !== 'undefined' ? String(w.warrantyType) : 'Manufacturer Warranty'
-              if (cov === '1 Year' && (comp.toLowerCase().includes('full system') || wType.toLowerCase().includes('workmanship'))) {
+              const compLower = comp.toLowerCase()
+              const wTypeLower = wType.toLowerCase()
+              const isWorkmanship = compLower.includes('full system') || 
+                                    wTypeLower.includes('workmanship') || 
+                                    wTypeLower.includes('installation') ||
+                                    w?.id === 'w-4'
+              const cleanCov = cov.trim().toLowerCase()
+              const isOneYear = cleanCov === '1 year' || cleanCov === '1 yr' || cleanCov === '1-year' || cleanCov === '1' || cleanCov === '1 years' || /^1\s*(year|yr)?s?$/i.test(cleanCov)
+              if (isWorkmanship && (isOneYear || !cov || cleanCov === '1 year')) {
                 cov = '2 Years'
               }
               return {
