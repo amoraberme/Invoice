@@ -149,9 +149,12 @@ export function isBatteryUnit(description: string): boolean {
 export function isBatteryItem(description: string): boolean {
   const d = (description || '').toLowerCase()
   if (isBatteryUnit(d)) return true
+  // Never treat AC MCCB / AC MCB as a battery item
+  if (d.includes('ac mccb') || d.includes('ac mcb')) return false
   return (
     d.includes('battery') ||
-    d.includes('mccb')
+    d.includes('dc mccb') ||
+    d.includes('mccb for battery')
   )
 }
 

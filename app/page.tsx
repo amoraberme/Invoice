@@ -493,17 +493,17 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
 
         let targetDesc = 'AC Wire #6'
         let targetRate = 99.34
-        let targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
+        let targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
 
         if (isExplicit8 || (seenAcWire6 && !seenAcWire8)) {
           targetDesc = 'AC Wire #8'
           targetRate = 60.04
-          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
+          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
           seenAcWire8 = true
         } else {
           targetDesc = 'AC Wire #6'
           targetRate = 99.34
-          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
+          targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
           seenAcWire6 = true
         }
 
@@ -672,7 +672,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   if (inverterKw >= 10) {
     const hasAc6 = items.some(it => it.description.toLowerCase().includes('ac wire #6'))
     const hasAc8 = items.some(it => it.description.toLowerCase().includes('ac wire #8'))
-    const acWireTargetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
+    const acWireTargetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
 
     if (!hasAc6 && panelQty > 0) {
       changed = true
@@ -2250,6 +2250,7 @@ export default function Home() {
   const prevPricePerWattRef = useRef<number | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
+  const savedRateMarkupRef = useRef<number | null>(null)
 
   // History Cache State
   const [historyList, setHistoryList] = useState<InvoiceHistoryItem[]>([])
@@ -2359,10 +2360,12 @@ export default function Home() {
         const currentLaborItems = invoice.lineItems.filter((item) => isLaborItem(item.description))
         savedLaborItemsRef.current = currentLaborItems
         savedSubjectRef.current = invoice.subject
+        savedRateMarkupRef.current = invoice.rateMarkup ?? 30
 
         const remainingItems = invoice.lineItems.filter((item) => !isLaborItem(item.description))
         setInvoice((p) => ({
           ...p,
+          rateMarkup: 10,
           subject: 'Supply of Solar System Materials',
           salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the Supply of Solar System Materials based on your requirement.',
           lineItems: remainingItems,
@@ -2371,12 +2374,14 @@ export default function Home() {
         const laborToRestore = savedLaborItemsRef.current
         const subjectToRestore = savedSubjectRef.current
         const restoredSubject = subjectToRestore !== null ? subjectToRestore : invoice.subject
+        const markupToRestore = savedRateMarkupRef.current !== null ? savedRateMarkupRef.current : 30
 
         setInvoice((p) => {
           const currentNonLabor = p.lineItems.filter((item) => !isLaborItem(item.description))
           const combined = [...currentNonLabor, ...laborToRestore]
           return {
             ...p,
+            rateMarkup: markupToRestore,
             subject: restoredSubject,
             salutation: `Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the ${restoredSubject} based on your requirement.`,
             lineItems: combined,
@@ -2746,7 +2751,7 @@ export default function Home() {
       return d.includes('on-grid') || d.includes('grid-tied') || d.includes('grid-tie') || d.includes('ongrid')
     })
     const hasBattery = (invoice.lineItems || []).some(it => isBatteryUnit(it.description))
-    const isOngrid = invoice.excludeBattery || (hasOnGridInverter && !hasBattery)
+    const isOngrid = hasOnGridInverter && !hasBattery
     const detectedType: 'hybrid' | 'ongrid' = isOngrid ? 'ongrid' : 'hybrid'
 
     let detectedKw = 5
@@ -3288,9 +3293,9 @@ export default function Home() {
       unit: conduitDetails.unit
     })
 
-    // 8. AC Wire (Old 8197ea9: 50m #6 + 50m #8; New 20kW: 120m #6 + 120m #8; 10k-16k: 60m #6 + 60m #8)
+    // 8. AC Wire (Old 8197ea9: 50m #6 + 50m #8; New 20kW: 120m #6 + 120m #8; 12k-16k: 100m #6 + 100m #8; 10k: 60m #6 + 60m #8)
     if (inverterKw >= 10) {
-      const acWireMeters = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : 60)
+      const acWireMeters = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
       items.push({
         id: `boq-8-ac6-${now}`,
         description: 'AC Wire #6',

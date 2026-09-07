@@ -16,7 +16,7 @@ This document details all hardcoded prices, component rates, brand-specific tier
 | **Breaker Box / Enclosure** | 50x40 (₱1,500) | 50x40 (₱1,500) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 2x 50x60 (₱3,000 ea) |
 | **AC Main Breakers** | 2x MCB 80A (₱450) | 2x MCB 80A (₱450) | 2x MCB 100A (₱500) | 2x MCB 100A (₱500) | 2x MCB 125A (₱500) | 4x MCCB (₱1,300) | 4x MCCB (₱1,300) | AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300 | 8x AC MCCB (₱1,300 ea) |
 | **Automatic Transfer Switch** | 63A (₱1,500) | 63A (₱1,500) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱4,000) | 125A (₱4,000) | 125A (₱4,000) | 2x 125A (₱4,000 ea) |
-| **AC Wire Gauge & Length** | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC 6mm² (60m) | #6 (60m) + #8 (60m) | #6 (60m) + #8 (60m) | #6 (60m) + #8 (60m) | #6 (120m) + #8 (120m) |
+| **AC Wire Gauge & Length** | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC 6mm² (60m) | #6 (60m) + #8 (60m) | #6 (100m) + #8 (100m) | #6 (100m) + #8 (100m) | #6 (120m) + #8 (120m) |
 | **DC Wire Gauge & Length** | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC 6mm² (60m) | DC Wire (80m) | DC Wire (80m) | DC Wire (80m) | DC Wire (160m) |
 | **DC MCB String Protection** | 2 pcs (₱420) | 2 pcs (₱420) | 2 pcs (₱420) | 2 pcs (₱420) | 2 pcs (₱420) | 2 pcs (₱420) | 3 pcs (₱420) | 3 pcs (₱420) | 4 pcs (₱420) |
 | **DC SPD Surge Protection** | 2 pcs (₱790) | 2 pcs (₱790) | 2 pcs (₱790) | 2 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 6 pcs (₱790) |
