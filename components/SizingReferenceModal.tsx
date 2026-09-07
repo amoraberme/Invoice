@@ -313,46 +313,12 @@ export function SizingReferenceModal({
                   <DialogTitle className="text-base sm:text-lg font-bold text-foreground tracking-tight">
                     Electric Bill & Sizing Reference
                   </DialogTitle>
-                  <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                    <Sparkles size={10} /> Temp Ref v2
-                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Commercial packages, DC/AC capacities, monthly targets, derived electric bill, and solar offset matrix.
+                  Standard commercial packages, DC/AC capacities, monthly targets, derived electric bill, and solar offset matrix.
                 </p>
               </div>
             </div>
-
-            {/* Version Switcher if provided */}
-            {onToggleVersion && (
-              <div className="flex items-center gap-1.5 bg-secondary/80 p-1 rounded-[10px] border border-border">
-                <span className="text-[10px] font-medium text-muted-foreground px-1.5">Version:</span>
-                <button
-                  type="button"
-                  onClick={() => onToggleVersion('v1')}
-                  className={cn(
-                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
-                    currentRefVersion === 'v1'
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Ref v1 (Classic)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onToggleVersion('v2')}
-                  className={cn(
-                    "px-2.5 py-1 text-[10px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
-                    currentRefVersion === 'v2'
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  ⚡ Ref v2 (Temp Matrix)
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Search & Phase Filters */}

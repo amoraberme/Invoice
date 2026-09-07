@@ -41,7 +41,7 @@ The system supports toggling between two distinct 20kW architectures via the 20k
 
 | Component Parameter | New 20kW Hybrid (10kW × 2 Parallel) | Old 20kW Hybrid (Commit `8197ea9` Single Inverter) |
 | :--- | :--- | :--- |
-| **Inverter** | 2x 10kW Hybrid Inverters (Parallel) | 1x 20kW Hybrid Inverter (Solis @ ₱97,000 / Deye @ ₱80,000) |
+| **Inverter** | 2x 10kW Hybrid Inverters (Parallel) | 1x GoodWe 20kW Hybrid Inverter (3-Phase LV @ ₱160,000) |
 | **Battery Storage** | 2x CESC 51.2V 314Ah (₱88,000 each = ₱176,000) | 1x CESC 51.2V 314Ah (₱88,000) |
 | **Breaker Box / Enclosure** | 2x 50x60 Enclosures (₱3,000 each = ₱6,000) | 1x 50x60 Enclosure (₱3,000) |
 | **AC MCCB Breakers** | 8x AC MCCB @ ₱1,300 each | 4x AC MCCB @ ₱850 each |

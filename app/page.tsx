@@ -1270,7 +1270,7 @@ const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; 
   12: { anern: 32500, solis: 79000, goodwe: 78000 },
   16: { anern: 45000, solis: 92000, goodwe: 150000 },
   18: { anern: 55000, solis: 97000, goodwe: 150000 },
-  20: { anern: 65000, solis: 97000, goodwe: 150000 },
+  20: { anern: 65000, solis: 0, goodwe: 160000 },
   30: { anern: 95000, solis: 226000, goodwe: 140000 },
   50: { anern: 160000, solis: 288000, goodwe: 170000 },
   60: { anern: 200000, solis: 458000, goodwe: 220000 },
@@ -1430,6 +1430,7 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
     name: 'Solis',
     logo: '/solis.svg',
     getPrice: (kw: number) => {
+      if (kw === 20) return null
       const prices = getInverterBrandPrices(kw)
       return prices.solis
     }
@@ -2554,10 +2555,11 @@ export default function Home() {
           }
         } else {
           const brandPrices = getInverterBrandPrices(unitKw)
+          const is20KwSingle = unitKw === 20
           return {
             ...item,
-            description: `Solis Inverter ${unitKw}kW Hybrid`,
-            rate: brandPrices.solis
+            description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `Solis Inverter ${unitKw}kW Hybrid`,
+            rate: is20KwSingle ? brandPrices.goodwe : brandPrices.solis
           }
         }
       }
@@ -3136,9 +3138,15 @@ export default function Home() {
         inverterPrice = brandPrices.solis
       }
     } else {
-      const brandPrices = getInverterBrandPrices(inverterKw)
-      inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
-      inverterPrice = brandPrices.solis
+      if (inverterKw === 20) {
+        const brandPrices = getInverterBrandPrices(20)
+        inverterDesc = `GoodWe Inverter 20kW Hybrid (3-Phase LV)`
+        inverterPrice = brandPrices.goodwe || 160000
+      } else {
+        const brandPrices = getInverterBrandPrices(inverterKw)
+        inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
+        inverterPrice = brandPrices.solis
+      }
     }
 
     // 1. Solar Panels
@@ -4348,44 +4356,6 @@ export default function Home() {
                           Electric Bill & Sizing Reference
                         </h4>
                       </div>
-
-                      {/* Reference Version Switcher */}
-                      <div className="flex gap-0.5 bg-secondary/80 p-0.5 rounded-[8px] border border-border">
-                        <button
-                          type="button"
-                          onClick={() => setSizingRefVersion('v1')}
-                          className={cn(
-                            "px-2 py-0.5 text-[9px] font-bold rounded-[6px] transition-all cursor-pointer select-none",
-                            sizingRefVersion === 'v1'
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                          title="Switch to Ref v1 (Classic price thresholds)"
-                        >
-                          Ref v1
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSizingRefVersion('v2')}
-                          className={cn(
-                            "px-2 py-0.5 text-[9px] font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1",
-                            sizingRefVersion === 'v2'
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                          title="Switch to Ref v2 (Commercial Packages, Module count, Derived bill range & offsets)"
-                        >
-                          <span>⚡ Ref v2</span>
-                          <span className={cn(
-                            "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold",
-                            sizingRefVersion === 'v2'
-                              ? "bg-amber-400/30 text-amber-100"
-                              : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
-                          )}>
-                            Temp
-                          </span>
-                        </button>
-                      </div>
                     </div>
 
                     {/* Hybrid / On-Grid Switch */}
@@ -4445,15 +4415,11 @@ export default function Home() {
                         }
                       }
                       
-                      const totalWatts = calculatedPanelQty * PANEL_WATTAGE
-                      const pricePerWatt = invoice.laborPricePerWatt ?? 6
-                      const laborCost = Math.round(totalWatts * pricePerWatt)
-                      const laborDesc = `Labor: ₱${(laborCost / 1000).toFixed(1)}k`
-
                       const isSelected = activeKwSetup === kw
                       const billRef = getElectricBillRef(kw, sizingRefVersion, true)
-                      const billDescColor = isSelected ? "text-primary-foreground/85 font-bold" : "text-muted-foreground"
-                      const laborDescColor = isSelected ? "text-primary-foreground/95" : "text-[#2E7D32]"
+                      const billDescColor = isSelected
+                        ? "text-primary-foreground font-black"
+                        : "text-foreground dark:text-zinc-100 font-extrabold"
 
                       // Calculate step-by-step mathematical flow values for tooltip
                       const minBillStr = v2Item ? v2Item.derivedElectricBill.split(' – ')[0] || v2Item.derivedElectricBill : '₱0'
@@ -4507,7 +4473,7 @@ export default function Home() {
                               }
                             }}
                             className={cn(
-                              "w-full flex flex-col items-center justify-center p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative",
+                              "w-full h-[60px] flex flex-col items-center justify-between p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative",
                               isDisabled
                                 ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
                                 : isSelected
@@ -4515,23 +4481,14 @@ export default function Home() {
                                   : "bg-secondary/50 hover:bg-secondary/80 border-border text-foreground cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                             )}
                           >
-                            <div className="flex items-center gap-1 justify-center">
+                            {/* Top row: kW */}
+                            <div className="flex items-center justify-center leading-none">
                               <span className="font-bold text-xs">{kw}kW</span>
-                              {v2Item && (
-                                <span className={cn(
-                                  "text-[7.5px] px-1 py-0.2 rounded font-mono font-bold leading-none",
-                                  isSelected
-                                    ? "bg-primary-foreground/20 text-primary-foreground"
-                                    : v2Item.phase === '3-Phase'
-                                      ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/20"
-                                      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20"
-                                )}>
-                                  {v2Item.phase === '3-Phase' ? '3P' : '1P'}
-                                </span>
-                              )}
                             </div>
-                            {kw === 20 && (
-                              <div className="flex items-center gap-1 mt-0.5" onClick={(e) => e.stopPropagation()}>
+
+                            {/* Middle slot: 20kW Architecture Toggle or spacer for identical height */}
+                            {kw === 20 ? (
+                              <div className="flex items-center gap-1 my-auto leading-none" onClick={(e) => e.stopPropagation()}>
                                 <span
                                   role="button"
                                   onClick={() => {
@@ -4540,7 +4497,7 @@ export default function Home() {
                                     handleGenerateBoq(20, activePreset, systemType, 'parallel')
                                   }}
                                   className={cn(
-                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer",
+                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer leading-none",
                                     twentyKwMode === 'parallel'
                                       ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
                                       : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
@@ -4557,27 +4514,22 @@ export default function Home() {
                                     handleGenerateBoq(20, activePreset, systemType, 'single')
                                   }}
                                   className={cn(
-                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer",
+                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer leading-none",
                                     twentyKwMode === 'single'
                                       ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
                                       : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
                                   )}
-                                  title="Original Single 20kW Inverter Setup (Commit 8197ea9)"
+                                  title="Original Single 20kW Inverter Setup (GoodWe 20kW Hybrid)"
                                 >
                                   Old 20k
                                 </span>
                               </div>
+                            ) : (
+                              <div className="h-3.5 my-auto" />
                             )}
-                            <span className={cn("text-[8.5px] mt-0.5 font-mono", billDescColor)}>{billRef}</span>
-                            <span className={cn("text-[8px] mt-0.5 font-mono font-bold", laborDescColor)}>{laborDesc}</span>
-                            {sizingRefVersion === 'v2' && v2Item && (
-                              <span className={cn(
-                                "text-[7.5px] mt-0.5 font-mono opacity-80",
-                                isSelected ? "text-primary-foreground/90" : "text-muted-foreground"
-                              )}>
-                                {v2Item.packageModules.split(' ')[0]} mods
-                              </span>
-                            )}
+
+                            {/* Bottom row: Price Reference */}
+                            <span className={cn("text-[10px] font-mono tracking-tight leading-none", billDescColor)}>{billRef}</span>
                           </button>
 
                           {/* Step-by-Step Mathematical Flow Hover/Hold Tooltip */}
@@ -4750,7 +4702,7 @@ export default function Home() {
                           : "bg-transparent text-foreground hover:bg-secondary shadow-none"
                       )}
                     >
-                      {sizingRefVersion === 'v2' ? "Standard v2 Setup" : "Balance Setup"}
+                      Standard Setup
                     </Button>
                     <Button
                       type="button"
@@ -5585,7 +5537,7 @@ export default function Home() {
                                   {HYBRID_BRANDS.map((b) => {
                                     const brandPrice = b.getPrice(itemKw)
                                     const isApplicable = brandPrice !== null
-                                    const isSelected = isApplicable && item.rate === brandPrice
+                                    const isSelected = isApplicable && (item.rate === brandPrice || descLower.includes(b.id))
 
                                     return (
                                       <button
@@ -5599,7 +5551,7 @@ export default function Home() {
                                             handleSystemTypeChange('hybrid', itemKw)
                                           }
                                           updateItem(item.id, 'rate', brandPrice)
-                                          updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW Hybrid`)
+                                          updateItem(item.id, 'description', itemKw === 20 && b.id === 'goodwe' ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `${b.name} Inverter ${itemKw}kW Hybrid`)
                                         }}
                                         className={cn(
                                           "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
