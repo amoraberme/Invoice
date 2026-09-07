@@ -4721,53 +4721,6 @@ export default function Home() {
                     />
                   )}
 
-                  {/* Dedicated 20kW Architecture Mode Banner */}
-                  {activeKwSetup === 20 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 transition-all animate-in fade-in slide-in-from-top-1 duration-200">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-bold text-foreground flex items-center gap-1.5">
-                          ⚡ 20kW Architecture:
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {twentyKwMode === 'parallel'
-                            ? "Dual 10kW Inverters (Parallel) + 2x 314Ah Batteries + Dual Enclosures"
-                            : "Single 20kW Inverter + 1x 314Ah Battery + Single Enclosure (Commit 8197ea9)"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-lg border border-border">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTwentyKwMode('parallel')
-                            handleGenerateBoq(20, activePreset, systemType, 'parallel')
-                          }}
-                          className={cn(
-                            "px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                            twentyKwMode === 'parallel'
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          ✨ 10kW × 2 Parallel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTwentyKwMode('single')
-                            handleGenerateBoq(20, activePreset, systemType, 'single')
-                          }}
-                          className={cn(
-                            "px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                            twentyKwMode === 'single'
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          ⏪ Old 20kW (8197ea9)
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Presets */}
                   <div className="flex gap-2 w-full pt-0.5">
