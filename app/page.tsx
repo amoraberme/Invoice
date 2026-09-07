@@ -145,8 +145,24 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
   const enclosureRate = systemKw <= 4 ? 1500.00 : 3000.00
   const enclosureQty = (systemKw >= 20 && !isOld20Kw) ? 2 : 1
 
-  const dcMcbQty = (systemKw >= 20 && !isOld20Kw) ? 4 : (systemKw >= 12 && !isOld20Kw ? 3 : 2)
-  const dcSpdQty = (systemKw >= 20 && !isOld20Kw) ? 6 : (systemKw >= 8 && !isOld20Kw ? 3 : 2)
+  let dcMcbQty = 2
+  if (systemKw >= 20) {
+    dcMcbQty = isOld20Kw ? 2 : 4
+  } else if (systemKw >= 12) {
+    dcMcbQty = 3
+  } else {
+    dcMcbQty = 2
+  }
+
+  let dcSpdQty = 2
+  if (systemKw >= 20) {
+    dcSpdQty = isOld20Kw ? 2 : 6
+  } else if (systemKw >= 8) {
+    dcSpdQty = 3
+  } else {
+    dcSpdQty = 2
+  }
+
   const acSpdQty = (systemKw >= 20 && !isOld20Kw) ? 4 : 2
   const dcMccbQty = batteryCountOverride !== undefined && batteryCountOverride > 0
     ? batteryCountOverride
@@ -324,7 +340,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   const panelQty = panelItem ? panelItem.quantity : 0
   
   const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
-  const effectiveRows = (rowsCountOverride !== undefined && rowsCountOverride > 0) ? rowsCountOverride : rows
+  const effectiveRows = (rowsCountOverride !== undefined && rowsCountOverride > 0 && (rowsCountOverride > 1 || rows <= 1)) ? rowsCountOverride : rows
   const extraQty = 0
   
   const newRailingQty = panelQty <= 0 ? 0 : Math.ceil((panelQty / 2) * 3) + extraQty
@@ -2846,10 +2862,12 @@ export default function Home() {
 
     if (prevPanelQtyRef.current !== null || prevBatteryQtyRef.current !== null) {
       if (panelQty !== prevPanelQtyRef.current || totalBatteryQty !== prevBatteryQtyRef.current) {
-        const { updated, items } = recalculateBoqAccessories(currentItems, rowsCount, twentyKwMode)
+        const { updated, items } = recalculateBoqAccessories(currentItems, undefined, twentyKwMode)
         if (updated) {
           currentItems = items
           itemsModified = true
+          const newRows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
+          setRowsCount(newRows)
         }
       }
     }
@@ -3548,6 +3566,15 @@ export default function Home() {
     if (explicitSystemType) {
       setSystemType(explicitSystemType)
     }
+    if (systemKw === 20 && explicitTwentyKwMode) {
+      setTwentyKwMode(explicitTwentyKwMode)
+    }
+
+    setRowsCount(rows)
+    prevPanelQtyRef.current = panelQty
+    prevBatteryQtyRef.current = bQty
+    prevTotalWattsRef.current = totalPanelWatts
+    prevPricePerWattRef.current = pricePerWatt
 
     setInvoice((prev) => ({
       ...prev,
