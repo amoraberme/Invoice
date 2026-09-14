@@ -401,21 +401,28 @@ export function formatBrandItemDescription(description: string): string {
     }
   }
 
-  // Battery check
+  // Battery check (only standalone battery units, never wire, cable, lugs, breaker, etc.)
   if (
     lower.includes('battery') &&
+    !lower.includes('wire') &&
     !lower.includes('cable') &&
     !lower.includes('breaker') &&
     !lower.includes('rack') &&
     !lower.includes('mccb') &&
-    !lower.includes('switch')
+    !lower.includes('switch') &&
+    !lower.includes('lug') &&
+    !lower.includes('tray') &&
+    !lower.includes('busbar')
   ) {
     const hasBrand = lower.includes('genix') || lower.includes('dyness') || lower.includes('cesc') || lower.includes('oliter') || lower.includes('alpsolar') || lower.includes('deye') || lower.includes('goodwe') || lower.includes('ubetter')
     if (!hasBrand) {
+      if (lower.includes('314ah') || lower.includes('314 ah')) {
+        return d
+      }
       if (lower.startsWith('battery')) {
         return `Genix ${d}`
       }
-      return `Genix Battery ${d.replace(/^battery\s*/i, '')}`
+      return d
     }
   }
 

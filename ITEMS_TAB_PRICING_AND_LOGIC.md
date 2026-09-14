@@ -67,6 +67,44 @@ The system supports toggling between two distinct 20kW architectures via the 20k
 
 ---
 
+### 1.2 30kW Hybrid (96 Panels / 60.48 kWp DC) Master Specification
+
+The 30kW package strictly adheres to the client's verified 25-item bill of quantities with **96 panels (630W)**, an **open/empty inverter field** (rate ₱0.00 / pending model selection), and exact designated counts:
+
+| # | Item Description | Quantity | Rate | Unit |
+| :- | :--- | :--- | :--- | :--- |
+| 1 | [Inverter Field - Empty] | 1 pc | — (No price / unpriced) | PC |
+| 2 | 51.2V 314Ah Battery | 4 pcs | ₱88,000.00 | PCS |
+| 3 | Tongwei Panel 630W (7.82ft x 3.72ft) | 96 pcs | ₱5,800.00 | PCS |
+| 4 | DC Breaker 50amp | 12 pcs | ₱420.00 | PCS |
+| 5 | AC Breaker 125amp | 8 pcs | ₱1,300.00 | PCS |
+| 6 | DC SPD 40kva | 8 pcs | ₱790.00 | PCS |
+| 7 | AC SPD 40kva | 12 pcs | ₱570.00 | PCS |
+| 8 | DC MCCB 125amp | 4 pcs | ₱2,500.00 | PCS |
+| 9 | Railings 2.4m | 100 pcs | ₱399.00 | PCS |
+| 10 | End Clamp | 50 pcs | ₱26.00 | PCS |
+| 11 | Mid Clamp | 180 pcs | ₱26.00 | PCS |
+| 12 | Ground Lug | 8 pcs | ₱50.00 | PCS |
+| 13 | L-Foot | 288 pcs | ₱45.00 | PCS |
+| 14 | Grounding Rod | 1 pc | ₱750.00 | PC |
+| 15 | ATS 250amp | 1 pc | ₱4,000.00 | PC |
+| 16 | Combiner Box 20×40×50cm | 2 pcs | ₱3,000.00 | PCS |
+| 17 | Battery Wire 50mm | 16 mts | ₱700.00 | M |
+| 18 | Terminal Lugs 50mm | 20 pcs | ₱50.00 | PCS |
+| 19 | PV Wire 6mm | 4 roll | ₱4,800.00 | ROLL |
+| 20 | MC4 Connectors | 48 pcs | ₱60.00 | PCS |
+| 21 | MC4 2strings | 10 pcs | ₱550.00 | PCS |
+| 22 | THHN Wire #6 | 100 mts | ₱99.34 | M |
+| 23 | HDPE Pipe 1" | 100 mts | ₱95.00 | M |
+| 24 | Clip Lock 1" | 60 pcs | ₱180.00 | SET |
+| 25 | Sealant | 6 pcs | ₱400.00 | PCS |
+| 26 | Labor and Installation | 1 lot | ₱362,880.00 ($96 \times 630\text{W} \times ₱6/\text{W}$) | LOT |
+| 27 | Delivery Fees | 1 lot | ₱5,000.00 (Base rate) | LOT |
+
+*(Note: Items with no price such as the unpriced Inverter field do not show any rate or amount on client quotations).*
+
+---
+
 ## 2. Pricing Reconciliation Notes & Audit Rules
 
 Every item in the **Items Tab** displays an informative badge and audit reconciliation note (kept strictly internal to the editor and excluded from client proposal preview/PDF):

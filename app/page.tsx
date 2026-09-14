@@ -3092,7 +3092,9 @@ export default function Home() {
     const v2Item = getSizingReferenceItem(systemKw)
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
-    if (preset === 'min') {
+    if (systemKw === 30) {
+      panelQty = 96
+    } else if (preset === 'min') {
       panelQty = Math.max(3, Math.round(maxPanels * 0.5))
     } else if (preset === 'balance') {
       if (sizingRefVersion === 'v2' && v2Item) {
@@ -3102,8 +3104,10 @@ export default function Home() {
       }
     }
     const rows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
-    const batteryQty = 1
-
+    const batteryQty = systemKw === 30 ? 4 : 1
+    let bQty = systemKw === 30 ? 4 : batteryQty
+    let totalPanelWatts = panelQty * (systemKw === 30 ? 630 : PANEL_WATTAGE)
+    let pricePerWatt = invoice.laborPricePerWatt ?? 6
 
     const prices = SOLAR_PRICES
 
@@ -3112,6 +3116,199 @@ export default function Home() {
     const runLength = 30
     const extraQty = 0
 
+    if (systemKw === 30) {
+      items.push(
+        {
+          id: `boq-30k-1-${now}`,
+          description: '',
+          quantity: 1,
+          rate: 0,
+          unit: 'PC',
+        },
+        {
+          id: `boq-30k-2-${now}`,
+          description: '51.2V 314Ah Battery',
+          quantity: 4,
+          rate: prices.Cesc314Ah || 88000.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-3-${now}`,
+          description: 'Tongwei Panel 630W (7.82ft x 3.72ft)',
+          quantity: 96,
+          rate: prices.Panel || 5800.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-4-${now}`,
+          description: 'DC Breaker 50amp',
+          quantity: 12,
+          rate: 420.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-5-${now}`,
+          description: 'AC Breaker 125amp',
+          quantity: 8,
+          rate: 1300.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-6-${now}`,
+          description: 'DC SPD 40kva',
+          quantity: 8,
+          rate: 790.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-7-${now}`,
+          description: 'AC SPD 40kva',
+          quantity: 12,
+          rate: 570.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-8-${now}`,
+          description: 'DC MCCB 125amp',
+          quantity: 4,
+          rate: 2500.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-9-${now}`,
+          description: 'Railings 2.4m',
+          quantity: 100,
+          rate: prices.Railing || 399.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-10-${now}`,
+          description: 'End Clamp',
+          quantity: 50,
+          rate: prices.EndClamp || 26.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-11-${now}`,
+          description: 'Mid Clamp',
+          quantity: 180,
+          rate: prices.MidClamp || 26.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-12-${now}`,
+          description: 'Ground Lug',
+          quantity: 8,
+          rate: 50.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-13-${now}`,
+          description: 'L-Foot',
+          quantity: 288,
+          rate: prices.LFoot || 45.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-14-${now}`,
+          description: 'Grounding Rod',
+          quantity: 1,
+          rate: prices.GroundRod || 750.00,
+          unit: 'PC',
+        },
+        {
+          id: `boq-30k-15-${now}`,
+          description: 'ATS 250amp',
+          quantity: 1,
+          rate: 4000.00,
+          unit: 'PC',
+        },
+        {
+          id: `boq-30k-16-${now}`,
+          description: 'Combiner Box 20×40×50cm',
+          quantity: 2,
+          rate: prices.BreakerBox || 3000.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-17-${now}`,
+          description: 'Battery Wire 50mm',
+          quantity: 16,
+          rate: 700.00,
+          unit: 'M',
+        },
+        {
+          id: `boq-30k-18-${now}`,
+          description: 'Terminal Lugs 50mm',
+          quantity: 20,
+          rate: 50.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-19-${now}`,
+          description: 'PV Wire 6mm',
+          quantity: 4,
+          rate: 4800.00,
+          unit: 'ROLL',
+        },
+        {
+          id: `boq-30k-20-${now}`,
+          description: 'MC4 Connectors',
+          quantity: 48,
+          rate: 60.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-21-${now}`,
+          description: 'MC4 2strings',
+          quantity: 10,
+          rate: 550.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-22-${now}`,
+          description: 'THHN Wire #6',
+          quantity: 100,
+          rate: 99.34,
+          unit: 'M',
+        },
+        {
+          id: `boq-30k-23-${now}`,
+          description: 'HDPE Pipe 1"',
+          quantity: 100,
+          rate: 95.00,
+          unit: 'M',
+        },
+        {
+          id: `boq-30k-24-${now}`,
+          description: 'Clip Lock 1"',
+          quantity: 60,
+          rate: prices.ClipLock34 || 180.00,
+          unit: 'SET',
+        },
+        {
+          id: `boq-30k-25-${now}`,
+          description: 'Sealant',
+          quantity: 6,
+          rate: 400.00,
+          unit: 'PCS',
+        },
+        {
+          id: `boq-30k-labor-${now}`,
+          description: 'Labor and Installation',
+          quantity: 1,
+          rate: Math.round(96 * 630 * (invoice.laborPricePerWatt ?? 6)),
+          unit: 'LOT',
+        },
+        {
+          id: `boq-30k-delivery-${now}`,
+          description: 'Delivery Fees',
+          quantity: 1,
+          rate: selectedLocation ? calculateDeliveryFee(selectedLocation.drivingDistanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00),
+          unit: 'LOT',
+        }
+      )
+    } else {
     // 1. Inverter
     const inverterSizes = [1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20, 30, 50, 60, 75, 125]
     let inverterKw = inverterSizes.find(s => s >= systemKw)
@@ -3173,7 +3370,7 @@ export default function Home() {
       unit: 'PC'
     })
 
-    let bQty = (systemKw >= 20 && !isOld20Kw) ? 2 : batteryQty
+    bQty = (systemKw >= 20 && !isOld20Kw) ? 2 : batteryQty
 
     // 3. Battery (included for Hybrid setup)
     if (effSystemType === 'hybrid') {
@@ -3541,8 +3738,8 @@ export default function Home() {
     })
 
     // 23. Labor and Installation
-    const totalPanelWatts = panelQty * PANEL_WATTAGE
-    const pricePerWatt = invoice.laborPricePerWatt ?? 6
+    totalPanelWatts = panelQty * PANEL_WATTAGE
+    pricePerWatt = invoice.laborPricePerWatt ?? 6
     const laborRate = Math.round(totalPanelWatts * pricePerWatt)
     items.push({
       id: `boq-23-${now}`,
@@ -3552,15 +3749,16 @@ export default function Home() {
       unit: 'LOT'
     })
 
-    // 24. Delivery Fees
-    const calculatedDeliveryRate = selectedLocation ? calculateDeliveryFee(selectedLocation.drivingDistanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00)
-    items.push({
-      id: `boq-delivery-${now}`,
-      description: `Delivery Fees`,
-      quantity: 1,
-      rate: calculatedDeliveryRate,
-      unit: 'LOT'
-    })
+      // 24. Delivery Fees
+      const calculatedDeliveryRate = selectedLocation ? calculateDeliveryFee(selectedLocation.drivingDistanceKm) : (invoice.deliveryFee || prices.DeliveryFees || 5000.00)
+      items.push({
+        id: `boq-delivery-${now}`,
+        description: `Delivery Fees`,
+        quantity: 1,
+        rate: calculatedDeliveryRate,
+        unit: 'LOT'
+      })
+    }
 
     // Calculate current local date string (YYYY-MM-DD)
     const today = new Date()
@@ -4403,15 +4601,17 @@ export default function Home() {
 
 
                   {/* kW Setup Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 gap-1.5">
-                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20].map((kw, idx) => {
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5 relative">
+                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20, 30].map((kw, idx) => {
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
                       const isDisabled = systemType === 'ongrid' && !hasOnGridOption
                       const v2Item = getSizingReferenceItem(kw)
 
                       const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
                       let calculatedPanelQty = maxPanels
-                      if (activePreset === 'min') {
+                      if (kw === 30) {
+                        calculatedPanelQty = 96
+                      } else if (activePreset === 'min') {
                         calculatedPanelQty = Math.max(3, Math.round(maxPanels * 0.5))
                       } else if (activePreset === 'balance') {
                         if (sizingRefVersion === 'v2' && v2Item) {
@@ -4444,7 +4644,7 @@ export default function Home() {
                       const isTooltipOpenOnMobile = holdTooltipKw === kw
 
                       return (
-                        <div key={kw} className="relative group">
+                        <div key={kw} className="group">
                           <button
                             type="button"
                             disabled={isDisabled}
@@ -4544,19 +4744,10 @@ export default function Home() {
                               className={cn(
                                 "transition-all duration-150 ease-out z-[9999]",
                                 "p-3.5 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans",
-                                "fixed sm:absolute left-3 right-3 sm:left-auto sm:right-auto bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 w-auto sm:w-[350px] max-h-[85vh] sm:max-h-none overflow-y-auto",
+                                "fixed sm:absolute left-3 right-3 sm:left-0 sm:right-0 bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 w-auto sm:w-full max-h-[85vh] sm:max-h-none overflow-y-auto",
                                 isTooltipOpenOnMobile
                                   ? "opacity-100 visible pointer-events-auto ring-2 ring-primary/30"
-                                  : "pointer-events-none opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible",
-                                idx % 5 === 0
-                                  ? "sm:left-0"
-                                  : idx % 5 === 4
-                                    ? "sm:right-0 sm:left-auto"
-                                    : idx % 5 === 1
-                                      ? "sm:left-0 sm:-left-4"
-                                      : idx % 5 === 3
-                                        ? "sm:right-0 sm:-right-4 sm:left-auto"
-                                        : "sm:left-1/2 sm:-translate-x-1/2"
+                                  : "pointer-events-none opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible"
                               )}
                             >
                               {/* Header */}
@@ -4609,7 +4800,7 @@ export default function Home() {
                                       <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[8.5px]">1</span>
                                       Electric Bill Reference
                                     </span>
-                                    <span className="font-mono font-bold text-primary">{minBillStr} ({v2Item.derivedElectricBill})</span>
+                                    <span className="font-mono font-bold text-primary">{v2Item.derivedElectricBill}</span>
                                   </div>
                                   <div className="text-[9px] font-mono text-muted-foreground flex justify-between pt-0.5 border-t border-border/30">
                                     <span>Monthly: <strong className="text-foreground">{monthlyKwh.toLocaleString()} kWh</strong> (÷ ₱15)</span>
@@ -4629,15 +4820,17 @@ export default function Home() {
                                   <div className="text-[9px] font-mono text-muted-foreground space-y-0.5 pt-0.5 border-t border-border/30">
                                     <div className="flex justify-between">
                                       <span>Target Solar Energy:</span>
-                                      <span className="text-foreground font-semibold">{targetSolarGen} kWh/mo ({targetSolarGenDaily} kWh/d)</span>
+                                      <span className="text-foreground font-semibold">{targetSolarGen.toLocaleString()} kWh/mo ({targetSolarGenDaily} kWh/d)</span>
                                     </div>
                                     <div className="flex justify-between">
                                       <span>Required PV Capacity:</span>
-                                      <span className="text-foreground font-semibold">{targetSolarGen} ÷ 98.28 = {requiredDcKwp} kWp</span>
+                                      <span className="text-foreground font-semibold">{targetSolarGen.toLocaleString()} ÷ 98.28 = {requiredDcKwp} kWp</span>
                                     </div>
                                     <div className="flex justify-between pt-0.5 border-t border-border/20">
                                       <span>Panels Needed (620W):</span>
-                                      <span className="font-bold text-amber-600 dark:text-amber-400">ceil({requiredDcKwp} ÷ 0.62) = {panelsNeeded} Panels</span>
+                                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                                        {kw === 30 ? '96 Panels (Approved)' : `ceil(${requiredDcKwp} ÷ 0.62) = ${panelsNeeded} Panels`}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
@@ -4649,16 +4842,22 @@ export default function Home() {
                                       <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[8.5px]">3</span>
                                       Installed Package Output
                                     </span>
-                                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{actualDcKwp} kWp DC</span>
+                                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                      {kw === 30 ? '60.48 kWp DC' : `${actualDcKwp} kWp DC`}
+                                    </span>
                                   </div>
                                   <div className="text-[9px] font-mono space-y-0.5 pt-0.5 border-t border-emerald-500/20">
                                     <div className="flex justify-between text-muted-foreground">
                                       <span>Actual Est. Generation:</span>
-                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{actualEstGen} kWh/month</span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        {kw === 30 ? '5,849.6 kWh/month' : `${actualEstGen} kWh/month`}
+                                      </span>
                                     </div>
                                     <div className="flex justify-between pt-0.5 border-t border-emerald-500/20 text-[10px]">
                                       <span className="text-muted-foreground font-medium font-sans">Final Solar Bill Offset:</span>
-                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">~{finalOffsetAchieved}% ({v2Item.targetSolarOffset})</span>
+                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                                        {kw === 30 ? `~75% (${v2Item.targetSolarOffset})` : `~${finalOffsetAchieved}% (${v2Item.targetSolarOffset})`}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
@@ -5302,7 +5501,7 @@ export default function Home() {
                                 onChange={(e) => updateItem(item.id, 'rate', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                                 placeholder="0"
                               />
-                              {invoice.rateMarkup !== 0 && (
+                              {invoice.rateMarkup !== 0 && (item.rate || 0) > 0 && (
                                 <span className="text-[9px] font-mono text-[#888888] text-right mt-0.5 w-full truncate" title={
                                   isDeliveryItem(item.description)
                                     ? 'Delivery is a flat logistics fee (0% rate markup)'

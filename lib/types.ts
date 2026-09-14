@@ -161,90 +161,189 @@ export const defaultInvoice: Invoice = {
   warranties: defaultWarranties,
   lineItems: [
     {
-      id: 'item-100k-1',
-      description: 'GoodWe GW100K-HT 100kW 3-Phase HV Solar Inverter',
+      id: 'boq-30k-1',
+      description: '',
       quantity: 1,
-      rate: 220000.00,
+      rate: 0,
       unit: 'PC'
     },
     {
-      id: 'item-100k-2',
-      description: 'Gokin 650W Tier-1 Bifacial N-Type Solar Panels (154 pcs / 100.1 kWp)',
-      quantity: 154,
-      rate: 6500.00,
-      unit: 'PCS'
-    },
-    {
-      id: 'item-100k-3',
-      description: 'Heavy Duty Aluminum Mounting Rails 3.5m & Splice Connectors',
-      quantity: 88,
-      rate: 950.00,
-      unit: 'PCS'
-    },
-    {
-      id: 'item-100k-4',
-      description: 'Mid & End Clamp Assemblies + L-Foot Roof Mount Hooks',
-      quantity: 340,
-      rate: 55.00,
-      unit: 'PCS'
-    },
-    {
-      id: 'item-100k-5',
-      description: 'Suntree 18-String PV Combiner Box with 1000V DC Fuses & Isolator',
-      quantity: 2,
-      rate: 12500.00,
-      unit: 'PCS'
-    },
-    {
-      id: 'item-100k-6',
-      description: '1000V 3P DC SPD & 250A DC MCCB Protection Enclosure',
+      id: 'boq-30k-2',
+      description: '51.2V 314Ah Battery',
       quantity: 4,
-      rate: 3885.00,
+      rate: 88000.00,
       unit: 'PCS'
     },
     {
-      id: 'item-100k-7',
-      description: '400V 3-Phase AC Breaker (200A) & AC Surge Protective Device',
-      quantity: 1,
-      rate: 10700.00,
-      unit: 'SET'
+      id: 'boq-30k-3',
+      description: 'Tongwei Panel 630W (7.82ft x 3.72ft)',
+      quantity: 96,
+      rate: 5800.00,
+      unit: 'PCS'
     },
     {
-      id: 'item-100k-8',
-      description: '6mm2 TUV Dual-Core Solar PV Cable (400 meters)',
+      id: 'boq-30k-4',
+      description: 'DC Breaker 50amp',
+      quantity: 12,
+      rate: 420.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-5',
+      description: 'AC Breaker 125amp',
+      quantity: 8,
+      rate: 1300.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-6',
+      description: 'DC SPD 40kva',
+      quantity: 8,
+      rate: 790.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-7',
+      description: 'AC SPD 40kva',
+      quantity: 12,
+      rate: 570.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-8',
+      description: 'DC MCCB 125amp',
+      quantity: 4,
+      rate: 2500.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-9',
+      description: 'Railings 2.4m',
+      quantity: 100,
+      rate: 399.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-10',
+      description: 'End Clamp',
+      quantity: 50,
+      rate: 26.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-11',
+      description: 'Mid Clamp',
+      quantity: 180,
+      rate: 26.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-12',
+      description: 'Ground Lug',
+      quantity: 8,
+      rate: 50.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-13',
+      description: 'L-Foot',
+      quantity: 288,
+      rate: 45.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-14',
+      description: 'Grounding Rod',
+      quantity: 1,
+      rate: 750.00,
+      unit: 'PC'
+    },
+    {
+      id: 'boq-30k-15',
+      description: 'ATS 250amp',
+      quantity: 1,
+      rate: 4000.00,
+      unit: 'PC'
+    },
+    {
+      id: 'boq-30k-16',
+      description: 'Combiner Box 20×40×50cm',
+      quantity: 2,
+      rate: 3000.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-17',
+      description: 'Battery Wire 50mm',
+      quantity: 16,
+      rate: 700.00,
+      unit: 'M'
+    },
+    {
+      id: 'boq-30k-18',
+      description: 'Terminal Lugs 50mm',
+      quantity: 20,
+      rate: 50.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-19',
+      description: 'PV Wire 6mm',
       quantity: 4,
       rate: 4800.00,
-      unit: 'ROLL',
-      pricingMode: 'Roll',
-      meterPrice: 12.00,
-      rollPrice: 4800.00
+      unit: 'ROLL'
     },
     {
-      id: 'item-100k-9',
-      description: '50mm2 3-Phase AC Power Output Cable & Heavy Duty Conduits',
-      quantity: 120,
-      rate: 700.00,
-      unit: 'M',
-      pricingMode: 'Meters',
-      meterPrice: 700.00,
-      rollPrice: 63000.00
+      id: 'boq-30k-20',
+      description: 'MC4 Connectors',
+      quantity: 48,
+      rate: 60.00,
+      unit: 'PCS'
     },
     {
-      id: 'item-100k-10',
-      description: 'GoodWe SEC1000 Smart Energy Controller & 3-Phase Meter with CTs',
-      quantity: 1,
-      rate: 28000.00,
+      id: 'boq-30k-21',
+      description: 'MC4 2strings',
+      quantity: 10,
+      rate: 550.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-22',
+      description: 'THHN Wire #6',
+      quantity: 100,
+      rate: 99.34,
+      unit: 'M'
+    },
+    {
+      id: 'boq-30k-23',
+      description: 'HDPE Pipe 1"',
+      quantity: 100,
+      rate: 95.00,
+      unit: 'M'
+    },
+    {
+      id: 'boq-30k-24',
+      description: 'Clip Lock 1"',
+      quantity: 60,
+      rate: 180.00,
       unit: 'SET'
     },
     {
-      id: 'item-100k-11',
-      description: 'System Engineering, Structural Mounting & Grid-Tie Commissioning',
+      id: 'boq-30k-25',
+      description: 'Sealant',
+      quantity: 6,
+      rate: 400.00,
+      unit: 'PCS'
+    },
+    {
+      id: 'boq-30k-26',
+      description: 'Labor and Installation',
       quantity: 1,
-      rate: 600600.00,
+      rate: 362880.00,
       unit: 'LOT'
     },
     {
-      id: 'item-100k-12',
+      id: 'boq-30k-27',
       description: 'Delivery Fees',
       quantity: 1,
       rate: 5000.00,

@@ -736,10 +736,10 @@ export function MGInvoicePreview({
                                       {displayDesc || '—'}
                                     </span>
                                     <span className="w-12 shrink-0 text-[11.5px] text-[#888888] text-center">
-                                      {!hasPrice ? '—' : (item.unit || '—')}
+                                      {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                                     </span>
                                     <span className="w-10 shrink-0 text-[11.5px] text-[#888888] text-center">
-                                      {!hasPrice ? '—' : (item.quantity || '—')}
+                                      {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                                     </span>
                                     <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums">
                                       {!hasPrice ? '—' : formatCurrency(item.rate, invoice.currency)}
@@ -793,10 +793,10 @@ export function MGInvoicePreview({
                                       {displayDesc || '—'}
                                     </span>
                                     <span className="w-16 shrink-0 text-[12.5px] text-[#888888] text-center">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.unit || '—')}
+                                      {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                                     </span>
                                     <span className="w-14 shrink-0 text-[12.5px] text-[#888888] text-center">
-                                      {!hasPrice || isDeliveryOrLabor ? '—' : (item.quantity || '—')}
+                                      {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                                     </span>
                                     <span className={cn("w-24 shrink-0 text-[12.5px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
                                       {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
