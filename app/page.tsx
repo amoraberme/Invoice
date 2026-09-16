@@ -40,12 +40,7 @@ import {
   SIZING_REFERENCE_V3_HYBRID,
   getElectricBillRefV3,
   getSizingReferenceItemV3,
-  SIZING_REFERENCE_V2,
-  KW_TO_ELECTRIC_BILL_V1,
-  getElectricBillRefV2,
-  getSizingReferenceItem,
   SizingReferenceModal,
-  type SizingReferenceV2Item,
   type SizingReferenceV3GridTiedItem,
   type SizingReferenceV3HybridItem,
 } from '@/components/SizingReferenceModal'
@@ -1457,7 +1452,18 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
   }
 ]
 
-const KW_TO_ELECTRIC_BILL: Record<number, string> = KW_TO_ELECTRIC_BILL_V1
+const KW_TO_ELECTRIC_BILL: Record<number, string> = {
+  3: '₱5,000 – ₱8,000',
+  4: '₱8,000 – ₱10,500',
+  5: '₱10,500 – ₱14,000',
+  6: '₱14,000 – ₱18,000',
+  8: '₱18,000 – ₱23,000',
+  10: '₱23,000 – ₱30,000',
+  12: '₱30,000 – ₱40,000',
+  16: '₱40,000 – ₱55,000',
+  20: '₱55,000 – ₱75,000',
+  30: '₱75,000 – ₱110,000',
+}
 
 const ELECTRIC_BILL_PRICE_REFERENCES = [
   { bill: '₱5,000', kw: 3 },
@@ -1475,17 +1481,10 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
 
 function getElectricBillRef(
   kw: number,
-  version: 'v2' | 'v3' = 'v3',
   short = true,
   sysType: 'hybrid' | 'ongrid' = 'hybrid'
 ): string {
-  if (version === 'v3') {
-    return getElectricBillRefV3(kw, sysType, short)
-  }
-  if (version === 'v2') {
-    return getElectricBillRefV2(kw, short)
-  }
-  return KW_TO_ELECTRIC_BILL[kw] || `₱${Math.round(kw * 1600).toLocaleString()}`
+  return getElectricBillRefV3(kw, sysType, short)
 }
 
 
@@ -2201,7 +2200,6 @@ export default function Home() {
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
   const [twentyKwMode, setTwentyKwMode] = useState<'parallel' | 'single'>('parallel')
-  const [sizingRefVersion, setSizingRefVersion] = useState<'v2' | 'v3'>('v3')
   const [isSizingModalOpen, setIsSizingModalOpen] = useState<boolean>(false)
   const [rowsCount, setRowsCount] = useState<number>(1)
   const [holdTooltipKw, setHoldTooltipKw] = useState<number | null>(null)
@@ -3096,7 +3094,6 @@ export default function Home() {
     const effTwentyKwMode = explicitTwentyKwMode || twentyKwMode
     const isOld20Kw = systemKw === 20 && effTwentyKwMode === 'single'
 
-    const v2Item = getSizingReferenceItem(systemKw)
     const v3Item = getSizingReferenceItemV3(systemKw, effSystemType)
     const maxPanels = Math.round((systemKw * 1000) / PANEL_WATTAGE)
     let panelQty = maxPanels
@@ -3105,10 +3102,8 @@ export default function Home() {
     } else if (preset === 'min') {
       panelQty = Math.max(3, Math.round(maxPanels * 0.5))
     } else if (preset === 'balance') {
-      if (sizingRefVersion === 'v3' && v3Item) {
+      if (v3Item) {
         panelQty = v3Item.panelCountMax
-      } else if (sizingRefVersion === 'v2' && v2Item) {
-        panelQty = v2Item.panelCount
       } else {
         panelQty = Math.max(4, Math.round(maxPanels * 0.75))
       }
@@ -4574,30 +4569,9 @@ export default function Home() {
                         <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                           Electric Bill & Sizing Reference
                         </h4>
-                      </div>
-
-                      {/* Reference Version Quick Switch (v3 & v2 only) */}
-                      <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-[7px] border border-border">
-                        {(['v3', 'v2'] as const).map((ver) => (
-                          <button
-                            key={ver}
-                            type="button"
-                            onClick={() => setSizingRefVersion(ver)}
-                            className={cn(
-                              "px-2 py-0.5 text-[9.5px] font-bold rounded-[5px] transition-all cursor-pointer uppercase select-none",
-                              sizingRefVersion === ver
-                                ? "bg-primary text-primary-foreground shadow-2xs font-black"
-                                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                            )}
-                          >
-                            {ver}
-                            {ver === 'v3' && (
-                              <span className="ml-1 text-[7.5px] px-1 py-0.2 rounded bg-amber-400/25 text-amber-300 font-black">
-                                NEW
-                              </span>
-                            )}
-                          </button>
-                        ))}
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded font-bold bg-primary/15 text-primary border border-primary/25">
+                          V3
+                        </span>
                       </div>
                     </div>
 
@@ -4647,8 +4621,6 @@ export default function Home() {
                       const v3GridItem = SIZING_REFERENCE_V3_GRIDTIED.find(s => Math.abs(s.kw - kw) < 0.1)
                       const v3HybridItem = SIZING_REFERENCE_V3_HYBRID.find(s => Math.abs(s.kw - kw) < 0.1)
                       const v3Item = systemType === 'ongrid' ? v3GridItem : v3HybridItem
-                      const v2Item = getSizingReferenceItem(kw)
-
                       const maxPanels = Math.round((kw * 1000) / PANEL_WATTAGE)
                       let calculatedPanelQty = maxPanels
                       if (kw === 30) {
@@ -4656,17 +4628,15 @@ export default function Home() {
                       } else if (activePreset === 'min') {
                         calculatedPanelQty = Math.max(3, Math.round(maxPanels * 0.5))
                       } else if (activePreset === 'balance') {
-                        if (sizingRefVersion === 'v3' && v3Item) {
+                        if (v3Item) {
                           calculatedPanelQty = v3Item.panelCountMax
-                        } else if (sizingRefVersion === 'v2' && v2Item) {
-                          calculatedPanelQty = v2Item.panelCount
                         } else {
                           calculatedPanelQty = Math.max(4, Math.round(maxPanels * 0.75))
                         }
                       }
                       
                       const isSelected = activeKwSetup === kw
-                      const billRef = getElectricBillRef(kw, sizingRefVersion, true, systemType)
+                      const billRef = getElectricBillRef(kw, true, systemType)
                       const billDescColor = isSelected
                         ? "text-primary-foreground font-black"
                         : "text-foreground dark:text-zinc-100 font-extrabold"
@@ -4769,7 +4739,7 @@ export default function Home() {
                           </button>
 
                           {/* Direct, Precise & Clear Tooltip */}
-                          {((sizingRefVersion === 'v3' && v3Item) || (sizingRefVersion !== 'v3' && v2Item)) && (
+                          {v3Item && (
                             <div
                               className={cn(
                                 "transition-all duration-150 ease-out z-[9999]",
@@ -4786,19 +4756,17 @@ export default function Home() {
                                 <div className="flex items-center gap-1.5">
                                   <Zap size={13} className="text-amber-500 fill-amber-500/20" />
                                   <span className="font-bold text-xs text-foreground">
-                                    {sizingRefVersion === 'v3'
-                                      ? (systemType === 'ongrid' ? `${kw}kW Grid-Tied (Zero-Export)` : `${kw}kW Hybrid Package`)
-                                      : (v2Item?.commercialPackage || `${kw}kW Package`)}
+                                    {systemType === 'ongrid' ? `${kw}kW Grid-Tied (Zero-Export)` : `${kw}kW Hybrid Package`}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <span className={cn(
                                     "text-[8.5px] px-1.5 py-0.5 rounded font-bold font-mono",
-                                    (sizingRefVersion === 'v3' ? v3Item?.phase : v2Item?.phase) === '3-Phase'
+                                    v3Item.phase === '3-Phase'
                                       ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30"
                                       : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20"
                                   )}>
-                                    {sizingRefVersion === 'v3' ? v3Item?.phase : v2Item?.electricalGrid}
+                                    {v3Item.phase}
                                   </span>
                                   {isTooltipOpenOnMobile && (
                                     <button
@@ -4817,87 +4785,58 @@ export default function Home() {
                               </div>
 
                               {/* Direct, Precise & Clear Key Metrics */}
-                              {sizingRefVersion === 'v3' ? (
-                                systemType === 'ongrid' && v3GridItem ? (
-                                  <div className="mt-1.5 space-y-1 text-xs font-mono">
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Target Bill</span>
-                                      <span className="font-bold text-primary text-[11px]">{v3GridItem.targetMonthlyBill}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">DC Array</span>
-                                      <span className="font-bold text-foreground text-[10.5px]">{v3GridItem.recommendedDcArray} ({v3GridItem.panelCountText})</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Daily Yield</span>
-                                      <span className="font-bold text-foreground text-[10.5px]">{v3GridItem.estDailyYield}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Daily Usage</span>
-                                      <span className="font-medium text-foreground text-[10.5px]">{v3GridItem.targetDailyUsage}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Est. Savings</span>
-                                      <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3GridItem.expectedMonthlySavings}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between pt-0.5">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Coverage</span>
-                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3GridItem.coverageRatio}</span>
-                                    </div>
-                                  </div>
-                                ) : v3HybridItem ? (
-                                  <div className="mt-1.5 space-y-1 text-xs font-mono">
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Target Bill</span>
-                                      <span className="font-bold text-primary text-[11px]">{v3HybridItem.targetMonthlyBill}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">DC Array</span>
-                                      <span className="font-bold text-foreground text-[10.5px]">{v3HybridItem.recommendedDcArray} ({v3HybridItem.panelCountText})</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Battery Bank</span>
-                                      <span className="font-bold text-amber-600 dark:text-amber-400 text-[10px] whitespace-nowrap">🔋 {v3HybridItem.recommendedBatteryBank}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Daily Energy</span>
-                                      <span className="font-medium text-foreground text-[10.5px]">{v3HybridItem.totalDailyEnergy}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Net Savings</span>
-                                      <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3HybridItem.netMonthlySavings}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between pt-0.5">
-                                      <span className="text-muted-foreground text-[10.5px] font-sans">Coverage</span>
-                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3HybridItem.coverageRatio}</span>
-                                    </div>
-                                  </div>
-                                ) : null
-                              ) : v2Item ? (
+                              {systemType === 'ongrid' && v3GridItem ? (
                                 <div className="mt-1.5 space-y-1 text-xs font-mono">
                                   <div className="flex items-center justify-between py-0.5 border-b border-border/40">
                                     <span className="text-muted-foreground text-[10.5px] font-sans">Target Bill</span>
-                                    <span className="font-bold text-primary text-[11px]">{v2Item.derivedElectricBill}</span>
+                                    <span className="font-bold text-primary text-[11px]">{v3GridItem.targetMonthlyBill}</span>
                                   </div>
-
                                   <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                    <span className="text-muted-foreground text-[10.5px] font-sans">Monthly Usage</span>
-                                    <span className="font-medium text-foreground text-[10.5px]">{v2Item.targetMonthlyKwh}</span>
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">DC Array</span>
+                                    <span className="font-bold text-foreground text-[10.5px]">{v3GridItem.recommendedDcArray} ({v3GridItem.panelCountText})</span>
                                   </div>
-
                                   <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                    <span className="text-muted-foreground text-[10.5px] font-sans">Solar Array (DC)</span>
-                                    <span className="font-bold text-foreground text-[10.5px]">{v2Item.packageModules} ({v2Item.actualDcCapacity})</span>
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Daily Yield</span>
+                                    <span className="font-bold text-foreground text-[10.5px]">{v3GridItem.estDailyYield}</span>
                                   </div>
-
                                   <div className="flex items-center justify-between py-0.5 border-b border-border/40">
-                                    <span className="text-muted-foreground text-[10.5px] font-sans">Est. Generation</span>
-                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v2Item.estMonthlyGen}</span>
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Daily Usage</span>
+                                    <span className="font-medium text-foreground text-[10.5px]">{v3GridItem.targetDailyUsage}</span>
                                   </div>
-
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Est. Savings</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3GridItem.expectedMonthlySavings}</span>
+                                  </div>
                                   <div className="flex items-center justify-between pt-0.5">
-                                    <span className="text-muted-foreground text-[10.5px] font-sans">Target Offset</span>
-                                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v2Item.targetSolarOffset}</span>
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Coverage</span>
+                                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3GridItem.coverageRatio}</span>
+                                  </div>
+                                </div>
+                              ) : v3HybridItem ? (
+                                <div className="mt-1.5 space-y-1 text-xs font-mono">
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Target Bill</span>
+                                    <span className="font-bold text-primary text-[11px]">{v3HybridItem.targetMonthlyBill}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">DC Array</span>
+                                    <span className="font-bold text-foreground text-[10.5px]">{v3HybridItem.recommendedDcArray} ({v3HybridItem.panelCountText})</span>
+                                  </div>
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Battery Bank</span>
+                                    <span className="font-bold text-amber-600 dark:text-amber-400 text-[10px] whitespace-nowrap">🔋 {v3HybridItem.recommendedBatteryBank}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Daily Energy</span>
+                                    <span className="font-medium text-foreground text-[10.5px]">{v3HybridItem.totalDailyEnergy}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Net Savings</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3HybridItem.netMonthlySavings}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-0.5">
+                                    <span className="text-muted-foreground text-[10.5px] font-sans">Coverage</span>
+                                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v3HybridItem.coverageRatio}</span>
                                   </div>
                                 </div>
                               ) : null}
@@ -8256,8 +8195,6 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           setActiveKwSetup(kw)
           handleGenerateBoq(kw, activePreset, systemType, kw === 20 ? twentyKwMode : undefined)
         }}
-        currentRefVersion={sizingRefVersion}
-        onToggleVersion={setSizingRefVersion}
         systemType={systemType}
       />
     </div>

@@ -635,8 +635,8 @@ export interface SizingReferenceModalProps {
   onOpenChange: (open: boolean) => void
   activeKw?: number
   onSelectKw?: (kw: number) => void
-  currentRefVersion?: 'v2' | 'v3'
-  onToggleVersion?: (ver: 'v2' | 'v3') => void
+  currentRefVersion?: string
+  onToggleVersion?: (ver: any) => void
   systemType?: 'hybrid' | 'ongrid'
 }
 
@@ -645,61 +645,17 @@ export function SizingReferenceModal({
   onOpenChange,
   activeKw,
   onSelectKw,
-  currentRefVersion = 'v3',
-  onToggleVersion,
   systemType = 'hybrid',
 }: SizingReferenceModalProps) {
-  const [selectedVersion, setSelectedVersion] = useState<'v2' | 'v3'>(currentRefVersion)
   const [v3Type, setV3Type] = useState<'hybrid' | 'ongrid'>(systemType)
   const [searchQuery, setSearchQuery] = useState('')
   const [phaseFilter, setPhaseFilter] = useState<'all' | '1-Phase' | '3-Phase'>('all')
   const [copiedKw, setCopiedKw] = useState<number | null>(null)
-  const [showSampleCalc, setShowSampleCalc] = useState(false)
-  const [copiedSample, setCopiedSample] = useState(false)
-
-  // Keep internal version in sync with parent prop
-  useEffect(() => {
-    setSelectedVersion(currentRefVersion)
-  }, [currentRefVersion])
 
   // Keep internal V3 matrix type in sync with parent systemType
   useEffect(() => {
     setV3Type(systemType)
   }, [systemType])
-
-  const handleSelectVersion = (ver: 'v2' | 'v3') => {
-    setSelectedVersion(ver)
-    onToggleVersion?.(ver)
-  }
-
-  const sampleCalcText = `Sample Sizing Calculation: ₱5,000 Monthly Bill (at ₱15.00/kWh Tariff)
-
-1. Baseline Client Consumption
-  • Monthly Energy Usage: ₱5,000 ÷ ₱15.00/kWh = 333.33 kWh/month
-
-2. Solar PV System Sizing
-  • Solar Yield Constants:
-      • Monthly Yield Factor: 4.20(PSH) × 30(month) × 0.78(PR) = 98.28 kWh/kWp/month
-  • Required DC Capacity: 333.33 kWh ÷ 98.28 = 3.39 kWp
-  • Panels Needed (620W N-Type panels):
-      • Raw Count: 3.39 kWp ÷ 0.62 kWp/panel = 5.47 panels
-      • Standard Installation: 6 panels (rounded up to avoid undersizing)
-  • Actual Installed DC Capacity: 6 panels × 0.62 kWp = 3.72 kWp
-
-3. Actual Performance & Final Achieved Offset
-  • Actual Estimated Monthly Generation: 3.72 kWp × 98.28 = 365.60 kWh/month
-  • Final Realized Solar Offset: (365.60 kWh ÷ 333.33 kWh) × 100 = 109% (exceeds the 80% minimum requirement)
-  • Recommended Package: 4.0 kW Hybrid Package (1-Phase 230V)
-
-4. Monthly Financial Results
-  • Estimated Monthly Solar Savings: 365.60 kWh × ₱15.00/kWh = ₱5,480.00/month
-  • Remaining Estimated Grid Bill: ₱5,000.00 - ₱5,480.00 = ₱-480.00/month`
-
-  const handleCopySample = () => {
-    navigator.clipboard.writeText(sampleCalcText)
-    setCopiedSample(true)
-    setTimeout(() => setCopiedSample(false), 1500)
-  }
 
   // Filtered V3 Grid-Tied Items
   const filteredV3GridTied = useMemo(() => {
@@ -741,27 +697,6 @@ export function SizingReferenceModal({
     })
   }, [searchQuery, phaseFilter])
 
-  // Filtered V2 Items
-  const filteredV2Items = useMemo(() => {
-    return SIZING_REFERENCE_V2.filter((item) => {
-      const matchesPhase = phaseFilter === 'all' || item.phase === phaseFilter
-      if (!matchesPhase) return false
-      if (!searchQuery.trim()) return true
-      const q = searchQuery.toLowerCase()
-      return (
-        item.commercialPackage.toLowerCase().includes(q) ||
-        item.packageModules.toLowerCase().includes(q) ||
-        item.actualDcCapacity.toLowerCase().includes(q) ||
-        item.inverterAcOutput.toLowerCase().includes(q) ||
-        item.electricalGrid.toLowerCase().includes(q) ||
-        item.targetMonthlyKwh.toLowerCase().includes(q) ||
-        item.derivedElectricBill.toLowerCase().includes(q) ||
-        item.estMonthlyGen.toLowerCase().includes(q) ||
-        item.targetSolarOffset.toLowerCase().includes(q)
-      )
-    })
-  }, [searchQuery, phaseFilter])
-
   // Copy row handlers
   const handleCopyV3GridTied = (item: SizingReferenceV3GridTiedItem) => {
     const text = `Grid-Tied ${item.inverterRating} | Array: ${item.recommendedDcArray} (${item.panelCountText}) | Est Yield: ${item.estDailyYield} | Target Bill: ${item.targetMonthlyBill} | Daily Usage: ${item.targetDailyUsage} | Savings: ${item.expectedMonthlySavings} | Coverage: ${item.coverageRatio}`
@@ -772,13 +707,6 @@ export function SizingReferenceModal({
 
   const handleCopyV3Hybrid = (item: SizingReferenceV3HybridItem) => {
     const text = `Hybrid ${item.inverterRating} | Array: ${item.recommendedDcArray} (${item.panelCountText}) | Battery: ${item.recommendedBatteryBank} | Target Bill: ${item.targetMonthlyBill} | Daily Energy: ${item.totalDailyEnergy} | Savings: ${item.netMonthlySavings} | Coverage: ${item.coverageRatio}`
-    navigator.clipboard.writeText(text)
-    setCopiedKw(item.kw)
-    setTimeout(() => setCopiedKw(null), 1500)
-  }
-
-  const handleCopyV2Row = (item: SizingReferenceV2Item) => {
-    const text = `${item.commercialPackage} | Modules: ${item.packageModules} | DC: ${item.actualDcCapacity} | Inverter: ${item.inverterAcOutput} | Grid: ${item.electricalGrid} | Target: ${item.targetMonthlyKwh} | Bill: ${item.derivedElectricBill} | Gen: ${item.estMonthlyGen} | Offset: ${item.targetSolarOffset}`
     navigator.clipboard.writeText(text)
     setCopiedKw(item.kw)
     setTimeout(() => setCopiedKw(null), 1500)
@@ -800,7 +728,7 @@ export function SizingReferenceModal({
                     Electric Bill & Sizing Reference
                   </DialogTitle>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-primary/15 text-primary border border-primary/25">
-                    {selectedVersion.toUpperCase()} Active
+                    V3 Dual Matrix
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -808,90 +736,40 @@ export function SizingReferenceModal({
                 </p>
               </div>
             </div>
-
-            {/* Version Switcher (V3 / V2 / V1) */}
-            <div className="flex items-center gap-1.5 bg-secondary/80 p-1 rounded-[10px] border border-border">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1.5 hidden sm:inline">
-                Version:
-              </span>
-              <button
-                type="button"
-                onClick={() => handleSelectVersion('v3')}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-bold rounded-[7px] transition-all cursor-pointer select-none flex items-center gap-1",
-                  selectedVersion === 'v3'
-                    ? "bg-primary text-primary-foreground shadow-xs font-black"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
-              >
-                <span>V3</span>
-                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-300 font-extrabold border border-amber-400/30">
-                  New
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectVersion('v2')}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-bold rounded-[7px] transition-all cursor-pointer select-none",
-                  selectedVersion === 'v2'
-                    ? "bg-primary text-primary-foreground shadow-xs font-black"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
-              >
-                V2
-              </button>
-            </div>
           </div>
 
-          {/* Subheader Toolbar: V3 Dual System Toggle or V2 Sample Calc */}
+          {/* Subheader Toolbar: Dual System Toggle & Phase Filters */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-border/50">
-            {selectedVersion === 'v3' ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center bg-secondary p-0.5 rounded-[8px] border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setV3Type('hybrid')}
-                    className={cn(
-                      "px-3 py-1 text-xs font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1.5",
-                      v3Type === 'hybrid'
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <BatteryCharging size={14} />
-                    <span>⚡ 4. Hybrid Matrix (24-Hour Battery Storage)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setV3Type('ongrid')}
-                    className={cn(
-                      "px-3 py-1 text-xs font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1.5",
-                      v3Type === 'ongrid'
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Sun size={14} />
-                    <span>🌐 3. Grid-Tied Matrix (Zero-Export Daytime)</span>
-                  </button>
-                </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center bg-secondary p-0.5 rounded-[8px] border border-border">
+                <button
+                  type="button"
+                  onClick={() => setV3Type('hybrid')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1.5",
+                    v3Type === 'hybrid'
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <BatteryCharging size={14} />
+                  <span>⚡ 4. Hybrid Matrix (24-Hour Battery Storage)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setV3Type('ongrid')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-[6px] transition-all cursor-pointer select-none flex items-center gap-1.5",
+                    v3Type === 'ongrid'
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sun size={14} />
+                  <span>🌐 3. Grid-Tied Matrix (Zero-Export Daytime)</span>
+                </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowSampleCalc(!showSampleCalc)}
-                className={cn(
-                  "px-3 py-1 text-xs font-bold rounded-[8px] transition-all cursor-pointer border flex items-center gap-1.5 select-none",
-                  showSampleCalc
-                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                    : "bg-secondary/70 hover:bg-secondary border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Sparkles size={13} className={showSampleCalc ? "text-amber-300 fill-amber-300" : "text-amber-500"} />
-                <span>{showSampleCalc ? 'Hide Calculation Sample' : 'Sample Sizing Calculation (₱5,000)'}</span>
-              </button>
-            )}
+            </div>
 
             {/* Phase Filters */}
             <div className="flex items-center gap-1 bg-secondary/60 p-0.5 rounded-[8px] border border-border shrink-0 ml-auto">
@@ -933,13 +811,9 @@ export function SizingReferenceModal({
           </div>
         </div>
 
-        {/* Table Content & Details */}
+        {/* Table Content & Details: Dual Matrices (Grid-Tied & Hybrid) */}
         <div className="flex-1 overflow-auto p-4 sm:p-5 space-y-4">
-          {/* ========================================================= */}
-          {/* VERSION 3: DUAL MATRICES (GRID-TIED & HYBRID)             */}
-          {/* ========================================================= */}
-          {selectedVersion === 'v3' && (
-            <div className="space-y-3">
+          <div className="space-y-3">
               {/* Matrix Context Banner */}
               <div className="p-3 bg-secondary/35 border border-border rounded-[12px] flex items-start gap-2.5 text-xs">
                 <div className="mt-0.5 p-1 rounded bg-primary/10 text-primary shrink-0">
@@ -1253,244 +1127,6 @@ export function SizingReferenceModal({
                 </div>
               )}
             </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* VERSION 2: STANDARD COMMERCIAL MATRIX                     */}
-          {/* ========================================================= */}
-          {selectedVersion === 'v2' && (
-            <div className="space-y-4">
-              {showSampleCalc && (
-                <div className="p-4 bg-secondary/40 dark:bg-secondary/20 border border-border rounded-[14px] space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-border/70">
-                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
-                        <Sparkles size={13} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-foreground">
-                          Sample Sizing Calculation: ₱5,000 Monthly Bill (at ₱15.00/kWh Tariff)
-                        </h4>
-                        <p className="text-[10px] text-muted-foreground">
-                          Company engineering standard methodology for solar offset & DC sizing
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={handleCopySample}
-                      className="h-7 px-2.5 text-[11px] gap-1.5 cursor-pointer font-semibold shadow-2xs"
-                    >
-                      {copiedSample ? (
-                        <>
-                          <Check size={12} className="text-emerald-600" />
-                          <span className="text-emerald-600 font-bold">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={12} />
-                          <span>Copy Calculation</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
-                    <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
-                      <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold">1</span>
-                        Baseline Client Consumption
-                      </div>
-                      <div className="pl-5 text-muted-foreground font-mono text-[10.5px]">
-                        • Monthly Energy Usage: ₱5,000 ÷ ₱15.00/kWh = <strong className="text-foreground">333.33 kWh/month</strong>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
-                      <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold">2</span>
-                        Solar PV System Sizing
-                      </div>
-                      <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
-                        <div>• Solar Yield Constants:</div>
-                        <div className="pl-3">• Monthly Yield Factor: 4.20(PSH) × 30(month) × 0.78(PR) = <strong className="text-foreground">98.28 kWh/kWp/month</strong></div>
-                        <div>• Required DC Capacity: 333.33 kWh ÷ 98.28 = <strong className="text-foreground">3.39 kWp</strong></div>
-                        <div>• Panels Needed (620W N-Type panels):</div>
-                        <div className="pl-3">• Raw Count: 3.39 kWp ÷ 0.62 kWp/panel = 5.47 panels</div>
-                        <div className="pl-3">• Standard Installation: <strong className="text-primary font-bold">6 panels</strong> (rounded up to avoid undersizing)</div>
-                        <div>• Actual Installed DC Capacity: 6 panels × 0.62 kWp = <strong className="text-foreground">3.72 kWp</strong></div>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
-                      <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] flex items-center justify-center font-bold">3</span>
-                        Actual Performance & Final Achieved Offset
-                      </div>
-                      <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
-                        <div>• Actual Estimated Monthly Generation: 3.72 kWp × 98.28 = <strong className="text-emerald-600 dark:text-emerald-400">365.60 kWh/month</strong></div>
-                        <div>• Final Realized Solar Offset: (365.60 kWh ÷ 333.33 kWh) × 100 = <strong className="text-emerald-600 dark:text-emerald-400 font-bold">109%</strong> (exceeds the 80% minimum requirement)</div>
-                        <div>• Recommended Package: <strong className="text-foreground font-bold">4.0 kW Hybrid Package (1-Phase 230V)</strong></div>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
-                      <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] flex items-center justify-center font-bold">4</span>
-                        Monthly Financial Results
-                      </div>
-                      <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
-                        <div>• Estimated Monthly Solar Savings: 365.60 kWh × ₱15.00/kWh = <strong className="text-emerald-600 dark:text-emerald-400">₱5,480.00/month</strong></div>
-                        <div>• Remaining Estimated Grid Bill: ₱5,000.00 - ₱5,480.00 = <strong className="text-emerald-600 dark:text-emerald-400 font-bold">₱-480.00/month</strong></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="border border-border rounded-[14px] overflow-x-auto bg-card shadow-2xs">
-                <table className="w-full border-collapse text-left text-xs min-w-[900px]">
-                  <thead>
-                    <tr className="bg-secondary/70 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                      <th className="py-2.5 px-3.5 font-bold">Commercial Package</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Package Modules</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Actual DC Cap</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Inverter AC</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Electrical Grid</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Target Monthly</th>
-                      <th className="py-2.5 px-3.5 font-bold text-center text-primary">Derived Electric Bill</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Est. Monthly Gen</th>
-                      <th className="py-2.5 px-3 font-bold text-center">Target Solar</th>
-                      <th className="py-2.5 px-3 font-bold text-right pr-4">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60 font-medium">
-                    {filteredV2Items.map((item) => {
-                      const isSelected = activeKw === item.kw
-                      const isThreePhase = item.phase === '3-Phase'
-
-                      return (
-                        <tr
-                          key={item.kw}
-                          className={cn(
-                            "transition-colors group",
-                            isSelected
-                              ? "bg-primary/10 dark:bg-primary/15 font-semibold"
-                              : "hover:bg-secondary/40"
-                          )}
-                        >
-                          <td className="py-3 px-3.5">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={cn(
-                                  "w-2 h-2 rounded-full",
-                                  isSelected ? "bg-primary animate-pulse" : "bg-muted-foreground/40"
-                                )}
-                              />
-                              <div>
-                                <span className="font-bold text-foreground text-xs">{item.commercialPackage}</span>
-                                <div className="text-[10px] text-muted-foreground font-mono">
-                                  {item.kw} kW Inverter System
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-3 text-center">
-                            <span className="inline-flex items-center gap-1 font-mono font-bold text-foreground bg-secondary/80 px-2 py-0.5 rounded-[6px] border border-border">
-                              {item.packageModules}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-3 text-center font-mono font-bold text-foreground">
-                            {item.actualDcCapacity}
-                          </td>
-
-                          <td className="py-3 px-3 text-center font-mono text-muted-foreground">
-                            {item.inverterAcOutput}
-                          </td>
-
-                          <td className="py-3 px-3 text-center">
-                            <span
-                              className={cn(
-                                "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border inline-block whitespace-nowrap",
-                                isThreePhase
-                                  ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20"
-                                  : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
-                              )}
-                            >
-                              {item.electricalGrid}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-3 text-center font-mono text-foreground text-[11px]">
-                            {item.targetMonthlyKwh}
-                          </td>
-
-                          <td className="py-3 px-3.5 text-center">
-                            <span className="font-mono font-extrabold text-xs text-primary bg-primary/10 dark:bg-primary/20 px-2.5 py-1 rounded-[8px] border border-primary/20 whitespace-nowrap">
-                              {item.derivedElectricBill}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                            {item.estMonthlyGen}
-                          </td>
-
-                          <td className="py-3 px-3 text-center">
-                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                              {item.targetSolarOffset}
-                            </span>
-                          </td>
-
-                          <td className="py-3 px-3 text-right pr-4">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="xs"
-                                onClick={() => handleCopyV2Row(item)}
-                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                                title="Copy package details to clipboard"
-                              >
-                                {copiedKw === item.kw ? (
-                                  <Check size={12} className="text-emerald-600" />
-                                ) : (
-                                  <Copy size={12} />
-                                )}
-                              </Button>
-                              {onSelectKw && (
-                                <Button
-                                  type="button"
-                                  variant={isSelected ? "default" : "outline"}
-                                  size="xs"
-                                  onClick={() => {
-                                    onSelectKw(item.kw)
-                                    onOpenChange(false)
-                                  }}
-                                  className={cn(
-                                    "h-7 px-2 text-[10px] font-bold cursor-pointer transition-all",
-                                    isSelected
-                                      ? "bg-primary text-primary-foreground shadow-xs"
-                                      : "hover:bg-primary hover:text-primary-foreground"
-                                  )}
-                                >
-                                  {isSelected ? "Selected" : "Select"}
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -1503,9 +1139,7 @@ export function SizingReferenceModal({
               <span className="w-2 h-2 rounded-full bg-purple-500" /> 3-Phase (10.0kW – 30.0kW)
             </span>
             <span className="text-[11px] font-mono">
-              {selectedVersion === 'v3'
-                ? `10 Calibrated Tiers (${v3Type === 'ongrid' ? 'Grid-Tied' : 'Hybrid'})`
-                : `${SIZING_REFERENCE_V2.length} Standard Commercial Packages`}
+              10 Calibrated Tiers ({v3Type === 'ongrid' ? 'Grid-Tied' : 'Hybrid'})
             </span>
           </div>
           <Button
