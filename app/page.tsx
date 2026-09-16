@@ -4564,47 +4564,17 @@ export default function Home() {
                 <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5">
+                      <div
+                        role="button"
+                        onClick={() => setIsSizingModalOpen(true)}
+                        className="flex items-center gap-1.5 cursor-pointer select-none hover:opacity-80 transition-opacity"
+                        title="Click to view Electric Bill & Sizing Reference Matrix"
+                      >
                         <Zap size={14} className="text-primary" />
                         <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                           Electric Bill & Sizing Reference
                         </h4>
                       </div>
-
-                      {/* Reference Version Quick Switch */}
-                      <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-[7px] border border-border">
-                        {(['v3', 'v2', 'v1'] as const).map((ver) => (
-                          <button
-                            key={ver}
-                            type="button"
-                            onClick={() => setSizingRefVersion(ver)}
-                            className={cn(
-                              "px-2 py-0.5 text-[9.5px] font-bold rounded-[5px] transition-all cursor-pointer uppercase select-none",
-                              sizingRefVersion === ver
-                                ? "bg-primary text-primary-foreground shadow-2xs font-black"
-                                : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-                            )}
-                          >
-                            {ver}
-                            {ver === 'v3' && (
-                              <span className="ml-1 text-[7.5px] px-1 py-0.2 rounded bg-amber-400/25 text-amber-300 font-black">
-                                NEW
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Open Sizing Reference Modal */}
-                      <button
-                        type="button"
-                        onClick={() => setIsSizingModalOpen(true)}
-                        className="flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold rounded-[6px] bg-secondary hover:bg-secondary/80 text-foreground border border-border cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
-                        title="View comprehensive Sizing Reference tables & sample calculations"
-                      >
-                        <Layers size={11} className="text-primary" />
-                        <span>View Matrix</span>
-                      </button>
                     </div>
 
                     {/* Hybrid / On-Grid Switch */}
