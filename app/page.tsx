@@ -4559,19 +4559,11 @@ export default function Home() {
                 <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <div
-                        role="button"
-                        onClick={() => setIsSizingModalOpen(true)}
-                        className="flex items-center gap-1.5 cursor-pointer select-none hover:opacity-80 transition-opacity"
-                        title="Click to view Electric Bill & Sizing Reference Matrix"
-                      >
+                      <div className="flex items-center gap-1.5 select-none">
                         <Zap size={14} className="text-primary" />
                         <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                           Electric Bill & Sizing Reference
                         </h4>
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded font-bold bg-primary/15 text-primary border border-primary/25">
-                          V3
-                        </span>
                       </div>
                     </div>
 
@@ -4919,7 +4911,7 @@ export default function Home() {
                         <MapPin size={10} className="text-primary" /> Origin: Muntinlupa
                       </span>
                       <span className="text-[9px] font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
-                        ₱5,000 (≤20km) + ₱100/km
+                        ₱5,000 (≤20km) + ₱15/km
                       </span>
                     </div>
                   </div>

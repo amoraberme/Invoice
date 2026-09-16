@@ -16,9 +16,9 @@ All notable changes and technical documentation for **MG Solar Invoice & Quotati
    - Origin point established at **Muntinlupa Headquarters (Putatan)** (`0.0 km`).
    - Calibrated road driving distances replacing straight-line/haversine approximations for accurate logistics estimation across Luzon, Visayas, and Mindanao.
 
-3. **Logistics Delivery Pricing Baseline (₱5,000 Base + ₱100/km)**:
+3. **Logistics Delivery Pricing Baseline (₱5,000 Base + ₱15/km)**:
    - First $\le 20\text{ km}$: **₱5,000.00** flat base rate.
-   - Additional distance $> 20\text{ km}$: $+₱100.00$ per driving kilometer.
+   - Additional distance $> 20\text{ km}$: $+₱15.00$ per driving kilometer.
    - Exemption from Global Markup: Delivery fees are strictly treated as direct pass-through logistics charges (exempt from `rateMarkup` multiplier).
 
 4. **Region-Aware Client Address Auto-Synchronization**:
@@ -86,7 +86,7 @@ export const BASELINE_ORIGIN = {
   region: 'NCR',
   baselineKm: 20,
   baselineFee: 5000,
-  extraPerKm: 100
+  extraPerKm: 15
 }
 
 export const SERVICEABLE_DISTANCE_KM = 50
@@ -95,7 +95,7 @@ export function calculateDeliveryFee(distanceKm: number): number {
   if (isNaN(distanceKm) || distanceKm <= 0) return 5000
   if (distanceKm <= 20) return 5000
   const extraKm = distanceKm - 20
-  return Math.round(5000 + extraKm * 100)
+  return Math.round(5000 + extraKm * 15)
 }
 ```
 

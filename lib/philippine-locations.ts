@@ -47,7 +47,7 @@ export const BASELINE_ORIGIN = {
   region: 'NCR',
   baselineKm: 20,
   baselineFee: 5000,
-  extraPerKm: 100
+  extraPerKm: 15
 }
 
 export const SERVICEABLE_DISTANCE_KM = 50
