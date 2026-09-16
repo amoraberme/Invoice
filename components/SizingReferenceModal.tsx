@@ -635,8 +635,8 @@ export interface SizingReferenceModalProps {
   onOpenChange: (open: boolean) => void
   activeKw?: number
   onSelectKw?: (kw: number) => void
-  currentRefVersion?: 'v1' | 'v2' | 'v3'
-  onToggleVersion?: (ver: 'v1' | 'v2' | 'v3') => void
+  currentRefVersion?: 'v2' | 'v3'
+  onToggleVersion?: (ver: 'v2' | 'v3') => void
   systemType?: 'hybrid' | 'ongrid'
 }
 
@@ -649,7 +649,7 @@ export function SizingReferenceModal({
   onToggleVersion,
   systemType = 'hybrid',
 }: SizingReferenceModalProps) {
-  const [selectedVersion, setSelectedVersion] = useState<'v1' | 'v2' | 'v3'>(currentRefVersion)
+  const [selectedVersion, setSelectedVersion] = useState<'v2' | 'v3'>(currentRefVersion)
   const [v3Type, setV3Type] = useState<'hybrid' | 'ongrid'>(systemType)
   const [searchQuery, setSearchQuery] = useState('')
   const [phaseFilter, setPhaseFilter] = useState<'all' | '1-Phase' | '3-Phase'>('all')
@@ -667,7 +667,7 @@ export function SizingReferenceModal({
     setV3Type(systemType)
   }, [systemType])
 
-  const handleSelectVersion = (ver: 'v1' | 'v2' | 'v3') => {
+  const handleSelectVersion = (ver: 'v2' | 'v3') => {
     setSelectedVersion(ver)
     onToggleVersion?.(ver)
   }
@@ -840,18 +840,6 @@ export function SizingReferenceModal({
                 )}
               >
                 V2
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectVersion('v1')}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-bold rounded-[7px] transition-all cursor-pointer select-none",
-                  selectedVersion === 'v1'
-                    ? "bg-primary text-primary-foreground shadow-xs font-black"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
-              >
-                V1
               </button>
             </div>
           </div>
@@ -1494,73 +1482,6 @@ export function SizingReferenceModal({
                                 </Button>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* VERSION 1: LEGACY SIMPLE TABLE                            */}
-          {/* ========================================================= */}
-          {selectedVersion === 'v1' && (
-            <div className="space-y-3">
-              <div className="p-3 bg-secondary/35 border border-border rounded-[12px] text-xs text-muted-foreground">
-                <span className="font-bold text-foreground">Version 1 (Legacy Fixed Baseline):</span> Simple fixed electric bill mapping per system kW capacity.
-              </div>
-
-              <div className="border border-border rounded-[14px] overflow-x-auto bg-card shadow-2xs max-w-2xl mx-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="bg-secondary/70 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider select-none">
-                      <th className="py-2.5 px-4 font-bold">System Capacity</th>
-                      <th className="py-2.5 px-4 font-bold text-center text-primary">Estimated Electric Bill</th>
-                      <th className="py-2.5 px-4 font-bold text-right pr-4">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60 font-medium">
-                    {Object.entries(KW_TO_ELECTRIC_BILL_V1).map(([kwStr, bill]) => {
-                      const kw = Number(kwStr)
-                      const isSelected = activeKw === kw
-
-                      return (
-                        <tr
-                          key={kw}
-                          className={cn(
-                            "transition-colors",
-                            isSelected ? "bg-primary/10 dark:bg-primary/15 font-semibold" : "hover:bg-secondary/40"
-                          )}
-                        >
-                          <td className="py-3 px-4 font-bold text-foreground">
-                            {kw} kW System
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="font-mono font-extrabold text-xs text-primary bg-primary/10 px-3 py-1 rounded-[8px] border border-primary/20">
-                              {bill}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right pr-4">
-                            {onSelectKw && (
-                              <Button
-                                type="button"
-                                variant={isSelected ? "default" : "outline"}
-                                size="xs"
-                                onClick={() => {
-                                  onSelectKw(kw)
-                                  onOpenChange(false)
-                                }}
-                                className={cn(
-                                  "h-7 px-2.5 text-[10px] font-bold cursor-pointer transition-all",
-                                  isSelected ? "bg-primary text-primary-foreground shadow-xs" : ""
-                                )}
-                              >
-                                {isSelected ? "Selected" : "Select"}
-                              </Button>
-                            )}
                           </td>
                         </tr>
                       )

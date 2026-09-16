@@ -1475,7 +1475,7 @@ const ELECTRIC_BILL_PRICE_REFERENCES = [
 
 function getElectricBillRef(
   kw: number,
-  version: 'v1' | 'v2' | 'v3' = 'v3',
+  version: 'v2' | 'v3' = 'v3',
   short = true,
   sysType: 'hybrid' | 'ongrid' = 'hybrid'
 ): string {
@@ -2201,7 +2201,7 @@ export default function Home() {
   const [activePreset, setActivePreset] = useState<'min' | 'balance' | 'max'>('max')
   const [activeKwSetup, setActiveKwSetup] = useState<number>(5)
   const [twentyKwMode, setTwentyKwMode] = useState<'parallel' | 'single'>('parallel')
-  const [sizingRefVersion, setSizingRefVersion] = useState<'v1' | 'v2' | 'v3'>('v3')
+  const [sizingRefVersion, setSizingRefVersion] = useState<'v2' | 'v3'>('v3')
   const [isSizingModalOpen, setIsSizingModalOpen] = useState<boolean>(false)
   const [rowsCount, setRowsCount] = useState<number>(1)
   const [holdTooltipKw, setHoldTooltipKw] = useState<number | null>(null)
@@ -4564,16 +4564,21 @@ export default function Home() {
                 <div className="p-3.5 bg-card border border-border rounded-[16px] text-left space-y-3 shadow-xs">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5">
+                      <div
+                        role="button"
+                        onClick={() => setIsSizingModalOpen(true)}
+                        className="flex items-center gap-1.5 cursor-pointer select-none hover:opacity-80 transition-opacity"
+                        title="Click to view Electric Bill & Sizing Reference Matrix"
+                      >
                         <Zap size={14} className="text-primary" />
                         <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">
                           Electric Bill & Sizing Reference
                         </h4>
                       </div>
 
-                      {/* Reference Version Quick Switch */}
+                      {/* Reference Version Quick Switch (v3 & v2 only) */}
                       <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-[7px] border border-border">
-                        {(['v3', 'v2', 'v1'] as const).map((ver) => (
+                        {(['v3', 'v2'] as const).map((ver) => (
                           <button
                             key={ver}
                             type="button"
@@ -4594,17 +4599,6 @@ export default function Home() {
                           </button>
                         ))}
                       </div>
-
-                      {/* Open Sizing Reference Modal */}
-                      <button
-                        type="button"
-                        onClick={() => setIsSizingModalOpen(true)}
-                        className="flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold rounded-[6px] bg-secondary hover:bg-secondary/80 text-foreground border border-border cursor-pointer transition-all active:scale-[0.98] shadow-2xs"
-                        title="View comprehensive Sizing Reference tables & sample calculations"
-                      >
-                        <Layers size={11} className="text-primary" />
-                        <span>View Matrix</span>
-                      </button>
                     </div>
 
                     {/* Hybrid / On-Grid Switch */}
