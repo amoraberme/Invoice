@@ -96,20 +96,20 @@ function getConduitDetails(systemKw: number, runLength: number = 30, isOld20Kw?:
 function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: number, batteryAh?: number, isOld20Kw?: boolean) {
   let acMcb = 'AC MCB 100A'
   let acMcbRate = 500.00
-  let acMcbQty = 2
+  let acMcbQty = 4
 
   if (systemKw <= 4) {
     acMcb = 'AC MCB 80A'
     acMcbRate = 450.00
-    acMcbQty = 2
+    acMcbQty = 4
   } else if (systemKw <= 6) {
     acMcb = 'AC MCB 100A'
     acMcbRate = 500.00
-    acMcbQty = 2
+    acMcbQty = 4
   } else if (systemKw <= 8) {
     acMcb = 'AC MCB 125A'
     acMcbRate = 500.00
-    acMcbQty = 2
+    acMcbQty = 4
   } else if (systemKw >= 20) {
     acMcb = 'AC MCCB'
     acMcbRate = isOld20Kw ? 850.00 : 1300.00
@@ -145,14 +145,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
   const enclosureRate = systemKw <= 4 ? 1500.00 : 3000.00
   const enclosureQty = (systemKw >= 20 && !isOld20Kw) ? 2 : 1
 
-  let dcMcbQty = 2
-  if (systemKw >= 20) {
-    dcMcbQty = isOld20Kw ? 2 : 4
-  } else if (systemKw >= 12) {
-    dcMcbQty = 3
-  } else {
-    dcMcbQty = 2
-  }
+  let dcMcbQty = 4
 
   let dcSpdQty = 2
   if (systemKw >= 20) {
@@ -5197,7 +5190,7 @@ export default function Home() {
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">3. AC Breakers (MCB vs MCCB)</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 2 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 2 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 2 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300/pc</span> so they are never mixed up.
+                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 4 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 4 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 4 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300/pc</span> so they are never mixed up.
                         </p>
                       </div>
 

@@ -337,6 +337,18 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     batch: 'August 18, 2026 System & BOQ Updates (Dev)'
   },
   {
+    id: 'cl-dev-mcb-count-upgrade-aug18_v3',
+    timestamp: 'Aug 18, 2026, 08:50 AM',
+    itemDescription: 'Standard MCB Count Upgrade (AC & DC)',
+    changeType: 'system',
+    fieldChanged: 'MCB Standard Quantity',
+    oldValue: '2 pcs for AC MCB (3k–8k) and DC MCB (3k–10k, Old 20k)',
+    newValue: '4 pcs standard for AC MCB and DC MCB across all systems',
+    unit: 'PCS',
+    note: '[Dev] Upgraded standard quantities of all AC MCBs (80A, 100A, 125A) and DC MCBs from 2 pcs to 4 pcs across all package sizes',
+    batch: 'August 18, 2026 System & BOQ Updates (Dev)'
+  },
+  {
     id: 'cl-dev-salutation-sync-aug18_v2',
     timestamp: 'Aug 18, 2026, 08:12 AM',
     itemDescription: 'Dynamic Salutation & Offer Sync',
