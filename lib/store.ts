@@ -154,6 +154,18 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
   // ── SET DATE: SEPTEMBER 16, 2026 (Dev) ──
   {
+    id: 'cl-dev-delivery-rate-15perkm-sep16_v1',
+    timestamp: 'Sep 16, 2026, 11:45 AM',
+    itemDescription: 'Delivery Fee Excess Rate Calibrated to ₱15/km',
+    changeType: 'price',
+    fieldChanged: 'Delivery Additional Distance Rate',
+    oldValue: '₱5,000 for ≤20km + ₱100/km (>20km)',
+    newValue: '₱5,000 for ≤20km + ₱15/km (>20km)',
+    unit: 'RATE',
+    note: '[Dev] Updated excess logistics pricing: ₱5,000 baseline for ≤20km plus ₱15.00 per additional kilometer beyond 20km',
+    batch: 'September 16, 2026 Logistics Engine & Delivery Updates (Dev)'
+  },
+  {
     id: 'cl-dev-sizing-reference-v3-sep16_v1',
     timestamp: 'Sep 16, 2026, 11:30 AM',
     itemDescription: 'Price & Sizing Reference Matrix Version 3 (Dual System)',
@@ -955,6 +967,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasSep16DeliverySeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-delivery-rate-15perkm-sep16_v1')
         const hasSep16Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-sizing-reference-v3-sep16_v1')
         const hasAug25Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-ph-location-engine-aug25_v1')
         const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-scope-editor-aug19_v1')
@@ -965,7 +978,7 @@ export function getChangelogHistory(): ChangelogItem[] {
           (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
           (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
         )
-        if (!hasSep16Seed || !hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
+        if (!hasSep16DeliverySeed || !hasSep16Seed || !hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }

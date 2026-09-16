@@ -59,13 +59,13 @@ export function isWithinServiceableArea(distanceKm: number): boolean {
 /**
  * Calculates delivery fee based on driving distance from Muntinlupa:
  * - 0 to 20 km: ₱5,000 (Baseline)
- * - > 20 km: ₱5,000 + (driving distance - 20) * ₱100/km
+ * - > 20 km: ₱5,000 + (driving distance - 20) * ₱15/km
  */
 export function calculateDeliveryFee(distanceKm: number): number {
   if (isNaN(distanceKm) || distanceKm <= 0) return 5000
   if (distanceKm <= 20) return 5000
   const extraKm = distanceKm - 20
-  return Math.round(5000 + extraKm * 100)
+  return Math.round(5000 + extraKm * 15)
 }
 
 /**

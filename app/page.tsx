@@ -5156,7 +5156,7 @@ export default function Home() {
                         <div>
                           <span className="text-muted-foreground block">Rate Breakdown:</span>
                           <span className="text-foreground">
-                            ₱5,000 (≤20km) {selectedLocation.drivingDistanceKm > 20 ? `+ ₱${((selectedLocation.drivingDistanceKm - 20) * 100).toLocaleString()} (${(selectedLocation.drivingDistanceKm - 20).toFixed(1)}km × ₱100)` : '(Base Rate)'}
+                            ₱5,000 (≤20km) {selectedLocation.drivingDistanceKm > 20 ? `+ ₱${((selectedLocation.drivingDistanceKm - 20) * 15).toLocaleString()} (${(selectedLocation.drivingDistanceKm - 20).toFixed(1)}km × ₱15)` : '(Base Rate)'}
                           </span>
                         </div>
                         <div>

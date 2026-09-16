@@ -177,7 +177,7 @@ $$\text{Total DC Watts} = \text{panelQty} \times 620\text{W}$$
 $$\text{Labor Rate} = \text{round}(\text{Total DC Watts} \times \text{laborPricePerWatt}) \quad (\text{Default } \text{laborPricePerWatt} = ₱6/\text{W})$$
 
 ### 5.2 Delivery Fee Formula
-$$\text{Delivery Fee} = \begin{cases} ₱5,000.00 & \text{if } \text{distanceKm} \le 20\text{ km} \\ ₱5,000.00 + (\text{distanceKm} - 20) \times ₱100.00/\text{km} & \text{if } \text{distanceKm} > 20\text{ km} \end{cases}$$
+$$\text{Delivery Fee} = \begin{cases} ₱5,000.00 & \text{if } \text{distanceKm} \le 20\text{ km} \\ ₱5,000.00 + (\text{distanceKm} - 20) \times ₱15.00/\text{km} & \text{if } \text{distanceKm} > 20\text{ km} \end{cases}$$
 
 ### 5.3 Rate Markup Formula
 $$\text{Effective Rate} = \begin{cases} \text{item.rate} & \text{if Delivery Item} \\ \text{item.rate} & \text{if Labor Item and excludeLaborMarkup is active} \\ \text{item.rate} \times \left(1 + \frac{\text{rateMarkup}}{100}\right) & \text{otherwise (Default markup: 25\%)} \end{cases}$$
