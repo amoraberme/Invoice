@@ -4599,7 +4599,7 @@ export default function Home() {
 
 
                   {/* kW Setup Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5 relative">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 relative">
                     {[3, 4, 5, 6, 8, 10, 12, 16, 20, 30].map((kw, idx) => {
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
                       const isDisabled = systemType === 'ongrid' && !hasOnGridOption
@@ -4663,7 +4663,7 @@ export default function Home() {
                               }
                             }}
                             className={cn(
-                              "w-full h-[60px] flex flex-col items-center justify-between p-2 rounded-[10px] border transition-all select-none font-semibold text-center relative",
+                              "w-full min-h-[66px] sm:min-h-[68px] h-full flex flex-col items-center justify-between py-2 px-1 sm:px-1.5 rounded-[10px] border transition-all select-none font-semibold text-center relative",
                               isDisabled
                                 ? "opacity-35 bg-secondary/20 border-border text-muted-foreground cursor-not-allowed pointer-events-none line-through"
                                 : isSelected
@@ -4673,12 +4673,12 @@ export default function Home() {
                           >
                             {/* Top row: kW */}
                             <div className="flex items-center justify-center leading-none">
-                              <span className="font-bold text-xs">{kw}kW</span>
+                              <span className="font-bold text-xs sm:text-[13px]">{kw}kW</span>
                             </div>
 
                             {/* Middle slot: 20kW Architecture Toggle or spacer for identical height */}
                             {kw === 20 ? (
-                              <div className="flex items-center gap-1 my-auto leading-none" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-0.5 my-auto bg-black/5 dark:bg-white/10 p-0.5 rounded-[5px] select-none leading-none z-10" onClick={(e) => e.stopPropagation()}>
                                 <span
                                   role="button"
                                   onClick={() => {
@@ -4687,10 +4687,10 @@ export default function Home() {
                                     handleGenerateBoq(20, activePreset, systemType, 'parallel')
                                   }}
                                   className={cn(
-                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer leading-none",
+                                    "text-[7.5px] px-1 py-0.5 rounded-[3px] font-bold transition-all cursor-pointer leading-none",
                                     twentyKwMode === 'parallel'
-                                      ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
-                                      : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
+                                      ? (isSelected ? "bg-white text-primary font-black shadow-2xs" : "bg-primary text-primary-foreground font-black shadow-2xs")
+                                      : (isSelected ? "text-primary-foreground/75 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground")
                                   )}
                                   title="Dual 10kW Inverters Parallel Setup"
                                 >
@@ -4704,10 +4704,10 @@ export default function Home() {
                                     handleGenerateBoq(20, activePreset, systemType, 'single')
                                   }}
                                   className={cn(
-                                    "text-[7px] px-1 py-0.5 rounded font-bold transition-all cursor-pointer leading-none",
+                                    "text-[7.5px] px-1 py-0.5 rounded-[3px] font-bold transition-all cursor-pointer leading-none",
                                     twentyKwMode === 'single'
-                                      ? (isSelected ? "bg-white text-primary font-black shadow-xs" : "bg-primary text-primary-foreground font-black")
-                                      : (isSelected ? "bg-primary-foreground/20 text-primary-foreground/75 hover:bg-primary-foreground/30" : "bg-muted text-muted-foreground hover:text-foreground")
+                                      ? (isSelected ? "bg-white text-primary font-black shadow-2xs" : "bg-primary text-primary-foreground font-black shadow-2xs")
+                                      : (isSelected ? "text-primary-foreground/75 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground")
                                   )}
                                   title="Original Single 20kW Inverter Setup (GoodWe 20kW Hybrid)"
                                 >
@@ -4719,7 +4719,7 @@ export default function Home() {
                             )}
 
                             {/* Bottom row: Price Reference */}
-                            <span className={cn("text-[10px] font-mono tracking-tight leading-none", billDescColor)}>{billRef}</span>
+                            <span className={cn("text-[9.5px] sm:text-[10px] font-mono tracking-tight leading-none text-center whitespace-nowrap", billDescColor)}>{billRef}</span>
                           </button>
 
                           {/* Direct, Precise & Clear Tooltip */}
@@ -4729,7 +4729,7 @@ export default function Home() {
                                 "transition-all duration-150 ease-out z-[9999]",
                                 "p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-xl shadow-xl border border-border text-left font-sans",
                                 "fixed sm:absolute left-3 right-3 bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 sm:w-[270px] overflow-hidden",
-                                idx >= 4 ? "sm:right-0 sm:left-auto" : (idx >= 2 ? "sm:left-1/2 sm:-translate-x-1/2" : "sm:left-0 sm:right-auto"),
+                                idx % 5 === 4 ? "sm:right-0 sm:left-auto" : (idx % 5 === 0 ? "sm:left-0 sm:right-auto" : "sm:left-1/2 sm:-translate-x-1/2"),
                                 isTooltipOpenOnMobile
                                   ? "opacity-100 visible pointer-events-auto ring-2 ring-primary/30"
                                   : "pointer-events-none opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible"
