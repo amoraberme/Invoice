@@ -152,6 +152,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: SEPTEMBER 16, 2026 (Dev) ──
+  {
+    id: 'cl-dev-sizing-reference-v3-sep16_v1',
+    timestamp: 'Sep 16, 2026, 11:30 AM',
+    itemDescription: 'Price & Sizing Reference Matrix Version 3 (Dual System)',
+    changeType: 'system',
+    fieldChanged: 'Sizing Reference & Electric Bill Matrix (V3 Grid-Tied & V3 Hybrid)',
+    oldValue: 'V2 Standard Commercial matrix with single bill targets',
+    newValue: 'V3 Dual Matrix: Grid-Tied (Zero-Export Daytime) & Hybrid (Battery Storage 24-Hr Offset) with dynamic bill ranges',
+    unit: 'MATRIX',
+    note: '[Dev] Added Price Reference Version 3 with dedicated dual matrices: Grid-Tied Reference Matrix (Zero-Export / Daytime Only) and Hybrid Reference Matrix (Battery Storage / 24-Hour Offset) dynamically adapting kW button bill displays and interactive modal comparisons',
+    batch: 'September 16, 2026 Sizing Matrix & BOQ Updates (Dev)'
+  },
   // ── SET DATE: SEPTEMBER 04, 2026 (Dev) ──
   {
     id: 'cl-dev-ubetter-battery-sep04_v1',
@@ -942,6 +955,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasSep16Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-sizing-reference-v3-sep16_v1')
         const hasAug25Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-ph-location-engine-aug25_v1')
         const hasAug19Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-scope-editor-aug19_v1')
         const hasAug18LatestDevSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-remove-ocr-aug18_v1')
@@ -951,7 +965,7 @@ export function getChangelogHistory(): ChangelogItem[] {
           (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
           (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
         )
-        if (!hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
+        if (!hasSep16Seed || !hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }

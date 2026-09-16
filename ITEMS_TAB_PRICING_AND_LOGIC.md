@@ -132,25 +132,63 @@ Every item in the **Items Tab** displays an informative badge and audit reconcil
 
 ---
 
-## 3. Financial & Calculation Formulas
+## 3. Grid-Tied Reference Matrix (Zero-Export / Daytime Only)
 
-### 3.1 Labor and Installation Formula
+*Use this table when clients want to reduce daytime air conditioning and daytime utility expenses without investing in costly battery banks.*
+
+| Inverter Rating | Recommended DC Array | Panel Count (620W) | Est. Daily Yield | Target Monthly Bill | Target Daily Usage | Expected Monthly Savings | Coverage Ratio |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **3 kW** | 3.10 – 3.72 kWp | 5 – 6 panels | 10.1 – 12.1 kWh | **₱6,000 – ₱8,000** | 13.3 – 17.8 kWh | **₱4,500 – ₱5,500** | ~50% – 65% |
+| **4 kW** | 4.34 – 4.96 kWp | 7 – 8 panels | 14.2 – 16.2 kWh | **₱8,000 – ₱10,500** | 17.8 – 23.3 kWh | **₱6,400 – ₱7,300** | ~50% – 65% |
+| **5 kW** | 5.58 – 6.20 kWp | 9 – 10 panels | 18.2 – 20.2 kWh | **₱10,500 – ₱14,000** | 23.3 – 31.1 kWh | **₱8,200 – ₱9,100** | ~50% – 65% |
+| **6 kW** | 6.82 – 7.44 kWp | 11 – 12 panels | 22.3 – 24.3 kWh | **₱14,000 – ₱17,500** | 31.1 – 38.9 kWh | **₱10,000 – ₱11,000** | ~50% – 65% |
+| **8 kW** | 8.68 – 9.92 kWp | 14 – 16 panels | 28.4 – 32.4 kWh | **₱18,000 – ₱22,000** | 40.0 – 48.9 kWh | **₱12,700 – ₱14,500** | ~50% – 65% |
+| **10 kW** | 11.16 – 12.40 kWp | 18 – 20 panels | 36.5 – 40.5 kWh | **₱23,000 – ₱28,000** | 51.1 – 62.2 kWh | **₱16,400 – ₱18,200** | ~50% – 65% |
+| **12 kW** | 13.64 – 14.88 kWp | 22 – 24 panels | 44.6 – 48.6 kWh | **₱28,000 – ₱35,000** | 62.2 – 77.8 kWh | **₱20,000 – ₱21,800** | ~50% – 65% |
+| **16 kW** | 18.60 – 19.84 kWp | 30 – 32 panels | 60.8 – 64.8 kWh | **₱36,000 – ₱46,000** | 80.0 – 102.2 kWh | **₱27,300 – ₱29,100** | ~50% – 65% |
+| **20 kW** | 22.32 – 24.80 kWp | 36 – 40 panels | 73.0 – 81.1 kWh | **₱46,000 – ₱58,000** | 102.2 – 128.9 kWh | **₱32,800 – ₱36,500** | ~50% – 65% |
+| **30 kW** | 34.72 – 37.20 kWp | 56 – 60 panels | 113.5 – 121.6 kWh | **₱75,000 – ₱95,000** | 166.7 – 211.1 kWh | **₱51,000 – ₱54,700** | ~50% – 65% |
+
+---
+
+## 4. Hybrid Reference Matrix (Battery Storage / 24-Hour Offset)
+
+*Use this table when clients experience frequent brownouts, high night-time loads, or wish to zero out their bill completely.*
+
+| Inverter Rating | Recommended DC Array | Panel Count (620W) | Recommended Battery Bank | Target Monthly Bill | Total Daily Energy | Net Monthly Savings | Coverage Ratio |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **3 kW** | 3.72 kWp | 6 panels | 5.12 kWh (100Ah) | **₱4,500 – ₱6,000** | 10.0 – 13.3 kWh | **₱4,000 – ₱5,500** | Up to 95% |
+| **4 kW** | 4.96 kWp | 8 panels | 10.24 kWh (200Ah) | **₱6,000 – ₱8,000** | 13.3 – 17.8 kWh | **₱5,500 – ₱7,500** | Up to 95% |
+| **5 kW** | 6.20 kWp | 10 panels | 10.24 – 14.3 kWh | **₱7,500 – ₱10,000** | 16.7 – 22.2 kWh | **₱7,000 – ₱9,500** | Up to 95% |
+| **6 kW** | 7.44 kWp | 12 panels | 14.3 – 16.08 kWh (314Ah) | **₱10,000 – ₱12,500** | 22.2 – 27.8 kWh | **₱9,500 – ₱12,000** | Up to 95% |
+| **8 kW** | 9.92 kWp | 16 panels | 16.08 – 20.48 kWh | **₱12,500 – ₱15,500** | 27.8 – 34.4 kWh | **₱12,000 – ₱15,000** | Up to 95% |
+| **10 kW** | 12.40 – 13.64 kWp | 20 – 22 panels | 16.08 – 30.0 kWh | **₱16,000 – ₱20,000** | 35.6 – 44.4 kWh | **₱15,500 – ₱19,500** | Up to 95% |
+| **12 kW** | 14.88 – 16.12 kWp | 24 – 26 panels | 25.6 – 32.0 kWh | **₱20,000 – ₱26,000** | 44.4 – 57.8 kWh | **₱19,500 – ₱25,000** | Up to 95% |
+| **16 kW** | 19.84 – 21.08 kWp | 32 – 34 panels | 30.0 – 45.0 kWh | **₱26,000 – ₱34,000** | 57.8 – 75.6 kWh | **₱25,000 – ₱33,000** | Up to 95% |
+| **20 kW** | 24.80 – 27.28 kWp | 40 – 44 panels | 40.0 – 60.0 kWh | **₱35,000 – ₱46,000** | 77.8 – 102.2 kWh | **₱34,000 – ₱44,000** | Up to 95% |
+| **30 kW** | 37.20 – 40.92 kWp | 60 – 66 panels | 60.0 – 80.0 kWh | **₱55,000 – ₱75,000** | 122.2 – 166.7 kWh | **₱53,000 – ₱72,000** | Up to 95% |
+
+---
+
+## 5. Financial & Calculation Formulas
+
+### 5.1 Labor and Installation Formula
 $$\text{Total DC Watts} = \text{panelQty} \times 620\text{W}$$
 $$\text{Labor Rate} = \text{round}(\text{Total DC Watts} \times \text{laborPricePerWatt}) \quad (\text{Default } \text{laborPricePerWatt} = ₱6/\text{W})$$
 
-### 3.2 Delivery Fee Formula
+### 5.2 Delivery Fee Formula
 $$\text{Delivery Fee} = \begin{cases} ₱5,000.00 & \text{if } \text{distanceKm} \le 20\text{ km} \\ ₱5,000.00 + (\text{distanceKm} - 20) \times ₱100.00/\text{km} & \text{if } \text{distanceKm} > 20\text{ km} \end{cases}$$
 
-### 3.3 Rate Markup Formula
+### 5.3 Rate Markup Formula
 $$\text{Effective Rate} = \begin{cases} \text{item.rate} & \text{if Delivery Item} \\ \text{item.rate} & \text{if Labor Item and excludeLaborMarkup is active} \\ \text{item.rate} \times \left(1 + \frac{\text{rateMarkup}}{100}\right) & \text{otherwise (Default markup: 25\%)} \end{cases}$$
 
-### 3.4 Subtotal, VAT & Grand Total Formulas
+### 5.4 Subtotal, VAT & Grand Total Formulas
 $$\text{Subtotal} = \sum_{i} (\text{quantity}_i \times \text{Effective Rate}_i)$$
 $$\text{Net Subtotal} = \max(0, \text{Subtotal} - \text{Discount Amount})$$
 $$\text{VAT} = \text{Net Subtotal} \times \left(\frac{\text{vatRate}}{100}\right) \quad (\text{Default: 0\%})$$
 $$\text{Grand Total} = \text{Net Subtotal} + \text{VAT}$$
 
-### 3.5 Sales Commission Formula (Capital & Internal Profitability)
+### 5.5 Sales Commission Formula (Capital & Internal Profitability)
 $$\text{Total Labor} = \sum_{i \in \text{Labor}} (\text{quantity}_i \times \text{Effective Rate}_i)$$
 $$\text{Commissionable Base} = \max(0, \text{Quotation Grand Total} - \text{Total Labor})$$
 $$\text{Sales Commission} = \text{Commissionable Base} \times 2.5\%$$
