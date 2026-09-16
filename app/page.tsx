@@ -1315,7 +1315,6 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
     name: 'GoodWe',
     logo: '/goodwe.svg',
     getPrice: (kw: number) => {
-      if (kw === 1.5) return 15000
       if (kw === 3) return 18000
       if (kw === 6) return 24000
       if (kw === 10) return 37000
@@ -1461,7 +1460,6 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
 const KW_TO_ELECTRIC_BILL: Record<number, string> = KW_TO_ELECTRIC_BILL_V1
 
 const ELECTRIC_BILL_PRICE_REFERENCES = [
-  { bill: '₱3,000', kw: 1.5 },
   { bill: '₱5,000', kw: 3 },
   { bill: '₱6,500', kw: 4 },
   { bill: '₱8,000', kw: 5 },
@@ -4602,7 +4600,7 @@ export default function Home() {
 
                   {/* kW Setup Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5 relative">
-                    {[1.5, 3, 4, 5, 6, 8, 10, 12, 16, 20, 30].map((kw, idx) => {
+                    {[3, 4, 5, 6, 8, 10, 12, 16, 20, 30].map((kw, idx) => {
                       const hasOnGridOption = ON_GRID_BRANDS.some(b => b.getPrice(kw) !== null)
                       const isDisabled = systemType === 'ongrid' && !hasOnGridOption
                       const v2Item = getSizingReferenceItem(kw)
@@ -4627,20 +4625,6 @@ export default function Home() {
                         ? "text-primary-foreground font-black"
                         : "text-foreground dark:text-zinc-100 font-extrabold"
 
-                      // Calculate step-by-step mathematical flow values for tooltip
-                      const minBillStr = v2Item ? v2Item.derivedElectricBill.split(' – ')[0] || v2Item.derivedElectricBill : '₱0'
-                      const minBillVal = parseFloat(minBillStr.replace(/[^0-9.]/g, '')) || (kw * 1800)
-                      const monthlyKwh = Math.round(minBillVal / 15)
-                      const dailyKwh = (monthlyKwh / 30).toFixed(1)
-                      const targetOffsetPct = kw <= 4 ? 75 : (kw <= 6 ? 80 : (kw <= 12 ? 78 : 75))
-                      const targetSolarGen = Math.round(monthlyKwh * (targetOffsetPct / 100))
-                      const targetSolarGenDaily = (targetSolarGen / 30).toFixed(1)
-                      const yieldFactor = 98.28 // 4.20 PSH * 30 days * 0.78 PR
-                      const requiredDcKwp = (targetSolarGen / yieldFactor).toFixed(2)
-                      const panelsNeeded = v2Item?.panelCount ?? Math.ceil(parseFloat(requiredDcKwp) / 0.62)
-                      const actualDcKwp = ((panelsNeeded * 620) / 1000).toFixed(2)
-                      const actualEstGen = (parseFloat(actualDcKwp) * yieldFactor).toFixed(1)
-                      const finalOffsetAchieved = Math.round((parseFloat(actualEstGen) / monthlyKwh) * 100)
                       const isTooltipOpenOnMobile = holdTooltipKw === kw
 
                       return (
@@ -4738,27 +4722,28 @@ export default function Home() {
                             <span className={cn("text-[10px] font-mono tracking-tight leading-none", billDescColor)}>{billRef}</span>
                           </button>
 
-                          {/* Step-by-Step Mathematical Flow Hover/Hold Tooltip */}
+                          {/* Direct, Precise & Clear Tooltip */}
                           {v2Item && (
                             <div
                               className={cn(
                                 "transition-all duration-150 ease-out z-[9999]",
-                                "p-3.5 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-2xl shadow-2xl border border-border text-left font-sans",
-                                "fixed sm:absolute left-3 right-3 sm:left-0 sm:right-0 bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 w-auto sm:w-full max-h-[85vh] sm:max-h-none overflow-y-auto",
+                                "p-3 bg-popover/98 backdrop-blur-md text-popover-foreground rounded-xl shadow-xl border border-border text-left font-sans",
+                                "fixed sm:absolute left-3 right-3 bottom-4 sm:bottom-auto sm:top-full sm:mt-1.5 sm:w-[270px] overflow-hidden",
+                                idx >= 4 ? "sm:right-0 sm:left-auto" : (idx >= 2 ? "sm:left-1/2 sm:-translate-x-1/2" : "sm:left-0 sm:right-auto"),
                                 isTooltipOpenOnMobile
                                   ? "opacity-100 visible pointer-events-auto ring-2 ring-primary/30"
                                   : "pointer-events-none opacity-0 invisible sm:group-hover:opacity-100 sm:group-hover:visible"
                               )}
                             >
                               {/* Header */}
-                              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                              <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
                                 <div className="flex items-center gap-1.5">
-                                  <Zap size={14} className="text-amber-500 fill-amber-500/20" />
+                                  <Zap size={13} className="text-amber-500 fill-amber-500/20" />
                                   <span className="font-bold text-xs text-foreground">{v2Item.commercialPackage}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1">
                                   <span className={cn(
-                                    "text-[8.5px] px-2 py-0.5 rounded-full font-bold font-mono tracking-tight",
+                                    "text-[8.5px] px-1.5 py-0.5 rounded font-bold font-mono",
                                     v2Item.phase === '3-Phase'
                                       ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30"
                                       : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30"
@@ -4781,85 +4766,31 @@ export default function Home() {
                                 </div>
                               </div>
 
-                              {/* Section Title */}
-                              <div className="mt-2 mb-1.5 flex items-center justify-between">
-                                <span className="text-[10.5px] font-bold text-primary flex items-center gap-1">
-                                  📐 Sizing & Derivation Flow
-                                </span>
-                                <span className="text-[8.5px] font-mono text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded">
-                                  Tariff: ₱15.00/kWh
-                                </span>
-                              </div>
-
-                              {/* 3-Stage Mathematical Flow */}
-                              <div className="space-y-1.5 text-[10px]">
-                                {/* Stage 1: Consumption */}
-                                <div className="p-2 rounded-xl bg-secondary/50 border border-border/50 space-y-1">
-                                  <div className="flex items-center justify-between text-[10.5px]">
-                                    <span className="font-sans font-semibold text-foreground flex items-center gap-1.5">
-                                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[8.5px]">1</span>
-                                      Electric Bill Reference
-                                    </span>
-                                    <span className="font-mono font-bold text-primary">{v2Item.derivedElectricBill}</span>
-                                  </div>
-                                  <div className="text-[9px] font-mono text-muted-foreground flex justify-between pt-0.5 border-t border-border/30">
-                                    <span>Monthly: <strong className="text-foreground">{monthlyKwh.toLocaleString()} kWh</strong> (÷ ₱15)</span>
-                                    <span>Daily: <strong className="text-foreground">{dailyKwh} kWh/d</strong></span>
-                                  </div>
+                              {/* Direct, Precise & Clear Key Metrics */}
+                              <div className="mt-1.5 space-y-1 text-xs font-mono">
+                                <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                  <span className="text-muted-foreground text-[10.5px] font-sans">Target Bill</span>
+                                  <span className="font-bold text-primary text-[11px]">{v2Item.derivedElectricBill}</span>
                                 </div>
 
-                                {/* Stage 2: Sizing Derivation */}
-                                <div className="p-2 rounded-xl bg-secondary/50 border border-border/50 space-y-1">
-                                  <div className="flex items-center justify-between text-[10.5px]">
-                                    <span className="font-sans font-semibold text-foreground flex items-center gap-1.5">
-                                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[8.5px]">2</span>
-                                      Target Solar Sizing
-                                    </span>
-                                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400">~{targetOffsetPct}% Offset</span>
-                                  </div>
-                                  <div className="text-[9px] font-mono text-muted-foreground space-y-0.5 pt-0.5 border-t border-border/30">
-                                    <div className="flex justify-between">
-                                      <span>Target Solar Energy:</span>
-                                      <span className="text-foreground font-semibold">{targetSolarGen.toLocaleString()} kWh/mo ({targetSolarGenDaily} kWh/d)</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Required PV Capacity:</span>
-                                      <span className="text-foreground font-semibold">{targetSolarGen.toLocaleString()} ÷ 98.28 = {requiredDcKwp} kWp</span>
-                                    </div>
-                                    <div className="flex justify-between pt-0.5 border-t border-border/20">
-                                      <span>Panels Needed (620W):</span>
-                                      <span className="font-bold text-amber-600 dark:text-amber-400">
-                                        {kw === 30 ? '96 Panels (Approved)' : `ceil(${requiredDcKwp} ÷ 0.62) = ${panelsNeeded} Panels`}
-                                      </span>
-                                    </div>
-                                  </div>
+                                <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                  <span className="text-muted-foreground text-[10.5px] font-sans">Monthly Usage</span>
+                                  <span className="font-medium text-foreground text-[10.5px]">{v2Item.targetMonthlyKwh}</span>
                                 </div>
 
-                                {/* Stage 3: Actual Installed System & Result */}
-                                <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-                                  <div className="flex items-center justify-between text-[10.5px]">
-                                    <span className="font-sans font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[8.5px]">3</span>
-                                      Installed Package Output
-                                    </span>
-                                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                      {kw === 30 ? '60.48 kWp DC' : `${actualDcKwp} kWp DC`}
-                                    </span>
-                                  </div>
-                                  <div className="text-[9px] font-mono space-y-0.5 pt-0.5 border-t border-emerald-500/20">
-                                    <div className="flex justify-between text-muted-foreground">
-                                      <span>Actual Est. Generation:</span>
-                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                        {kw === 30 ? '5,849.6 kWh/month' : `${actualEstGen} kWh/month`}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between pt-0.5 border-t border-emerald-500/20 text-[10px]">
-                                      <span className="text-muted-foreground font-medium font-sans">Final Solar Bill Offset:</span>
-                                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                                        {kw === 30 ? `~75% (${v2Item.targetSolarOffset})` : `~${finalOffsetAchieved}% (${v2Item.targetSolarOffset})`}
-                                      </span>
-                                    </div>
-                                  </div>
+                                <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                  <span className="text-muted-foreground text-[10.5px] font-sans">Solar Array (DC)</span>
+                                  <span className="font-bold text-foreground text-[10.5px]">{v2Item.packageModules} ({v2Item.actualDcCapacity})</span>
+                                </div>
+
+                                <div className="flex items-center justify-between py-0.5 border-b border-border/40">
+                                  <span className="text-muted-foreground text-[10.5px] font-sans">Est. Generation</span>
+                                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v2Item.estMonthlyGen}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-0.5">
+                                  <span className="text-muted-foreground text-[10.5px] font-sans">Target Offset</span>
+                                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[10.5px]">{v2Item.targetSolarOffset}</span>
                                 </div>
                               </div>
                             </div>

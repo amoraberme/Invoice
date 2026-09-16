@@ -105,7 +105,6 @@ const PRICELIST_DATA: PriceCategory[] = [
       { code: 'DEYE-1P-6.0KW-GT', name: 'DEYE 1P 6.0KW Grid-Tied Inverter', srp: '₱27,000', installer: '₱25,000', wholesale: '₱24,000', subdealer: '₱23,500' },
       { code: 'DEYE-1P-8.0KW-GT', name: 'DEYE 1P 8.0KW Grid-Tied Inverter', srp: '₱30,000', installer: '₱28,000', wholesale: '₱27,000', subdealer: '₱26,500' },
       { code: 'DEYE-1P-10.0KW-GT', name: 'DEYE 1P 10.0KW Grid-Tied Inverter', srp: '₱37,000', installer: '₱35,000', wholesale: '₱34,000', subdealer: '₱33,500' },
-      { code: 'GW1500-XS-30', name: 'Goodwe Grid Tied Inverter 1.5kW (1-Phase LV)', srp: '₱18,000', installer: '₱16,000', wholesale: '₱15,000', subdealer: '₱13,000' },
       { code: 'GW3000-XS-30', name: 'Goodwe Grid Tied Inverter 3kW (1-Phase LV)', srp: '₱20,000', installer: '₱19,000', wholesale: '₱18,000', subdealer: '₱16,000' },
       { code: 'GW6000-DNS-30', name: 'Goodwe Grid Tied Inverter 6kW (1-Phase LV)', srp: '₱28,000', installer: '₱25,000', wholesale: '₱24,000', subdealer: '₱22,000' },
       { code: 'GW10K-MS-G30', name: 'Goodwe Grid Tied Inverter 10kW (1-Phase LV)', srp: '₱42,000', installer: '₱40,000', wholesale: '₱37,000', subdealer: '₱35,000' },

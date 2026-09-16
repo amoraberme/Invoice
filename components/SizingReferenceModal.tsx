@@ -40,21 +40,6 @@ export interface SizingReferenceV2Item {
 
 export const SIZING_REFERENCE_V2: SizingReferenceV2Item[] = [
   {
-    kw: 1.5,
-    commercialPackage: '1.5 kW Package',
-    packageModules: '3 pcs',
-    panelCount: 3,
-    actualDcCapacity: '1.86 kWp',
-    inverterAcOutput: '1.5 kW AC',
-    electricalGrid: '1-Phase 230V',
-    targetMonthlyKwh: '180 - 330 kWh',
-    derivedElectricBill: '₱2,700 – ₱5,000',
-    derivedElectricBillShort: '₱2.7k–₱5.0k',
-    estMonthlyGen: '182.8 kWh/mo',
-    targetSolarOffset: '55% - 85%',
-    phase: '1-Phase',
-  },
-  {
     kw: 3.0,
     commercialPackage: '3.0 kW Package',
     packageModules: '5 pcs',
@@ -223,7 +208,6 @@ export const SIZING_REFERENCE_V2: SizingReferenceV2Item[] = [
 
 
 export const KW_TO_ELECTRIC_BILL_V1: Record<number, string> = {
-  1.5: '₱3,000',
   3: '₱5,000',
   4: '₱6,500',
   5: '₱8,000',
@@ -269,6 +253,37 @@ export function SizingReferenceModal({
   const [searchQuery, setSearchQuery] = useState('')
   const [phaseFilter, setPhaseFilter] = useState<'all' | '1-Phase' | '3-Phase'>('all')
   const [copiedKw, setCopiedKw] = useState<number | null>(null)
+  const [showSampleCalc, setShowSampleCalc] = useState(true)
+  const [copiedSample, setCopiedSample] = useState(false)
+
+  const sampleCalcText = `Sample Sizing Calculation: ₱5,000 Monthly Bill (at ₱15.00/kWh Tariff)
+
+1. Baseline Client Consumption
+  • Monthly Energy Usage: ₱5,000 ÷ ₱15.00/kWh = 333.33 kWh/month
+
+2. Solar PV System Sizing
+  • Solar Yield Constants:
+      • Monthly Yield Factor: 4.20(PSH) × 30(month) × 0.78(PR) = 98.28 kWh/kWp/month
+  • Required DC Capacity: 333.33 kWh ÷ 98.28 = 3.39 kWp
+  • Panels Needed (620W N-Type panels):
+      • Raw Count: 3.39 kWp ÷ 0.62 kWp/panel = 5.47 panels
+      • Standard Installation: 6 panels (rounded up to avoid undersizing)
+  • Actual Installed DC Capacity: 6 panels × 0.62 kWp = 3.72 kWp
+
+3. Actual Performance & Final Achieved Offset
+  • Actual Estimated Monthly Generation: 3.72 kWp × 98.28 = 365.60 kWh/month
+  • Final Realized Solar Offset: (365.60 kWh ÷ 333.33 kWh) × 100 = 109% (exceeds the 80% minimum requirement)
+  • Recommended Package: 4.0 kW Hybrid Package (1-Phase 230V)
+
+4. Monthly Financial Results
+  • Estimated Monthly Solar Savings: 365.60 kWh × ₱15.00/kWh = ₱5,480.00/month
+  • Remaining Estimated Grid Bill: ₱5,000.00 - ₱5,480.00 = ₱-480.00/month`
+
+  const handleCopySample = () => {
+    navigator.clipboard.writeText(sampleCalcText)
+    setCopiedSample(true)
+    setTimeout(() => setCopiedSample(false), 1500)
+  }
 
   const filteredItems = useMemo(() => {
     return SIZING_REFERENCE_V2.filter((item) => {
@@ -319,6 +334,21 @@ export function SizingReferenceModal({
                 </p>
               </div>
             </div>
+
+            {/* Toggle Calculation Reference */}
+            <button
+              type="button"
+              onClick={() => setShowSampleCalc(!showSampleCalc)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold rounded-[8px] transition-all cursor-pointer border flex items-center gap-1.5 select-none",
+                showSampleCalc
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-secondary/70 hover:bg-secondary border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Sparkles size={13} className={showSampleCalc ? "text-amber-300 fill-amber-300" : "text-amber-500"} />
+              <span>{showSampleCalc ? 'Hide Calculation Sample' : 'Sample Sizing Calculation (₱5,000)'}</span>
+            </button>
           </div>
 
           {/* Search & Phase Filters */}
@@ -335,7 +365,7 @@ export function SizingReferenceModal({
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   ✕
                 </button>
@@ -361,8 +391,103 @@ export function SizingReferenceModal({
           </div>
         </div>
 
-        {/* Table Content */}
-        <div className="flex-1 overflow-auto p-4 sm:p-5">
+        {/* Table Content & Sample Reference */}
+        <div className="flex-1 overflow-auto p-4 sm:p-5 space-y-4">
+          {/* Sample Sizing Calculation Card (Clean & Uncluttered) */}
+          {showSampleCalc && (
+            <div className="p-4 bg-secondary/40 dark:bg-secondary/20 border border-border rounded-[14px] space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border/70">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                    <Sparkles size={13} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">
+                      Sample Sizing Calculation: ₱5,000 Monthly Bill (at ₱15.00/kWh Tariff)
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground">
+                      Company engineering standard methodology for solar offset & DC sizing
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={handleCopySample}
+                  className="h-7 px-2.5 text-[11px] gap-1.5 cursor-pointer font-semibold shadow-2xs"
+                >
+                  {copiedSample ? (
+                    <>
+                      <Check size={12} className="text-emerald-600" />
+                      <span className="text-emerald-600 font-bold">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} />
+                      <span>Copy Calculation</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                {/* 1. Baseline Client Consumption */}
+                <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
+                  <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold">1</span>
+                    Baseline Client Consumption
+                  </div>
+                  <div className="pl-5 text-muted-foreground font-mono text-[10.5px]">
+                    • Monthly Energy Usage: ₱5,000 ÷ ₱15.00/kWh = <strong className="text-foreground">333.33 kWh/month</strong>
+                  </div>
+                </div>
+
+                {/* 2. Solar PV System Sizing */}
+                <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
+                  <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold">2</span>
+                    Solar PV System Sizing
+                  </div>
+                  <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
+                    <div>• Solar Yield Constants:</div>
+                    <div className="pl-3">• Monthly Yield Factor: 4.20(PSH) × 30(month) × 0.78(PR) = <strong className="text-foreground">98.28 kWh/kWp/month</strong></div>
+                    <div>• Required DC Capacity: 333.33 kWh ÷ 98.28 = <strong className="text-foreground">3.39 kWp</strong></div>
+                    <div>• Panels Needed (620W N-Type panels):</div>
+                    <div className="pl-3">• Raw Count: 3.39 kWp ÷ 0.62 kWp/panel = 5.47 panels</div>
+                    <div className="pl-3">• Standard Installation: <strong className="text-primary font-bold">6 panels</strong> (rounded up to avoid undersizing)</div>
+                    <div>• Actual Installed DC Capacity: 6 panels × 0.62 kWp = <strong className="text-foreground">3.72 kWp</strong></div>
+                  </div>
+                </div>
+
+                {/* 3. Actual Performance & Final Achieved Offset */}
+                <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
+                  <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] flex items-center justify-center font-bold">3</span>
+                    Actual Performance & Final Achieved Offset
+                  </div>
+                  <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
+                    <div>• Actual Estimated Monthly Generation: 3.72 kWp × 98.28 = <strong className="text-emerald-600 dark:text-emerald-400">365.60 kWh/month</strong></div>
+                    <div>• Final Realized Solar Offset: (365.60 kWh ÷ 333.33 kWh) × 100 = <strong className="text-emerald-600 dark:text-emerald-400 font-bold">109%</strong> (exceeds the 80% minimum requirement)</div>
+                    <div>• Recommended Package: <strong className="text-foreground font-bold">4.0 kW Hybrid Package (1-Phase 230V)</strong></div>
+                  </div>
+                </div>
+
+                {/* 4. Monthly Financial Results */}
+                <div className="p-2.5 rounded-[10px] bg-background border border-border/60 space-y-1">
+                  <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] flex items-center justify-center font-bold">4</span>
+                    Monthly Financial Results
+                  </div>
+                  <div className="pl-5 space-y-0.5 text-muted-foreground font-mono text-[10.5px]">
+                    <div>• Estimated Monthly Solar Savings: 365.60 kWh × ₱15.00/kWh = <strong className="text-emerald-600 dark:text-emerald-400">₱5,480.00/month</strong></div>
+                    <div>• Remaining Estimated Grid Bill: ₱5,000.00 - ₱5,480.00 = <strong className="text-emerald-600 dark:text-emerald-400 font-bold">₱-480.00/month</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="border border-border rounded-[14px] overflow-x-auto bg-card shadow-2xs">
             <table className="w-full border-collapse text-left text-xs min-w-[900px]">
               <thead>
@@ -517,7 +642,7 @@ export function SizingReferenceModal({
         <div className="p-3 sm:p-4 border-t border-border bg-card/60 flex items-center justify-between text-xs text-muted-foreground shrink-0 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-blue-500" /> 1-Phase (1.5kW – 8.0kW)
+              <span className="w-2 h-2 rounded-full bg-blue-500" /> 1-Phase (3.0kW – 8.0kW)
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-purple-500" /> 3-Phase (10.0kW – 50.0kW)

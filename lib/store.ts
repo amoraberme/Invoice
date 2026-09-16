@@ -357,7 +357,7 @@ export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
     oldValue: 'Genix Battery 51.2V 314Ah (₱85,000 / ₱88,000)',
     newValue: 'Genix Green Battery 51.2V 200Ah (₱65,000) for <= 6kW setups',
     unit: 'PC',
-    note: '[Dev] Configured Genix Green 200Ah (51.2V 200Ah @ ₱65,000) as the default battery for all setups <= 6kW (1.5kW, 3kW, 4kW, 5kW, 6kW)',
+    note: '[Dev] Configured Genix Green 200Ah (51.2V 200Ah @ ₱65,000) as the default battery for all setups <= 6kW (3kW, 4kW, 5kW, 6kW)',
     batch: 'August 18, 2026 System & BOQ Updates (Dev)'
   },
   // ── SET DATE: AUGUST 17, 2026 (MsG) ──
