@@ -129,7 +129,7 @@ export function MGInvoicePreview({
     })
     const panelQty = panelItem?.quantity || extractPanelInfoFromLineItems(items).panelQty || 0
     const panelWattMatch = (panelItem?.description || '').match(/(\d+)\s*w/i) || (panelItem?.description || '').match(/(\d+)/)
-    const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '620W'
+    const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '625W'
     const panelDimensions = getPanelDimensions(panelItem?.description || '')
     let panelBrand = withBrand ? (panelItem?.description?.split(' ')?.[0] || 'Tier-1') : 'Tier-1'
     if (panelItem?.description?.toLowerCase().includes('ja solar')) panelBrand = withBrand ? 'JA Solar' : 'Tier-1'

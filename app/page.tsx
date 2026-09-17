@@ -49,7 +49,7 @@ import {
 
 
 
-const PANEL_WATTAGE = 620
+const PANEL_WATTAGE = 625
 const PANEL_WIDTH_FT = 3.72
 
 function getWireSize(inverterKw: number): string {
@@ -1092,7 +1092,7 @@ function cleanQtyAndUnit(qtyStr: string): { quantity: number; unit: string } {
 }
 
 function getPanelDimensions(wattageStr: string): string {
-  const num = parseInt(wattageStr.replace(/\D/g, ''), 10) || 620
+  const num = parseInt(wattageStr.replace(/\D/g, ''), 10) || 625
   if (num >= 720) {
     return '7.82ft x 4.28ft'
   }
@@ -1102,7 +1102,7 @@ function getPanelDimensions(wattageStr: string): string {
 function extractLineItemsFromText(text: string) {
   const SOLAR_EXACT_MAPPING: Record<number, { desc: string; qty: string; price: string; total: string }> = {
     1: { desc: "Inverter 12kW 1pc $68,000.00", qty: "1pc", price: "₱68,000.00", total: "₱68,000.00" },
-    2: { desc: "Tongwei Panel 620W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱5,456.00", total: "₱54,560.00" },
+    2: { desc: "Tongwei Panel 625W (7.82ft x 3.72ft)", qty: "10 pcs", price: "₱5,418.00", total: "₱54,180.00" },
     3: { desc: "Railings 2.4m", qty: "20 pcs", price: "₱490.00", total: "₱9,800.00" },
     4: { desc: "Mid Clamp", qty: "20 pcs", price: "₱32.00", total: "₱640.00" },
     5: { desc: "End Clamp", qty: "8 pcs", price: "₱65.00", total: "₱520.00" },
@@ -1490,7 +1490,7 @@ function getElectricBillRef(
 
 const SOLAR_PRICES = {
   Inverter: 67000.00,
-  Panel: 5456.00,
+  Panel: 5418.00,
   Railing: 490.00,
   MidClamp: 55.00,
   EndClamp: 55.00,
@@ -1562,8 +1562,8 @@ const SOLAR_PANEL_BRANDS: PanelBrandOption[] = [
     name: 'Tongwei',
     logo: '/TW.svg',
     options: [
+      { wattage: '625W', rate: 5418 },
       { wattage: '620W', rate: 5456 },
-      { wattage: '625W', rate: 5500 },
       { wattage: '630W', rate: 5544 },
       { wattage: '720W', rate: 6336 },
       { wattage: '725W', rate: 6380 },
@@ -3360,7 +3360,7 @@ export default function Home() {
     // 1. Solar Panels
     items.push({
       id: `boq-2-${now}`,
-      description: `Tongwei Panel 620W (7.82ft x 3.72ft)`,
+      description: `Tongwei Panel 625W (7.82ft x 3.72ft)`,
       quantity: panelQty,
       rate: prices.Panel,
       unit: 'PCS'
@@ -5371,7 +5371,7 @@ export default function Home() {
 
                       const isBatteryItemRow = isBatteryUnit(item.description)
                       const isPanelItem = !isBatteryItemRow && (descLower.includes('panel') || descLower.includes('module') || descLower.includes('ja solar') || descLower.includes('tongwei') || descLower.includes('runergy') || descLower.includes('jinko') || descLower.includes('gokin') || descLower.includes('longi') || descLower.includes('ian solar'))
-                      const isTongweiSelected = item.rate === 5456
+                      const isTongweiSelected = item.rate === 5418 || item.rate === 5456
 
                       const isInverterItem = !isBatteryItemRow && !isPanelItem && (descLower.includes('inverter') || descLower.includes('anern') || descLower.includes('solis') || descLower.includes('goodwe') || descLower.includes('hypontech') || descLower.includes('solax') || descLower.includes('foxess') || descLower.includes('sunways') || descLower.includes('deye') || descLower.includes('sungrow'))
                       const kwMatch = item.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
@@ -5525,7 +5525,7 @@ export default function Home() {
                                 activeBrandId = 'jinko'
                               } else if (item.rate === 6500) {
                                 activeBrandId = 'longi'
-                              } else if ([5456, 5500, 5544, 6336, 6380, 6424].includes(item.rate)) {
+                              } else if ([5418, 5456, 5500, 5544, 6336, 6380, 6424].includes(item.rate)) {
                                 activeBrandId = 'tongwei'
                               } else if ([6400, 6300, 6900].includes(item.rate)) {
                                 activeBrandId = 'ja'
@@ -6282,7 +6282,7 @@ export default function Home() {
                               className="flex-1 text-xs h-8 font-medium text-foreground bg-background"
                               value={s.subtitle || ''}
                               onChange={(e) => updateScope(s.id, 'subtitle', e.target.value)}
-                              placeholder="Item / Spec (e.g. 5x Tongwei 620W N-Type PV Modules)"
+                              placeholder="Item / Spec (e.g. 5x Tongwei 625W N-Type PV Modules)"
                             />
                             <Button
                               type="button"

@@ -60,7 +60,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     items: [
       { code: 'HY-DH132N11', name: 'Runergy Bifacial Solar 620W Tier 1', srp: '₱5,704', installer: '₱5,580', wholesale: '₱5,270', subdealer: '₱4,960' },
       { code: 'TWMNH-66HD620', name: 'TW (Tongwei) Bifacial Solar Panel 620W Tier 1', srp: '—', installer: '₱5,890', wholesale: '₱5,580', subdealer: '₱5,456' },
-      { code: 'TWMNH-66HD625', name: 'TW (Tongwei) Bifacial Solar Panel 625W Tier 1', srp: '—', installer: '₱5,937.50', wholesale: '₱5,625', subdealer: '₱5,500' },
+      { code: 'TWMNH-66HD625', name: 'TW (Tongwei) Bifacial Solar Panel 625W Tier 1', srp: '—', installer: '₱5,937.50', wholesale: '₱5,625', subdealer: '₱5,418' },
       { code: 'TWMNH-66HD630', name: 'TW (Tongwei) Bifacial Solar Panel 630W Tier 1', srp: '₱6,100', installer: '₱5,985', wholesale: '₱5,670', subdealer: '₱5,544' },
       { code: 'TWMHF-66HD720', name: 'TW (Tongwei) Bifacial Solar Panel 720W Tier 1', srp: '₱7,000', installer: '₱6,840', wholesale: '₱6,480', subdealer: '₱6,336' },
       { code: 'TWMNF-66HD725W', name: 'TW (Tongwei) Bifacial Solar Panel 725W Tier 1', srp: '₱7,000', installer: '₱6,887.50', wholesale: '₱6,525', subdealer: '₱6,380' },

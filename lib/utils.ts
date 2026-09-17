@@ -302,7 +302,7 @@ export function formatPanelDescription(description: string, withBrandName: boole
 
   // Match wattage
   const wattMatch = d.match(/(\d+)\s*w/i)
-  const wattage = wattMatch ? wattMatch[0].toUpperCase() : '620W'
+  const wattage = wattMatch ? wattMatch[0].toUpperCase() : '625W'
   const dims = getPanelDimensions(wattage)
 
   // Identify brand if present
@@ -675,7 +675,7 @@ export function generateDefaultScopesFromInvoice(invoice: Partial<Invoice>): Sco
   })
   const panelQty = panelItem?.quantity || extractPanelInfoFromLineItems(items).panelQty || 0
   const panelWattMatch = (panelItem?.description || '').match(/(\d+)\s*w/i) || (panelItem?.description || '').match(/(\d+)/)
-  const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '620W'
+  const panelWatts = panelWattMatch ? `${panelWattMatch[1]}W` : '625W'
   const panelDimensions = getPanelDimensions(panelItem?.description || '')
   let panelBrand = withBrand ? (panelItem?.description?.split(' ')?.[0] || 'Tier-1') : 'Tier-1'
   if (panelItem?.description?.toLowerCase().includes('ja solar')) panelBrand = withBrand ? 'JA Solar' : 'Tier-1'
