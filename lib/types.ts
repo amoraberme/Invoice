@@ -220,35 +220,35 @@ export const defaultInvoice: Invoice = {
       id: 'boq-30k-9',
       description: 'Railings 2.4m',
       quantity: 100,
-      rate: 399.00,
+      rate: 420.00,
       unit: 'PCS'
     },
     {
       id: 'boq-30k-10',
       description: 'End Clamp',
       quantity: 50,
-      rate: 26.00,
+      rate: 29.00,
       unit: 'PCS'
     },
     {
       id: 'boq-30k-11',
       description: 'Mid Clamp',
       quantity: 180,
-      rate: 26.00,
+      rate: 29.00,
       unit: 'PCS'
     },
     {
       id: 'boq-30k-12',
       description: 'Ground Lug',
       quantity: 8,
-      rate: 50.00,
+      rate: 35.00,
       unit: 'PCS'
     },
     {
       id: 'boq-30k-13',
       description: 'L-Foot',
       quantity: 288,
-      rate: 45.00,
+      rate: 50.00,
       unit: 'PCS'
     },
     {

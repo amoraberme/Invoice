@@ -26,11 +26,11 @@ This document details all hardcoded prices, component rates, brand-specific tier
 | **Terminal Lugs 50mm** | 8 pcs (₱50) | 8 pcs (₱50) | 8 pcs (₱50) | 8 pcs (₱50) | 16 pcs (₱50) | 16 pcs (₱50) | 20 pcs (₱50) | 20 pcs (₱50) | 32 pcs (₱50) |
 | **Battery Cable Standard** | 50mm² (6m total) | 50mm² (6m total) | 50mm² (6m total) | 50mm² (6m total) | 50mm² (10m) | 50mm² (10m) | 50mm² (10m) | 70mm² (10m @ ₱820) | 50mm² (20m @ ₱700) |
 | **Ground Wire Length** | 20m | 50m | 20m | 20m | 25m | 25m | 25m (Ground Wire #8) | 25m (Ground Wire #8) | 50m (Ground Wire #8) |
-| **Grounding Lugs** | 2 pcs (₱50) | 2 pcs (₱50) | 2 pcs (₱50) | 2 pcs (₱50) | 5 pcs (₱50) | 5 pcs (₱50) | 2 pcs (₱50) | 2 pcs (₱50) | 10 pcs (₱50) |
+| **Grounding Lugs** | 2 pcs (₱35) | 2 pcs (₱35) | 2 pcs (₱35) | 2 pcs (₱35) | 5 pcs (₱35) | 5 pcs (₱35) | 2 pcs (₱35) | 2 pcs (₱35) | 10 pcs (₱35) |
 | **Ground Rod w/ Clamp 1.5m** | 1 pc (₱750) | 1 pc (₱750) | 1 pc (₱750) | 1 pc (₱750) | 1 pc (₱750) | 1 pc (₱750) | 1 pc (₱750) | 2 pcs (₱750 ea) | 2 pcs (₱750 ea) |
 | **MC4 Connectors 1500V** | 4 pcs (₱60) | 4 pcs (₱60) | 4 pcs (₱60) | 10 pcs (₱60) | 15 pcs (₱60) | 15 pcs (₱60) | 15 pcs (₱60) | 15 pcs (₱60) | 30 pcs (₱60) |
 | **MC4 2-String Branch** | 0 pcs | 0 pcs | 0 pcs | 0 pcs | 0 pcs | 2 pcs (₱550) | 2 pcs (₱550) | 2 pcs (₱550) | 4 pcs (₱550) |
-| **Splice Connector** | 6 pcs (₱90) | 6 pcs (₱90) | 6 pcs (₱90) | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ (24 pcs) |
+| **Splice Connector** | 6 pcs (₱55) | 6 pcs (₱55) | 6 pcs (₱55) | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ | $\lceil \text{Railings}/2 \rceil$ (24 pcs) |
 | **PVC Moulding** | 3 Meters (₱449) | 3 Meters (₱449) | 3 Meters (₱449) | 5 Meters (₱449) | 5 Meters (₱449) | 5 Meters (₱449) | 5 Meters (₱449) | 5 Meters (₱449) | 10 Meters (₱449) |
 
 ---
@@ -60,7 +60,7 @@ The system supports toggling between two distinct 20kW architectures via the 20k
 | **MC4 Connectors 1500V** | 30 pcs @ ₱60 | 15 pcs @ ₱60 |
 | **MC4 2-String Branch** | 4 pcs @ ₱550 | 2 pcs @ ₱550 |
 | **Cable Tray 2m** | 4 pcs @ ₱560 | 1 pc @ ₱560 |
-| **Ground Lugs** | 10 pcs @ ₱50 | 5 pcs @ ₱50 |
+| **Ground Lugs** | 10 pcs @ ₱35 | 5 pcs @ ₱35 |
 | **Ground Rod w/ Clamp** | 2 pcs @ ₱750 | 1 pc @ ₱750 |
 | **PVC Moulding** | 10 Meters @ ₱449 | 5 Meters @ ₱449 |
 | **Clip Lock & PU Sealant** | 2 Clip lock @ ₱180, 2 PU Sealant @ ₱400 | 1 Clip lock @ ₱180, 1 PU Sealant @ ₱400 |
@@ -81,11 +81,11 @@ The 30kW package strictly adheres to the client's verified 25-item bill of quant
 | 6 | DC SPD 40kva | 8 pcs | ₱790.00 | PCS |
 | 7 | AC SPD 40kva | 12 pcs | ₱570.00 | PCS |
 | 8 | DC MCCB 125amp | 4 pcs | ₱2,500.00 | PCS |
-| 9 | Railings 2.4m | 100 pcs | ₱399.00 | PCS |
-| 10 | End Clamp | 50 pcs | ₱26.00 | PCS |
-| 11 | Mid Clamp | 180 pcs | ₱26.00 | PCS |
-| 12 | Ground Lug | 8 pcs | ₱50.00 | PCS |
-| 13 | L-Foot | 288 pcs | ₱45.00 | PCS |
+| 9 | Railings 2.4m | 100 pcs | ₱420.00 | PCS |
+| 10 | End Clamp | 50 pcs | ₱29.00 | PCS |
+| 11 | Mid Clamp | 180 pcs | ₱29.00 | PCS |
+| 12 | Ground Lug | 8 pcs | ₱35.00 | PCS |
+| 13 | L-Foot | 288 pcs | ₱50.00 | PCS |
 | 14 | Grounding Rod | 1 pc | ₱750.00 | PC |
 | 15 | ATS 250amp | 1 pc | ₱4,000.00 | PC |
 | 16 | Combiner Box 20×40×50cm | 2 pcs | ₱3,000.00 | PCS |
@@ -102,6 +102,27 @@ The 30kW package strictly adheres to the client's verified 25-item bill of quant
 | 27 | Delivery Fees | 1 lot | ₱5,000.00 (Base rate) | LOT |
 
 *(Note: Items with no price such as the unpriced Inverter field do not show any rate or amount on client quotations).*
+
+---
+
+### 1.3 Hardware & Accessories Master Pricelist (ACC01 Series Standard)
+
+Comprehensive rate schedule for mounting accessories, grounding hardware, connectors, and cable termination components:
+
+| Product Code | Item Description | Standard / Floor Rate | Unit | Category | Implementation Rule |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `ACC01B02` | Ferrules 4mm Red/Black | ₱3.20 | PCS | Electrical & Cabling | Update floor rate to 3.2 |
+| `ACC01B01` | Ferrules 6mm Red/Black | ₱3.80 | PCS | Electrical & Cabling | Set base price at 3.8 |
+| `ACC01A10` | Grounding Clips | ₱12.00 | PCS | Grounding & Bonding | Apply lowest rate of 12 |
+| `ACC01A1` | End Clamp | ₱29.00 | PCS | Mounting & Hardware | Adjust target rate to 29 |
+| `ACC01A2` | Mid Clamp | ₱29.00 | PCS | Mounting & Hardware | Match end clamp rate at 29 |
+| `ACC01A5` | Grounding Lugs | ₱35.00 | PCS | Grounding & Bonding | Establish floor price at 35 |
+| `ACC01A4` | L-Foot | ₱50.00 | PCS | Mounting & Hardware | Standardize price to 50 |
+| `ACC01A6` | Splice Connector | ₱55.00 | PCS | Mounting & Hardware | Align rate to 55 |
+| `ACC01A11` | MC4 Connector 1000V | ₱56.00 | PCS | Electrical & Cabling | Set tier price to 56 |
+| `ACC01A12` | MC4 Connector 1500V | ₱60.00 | PCS | Electrical & Cabling | Re-rate to 60 |
+| `ACC01A70` | Aluminum Mounting Rail 2.4m | ₱420.00 | PCS | Mounting & Hardware | Transition unit cost to 420 |
+| `ACC01A72` | Aluminum Mounting Rail 4.8m | ₱800.00 | PCS | Mounting & Hardware | Cap bulk baseline at 800 |
 
 ---
 

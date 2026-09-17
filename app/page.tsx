@@ -8,7 +8,7 @@ import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/
 import JSZip from 'jszip'
 import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
 import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
-import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial } from '@/lib/store'
+import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial, SOLAR_PRICELIST_2026 } from '@/lib/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -389,29 +389,29 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         }
       }
     } else if (descLower === 'railings' || descLower === 'railing' || descLower.includes('railing')) {
-      if (item.quantity !== newRailingQty || item.description !== 'Railings 2.4m') {
+      if (item.quantity !== newRailingQty || item.description !== 'Railings 2.4m' || item.rate === 490 || item.rate === 399) {
         changed = true
-        return { ...item, description: 'Railings 2.4m', quantity: newRailingQty }
+        return { ...item, description: 'Railings 2.4m', quantity: newRailingQty, rate: (item.rate === 490 || item.rate === 399 || !item.rate) ? 420.00 : item.rate }
       }
     } else if (descLower === 'end clamp' || descLower.includes('end clamp') || descLower.startsWith('end clamp')) {
-      if (item.quantity !== newEndClampQty || item.description !== 'End Clamp') {
+      if (item.quantity !== newEndClampQty || item.description !== 'End Clamp' || item.rate === 55 || item.rate === 26) {
         changed = true
-        return { ...item, description: 'End Clamp', quantity: newEndClampQty }
+        return { ...item, description: 'End Clamp', quantity: newEndClampQty, rate: (item.rate === 55 || item.rate === 26 || !item.rate) ? 29.00 : item.rate }
       }
     } else if (descLower === 'mid clamp' || descLower.includes('mid clamp') || descLower.startsWith('mid clamp')) {
-      if (item.quantity !== newMidClampQty || item.description !== 'Mid Clamp') {
+      if (item.quantity !== newMidClampQty || item.description !== 'Mid Clamp' || item.rate === 55 || item.rate === 26) {
         changed = true
-        return { ...item, description: 'Mid Clamp', quantity: newMidClampQty }
+        return { ...item, description: 'Mid Clamp', quantity: newMidClampQty, rate: (item.rate === 55 || item.rate === 26 || !item.rate) ? 29.00 : item.rate }
       }
     } else if (descLower === 'l foot' || descLower.includes('l foot')) {
-      if (item.quantity !== newLFootQty) {
+      if (item.quantity !== newLFootQty || item.rate === 90 || item.rate === 45) {
         changed = true
-        return { ...item, quantity: newLFootQty }
+        return { ...item, quantity: newLFootQty, rate: (item.rate === 90 || item.rate === 45 || !item.rate) ? 50.00 : item.rate }
       }
     } else if (descLower === 'splice connector' || descLower === 'splice' || descLower.includes('splice connector') || descLower.includes('splice jumper')) {
-      if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 90) {
+      if (item.quantity !== newSpliceConnectorQty || item.description !== 'Splice Connector' || item.rate !== 55) {
         changed = true
-        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 90 }
+        return { ...item, description: 'Splice Connector', quantity: newSpliceConnectorQty, rate: 55 }
       }
     } else if (descLower.includes('mc4 2 string') || descLower.includes('mc4 2-string') || descLower.includes('mc4 2string')) {
       const targetQty = (inverterKw >= 20 && !isOld20Kw) ? 4 : (inverterKw >= 10 ? 2 : 0)
@@ -431,9 +431,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: 'MC4 1500V', quantity: newMc4Qty, rate: 60 }
       }
     } else if (descLower.includes('grounding lug') || descLower.includes('solar grounding lug')) {
-      if (item.quantity !== newGroundLugQty || item.rate !== 50) {
+      if (item.quantity !== newGroundLugQty || item.rate !== 35) {
         changed = true
-        return { ...item, description: 'Grounding Lugs', quantity: newGroundLugQty, rate: 50 }
+        return { ...item, description: 'Grounding Lugs', quantity: newGroundLugQty, rate: 35 }
       }
     } else if (descLower === 'cable tray' || descLower.includes('cable tray') || descLower === 'tray') {
       if (item.description !== 'Cable Tray 2m' || item.quantity !== newCableTrayQty || item.rate !== 560) {
@@ -736,7 +736,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
       id: `boq-splice-${Date.now()}`,
       description: 'Splice Connector',
       quantity: newSpliceConnectorQty,
-      rate: 90,
+      rate: 55,
       unit: 'PCS'
     })
   }
@@ -1491,11 +1491,13 @@ function getElectricBillRef(
 const SOLAR_PRICES = {
   Inverter: 67000.00,
   Panel: 5418.00,
-  Railing: 490.00,
-  MidClamp: 55.00,
-  EndClamp: 55.00,
-  LFoot: 90.00,
-  SpliceConnector: 90.00,
+  Railing: 420.00,
+  Railing24: 420.00,
+  Railing48: 800.00,
+  MidClamp: 29.00,
+  EndClamp: 29.00,
+  LFoot: 50.00,
+  SpliceConnector: 55.00,
   FlexconHDPE: 124.00,
   FlexconHDPE32: 124.00,
   FlexconHDPE40: 124.00,
@@ -1504,6 +1506,8 @@ const SOLAR_PRICES = {
   PVwire: 125.00,
   DCwire: 125.00,
   MC4: 60.00,
+  MC4_1000V: 56.00,
+  MC4_1500V: 60.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
   BreakerBox: 3000.00,
@@ -1537,7 +1541,10 @@ const SOLAR_PRICES = {
   BatteryCable50mm: 700.00,
   BatteryCable70mm: 820.00,
   GroundRod: 750.00,
-  GroundingLugs: 50.00,
+  GroundingLugs: 35.00,
+  GroundingClips: 12.00,
+  Ferrules4mm: 3.20,
+  Ferrules6mm: 3.80,
   GroundWire: 5888 / 150,
   PuSealant: 400.00,
   PvcMoulding: 449.00,
@@ -3144,35 +3151,35 @@ export default function Home() {
           id: `boq-30k-9-${now}`,
           description: 'Railings 2.4m',
           quantity: 100,
-          rate: prices.Railing || 399.00,
+          rate: prices.Railing || 420.00,
           unit: 'PCS',
         },
         {
           id: `boq-30k-10-${now}`,
           description: 'End Clamp',
           quantity: 50,
-          rate: prices.EndClamp || 26.00,
+          rate: prices.EndClamp || 29.00,
           unit: 'PCS',
         },
         {
           id: `boq-30k-11-${now}`,
           description: 'Mid Clamp',
           quantity: 180,
-          rate: prices.MidClamp || 26.00,
+          rate: prices.MidClamp || 29.00,
           unit: 'PCS',
         },
         {
           id: `boq-30k-12-${now}`,
           description: 'Ground Lug',
           quantity: 8,
-          rate: 50.00,
+          rate: prices.GroundingLugs || 35.00,
           unit: 'PCS',
         },
         {
           id: `boq-30k-13-${now}`,
           description: 'L-Foot',
           quantity: 288,
-          rate: prices.LFoot || 45.00,
+          rate: prices.LFoot || 50.00,
           unit: 'PCS',
         },
         {
@@ -3423,7 +3430,7 @@ export default function Home() {
       id: `boq-splice-${now}`,
       description: `Splice Connector`,
       quantity: spliceConnectorQty,
-      rate: prices.SpliceConnector || 90,
+      rate: prices.SpliceConnector || 55,
       unit: 'PCS'
     })
 
@@ -3680,7 +3687,7 @@ export default function Home() {
       id: `boq-g1-${now}`,
       description: `Grounding Lugs`,
       quantity: groundLugsQty,
-      rate: prices.GroundingLugs || 50,
+      rate: prices.GroundingLugs || 35,
       unit: 'PCS'
     })
 
@@ -5232,7 +5239,18 @@ export default function Home() {
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">8. Scaled Quantities & Grounding</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          50mm Lugs: 8 (3k–6k), 16 (8k–10k), 20 (12k–16k). MC4: 4 (3k–5k), 10 (6k), 15 (8k+). Ground Rod: 1 pc (3k–12k), 2 pcs (16kW).
+                          50mm Lugs: 8 (3k–6k), 16 (8k–10k), 20 (12k–16k). MC4: 4 (3k–5k), 10 (6k), 15 (8k+). Ground Rod: 1 pc (3k–12k), 2 pcs (16kW). Grounding Lugs floor rate: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">₱35.00</span>.
+                        </p>
+                      </div>
+
+                      <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1 md:col-span-2">
+                        <span className="font-bold text-foreground block">9. ACC01 Hardware & Mounting Accessories Price Rollout</span>
+                        <p className="text-muted-foreground leading-relaxed">
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Rails:</span> 2.4m (<code className="text-[9px]">ACC01A70</code>) @ ₱420.00, 4.8m (<code className="text-[9px]">ACC01A72</code>) @ ₱800.00 bulk baseline. &nbsp;|&nbsp;
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Clamps:</span> End (<code className="text-[9px]">ACC01A1</code>) & Mid (<code className="text-[9px]">ACC01A2</code>) target rate ₱29.00. &nbsp;|&nbsp;
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Structure:</span> L-Foot (<code className="text-[9px]">ACC01A4</code>) standardized to ₱50.00, Splice (<code className="text-[9px]">ACC01A6</code>) aligned to ₱55.00. &nbsp;|&nbsp;
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Grounding:</span> Lugs (<code className="text-[9px]">ACC01A5</code>) floor ₱35.00, Clips (<code className="text-[9px]">ACC01A10</code>) lowest rate ₱12.00. &nbsp;|&nbsp;
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Electrical:</span> MC4 1000V (<code className="text-[9px]">ACC01A11</code>) tier price ₱56.00, MC4 1500V (<code className="text-[9px]">ACC01A12</code>) ₱60.00, Ferrules 4mm (<code className="text-[9px]">ACC01B02</code>) floor ₱3.20, Ferrules 6mm (<code className="text-[9px]">ACC01B01</code>) base ₱3.80.
                         </p>
                       </div>
                     </div>
@@ -5395,7 +5413,20 @@ export default function Home() {
                               <Input
                                 className="w-full"
                                 value={item.description}
-                                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                                list="solar-item-catalog"
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  updateItem(item.id, 'description', val)
+                                  if (!item.rate || item.rate === 0) {
+                                    const pInfo = getItemPricingInfo(val)
+                                    if (pInfo && pInfo.meterPrice > 0) {
+                                      updateItem(item.id, 'rate', pInfo.meterPrice)
+                                      if (!item.unit && pInfo.meterUnit) {
+                                        updateItem(item.id, 'unit', pInfo.meterUnit)
+                                      }
+                                    }
+                                  }
+                                }}
                                 placeholder="Item description"
                               />
                             </div>
@@ -6196,6 +6227,14 @@ export default function Home() {
                     <Plus size={13} />
                     Add item
                   </Button>
+
+                  <datalist id="solar-item-catalog">
+                    {SOLAR_PRICELIST_2026.map((catItem) => (
+                      <option key={catItem.code} value={catItem.name}>
+                        {catItem.code} — ₱{catItem.meterPrice.toLocaleString()} / {catItem.meterUnit}
+                      </option>
+                    ))}
+                  </datalist>
 
                   {/* Scope of Equipment & Works Editor */}
                   <div className="mt-8 pt-5 border-t border-border space-y-3">

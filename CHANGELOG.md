@@ -4,6 +4,31 @@ All notable changes and technical documentation for **MG Solar Invoice & Quotati
 
 ---
 
+## [September 17, 2026] — Hardware & Accessories Price Rollout (ACC01 Series Standard)
+
+### 🚀 Summary of Today's Implementations
+
+1. **Hardware & Mounting Accessories Price Rollout (ACC01 Series)**:
+   - **Ferrules 4mm Red/Black (`ACC01B02`)**: Updated floor rate to **₱3.20**.
+   - **Ferrules 6mm Red/Black (`ACC01B01`)**: Set base price at **₱3.80**.
+   - **Grounding Clips (`ACC01A10`)**: Applied lowest rate of **₱12.00**.
+   - **End Clamp (`ACC01A1`)**: Adjusted target rate to **₱29.00**.
+   - **Mid Clamp (`ACC01A2`)**: Matched end clamp rate at **₱29.00**.
+   - **Grounding Lugs (`ACC01A5`)**: Established floor price at **₱35.00**.
+   - **L-Foot (`ACC01A4`)**: Standardized price to **₱50.00**.
+   - **Splice Connector (`ACC01A6`)**: Aligned rate to **₱55.00**.
+   - **MC4 Connector 1000V (`ACC01A11`)**: Set tier price to **₱56.00**.
+   - **MC4 Connector 1500V (`ACC01A12`)**: Re-rated to **₱60.00**.
+   - **Aluminum Mounting Rail 2.4m (`ACC01A70`)**: Transitioned unit cost to **₱420.00**.
+   - **Aluminum Mounting Rail 4.8m (`ACC01A72`)**: Capped bulk baseline at **₱800.00**.
+
+2. **System BOQ & Accessory Sync Alignment**:
+   - Updated `SOLAR_PRICES`, `recalculateBoqAccessories`, 30kW master bill of quantities, and `SOLAR_PRICELIST_2026` catalog.
+   - Connected interactive description autocomplete datalist with automatic price lookup and unit population.
+   - Added ACC01 hardware rollout card in Master Pricing Reconciliation Matrix.
+
+---
+
 ## [August 25, 2026] — Philippine Location & Logistics Routing Engine (v2.4.0)
 
 ### 🚀 Summary of Today's Implementations

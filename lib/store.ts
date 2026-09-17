@@ -152,6 +152,19 @@ export function clearInvoiceHistory(): InvoiceHistoryItem[] {
 }
 
 export const INITIAL_CHANGELOG_SEED: ChangelogItem[] = [
+  // ── SET DATE: SEPTEMBER 17, 2026 (Dev) ──
+  {
+    id: 'cl-dev-price-rollout-acc01-sep17_v1',
+    timestamp: 'Sep 17, 2026, 04:00 PM',
+    itemDescription: 'Price Rollout & Implementation (ACC01 Series Hardware)',
+    changeType: 'price',
+    fieldChanged: 'Mounting & Electrical Hardware Baseline Rates',
+    oldValue: 'Rail 2.4m ₱490, End/Mid Clamp ₱55, Lugs ₱50, L-Foot ₱90, Splice ₱90',
+    newValue: 'Rail 2.4m ₱420, Rail 4.8m ₱800, Clamps ₱29, Lugs ₱35, L-Foot ₱50, Splice ₱55, MC4 1000V ₱56, MC4 1500V ₱60, Clips ₱12, Ferrules 4mm ₱3.2, Ferrules 6mm ₱3.8',
+    unit: 'RATE',
+    note: '[Dev] Rolled out comprehensive ACC01 hardware pricing: Ferrules 4mm (₱3.20), Ferrules 6mm (₱3.80), Grounding Clips (₱12.00), End & Mid Clamps (₱29.00), Grounding Lugs (₱35.00), L-Foot (₱50.00), Splice Connector (₱55.00), MC4 1000V (₱56.00), MC4 1500V (₱60.00), Mounting Rail 2.4m (₱420.00), and Mounting Rail 4.8m (₱800.00)',
+    batch: 'September 17, 2026 Price Rollout & Hardware Implementation (Dev)'
+  },
   // ── SET DATE: SEPTEMBER 16, 2026 (Dev) ──
   {
     id: 'cl-dev-delivery-rate-15perkm-sep16_v1',
@@ -967,6 +980,7 @@ export function getChangelogHistory(): ChangelogItem[] {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasSep17PriceRolloutSeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-price-rollout-acc01-sep17_v1')
         const hasSep16DeliverySeed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-delivery-rate-15perkm-sep16_v1')
         const hasSep16Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-sizing-reference-v3-sep16_v1')
         const hasAug25Seed = parsed.some((i: ChangelogItem) => i.id === 'cl-dev-ph-location-engine-aug25_v1')
@@ -978,7 +992,7 @@ export function getChangelogHistory(): ChangelogItem[] {
           (i.batch && i.batch.includes('August 18') && i.batch.includes('(MsG)')) ||
           (i.note && i.note.startsWith('[MsG]') && i.timestamp && i.timestamp.includes('Aug 18'))
         )
-        if (!hasSep16DeliverySeed || !hasSep16Seed || !hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
+        if (!hasSep17PriceRolloutSeed || !hasSep16DeliverySeed || !hasSep16Seed || !hasAug25Seed || !hasAug19Seed || !hasAug18LatestDevSeed || hasOldMsGAug18) {
           localStorage.setItem(CHANGELOG_KEY, JSON.stringify(INITIAL_CHANGELOG_SEED))
           return INITIAL_CHANGELOG_SEED
         }
@@ -1336,12 +1350,112 @@ export const SOLAR_PRICELIST_2026: PriceListItem[] = [
     meterUnit: 'Meters',
     rollUnit: 'Roll',
   },
+  // ── Hardware & Mounting Accessories (ACC01 Series - Sep 17, 2026 Price Rollout) ──
   {
-    code: 'SOL-031',
-    name: 'Solar Railing 2.4m',
-    keywords: ['railings 2.4m', 'solar railing 2.4m', 'solar railing', 'railing 2.4m', 'railings', 'railing'],
-    meterPrice: 490,
-    rollPrice: 490,
+    code: 'ACC01B02',
+    name: 'Ferrules 4mm Red/Black',
+    keywords: ['ferrules 4mm red/black', 'ferrules 4mm', 'ferrule 4mm', 'ferrule 4mm red/black', 'ferrule 4mm red', 'ferrule 4mm black', 'acc01b02'],
+    meterPrice: 3.2,
+    rollPrice: 3.2,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01B01',
+    name: 'Ferrules 6mm Red/Black',
+    keywords: ['ferrules 6mm red/black', 'ferrules 6mm', 'ferrule 6mm', 'ferrule 6mm red/black', 'ferrule 6mm red', 'ferrule 6mm black', 'acc01b01'],
+    meterPrice: 3.8,
+    rollPrice: 3.8,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A10',
+    name: 'Grounding Clips',
+    keywords: ['grounding clips', 'grounding clip', 'ground clips', 'ground clip', 'acc01a10'],
+    meterPrice: 12,
+    rollPrice: 12,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A1',
+    name: 'End Clamp',
+    keywords: ['end clamp', 'end clamps', 'acc01a1'],
+    meterPrice: 29,
+    rollPrice: 29,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A2',
+    name: 'Mid Clamp',
+    keywords: ['mid clamp', 'mid clamps', 'acc01a2'],
+    meterPrice: 29,
+    rollPrice: 29,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A5',
+    name: 'Grounding Lugs',
+    keywords: ['grounding lugs', 'grounding lug', 'ground lug', 'ground lugs', 'acc01a5'],
+    meterPrice: 35,
+    rollPrice: 35,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A4',
+    name: 'L-Foot',
+    keywords: ['l-foot', 'l foot', 'l-feet', 'l feet', 'acc01a4'],
+    meterPrice: 50,
+    rollPrice: 50,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A6',
+    name: 'Splice Connector',
+    keywords: ['splice connector', 'splice', 'splice connectors', 'acc01a6'],
+    meterPrice: 55,
+    rollPrice: 55,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A11',
+    name: 'MC4 Connector 1000V',
+    keywords: ['mc4 connector 1000v', 'mc4 1000v', 'mc4 connector 1000', '1000v mc4', 'acc01a11'],
+    meterPrice: 56,
+    rollPrice: 56,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A12',
+    name: 'MC4 Connector 1500V',
+    keywords: ['mc4 connector 1500v', 'mc4 1500v', 'mc4 connector', 'mc4 connectors', 'mc4', 'acc01a12'],
+    meterPrice: 60,
+    rollPrice: 60,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A70',
+    name: 'Aluminum Mounting Rail 2.4m',
+    keywords: ['aluminum mounting rail 2.4m', 'railings 2.4m', 'solar railing 2.4m', 'solar railing', 'railing 2.4m', 'railings', 'railing', 'mounting rail 2.4m', 'acc01a70', 'sol-031'],
+    meterPrice: 420,
+    rollPrice: 420,
+    meterUnit: 'PCS',
+    rollUnit: 'PCS',
+  },
+  {
+    code: 'ACC01A72',
+    name: 'Aluminum Mounting Rail 4.8m',
+    keywords: ['aluminum mounting rail 4.8m', 'railings 4.8m', 'solar railing 4.8m', 'railing 4.8m', 'mounting rail 4.8m', 'mounting rail 4.8', 'acc01a72'],
+    meterPrice: 800,
+    rollPrice: 800,
     meterUnit: 'PCS',
     rollUnit: 'PCS',
   },
