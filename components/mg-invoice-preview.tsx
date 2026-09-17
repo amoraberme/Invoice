@@ -658,29 +658,19 @@ export function MGInvoicePreview({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
-                            {(Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
+                            {(Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
                               .filter((w) => {
-                                if (w.component.toLowerCase().includes('battery') && !scopeData.hasBattery) {
+                                if (w.id === 'w-3' && !scopeData.hasBattery) {
                                   return false
                                 }
                                 return true
                               })
                               .map((w) => {
-                                const compLower = (w.component || '').toLowerCase()
-                                const wTypeLower = (w.warrantyType || '').toLowerCase()
-                                const isWorkmanship = compLower.includes('full system') || 
-                                                      wTypeLower.includes('workmanship') || 
-                                                      wTypeLower.includes('installation') ||
-                                                      w.id === 'w-4'
-                                const cleanCov = (w.coverage || '').trim().toLowerCase()
-                                const isOneYear = cleanCov === '1 year' || cleanCov === '1 yr' || cleanCov === '1-year' || cleanCov === '1' || cleanCov === '1 years' || /^1\s*(year|yr)?s?$/i.test(cleanCov)
-                                const displayCoverage = isWorkmanship && (isOneYear || !w.coverage) ? '2 Years' : w.coverage
-
                                 return (
                                   <tr key={w.id}>
                                     <td className="py-1 px-3 font-semibold text-[#111111]">{w.component}</td>
                                     <td className="py-1 px-3 text-[#555555]">{w.warrantyType}</td>
-                                    <td className="py-1 px-3 font-bold text-[#111111] text-right">{displayCoverage}</td>
+                                    <td className="py-1 px-3 font-bold text-[#111111] text-right">{w.coverage}</td>
                                   </tr>
                                 )
                               })}

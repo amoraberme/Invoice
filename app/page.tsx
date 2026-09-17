@@ -2725,7 +2725,7 @@ export default function Home() {
     update('scopes', generateDefaultScopesFromInvoice(invoice))
   }
 
-  const getSafeWarranties = () => (Array.isArray(invoice.warranties) && invoice.warranties.length > 0 ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
+  const getSafeWarranties = () => (Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
 
   const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
     const list = getSafeWarranties()
@@ -2748,7 +2748,7 @@ export default function Home() {
     update('warranties', generateDefaultWarrantiesFromInvoice(invoice))
   }
 
-  // Auto-sync systemType, activeKwSetup, warranties, and fix any mismatched Subject/Salutation on all devices and users
+  // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
   useEffect(() => {
     if (!loaded) return
 
@@ -2780,45 +2780,6 @@ export default function Home() {
 
     setSystemType((prev) => (prev !== detectedType ? detectedType : prev))
     setActiveKwSetup((prev) => (prev !== detectedKw ? detectedKw : prev))
-
-    // Auto-sync standard inverter / battery warranty coverage (e.g. GoodWe Inverter + GoodWe Battery -> 10 Years, otherwise 5 Years)
-    const defWarr = generateDefaultWarrantiesFromInvoice(invoice)
-    const invCoverage = defWarr.find(w => w.component.toLowerCase().includes('inverter'))?.coverage || '5 Years'
-    const battCoverage = defWarr.find(w => w.component.toLowerCase().includes('battery'))?.coverage || '5 Years'
-
-    if (Array.isArray(invoice.warranties) && invoice.warranties.length > 0) {
-      const isWorkmanship = (w: WarrantyItem) => {
-        const comp = (w.component || '').toLowerCase()
-        const wType = (w.warrantyType || '').toLowerCase()
-        return comp.includes('full system') || wType.includes('workmanship') || wType.includes('installation') || w.id === 'w-4'
-      }
-      const isOneYear = (cov: string) => {
-        const c = (cov || '').trim().toLowerCase()
-        return c === '1 year' || c === '1 yr' || c === '1-year' || c === '1' || c === '1 years' || /^1\s*(year|yr)?s?$/i.test(c)
-      }
-
-      const needsInvUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('inverter') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== invCoverage)
-      const needsBattUpdate = invoice.warranties.some(w => w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years') && w.coverage !== battCoverage)
-      const needsWorkmanshipUpdate = invoice.warranties.some(w => isWorkmanship(w) && (isOneYear(w.coverage) || !w.coverage))
-
-      if (needsInvUpdate || needsBattUpdate || needsWorkmanshipUpdate) {
-        setInvoice(prev => ({
-          ...prev,
-          warranties: (prev.warranties || []).map(w => {
-            if (w.component.toLowerCase().includes('inverter') && (w.coverage === '5 Years' || w.coverage === '10 Years')) {
-              return { ...w, coverage: invCoverage }
-            }
-            if (w.component.toLowerCase().includes('battery') && (w.coverage === '5 Years' || w.coverage === '10 Years')) {
-              return { ...w, coverage: battCoverage }
-            }
-            if (isWorkmanship(w) && (isOneYear(w.coverage) || !w.coverage)) {
-              return { ...w, coverage: '2 Years' }
-            }
-            return w
-          })
-        }))
-      }
-    }
 
     if (isOngrid) {
       const subjectHasHybrid = /hybrid/i.test(invoice.subject || '')
@@ -2859,7 +2820,7 @@ export default function Home() {
         })
       }
     }
-  }, [loaded, invoice.lineItems, invoice.excludeBattery, invoice.warranties])
+  }, [loaded, invoice.lineItems, invoice.excludeBattery])
 
   useEffect(() => {
     if (!loaded) return
