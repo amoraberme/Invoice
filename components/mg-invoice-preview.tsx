@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useMemo } from 'react'
-import { type Invoice, type LineItem } from '@/lib/types'
+import { type Invoice, type LineItem, TERMS_PRESETS, isGovernmentTerms } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { 
   formatCurrency, 
@@ -20,7 +20,7 @@ import {
   generateDefaultScopesFromInvoice,
   generateDefaultWarrantiesFromInvoice
 } from '@/lib/utils'
-import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag } from 'lucide-react'
+import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag, Upload } from 'lucide-react'
 
 export interface MGInvoicePreviewProps {
   invoice: Invoice
@@ -32,6 +32,13 @@ export interface MGInvoicePreviewProps {
   showCapital?: boolean
   capitalVersion?: 'v1' | 'v2'
   onToggleCapitalVersion?: (v: 'v1' | 'v2') => void
+  onLogoClick?: () => void
+  onToggleAcknowledgment?: (val: boolean) => void
+  onToggleAcknowledgmentTitle?: (val: boolean) => void
+  onToggleTermsTitle?: (val: boolean) => void
+  onToggleTermsPreset?: (terms: string) => void
+  onAdjustFooterOffset?: (val: number) => void
+  onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
 }
 
 interface PageData {
@@ -41,6 +48,21 @@ interface PageData {
   showBottom: boolean
   showCondensedScope?: boolean
   showCondensedWarranty?: boolean
+}
+
+function renderFormattedTerms(terms?: string) {
+  if (!terms) return null
+  const parts = terms.split(/(Terms of Payment\s*:|Delivery\s*:|Payment Terms\s*:|Price Validity\s*:|Late Payment Interest\s*:|Delivery Terms\s*:)/gi)
+  return parts.map((part, index) => {
+    if (/^(Terms of Payment|Delivery|Payment Terms|Price Validity|Late Payment Interest|Delivery Terms)\s*:$/i.test(part)) {
+      return (
+        <strong key={index} className="font-bold text-[#111111]">
+          {part}
+        </strong>
+      )
+    }
+    return part
+  })
 }
 
 export function MGInvoicePreview({ 
@@ -53,6 +75,13 @@ export function MGInvoicePreview({
   showCapital,
   capitalVersion = 'v1',
   onToggleCapitalVersion,
+  onLogoClick,
+  onToggleAcknowledgment,
+  onToggleAcknowledgmentTitle,
+  onToggleTermsTitle,
+  onToggleTermsPreset,
+  onAdjustFooterOffset,
+  onSignatureClick,
 }: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -60,6 +89,7 @@ export function MGInvoicePreview({
 
   const getHighlightClass = (field: string) => {
     const isHovered = hoveredField === field || 
+      (field === 'logo' && hoveredField === 'logo') ||
       (field === 'sender' && ['fromName', 'fromEmail', 'fromPhone', 'fromAddress'].includes(hoveredField || '')) ||
       (field === 'client' && ['toName', 'toEmail', 'toAddress'].includes(hoveredField || '')) ||
       (field === 'sales' && ['salesName', 'salesPosition', 'salesCompany', 'salesContact', 'salesEmail'].includes(hoveredField || '')) ||
@@ -93,6 +123,7 @@ export function MGInvoicePreview({
     }
   }, [])
 
+  const isGovMode = isGovernmentTerms(invoice.terms)
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = useMemo(() => {
     return invoice.isCondensed
@@ -199,39 +230,48 @@ export function MGInvoicePreview({
 
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice, isCapitalMode = false): PageData[] => {
+    const isGovMode = isGovernmentTerms(inv.terms)
+
     // 1. Measure fixed heights (Header + Bill To + Meta)
-    const headerHeight = 110
-    const billToHeight = 90
+    const hasHeaderDetails = Boolean(inv.fromEmail || inv.fromPhone || inv.fromAddress)
+    const headerHeight = hasHeaderDetails ? 95 : 65
+    const billToHeight = Boolean(inv.toEmail || inv.toAddress) ? 75 : 55
     const continuationHeaderHeight = 35
     
     const subjectLines = getWrappedLines(inv.subject, 65)
-    const subjectHeight = inv.subject ? (12 + subjectLines * 14) : 0
+    const subjectHeight = inv.subject ? (10 + subjectLines * 13) : 0
     
     const salutationLines = getWrappedLines(inv.salutation, 65)
-    const salutationHeight = inv.salutation ? (12 + salutationLines * 14) : 0
+    const salutationHeight = inv.salutation ? (10 + salutationLines * 13) : 0
     
     const topSectionHeight = headerHeight + billToHeight + subjectHeight + salutationHeight
-    const tableHeaderHeight = 28
+    const tableHeaderHeight = 26
     
     // 2. Totals height (includes Capital row in Capital mode)
     const totalsLines = isCapitalMode ? 4 : 3 // Subtotal + VAT + Total (+ Capital)
-    let totalsHeight = totalsLines * 20 + 30
+    let totalsHeight = totalsLines * 18 + 22
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
     const noteLines = getWrappedLines(inv.note, 65)
-    const noteHeight = inv.note ? (12 + noteLines * 14) : 0
+    const noteHeight = inv.note ? (10 + noteLines * 13) : 0
     
     const termsLines = getWrappedLines(inv.terms, 65)
-    const termsHeight = inv.terms ? (12 + termsLines * 14) : 0
+    const termsHeight = inv.terms ? (isGovMode ? (8 + termsLines * 12) : (12 + termsLines * 14)) : 0
     
-    const salesContactHeight = 60
-    const closingHeight = 45
-    const ackHeight = 80
+    const hasSalesContact = Boolean(inv.note?.trim()) && Boolean(inv.salesName || inv.salesPosition || inv.salesCompany)
+    const salesContactHeight = hasSalesContact ? 55 : 0
+    const closingHeight = inv.closing ? (isGovMode ? 26 : 40) : 0
+    const showSales = inv.showSalesSignee === true
+    const showClient = inv.showClientSignee === true
+    const showCeo = inv.showCeoSignee !== false
+    const hasVisibleSignees = showSales || showClient || showCeo
+    const showAck = inv.showAcknowledgment !== false && hasVisibleSignees
+    const ackHeight = (inv.closing && showAck) ? (isGovMode ? 60 : 75) : 0
     
-    const footerBlockHeight = noteHeight + termsHeight + salesContactHeight + closingHeight + ackHeight + 20
+    const footerBlockHeight = noteHeight + termsHeight + salesContactHeight + closingHeight + ackHeight + (isGovMode ? 4 : 20)
 
     // Available content height inside A4 borders (PAPER_H 1123 with safe bottom margins)
-    const PAGE_MAX_H = 880
+    const PAGE_MAX_H = isGovMode ? 980 : 940
 
     // Helper: calculate height of a line item
     const getItemHeight = (item: LineItem) => {
@@ -242,7 +282,7 @@ export function MGInvoicePreview({
       for (const line of lines) {
         itemLines += Math.max(1, Math.ceil(Math.max(line.length, 1) / charsPerLine))
       }
-      return 20 + itemLines * 16
+      return isGovMode ? (10 + itemLines * 13) : (14 + itemLines * 15)
     }
     
     const allItems = inv.isCondensed
@@ -477,34 +517,69 @@ export function MGInvoicePreview({
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13 py-10"
+                className={cn(
+                  "relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13",
+                  isGovMode ? "pt-7 pb-6" : "py-10"
+                )}
               >
                 <div>
                 {/* Header (First Page Only) or Continuation Header */}
                 {page.showTop ? (
-                  <div className="flex justify-between items-start mb-3.5">
-                    <div className={cn("max-w-xs p-0.5", getHighlightClass('sender'))}>
-                      <p className="font-bold text-[#111111] tracking-tight leading-none text-[19px]">
+                  <div className={cn("flex justify-between items-start", isGovMode ? "mb-2" : "mb-3.5")}>
+                    <div className={cn("max-w-sm p-0.5", getHighlightClass('sender'))}>
+                      <p className="font-bold text-[#111111] tracking-tight leading-snug text-[18px] mb-1">
                         {invoice.fromName || 'Your Company'}
                       </p>
-                      {invoice.fromEmail && (
-                        <p className="text-[#888888] text-[10.5px] mt-1">{invoice.fromEmail}</p>
-                      )}
-                      {invoice.fromPhone && (
-                        <p className="text-[#888888] text-[10.5px]">{invoice.fromPhone}</p>
-                      )}
-                      {invoice.fromAddress && (
-                        <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.fromAddress}</p>
-                      )}
+                      <div className="space-y-0.5 text-[#888888] text-[10.5px] leading-normal">
+                        {invoice.fromEmail && (
+                          <p>{invoice.fromEmail}</p>
+                        )}
+                        {invoice.fromPhone && (
+                          <p>{invoice.fromPhone}</p>
+                        )}
+                        {invoice.fromAddress && (
+                          <p className="whitespace-pre-line">{invoice.fromAddress}</p>
+                        )}
+                      </div>
                     </div>
                     <div className={cn("text-right flex flex-col items-end p-0.5", getHighlightClass('invoiceNumber'))}>
-                      <img
-                        src="/mg.png"
-                        alt="INVOICE"
-                        height={68}
-                        style={{ height: '68px', width: 'auto', maxHeight: '68px' }}
-                        className="w-auto object-contain h-[68px] mb-0.5"
-                      />
+                      {invoice.logo !== '' && (
+                        <div
+                          className={cn(
+                            "relative group rounded transition-all",
+                            getHighlightClass('logo'),
+                            onLogoClick && "cursor-pointer hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"
+                          )}
+                          onClick={onLogoClick}
+                          title={onLogoClick ? "Click to change logo" : undefined}
+                        >
+                          <img
+                            src={invoice.logo || "/mg.png"}
+                            alt={invoice.fromName || "Company Logo"}
+                            data-role="invoice-logo"
+                            height={68}
+                            style={{ height: '68px', width: 'auto', maxHeight: '68px', maxWidth: '240px' }}
+                            className="w-auto object-contain h-[68px] mb-0.5"
+                          />
+                          {onLogoClick && (
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white text-[9.5px] font-bold tracking-wide print:hidden gap-1 px-1.5 shadow-sm select-none">
+                              <Upload size={11} />
+                              <span>Change</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {invoice.logo === '' && onLogoClick && (
+                        <button
+                          type="button"
+                          onClick={onLogoClick}
+                          className="print:hidden text-[10px] text-muted-foreground border border-dashed border-[#CCCCCC] rounded px-2 py-1 mb-1 hover:border-primary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer select-none"
+                          title="Click to upload logo"
+                        >
+                          <Upload size={10} />
+                          <span>+ Add Logo</span>
+                        </button>
+                      )}
                       <p className="font-medium tracking-tight text-[#888888] text-[11px] mt-0.5">
                         {invoice.invoiceNumber || '—'}
                       </p>
@@ -523,20 +598,22 @@ export function MGInvoicePreview({
 
                 {/* Bill To + Dates (First Page Only) */}
                 {page.showTop && (
-                  <div className="flex justify-between items-start mb-3">
+                  <div className={cn("flex justify-between items-start", isGovMode ? "mb-2" : "mb-3")}>
                     <div className={cn("max-w-xs p-0.5", getHighlightClass('client'))}>
                       <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
                         Bill To
                       </p>
-                      <p className="font-bold text-[#111111] tracking-tight text-[13px]">
+                      <p className="font-bold text-[#111111] tracking-tight text-[13px] leading-snug mb-0.5">
                         {invoice.toName || '—'}
                       </p>
-                      {invoice.toEmail && (
-                        <p className="text-[#888888] text-[10.5px] mt-0.5">{invoice.toEmail}</p>
-                      )}
-                      {invoice.toAddress && (
-                        <p className="text-[#888888] whitespace-pre-line text-[10.5px]">{invoice.toAddress}</p>
-                      )}
+                      <div className="space-y-0.5 text-[#888888] text-[10.5px] leading-normal">
+                        {invoice.toEmail && (
+                          <p>{invoice.toEmail}</p>
+                        )}
+                        {invoice.toAddress && (
+                          <p className="whitespace-pre-line">{invoice.toAddress}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-6">
                       {invoice.issueDate && (
@@ -566,7 +643,7 @@ export function MGInvoicePreview({
                 {/* Subject Line (First Page Only) */}
                 {page.showTop && invoice.subject && (
                   <div className={cn(
-                    "border-b border-[#E5E5E5]/50 flex gap-2 p-0.5 mb-2 pb-1 text-[11px]",
+                    "border-b border-[#D4D4D8] flex gap-2 p-0.5 mb-2 pb-1 text-[11px]",
                     getHighlightClass('subject')
                   )}>
                     <span className="font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
@@ -681,7 +758,7 @@ export function MGInvoicePreview({
                   </div>
                 ) : (
                   page.items.length > 0 ? (
-                    <div className="mb-4">
+                    <div className={cn(isGovMode ? "mb-2" : "mb-4")}>
                       {showPriceColumns ? (
                         <>
                           {showCapital && !invoice.isCondensed ? (
@@ -721,26 +798,26 @@ export function MGInvoicePreview({
                                 const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
                                 const hasPrice = (item.rate || 0) > 0
                                 return (
-                                  <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                                    <span className="flex-1 text-[12px] text-[#111111] break-words whitespace-pre-wrap pr-3">
+                                  <div key={item.id} className={cn("flex pt-0.5 pb-2 border-b border-[#E5E5E5] items-center print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                    <span className="flex-1 text-[12px] leading-snug text-[#111111] break-words whitespace-pre-wrap pr-3">
                                       {displayDesc || '—'}
                                     </span>
-                                    <span className="w-12 shrink-0 text-[11.5px] text-[#888888] text-center">
+                                    <span className="w-12 shrink-0 text-[11.5px] leading-snug text-[#888888] text-center">
                                       {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                                     </span>
-                                    <span className="w-10 shrink-0 text-[11.5px] text-[#888888] text-center">
+                                    <span className="w-10 shrink-0 text-[11.5px] leading-snug text-[#888888] text-center">
                                       {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                                     </span>
-                                    <span className="w-20 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums">
-                                      {!hasPrice ? '—' : formatCurrency(item.rate, invoice.currency)}
+                                    <span className="w-20 shrink-0 text-[11.5px] leading-snug text-[#888888] text-right px-1 font-mono tabular-nums">
+                                      {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(item.rate, invoice.currency)}
                                     </span>
-                                    <span className="w-26 shrink-0 text-[11.5px] text-[#666666] text-right px-1 font-mono tabular-nums">
+                                    <span className="w-26 shrink-0 text-[11.5px] leading-snug text-[#666666] text-right px-1 font-mono tabular-nums">
                                       {!hasPrice ? '—' : formatCurrency(item.quantity * item.rate, invoice.currency)}
                                     </span>
-                                    <span className={cn("w-22 shrink-0 text-[11.5px] text-[#888888] text-right px-1 font-mono tabular-nums", getHighlightClass('rateMarkup'))}>
+                                    <span className={cn("w-22 shrink-0 text-[11.5px] leading-snug text-[#888888] text-right px-1 font-mono tabular-nums", getHighlightClass('rateMarkup'))}>
                                       {!hasPrice ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                                     </span>
-                                    <span className="w-28 shrink-0 text-[11.5px] font-medium text-[#111111] text-right pr-1 font-mono tabular-nums">
+                                    <span className="w-28 shrink-0 text-[11.5px] leading-snug font-medium text-[#111111] text-right pr-1 font-mono tabular-nums">
                                       {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
                                     </span>
                                   </div>
@@ -750,7 +827,7 @@ export function MGInvoicePreview({
                           ) : (
                             /* Standard / Default View */
                             <>
-                              <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                              <div className="flex py-2 border-b-[1.5px] border-[#111111] items-center">
                                 <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
                                   Description
                                 </span>
@@ -778,20 +855,24 @@ export function MGInvoicePreview({
                                 const isDeliveryOrLabor = isLabor || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
                                 const hasPrice = (item.rate || 0) > 0
                                 return (
-                                  <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                                    <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap pr-4">
+                                  <div key={item.id} className={cn(
+                                    "flex border-b border-[#E5E5E5] items-center print:break-inside-avoid px-1",
+                                    isGovMode ? "pt-0.5 pb-2" : "pt-1 pb-2.5",
+                                    getHighlightClass(item.id)
+                                  )}>
+                                    <span className={cn("flex-1 text-[#111111] break-words whitespace-pre-wrap pr-4 leading-snug", isGovMode ? "text-[12px]" : "text-[12.5px]")}>
                                       {displayDesc || '—'}
                                     </span>
-                                    <span className="w-16 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                    <span className={cn("w-16 shrink-0 text-[#888888] text-center leading-snug", isGovMode ? "text-[12px]" : "text-[12.5px]")}>
                                       {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                                     </span>
-                                    <span className="w-14 shrink-0 text-[12.5px] text-[#888888] text-center">
+                                    <span className={cn("w-14 shrink-0 text-[#888888] text-center leading-snug", isGovMode ? "text-[12px]" : "text-[12.5px]")}>
                                       {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                                     </span>
-                                    <span className={cn("w-24 shrink-0 text-[12.5px] text-[#888888] text-right px-1", getHighlightClass('rateMarkup'))}>
+                                    <span className={cn("w-24 shrink-0 text-[#888888] text-right px-1 leading-snug", isGovMode ? "text-[12px]" : "text-[12.5px]", getHighlightClass('rateMarkup'))}>
                                       {!hasPrice || isDeliveryOrLabor ? '—' : formatCurrency(adjustedRate, invoice.currency)}
                                     </span>
-                                    <span className="w-28 shrink-0 text-[12.5px] font-medium text-[#111111] text-right">
+                                    <span className={cn("w-28 shrink-0 font-medium text-[#111111] text-right leading-snug", isGovMode ? "text-[12px]" : "text-[12.5px]")}>
                                       {!hasPrice ? '—' : formatCurrency(item.quantity * adjustedRate, invoice.currency)}
                                     </span>
                                   </div>
@@ -802,7 +883,7 @@ export function MGInvoicePreview({
                         </>
                       ) : (
                         <>
-                          <div className="flex py-2 border-b-[1.5px] border-[#111111]">
+                          <div className="flex py-2 border-b-[1.5px] border-[#111111] items-center">
                             <span className="flex-1 text-[10px] font-semibold text-[#111111] tracking-[0.07em] uppercase">
                               Description
                             </span>
@@ -811,8 +892,8 @@ export function MGInvoicePreview({
                             const isCondensedItem = item.id.startsWith('condensed-')
                             const displayDesc = isCondensedItem ? item.description : formatItemDescription(item.description, invoice.withBrandName !== false)
                             return (
-                              <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
-                                <span className="flex-1 text-[12.5px] text-[#111111] break-words whitespace-pre-wrap">
+                              <div key={item.id} className={cn("flex pt-0.5 pb-2 border-b border-[#E5E5E5] items-center print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                                <span className="flex-1 text-[12.5px] leading-snug text-[#111111] break-words whitespace-pre-wrap">
                                   {displayDesc || '—'}
                                 </span>
                               </div>
@@ -896,7 +977,7 @@ export function MGInvoicePreview({
                     ) : (
                       <div className={cn(
                         "flex flex-col items-end print:break-inside-avoid pr-1",
-                        invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
+                        invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : isGovMode ? "gap-1 mb-2 mt-1" : "gap-2 mb-4 mt-3"
                       )}>
                         <div className="flex gap-8 items-center">
                           <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
@@ -949,18 +1030,64 @@ export function MGInvoicePreview({
 
                 {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
                 {page.showBottom && (() => {
+                  const isGovMode = isGovernmentTerms(invoice.terms)
                   let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed)
                   
                   const getSectionBorderClass = () => {
                     if (hasRenderedPriorBlock) {
-                      return "border-t border-[#E5E5E5] pt-6 mb-6 print:break-inside-avoid p-1"
+                      return isGovMode
+                        ? "pt-1 mb-2 print:break-inside-avoid p-0.5"
+                        : "border-t border-[#E5E5E5] pt-6 mb-6 print:break-inside-avoid p-1"
                     }
                     hasRenderedPriorBlock = true
-                    return "mb-6 print:break-inside-avoid p-1"
+                    return isGovMode
+                      ? "mb-2 print:break-inside-avoid p-0.5"
+                      : "mb-6 print:break-inside-avoid p-1"
                   }
 
                   return (
-                    <>
+                    <div
+                      className="relative group/footer-block"
+                      style={{
+                        marginTop: invoice.footerOffsetY ? `${invoice.footerOffsetY}px` : undefined,
+                      }}
+                    >
+                      {/* Floating Position Adjuster for Terms, Closing, & Signatures */}
+                      {onAdjustFooterOffset && (
+                        <div className="no-print print:hidden opacity-0 group-hover/footer-block:opacity-100 transition-opacity absolute -top-6 left-0 flex items-center gap-1.5 bg-background/95 backdrop-blur-xs border border-border shadow-xs rounded-md px-2 py-0.5 z-30 select-none text-[9.5px]">
+                          <span className="text-[9px] font-semibold text-muted-foreground">Adjust Position:</span>
+                          <button
+                            type="button"
+                            onClick={() => onAdjustFooterOffset((invoice.footerOffsetY || 0) - 4)}
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-secondary font-bold text-foreground cursor-pointer border border-border/80 text-[11px] leading-none"
+                            title="Move section Up (-4px)"
+                          >
+                            −
+                          </button>
+                          <span className="font-mono font-bold text-[9.5px] min-w-[32px] text-center text-foreground">
+                            {(invoice.footerOffsetY || 0) > 0 ? `+${invoice.footerOffsetY}` : (invoice.footerOffsetY || 0)}px
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onAdjustFooterOffset((invoice.footerOffsetY || 0) + 4)}
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-secondary font-bold text-foreground cursor-pointer border border-border/80 text-[11px] leading-none"
+                            title="Move section Down (+4px)"
+                          >
+                            +
+                          </button>
+                          {(invoice.footerOffsetY || 0) !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => onAdjustFooterOffset(0)}
+                              className="text-[8.5px] text-primary hover:underline px-1 py-0.5 cursor-pointer ml-0.5 font-medium"
+                              title="Reset position to 0px"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {/* Note */}
                       {invoice.note && (
                         <div className={cn(
@@ -976,8 +1103,8 @@ export function MGInvoicePreview({
                         </div>
                       )}
 
-                      {/* Sales Contact (below Note, far left — no heading label) */}
-                      {(invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
+                      {/* Sales Contact (below Note, far left — only rendered if Note is present) */}
+                      {Boolean(invoice.note?.trim()) && (invoice.salesName || invoice.salesPosition || invoice.salesCompany) && (
                         <div className={cn(
                           getSectionBorderClass(),
                           getHighlightClass('sales')
@@ -1006,13 +1133,110 @@ export function MGInvoicePreview({
                       {invoice.terms && (
                         <div className={cn(
                           getSectionBorderClass(),
-                          getHighlightClass('terms')
+                          getHighlightClass('terms'),
+                          "relative group/terms"
                         )}>
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
-                            Terms & Conditions
-                          </p>
-                          <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
-                            {invoice.terms}
+                          {invoice.showTermsTitle !== false ? (
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2 group/termstitle">
+                                <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
+                                  Terms & Conditions
+                                </p>
+                                {onToggleTermsTitle && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleTermsTitle(false)}
+                                    className="no-print print:hidden opacity-0 group-hover/termstitle:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
+                                    title="Hide 'Terms & Conditions' text heading"
+                                  >
+                                    ✕ Hide Title
+                                  </button>
+                                )}
+                              </div>
+
+                              {onToggleTermsPreset && (
+                                <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
+                                    className={cn(
+                                      "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                      !isGovernmentTerms(invoice.terms)
+                                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                    title="Switch to Standard Policy"
+                                  >
+                                    Standard
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
+                                    className={cn(
+                                      "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                      isGovernmentTerms(invoice.terms)
+                                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                    title="Switch to Government / 10–15 Days Lead Time Terms"
+                                  >
+                                    Gov / P.O.
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* When title is hidden, floating hover tools only appear outside on mouse hover, never taking space in the document */
+                            (onToggleTermsTitle || onToggleTermsPreset) && (
+                              <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity absolute -top-3 right-0 flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px] shadow-xs z-10 select-none">
+                                {onToggleTermsTitle && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleTermsTitle(true)}
+                                    className="px-1.5 py-0.5 rounded cursor-pointer transition-colors text-muted-foreground hover:text-foreground font-medium hover:bg-secondary/50"
+                                    title="Show 'Terms & Conditions' heading"
+                                  >
+                                    + Show Title
+                                  </button>
+                                )}
+                                {onToggleTermsPreset && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
+                                      className={cn(
+                                        "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                        !isGovernmentTerms(invoice.terms)
+                                          ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                      title="Switch to Standard Policy"
+                                    >
+                                      Standard
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
+                                      className={cn(
+                                        "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                        isGovernmentTerms(invoice.terms)
+                                          ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                      title="Switch to Government / 10–15 Days Lead Time Terms"
+                                    >
+                                      Gov / P.O.
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )
+                          )}
+                          <p className={cn(
+                            "text-[12px] text-[#555555] whitespace-pre-wrap",
+                            isGovMode ? "leading-snug" : "leading-relaxed"
+                          )}>
+                            {renderFormattedTerms(invoice.terms)}
                           </p>
                         </div>
                       )}
@@ -1020,7 +1244,9 @@ export function MGInvoicePreview({
                       {/* Closing & Acknowledgment Section */}
                       {invoice.closing && (
                         <div className={cn(
-                          "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
+                          isGovMode
+                            ? "mt-1.5 pt-0 print:break-inside-avoid p-0.5"
+                            : "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
                           getHighlightClass('closing')
                         )}>
                           <p className="text-[12px] text-[#555555] italic text-center font-medium">
@@ -1030,61 +1256,246 @@ export function MGInvoicePreview({
                       )}
 
                       {/* Acknowledgment & Conforme */}
-                      {invoice.closing && (
-                        <div className="mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid">
-                          <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-8">
-                            Acknowledgment & Conforme
-                          </p>
-
-                          <div className="grid grid-cols-3 gap-6 items-start pt-2">
-                            {/* Sales Signature */}
-                            <div className="flex flex-col text-center">
-                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
-                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
-                                {invoice.salesName || 'Sales Representative'}
-                              </p>
-                              <div className="min-h-[24px] flex items-center justify-center px-1">
-                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
-                                  {invoice.salesPosition || 'Sales'}
+                      {invoice.closing && invoice.showAcknowledgment !== false && (
+                        <div className={cn(
+                          isGovMode
+                            ? "mt-1.5 pt-0 print:break-inside-avoid relative group"
+                            : "mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid relative group"
+                        )}>
+                          <div className={cn(
+                            "flex items-center justify-between",
+                            invoice.showAcknowledgmentTitle !== false 
+                              ? (isGovMode ? "mb-1.5" : "mb-6") 
+                              : "mb-1"
+                          )}>
+                            {invoice.showAcknowledgmentTitle !== false ? (
+                              <div className="flex items-center gap-2 group/title">
+                                <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
+                                  Acknowledgment & Conforme
                                 </p>
+                                {onToggleAcknowledgmentTitle && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onToggleAcknowledgmentTitle(false)}
+                                    className="no-print print:hidden opacity-0 group-hover/title:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
+                                    title="Hide 'Acknowledgment & Conforme' text heading"
+                                  >
+                                    ✕ Hide Title
+                                  </button>
+                                )}
                               </div>
-                            </div>
+                            ) : (
+                              <div />
+                            )}
 
-                            {/* Client Signature */}
-                            <div className="flex flex-col text-center">
-                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
-                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
-                                {invoice.toName || 'Client Representative'}
-                              </p>
-                              <div className="min-h-[24px] flex items-center justify-center px-1">
-                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
-                                  Client
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Chief Executive Officer Signature */}
-                            <div className="flex flex-col text-center">
-                              <div className="h-16 border-b border-[#333333] mb-3 w-full" />
-                              <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
-                                {invoice.ceoName || 'Mary Grace E. Santos'}
-                              </p>
-                              <div className="min-h-[24px] flex items-center justify-center px-1">
-                                <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
-                                  {invoice.ceoPosition || 'Chief Executive Officer'}
-                                </p>
-                              </div>
+                            <div className="no-print print:hidden opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                              {invoice.showAcknowledgmentTitle === false && onToggleAcknowledgmentTitle && (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleAcknowledgmentTitle(true)}
+                                  className="text-[9px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border px-2 py-0.5 rounded hover:border-primary cursor-pointer select-none bg-secondary/40"
+                                  title="Show 'Acknowledgment & Conforme' text heading"
+                                >
+                                  + Show Title
+                                </button>
+                              )}
+                              {onToggleAcknowledgment && (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleAcknowledgment(false)}
+                                  className="text-[9.5px] font-medium text-destructive hover:bg-destructive/10 px-2 py-0.5 rounded cursor-pointer select-none flex items-center gap-1 border border-destructive/20"
+                                  title="Remove Acknowledgment & Conforme section from quotation"
+                                >
+                                  ✕ Remove Section
+                                </button>
+                              )}
                             </div>
                           </div>
+
+                          {(() => {
+                            const showSales = invoice.showSalesSignee === true
+                            const showClient = invoice.showClientSignee === true
+                            const showCeo = invoice.showCeoSignee !== false
+
+                            const visibleSignees: ('sales' | 'client' | 'ceo')[] = []
+                            if (showSales) visibleSignees.push('sales')
+                            if (showClient) visibleSignees.push('client')
+                            if (showCeo) visibleSignees.push('ceo')
+
+                            if (visibleSignees.length === 0) {
+                              return (
+                                <div className="py-4 text-center print:hidden">
+                                  <p className="text-[11px] text-muted-foreground italic">
+                                    No signees selected. Click to configure signees in the sidebar.
+                                  </p>
+                                </div>
+                              )
+                            }
+
+                            const renderSlot = (signeeKey: 'sales' | 'client' | 'ceo') => {
+                              const isSales = signeeKey === 'sales'
+                              const isClient = signeeKey === 'client'
+                              const sig = isSales
+                                ? invoice.salesSignature
+                                : isClient
+                                ? invoice.clientSignature
+                                : invoice.ceoSignature
+
+                              const sigType = isSales
+                                ? invoice.salesSignatureType
+                                : isClient
+                                ? invoice.clientSignatureType
+                                : invoice.ceoSignatureType
+
+                              const name = isSales
+                                ? (invoice.salesName || 'Sales Representative')
+                                : isClient
+                                ? (invoice.clientSigneeName || invoice.toName || 'Client Representative')
+                                : (invoice.ceoName || 'Mary Grace E. Santos')
+
+                              const position = isSales
+                                ? (invoice.salesPosition || 'Sales')
+                                : isClient
+                                ? (invoice.clientSigneePosition || 'Client')
+                                : (invoice.ceoPosition || 'Chief Executive Officer')
+
+                              return (
+                                <div key={signeeKey} className="flex flex-col text-center items-center">
+                                  <div
+                                    onClick={() => onSignatureClick?.(signeeKey)}
+                                    className={cn(
+                                      "w-full flex flex-col items-center justify-end relative",
+                                      onSignatureClick && "cursor-pointer group/sig hover:bg-black/[0.02] transition-colors rounded p-0.5"
+                                    )}
+                                    title={onSignatureClick ? "Click to edit signature or signee text" : undefined}
+                                  >
+                                    {sig ? (
+                                      <div className="relative w-full flex flex-col items-center justify-end">
+                                        {/* Signature Overlay - directly overlaps the name text */}
+                                        <div
+                                          className={cn(
+                                            "absolute left-1/2 -translate-x-1/2 z-10 pointer-events-none select-none flex items-center justify-center",
+                                            isGovMode ? "bottom-[-4px] h-14 max-w-[150px]" : "bottom-[-6px] h-18 max-w-[170px]"
+                                          )}
+                                        >
+                                          {sigType === 'text' ? (
+                                            <span
+                                              className={cn(
+                                                "text-[#111111] select-none italic font-normal tracking-wide leading-none text-center whitespace-nowrap px-1",
+                                                isGovMode ? "text-[20px]" : "text-[24px]"
+                                              )}
+                                              style={{
+                                                fontFamily: '"Caveat", "Dancing Script", "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive, serif',
+                                              }}
+                                            >
+                                              {sig}
+                                            </span>
+                                          ) : (
+                                            <img
+                                              src={sig}
+                                              alt={`${signeeKey} Signature`}
+                                              data-role="signature"
+                                              className="object-contain w-auto h-auto max-h-full max-w-full select-none pointer-events-none mix-blend-multiply"
+                                            />
+                                          )}
+                                        </div>
+
+                                        {/* Hover badge to edit signature */}
+                                        {onSignatureClick && (
+                                          <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9px] font-semibold text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-xs border border-border/80 transition-opacity absolute -top-5 left-1/2 -translate-x-1/2 pointer-events-none select-none z-20 whitespace-nowrap">
+                                            ✎ Change Sign
+                                          </span>
+                                        )}
+
+                                        {/* Spacing above the name for the top part of the signature */}
+                                        <div className={cn("w-full", isGovMode ? "h-8" : "h-11")} />
+
+                                        {/* Name text underneath the signature overlay */}
+                                        <p className={cn("text-[#111111] uppercase tracking-wide relative z-0", isGovMode ? "min-h-[16px] text-[11px] font-bold" : "min-h-[18px] text-[11.5px] font-bold")}>
+                                          {name}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div className="w-full flex flex-col items-center">
+                                        <div
+                                          className={cn(
+                                            "border-b border-[#333333] w-full flex items-end justify-center relative",
+                                            isGovMode ? "h-8 mb-1.5 pb-0.5" : "h-12 mb-2 pb-1"
+                                          )}
+                                        >
+                                          {onSignatureClick && (
+                                            <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9.5px] text-primary/80 font-semibold transition-opacity absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                                              ✎ Add E-Sign
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className={cn("text-[#111111] uppercase tracking-wide", isGovMode ? "min-h-[16px] text-[11px] font-bold" : "min-h-[18px] text-[11.5px] font-bold")}>
+                                          {name}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className={cn("flex items-center justify-center px-1", isGovMode ? "min-h-[16px] mt-0.5" : "min-h-[20px] mt-0.5")}>
+                                    <p className={cn("text-[#555555] font-medium leading-tight", isGovMode ? "text-[10px]" : "text-[10.5px]")}>
+                                      {position}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            if (visibleSignees.length === 1) {
+                              return (
+                                <div className={cn("flex justify-end", isGovMode ? "pt-0" : "pt-2")}>
+                                  <div className="w-64 max-w-full">
+                                    {renderSlot(visibleSignees[0])}
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            if (visibleSignees.length === 2) {
+                              return (
+                                <div className={cn(
+                                  "grid grid-cols-2 gap-10 items-start max-w-xl ml-auto",
+                                  isGovMode ? "pt-0" : "pt-2"
+                                )}>
+                                  {visibleSignees.map(renderSlot)}
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <div className={cn(
+                                "grid grid-cols-3 gap-6 items-start",
+                                isGovMode ? "pt-0" : "pt-2"
+                              )}>
+                                {visibleSignees.map(renderSlot)}
+                              </div>
+                            )
+                          })()}
                         </div>
                       )}
-                    </>
+
+                      {invoice.closing && invoice.showAcknowledgment === false && onToggleAcknowledgment && (
+                        <div className="mt-5 pt-3 border-t border-dashed border-[#CCCCCC] no-print print:hidden flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => onToggleAcknowledgment(true)}
+                            className="text-[10px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-[#CCCCCC] rounded px-3 py-1 hover:border-primary transition-all flex items-center gap-1.5 cursor-pointer select-none bg-secondary/30"
+                            title="Click to restore Acknowledgment & Conforme signature lines"
+                          >
+                            <span>+ Include Acknowledgment & Conforme (Signatures)</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )
                 })()}
                 </div>
 
                 {/* Bottom Page Number Indicator */}
-                <div className="w-full flex justify-end items-center pt-2 mt-auto">
+                <div className={cn("w-full flex justify-end items-center mt-auto", isGovMode ? "pt-1" : "pt-2")}>
                   <span className="text-[10px] text-[#888888] font-mono select-none">
                     Page {pageIndex + 1} of {totalPages}
                   </span>

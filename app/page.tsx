@@ -1,12 +1,12 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info, FileSignature } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice, TERMS_PRESETS, isGovernmentTerms } from '@/lib/types'
 import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial, SOLAR_PRICELIST_2026 } from '@/lib/store'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,8 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
+import { LogoSection } from '@/components/LogoSection'
+import { SignatureSection, type SigneeKey } from '@/components/SignatureSection'
 import {
   Dialog,
   DialogContent,
@@ -2145,6 +2147,37 @@ export default function Home() {
     }, 80)
   }
 
+  const handleFillPcItems = () => {
+    const pcItems: LineItem[] = [
+      { id: `pc-item-1-${Date.now()}`, description: 'INTEL I5-10400 PROCESSOR', quantity: 220, unit: 'PCS', rate: 1 },
+      { id: `pc-item-2-${Date.now()}`, description: 'GIGABYTE GA-H410M-K', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-3-${Date.now()}`, description: 'Faspeed 256GB SSD SATA', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-4-${Date.now()}`, description: 'SEAGATE BARRACUDA 3.5 1TB HDD', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-5-${Date.now()}`, description: 'PC Case w/ 700W PSU and 80MM Fan', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-6-${Date.now()}`, description: '8GB DDR4-2666', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-7-${Date.now()}`, description: 'USB FHD Digital Camera 1080P', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-8-${Date.now()}`, description: '20" Led Monitor/ 60HZ', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-9-${Date.now()}`, description: 'KEYBOARD AND MOUSE COMBO', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-10-${Date.now()}`, description: 'EPSON L3310 Printer', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-11-${Date.now()}`, description: 'SECURE UPS 650VA 4-SOCKETS W/ AVR', quantity: 220, unit: 'PCS', rate: 0 },
+      { id: `pc-item-12-${Date.now()}`, description: 'SOFTWARE WINDOWS 11 PRO, 64BIT', quantity: 220, unit: 'PCS', rate: 1000 },
+    ]
+
+    setInvoice(prev => ({
+      ...prev,
+      fromName: 'M&G Non-Specialized Wholesale Trading',
+      fromAddress: 'Mintcor Townhomes, 55 Main Dr, Muntinlupa, 1770\nMetro Manila',
+      toName: '-',
+      subject: 'Suppo',
+      salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the Suppo based on your requirement.',
+      rateMarkup: 0,
+      vatRate: 0,
+      discountAmount: 0,
+      isCondensed: false,
+      lineItems: pcItems,
+    }))
+  }
+
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [goodweModalOpen, setGoodweModalOpen] = useState(false)
@@ -2416,6 +2449,22 @@ export default function Home() {
     }
 
     setActiveTab(newTab)
+  }
+
+  const logoFileInputRef = useRef<HTMLInputElement>(null)
+  const [activeSigneeTab, setActiveSigneeTab] = useState<SigneeKey>('ceo')
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false)
+
+  const openLogoPicker = () => {
+    if (activeTab !== 'sender') {
+      handleTabSwitch('sender')
+    }
+    if (activeView !== 'edit') {
+      setActiveView('edit')
+    }
+    setTimeout(() => {
+      logoFileInputRef.current?.click()
+    }, 80)
   }
 
   const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'; label: string; badgeColor: string } => {
@@ -4094,6 +4143,22 @@ export default function Home() {
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-3 py-2.5 bg-card border-b border-border shrink-0 print:hidden min-w-0">
         <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={openLogoPicker}
+            className="flex items-center justify-center h-7 px-1.5 py-0.5 rounded-md border border-border/70 bg-secondary/50 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
+            title="Click to upload / change company logo"
+          >
+            {invoice.logo !== '' ? (
+              <img
+                src={invoice.logo || '/mg.png'}
+                alt="Logo"
+                className="h-5 w-auto max-w-[55px] object-contain shrink-0"
+              />
+            ) : (
+              <span className="text-[9px] font-bold text-muted-foreground">+ Logo</span>
+            )}
+          </button>
           <span className="font-bold text-sm text-foreground tracking-tight shrink-0">MG Invoice</span>
           <button
             onClick={cycleTheme}
@@ -4155,7 +4220,26 @@ export default function Home() {
           <div className="flex-1 flex flex-col min-h-0 lg:h-full min-w-0">
             {/* Logo & Theme Picker (Desktop only) */}
             <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0 gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={openLogoPicker}
+                  className="relative group flex items-center justify-center h-8 px-1.5 py-0.5 rounded-lg border border-border/80 bg-secondary/40 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
+                  title="Click to upload / change company logo"
+                >
+                  {invoice.logo !== '' ? (
+                    <img
+                      src={invoice.logo || '/mg.png'}
+                      alt="Logo"
+                      className="h-6 w-auto max-w-[80px] object-contain transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="text-[10px] font-bold px-1 text-muted-foreground">+ Logo</span>
+                  )}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-[8px] font-bold text-white uppercase tracking-wider">
+                    Edit
+                  </div>
+                </button>
                 <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
               </div>
 
@@ -4181,6 +4265,16 @@ export default function Home() {
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
             {activeTab === 'sender' && (
               <>
+                {/* COMPANY LOGO */}
+                <LogoSection
+                  logo={invoice.logo}
+                  fromName={invoice.fromName}
+                  onChange={(newLogo) => update('logo', newLogo)}
+                  onMouseEnter={() => setHoveredField('logo')}
+                  onMouseLeave={() => setHoveredField(null)}
+                  inputRef={logoFileInputRef}
+                />
+
                 {/* FROM */}
                 <section className="space-y-3">
                   <SectionHeader>From</SectionHeader>
@@ -4455,68 +4549,222 @@ export default function Home() {
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('note')} onMouseLeave={() => setHoveredField(null)}>
                   <div className="flex items-center justify-between">
                     <SectionHeader>Notes / Special Instructions</SectionHeader>
-                    {(invoice.isExceedingServiceArea || (invoice.deliveryDistanceKm && invoice.deliveryDistanceKm > 50)) && (
-                      <span className="text-[9.5px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                        ⚠️ Extended Service Area Notice Active (&gt;50km)
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {Boolean(invoice.note?.trim()) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => update('note', '')}
+                          className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-destructive cursor-pointer font-mono"
+                          title="Clear notes (also removes company contact block from quotation)"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => update('note', defaultInvoice.note)}
+                        className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-foreground cursor-pointer font-mono"
+                        title="Reset to default estimate notice"
+                      >
+                        Reset
+                      </Button>
+                    </div>
                   </div>
+                  {(invoice.isExceedingServiceArea || (invoice.deliveryDistanceKm && invoice.deliveryDistanceKm > 50)) && (
+                    <div className="text-[9.5px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      ⚠️ Extended Service Area Notice Active (&gt;50km)
+                    </div>
+                  )}
                   <Textarea
-                    value={invoice.note}
+                    value={invoice.note || ''}
                     onChange={(e) => update('note', e.target.value)}
-                    placeholder="Notes, special instructions, or any additional details…"
+                    placeholder="Notes, special instructions, or any additional details… (Leave empty to exclude Note & Sales/Company block from quotation)"
                     rows={4}
                   />
+                  {!invoice.note?.trim() && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      ℹ️ Note is empty — Notes section and Sales/Company footer block are removed from quotation preview.
+                    </p>
+                  )}
                 </section>
 
                 {/* TERMS & CONDITIONS */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
-                  <div className="flex items-center justify-between">
-                    <SectionHeader>Terms & Conditions</SectionHeader>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => update('terms', defaultInvoice.terms)}
-                      className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-foreground cursor-pointer font-mono"
-                      title="Reset terms to standard default policy"
-                    >
-                      Reset Default
-                    </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <SectionHeader>Terms & Conditions</SectionHeader>
+                      <button
+                        type="button"
+                        onClick={() => update('showTermsTitle', invoice.showTermsTitle === false)}
+                        className={cn(
+                          "text-[9.5px] px-2 py-0.5 rounded border transition-colors cursor-pointer select-none font-medium",
+                          invoice.showTermsTitle !== false
+                            ? "border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 bg-background"
+                            : "border-primary/40 bg-primary/10 text-primary font-bold"
+                        )}
+                        title={invoice.showTermsTitle !== false ? "Click to hide 'Terms & Conditions' heading in preview" : "Click to show 'Terms & Conditions' heading in preview"}
+                      >
+                        {invoice.showTermsTitle !== false ? '✕ Hide Title' : '+ Show Title'}
+                      </button>
+                    </div>
+                    {/* Toggle between Standard Policy and Government / P.O. Terms */}
+                    <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border/80 text-[10px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => update('terms', TERMS_PRESETS.standard)}
+                        className={cn(
+                          "px-2 py-0.5 rounded cursor-pointer transition-all",
+                          !isGovernmentTerms(invoice.terms)
+                            ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        title="Standard default terms and conditions policy"
+                      >
+                        Standard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => update('terms', TERMS_PRESETS.government)}
+                        className={cn(
+                          "px-2 py-0.5 rounded cursor-pointer transition-all",
+                          isGovernmentTerms(invoice.terms)
+                            ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        title="Government & P.O. Lead Time Terms (10–15 Days)"
+                      >
+                        Gov / P.O. Terms
+                      </button>
+                    </div>
                   </div>
                   <Textarea
                     value={invoice.terms || ''}
                     onChange={(e) => update('terms', e.target.value)}
                     placeholder="Payment terms, contract conditions, warranty details…"
-                    rows={4}
+                    rows={isGovernmentTerms(invoice.terms) ? 3 : 5}
                   />
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
+                    <span>
+                      Active: <strong className="text-foreground">{isGovernmentTerms(invoice.terms) ? '🏛️ Gov / P.O. Terms' : '📋 Standard Policy'}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => update('terms', isGovernmentTerms(invoice.terms) ? TERMS_PRESETS.standard : TERMS_PRESETS.government)}
+                      className="text-[10px] text-primary hover:underline cursor-pointer font-medium"
+                    >
+                      {isGovernmentTerms(invoice.terms) ? '⇄ Switch to Standard' : '⇄ Switch to Gov / P.O. Terms'}
+                    </button>
+                  </div>
+
+                  {/* Position / Vertical Spacing Adjuster for Footer Block */}
+                  <div className="flex items-center justify-between p-2 rounded-lg border border-border/80 bg-secondary/30 text-xs">
+                    <div className="flex flex-col pr-2">
+                      <span className="font-semibold text-foreground text-[11px]">
+                        Vertical Position & Spacing
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Nudge Terms, Closing &amp; Signatures up or down (+ / −)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
+                        onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) - 4)}
+                        title="Move Up (-4px)"
+                      >
+                        −
+                      </Button>
+                      <span className="font-mono text-xs min-w-[36px] text-center font-bold">
+                        {(invoice.footerOffsetY || 0) > 0 ? `+${invoice.footerOffsetY}` : (invoice.footerOffsetY || 0)}px
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
+                        onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) + 4)}
+                        title="Move Down (+4px)"
+                      >
+                        +
+                      </Button>
+                      {(invoice.footerOffsetY || 0) !== 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-1.5 text-[10px] text-primary hover:underline cursor-pointer"
+                          onClick={() => update('footerOffsetY', 0)}
+                        >
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </section>
 
                 {/* CLOSING */}
                 <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
-                  <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
+                  <div className="flex items-center justify-between">
+                    <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
+                    <button
+                      type="button"
+                      onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
+                      className={cn(
+                        "text-[9.5px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none",
+                        invoice.showAcknowledgment !== false
+                          ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                          : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+                      )}
+                      title={invoice.showAcknowledgment !== false ? "Click to remove signature section" : "Click to include signature section"}
+                    >
+                      {invoice.showAcknowledgment !== false ? '✓ Conforme Active' : '✕ Conforme Removed'}
+                    </button>
+                  </div>
                   <Textarea
                     value={invoice.closing || ''}
                     onChange={(e) => update('closing', e.target.value)}
                     placeholder="We are looking forward to building..."
                     rows={4}
                   />
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
-                    <Field label="CEO / Executive Signee">
-                      <Input
-                        value={invoice.ceoName ?? 'Mary Grace E. Santos'}
-                        onChange={(e) => update('ceoName', e.target.value)}
-                        placeholder="Mary Grace E. Santos"
-                      />
-                    </Field>
-                    <Field label="Executive Title">
-                      <Input
-                        value={invoice.ceoPosition ?? 'Chief Executive Officer'}
-                        onChange={(e) => update('ceoPosition', e.target.value)}
-                        placeholder="Chief Executive Officer"
-                      />
-                    </Field>
+
+                  {/* Toggle Card for Acknowledgment & Conforme */}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
+                    <div className="space-y-0.5 pr-2">
+                      <span className="text-[11.5px] font-semibold text-foreground flex items-center gap-1.5">
+                        Acknowledgment & Conforme
+                      </span>
+                      <p className="text-[10.5px] text-muted-foreground">
+                        Includes 3 signature lines (Sales Rep, Client, CEO) at the bottom of the quotation
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={invoice.showAcknowledgment !== false ? "default" : "outline"}
+                      onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
+                      className="h-7 text-xs font-semibold px-2.5 cursor-pointer shrink-0"
+                    >
+                      {invoice.showAcknowledgment !== false ? 'Included' : 'Removed'}
+                    </Button>
                   </div>
+
+                  {invoice.showAcknowledgment !== false && (
+                    <div className="pt-2 border-t border-border/50">
+                      <SignatureSection
+                        invoice={invoice}
+                        update={update}
+                        activeSigneeTab={activeSigneeTab}
+                        onSelectSigneeTab={setActiveSigneeTab}
+                      />
+                    </div>
+                  )}
                 </section>
               </>
             )}
@@ -5063,8 +5311,19 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-1 flex items-center justify-between flex-wrap gap-2">
                   <SectionHeader>Line Items</SectionHeader>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleFillPcItems}
+                    className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:border-amber-500/50 font-bold px-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Fill 12 PC Package items with 220 QTY & PCS unit"
+                  >
+                    <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
+                    <span>Fill 12 PC Package Items (220 PCS)</span>
+                  </Button>
                 </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -6218,15 +6477,27 @@ export default function Home() {
                     })
                   })()}
 
-                  {/* Add item */}
-                  <Button
-                    variant="outline"
-                    onClick={handleAddItem}
-                    className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1 cursor-pointer"
-                  >
-                    <Plus size={13} />
-                    Add item
-                  </Button>
+                  {/* Add item & Temporary Fill Button */}
+                  <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                    <Button
+                      variant="outline"
+                      onClick={handleAddItem}
+                      className="flex-1 h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent cursor-pointer"
+                    >
+                      <Plus size={13} />
+                      Add item
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleFillPcItems}
+                      className="h-[34px] border-dashed border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20 text-[11.5px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 cursor-pointer px-3 flex items-center justify-center gap-1.5 shadow-2xs"
+                      title="Fill 12 PC Package items with 220 QTY & PCS"
+                    >
+                      <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
+                      <span>Fill 12 PC Items (220 Qty)</span>
+                    </Button>
+                  </div>
 
                   <datalist id="solar-item-catalog">
                     {SOLAR_PRICELIST_2026.map((catItem) => (
@@ -7555,6 +7826,16 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
+            onLogoClick={openLogoPicker}
+            onToggleAcknowledgment={(val) => update('showAcknowledgment', val)}
+            onToggleAcknowledgmentTitle={(val) => update('showAcknowledgmentTitle', val)}
+            onToggleTermsTitle={(val) => update('showTermsTitle', val)}
+            onToggleTermsPreset={(terms) => update('terms', terms)}
+            onAdjustFooterOffset={(val) => update('footerOffsetY', val)}
+            onSignatureClick={(signee) => {
+              setActiveSigneeTab(signee)
+              setSignatureModalOpen(true)
+            }}
           />
         ) : (
           <MGInvoicePreview
@@ -7564,6 +7845,16 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
+            onLogoClick={openLogoPicker}
+            onToggleAcknowledgment={(val) => update('showAcknowledgment', val)}
+            onToggleAcknowledgmentTitle={(val) => update('showAcknowledgmentTitle', val)}
+            onToggleTermsTitle={(val) => update('showTermsTitle', val)}
+            onToggleTermsPreset={(terms) => update('terms', terms)}
+            onAdjustFooterOffset={(val) => update('footerOffsetY', val)}
+            onSignatureClick={(signee) => {
+              setActiveSigneeTab(signee)
+              setSignatureModalOpen(true)
+            }}
           />
         )}
 
@@ -7591,6 +7882,33 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         )}
       </div>
     </div>
+
+      {/* Signature Setup Modal */}
+      <Dialog open={signatureModalOpen} onOpenChange={setSignatureModalOpen}>
+        <DialogContent className="max-w-lg p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <FileSignature size={18} className="text-primary" />
+              Signees &amp; E-Signatures Setup
+            </DialogTitle>
+          </DialogHeader>
+          <SignatureSection
+            invoice={invoice}
+            update={update}
+            activeSigneeTab={activeSigneeTab}
+            onSelectSigneeTab={setActiveSigneeTab}
+          />
+          <div className="flex justify-end pt-2 border-t border-border/50">
+            <Button
+              type="button"
+              onClick={() => setSignatureModalOpen(false)}
+              className="h-8 text-xs font-semibold px-4 cursor-pointer"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cheatsheetOpen} onOpenChange={setCheatsheetOpen}>
         <DialogContent className="max-w-md font-mono">

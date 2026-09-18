@@ -76,7 +76,10 @@ export function useMGInvoice() {
           const defaultVal = defaultInvoice[key]
           
           if (typeof defaultVal === 'boolean') {
-            ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal === true || savedVal === 'true'
+            ;(sanitized as unknown as Record<string, unknown>)[key] =
+              savedVal !== undefined && savedVal !== null
+                ? savedVal === true || savedVal === 'true'
+                : defaultVal
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             let numVal = !isNaN(parsed) ? parsed : defaultVal
@@ -85,15 +88,19 @@ export function useMGInvoice() {
             }
             ;(sanitized as unknown as Record<string, unknown>)[key] = numVal
           } else if (key === 'note') {
-            const currentNote = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.note) || ''
-            if (currentNote.includes('\n\nPlease be advised') || !currentNote.includes('preliminary estimates')) {
-              if (!currentNote || currentNote.includes('All items are subject to availability')) {
-                sanitized.note = defaultInvoice.note
-              } else {
-                sanitized.note = `${currentNote.replace(/\n\nPlease be advised[\s\S]*/, '')}\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.`
-              }
+            if (savedVal === '') {
+              sanitized.note = ''
             } else {
-              sanitized.note = currentNote
+              const currentNote = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.note) || ''
+              if (currentNote.includes('\n\nPlease be advised') || !currentNote.includes('preliminary estimates')) {
+                if (!currentNote || currentNote.includes('All items are subject to availability')) {
+                  sanitized.note = defaultInvoice.note
+                } else {
+                  sanitized.note = `${currentNote.replace(/\n\nPlease be advised[\s\S]*/, '')}\nPlease be advised that all quoted prices, material specifications, quantities, and units of measure (UOM) provided in this document are preliminary estimates. Final pricing and project details are subject to change pending an on-site ocular inspection, roof assessment, structural verification, and evaluation of site-specific conditions.`
+                }
+              } else {
+                sanitized.note = currentNote
+              }
             }
           } else if (key === 'terms') {
             const currentTerms = (savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultInvoice.terms) || ''

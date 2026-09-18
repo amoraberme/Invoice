@@ -25,6 +25,13 @@ export interface MGCapitalPreviewProps {
   onPagesChange?: (count: number) => void
   onToggleCondensed?: (val: boolean) => void
   onToggleWithBrandName?: (val: boolean) => void
+  onLogoClick?: () => void
+  onToggleAcknowledgment?: (val: boolean) => void
+  onToggleAcknowledgmentTitle?: (val: boolean) => void
+  onToggleTermsTitle?: (val: boolean) => void
+  onToggleTermsPreset?: (terms: string) => void
+  onAdjustFooterOffset?: (val: number) => void
+  onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
 }
 
 interface CapitalVirtualPage {
@@ -206,6 +213,13 @@ export function MGCapitalPreview({
   onPagesChange,
   onToggleCondensed,
   onToggleWithBrandName,
+  onLogoClick,
+  onToggleAcknowledgment,
+  onToggleAcknowledgmentTitle,
+  onToggleTermsTitle,
+  onToggleTermsPreset,
+  onAdjustFooterOffset,
+  onSignatureClick,
 }: MGCapitalPreviewProps) {
   const [localVersion, setLocalVersion] = useState<'v1' | 'v2'>('v1')
   const version = controlledVersion ?? localVersion
@@ -226,6 +240,13 @@ export function MGCapitalPreview({
         showCapital={true}
         capitalVersion={version}
         onToggleCapitalVersion={handleSetVersion}
+        onLogoClick={onLogoClick}
+        onToggleAcknowledgment={onToggleAcknowledgment}
+        onToggleAcknowledgmentTitle={onToggleAcknowledgmentTitle}
+        onToggleTermsTitle={onToggleTermsTitle}
+        onToggleTermsPreset={onToggleTermsPreset}
+        onAdjustFooterOffset={onAdjustFooterOffset}
+        onSignatureClick={onSignatureClick}
       />
     )
   }
@@ -559,20 +580,20 @@ function MGCapitalBoqWorksheet({
                       const descLower = item.description.toLowerCase().trim()
                       const isDeliveryOrLabor = isLaborItem(item.description) || descLower.includes('delivery') || descLower.includes('freight') || descLower.includes('service') || descLower.includes('labor') || descLower.includes('installation') || item.id === 'condensed-services' || item.id === 'condensed-delivery'
                       return (
-                        <div key={item.id} className={cn("flex py-1.5 border-b border-[#E5E5E5] items-start print:break-inside-avoid px-1", getHighlightClass(item.id))}>
+                        <div key={item.id} className={cn("flex pt-0.5 pb-2 border-b border-[#E5E5E5] items-center print:break-inside-avoid px-1", getHighlightClass(item.id))}>
                           <span className="flex-1 text-[11px] text-[#111111] break-words whitespace-pre-wrap pr-3 font-medium leading-snug">
                             {item.description || '—'}
                           </span>
-                          <span className="w-16 shrink-0 text-[11px] text-[#888888] text-center">
+                          <span className="w-16 shrink-0 text-[11px] text-[#888888] text-center leading-snug">
                             {isDeliveryOrLabor ? '—' : (item.unit || '—')}
                           </span>
-                          <span className="w-14 shrink-0 text-[11px] text-[#888888] text-center">
+                          <span className="w-14 shrink-0 text-[11px] text-[#888888] text-center leading-snug">
                             {isDeliveryOrLabor ? '—' : (item.quantity || '—')}
                           </span>
-                          <span className="w-28 shrink-0 text-[11px] text-[#555555] text-right font-mono">
+                          <span className="w-28 shrink-0 text-[11px] text-[#555555] text-right font-mono leading-snug">
                             {isDeliveryOrLabor || item.rate === 0 ? '—' : formatCurrency(item.rate, invoice.currency)}
                           </span>
-                          <span className="w-32 shrink-0 text-[11px] font-bold text-[#111111] text-right font-mono">
+                          <span className="w-32 shrink-0 text-[11px] font-bold text-[#111111] text-right font-mono leading-snug">
                             {formatCurrency(capitalAmount, invoice.currency)}
                           </span>
                         </div>
