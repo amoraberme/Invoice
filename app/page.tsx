@@ -557,9 +557,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
           seenMccb100 = true
         }
 
-        if (item.description !== targetDesc || item.quantity !== 2 || item.rate !== 1300 || item.unit !== 'PCS') {
+        if (item.description !== targetDesc || item.quantity !== 2 || item.rate !== 850 || item.unit !== 'PCS') {
           changed = true
-          return { ...item, description: targetDesc, quantity: 2, rate: 1300, unit: 'PCS' }
+          return { ...item, description: targetDesc, quantity: 2, rate: 850, unit: 'PCS' }
         }
       } else {
         if (seenMccb100) {
@@ -708,7 +708,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         id: `boq-12-mccb100-${Date.now()}`,
         description: 'AC MCCB 100A',
         quantity: 2,
-        rate: 1300.00,
+        rate: 850.00,
         unit: 'PCS'
       })
     }
@@ -721,7 +721,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         id: `boq-12-mccb125-${Date.now()}`,
         description: 'AC MCCB 125A',
         quantity: 2,
-        rate: 1300.00,
+        rate: 850.00,
         unit: 'PCS'
       })
     }
@@ -1517,8 +1517,8 @@ const SOLAR_PRICES = {
   ACMCB_80A: 450.00,
   ACMCB_100A: 500.00,
   ACMCB_125A: 500.00,
-  ACMCB_100A_MCCB: 1300.00,
-  ACMCB_125A_MCCB: 1300.00,
+  ACMCB_100A_MCCB: 850.00,
+  ACMCB_125A_MCCB: 850.00,
   ACSPD: 570.00,
   DCSPD: 790.00,
   DCMCB: 420.00,
@@ -3547,14 +3547,14 @@ export default function Home() {
         id: `boq-12-mccb100-${now}`,
         description: `AC MCCB 100A`,
         quantity: 2,
-        rate: 1300.00,
+        rate: 850.00,
         unit: 'PCS'
       })
       items.push({
         id: `boq-12-mccb125-${now}`,
         description: `AC MCCB 125A`,
         quantity: 2,
-        rate: 1300.00,
+        rate: 850.00,
         unit: 'PCS'
       })
     } else {
@@ -5204,7 +5204,7 @@ export default function Home() {
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">3. AC Breakers (MCB vs MCCB)</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 4 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 4 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 4 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300/pc</span> so they are never mixed up.
+                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 4 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 4 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 4 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850/pc</span> so they are never mixed up.
                         </p>
                       </div>
 

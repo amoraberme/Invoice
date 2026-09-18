@@ -14,7 +14,7 @@ This document details all hardcoded prices, component rates, brand-specific tier
 | **Battery Storage Standard** | 100Ah (₱38,000) | 100Ah (₱38,000) | 100Ah (₱38,000) | 200Ah (₱65,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 2x 314Ah (₱88,000 ea) |
 | **Flexible Hose / Conduit** | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (50m @ ₱95) | 40mm (50m @ ₱124) | 40mm (50m @ ₱124) | 40mm (50m @ ₱124) | 40mm (100m @ ₱124) |
 | **Breaker Box / Enclosure** | 50x40 (₱1,500) | 50x40 (₱1,500) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 2x 50x60 (₱3,000 ea) |
-| **AC Main Breakers** | 4x MCB 80A (₱450) | 4x MCB 80A (₱450) | 4x MCB 100A (₱500) | 4x MCB 100A (₱500) | 4x MCB 125A (₱500) | 4x MCCB (₱1,300) | 4x MCCB (₱1,300) | AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300 | 8x AC MCCB (₱1,300 ea) |
+| **AC Main Breakers** | 4x MCB 80A (₱450) | 4x MCB 80A (₱450) | 4x MCB 100A (₱500) | 4x MCB 100A (₱500) | 4x MCB 125A (₱500) | 4x MCCB (₱1,300) | 4x MCCB (₱1,300) | AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850 | 8x AC MCCB (₱1,300 ea) |
 | **Automatic Transfer Switch** | 63A (₱1,500) | 63A (₱1,500) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱4,000) | 125A (₱4,000) | 125A (₱4,000) | 2x 125A (₱4,000 ea) |
 | **AC Wire Gauge & Length** | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC 6mm² (60m) | #6 (60m) + #8 (60m) | #6 (100m) + #8 (100m) | #6 (100m) + #8 (100m) | #6 (120m) + #8 (120m) |
 | **DC Wire Gauge & Length** | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC 6mm² (60m) | DC Wire (80m) | DC Wire (80m) | DC Wire (80m) | DC Wire (160m) |
@@ -135,7 +135,7 @@ Every item in the **Items Tab** displays an informative badge and audit reconcil
 2. **Breaker Box / Enclosure**:
    - `[Price Updated]`: 50x40 Enclosure downsized to ₱1,500.00 (was ₱3,000.00 50x60) for 3kW and 4kW packages.
 3. **AC Breakers**:
-   - `[Price Updated]`: 4x AC MCB 80A @ ₱450.00 (3k–4k), 4x AC MCB 100A @ ₱500.00 (5k–6k), 4x AC MCB 125A @ ₱500.00 (8k), AC MCCB @ ₱1,300.00 (10k–12k), AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱1,300.00 ea (16k), and 8x AC MCCB @ ₱1,300.00 ea (20k).
+   - `[Price Updated]`: 4x AC MCB 80A @ ₱450.00 (3k–4k), 4x AC MCB 100A @ ₱500.00 (5k–6k), 4x AC MCB 125A @ ₱500.00 (8k), AC MCCB @ ₱1,300.00 (10k–12k), AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850.00 ea (16k), and 8x AC MCCB @ ₱1,300.00 ea (20k).
 4. **Automatic Transfer Switch (ATS)**:
    - `[Price Scaled]`: 63A Taxnelle ATS @ ₱1,500.00 (3k–4k), 125A ATS @ ₱2,000.00 (5k–8k), 125A Heavy-Duty ATS @ ₱4,000.00 (10k–16k).
 5. **Battery Capacity**:
