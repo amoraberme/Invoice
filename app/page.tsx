@@ -6,7 +6,7 @@ import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, is
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, type SystemLifespanConfig, type SystemLifespanItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice, getDefaultSystemLifespan } from '@/lib/types'
 import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial, SOLAR_PRICELIST_2026 } from '@/lib/store'
 import { Input } from '@/components/ui/input'
@@ -2753,6 +2753,36 @@ export default function Home() {
 
   const handleResetWarranties = () => {
     update('warranties', generateDefaultWarrantiesFromInvoice(invoice))
+  }
+
+  const getSafeSystemLifespan = (): SystemLifespanConfig => {
+    return invoice.systemLifespan || getDefaultSystemLifespan()
+  }
+
+  const updateSystemLifespan = <K extends keyof SystemLifespanConfig>(field: K, value: SystemLifespanConfig[K]) => {
+    const current = getSafeSystemLifespan()
+    update('systemLifespan', { ...current, [field]: value })
+  }
+
+  const updateLifespanItem = (id: string, updates: Partial<SystemLifespanItem>) => {
+    const current = getSafeSystemLifespan()
+    const updatedItems = current.items.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    update('systemLifespan', { ...current, items: updatedItems })
+  }
+
+  const updateLifespanItemBullet = (itemId: string, bulletIndex: number, text: string) => {
+    const current = getSafeSystemLifespan()
+    const updatedItems = current.items.map((item) => {
+      if (item.id !== itemId) return item
+      const newBullets = [...item.bulletPoints]
+      newBullets[bulletIndex] = text
+      return { ...item, bulletPoints: newBullets }
+    })
+    update('systemLifespan', { ...current, items: updatedItems })
+  }
+
+  const handleResetSystemLifespan = () => {
+    update('systemLifespan', getDefaultSystemLifespan())
   }
 
   // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
@@ -6399,6 +6429,130 @@ export default function Home() {
                       Add Warranty Row
                     </Button>
                   </div>
+
+                  {/* System Lifespan & Durability Editor */}
+                  <div className="mt-8 pt-5 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-primary" />
+                        <SectionHeader>System Lifespan & Durability</SectionHeader>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => update('showSystemLifespan', !(invoice.showSystemLifespan ?? true))}
+                          className={cn(
+                            "h-7 text-[10px] font-bold px-2 cursor-pointer transition-colors",
+                            (invoice.showSystemLifespan ?? true)
+                              ? "bg-primary/10 border-primary text-primary hover:bg-primary/20"
+                              : "text-muted-foreground border-border hover:text-foreground"
+                          )}
+                        >
+                          {(invoice.showSystemLifespan ?? true) ? 'Visible in Proposal: ON' : 'Visible in Proposal: OFF'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResetSystemLifespan}
+                          className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                          title="Reset to default lifespan guidelines"
+                        >
+                          Reset Defaults
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      Configure the 25–30 year durability guidelines, mid-life component replacements, and determinants shown in the proposal.
+                    </p>
+
+                    <div className="space-y-3">
+                      {getSafeSystemLifespan().items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-[10px] bg-secondary/30 border border-border hover:border-primary/40 transition-all space-y-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={item.enabled ?? true}
+                              onChange={(e) => updateLifespanItem(item.id, { enabled: e.target.checked })}
+                              className="h-3.5 w-3.5 rounded border-border text-primary cursor-pointer"
+                              title="Enable / Disable item in proposal"
+                            />
+                            <Input
+                              value={item.component}
+                              onChange={(e) => updateLifespanItem(item.id, { component: e.target.value })}
+                              placeholder="Component name"
+                              className="flex-1 h-7 text-xs font-semibold bg-background/50"
+                            />
+                            <Input
+                              value={item.lifespan}
+                              onChange={(e) => updateLifespanItem(item.id, { lifespan: e.target.value })}
+                              placeholder="Lifespan (e.g. 25–30+ Yrs)"
+                              className="w-36 h-7 text-xs font-bold text-right bg-background/50"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 pl-5">
+                            {item.bulletPoints.map((bullet, bIdx) => (
+                              <div key={bIdx} className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-muted-foreground">•</span>
+                                <Input
+                                  value={bullet}
+                                  onChange={(e) => updateLifespanItemBullet(item.id, bIdx, e.target.value)}
+                                  placeholder="Durability note"
+                                  className="flex-1 h-6 text-[11px] bg-background/30"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Key Determinants */}
+                    <div className="p-3 rounded-[10px] bg-secondary/20 border border-border/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-foreground">
+                          {getSafeSystemLifespan().determinantsTitle || 'Key Determinants'}
+                        </Label>
+                      </div>
+                      <div className="space-y-1.5">
+                        {getSafeSystemLifespan().determinants.map((det, dIdx) => (
+                          <div key={dIdx} className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-primary">✔</span>
+                            <Input
+                              value={det}
+                              onChange={(e) => {
+                                const cur = getSafeSystemLifespan()
+                                const newDets = [...cur.determinants]
+                                newDets[dIdx] = e.target.value
+                                updateSystemLifespan('determinants', newDets)
+                              }}
+                              placeholder="Determinant description"
+                              className="flex-1 h-6 text-[11px] bg-background/50"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const cur = getSafeSystemLifespan()
+                                updateSystemLifespan('determinants', cur.determinants.filter((_, idx) => idx !== dIdx))
+                              }}
+                              className="h-6 w-6 text-muted-foreground hover:text-destructive cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
             )}
@@ -7555,6 +7709,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
+            onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
           />
         ) : (
           <MGInvoicePreview
@@ -7564,6 +7719,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
             onPagesChange={setTotalPages}
             onToggleCondensed={(val) => update('isCondensed', val)}
             onToggleWithBrandName={(val) => update('withBrandName', val)}
+            onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
           />
         )}
 

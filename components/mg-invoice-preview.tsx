@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useMemo } from 'react'
-import { type Invoice, type LineItem } from '@/lib/types'
+import { type Invoice, type LineItem, getDefaultSystemLifespan } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { 
   formatCurrency, 
@@ -32,6 +32,7 @@ export interface MGInvoicePreviewProps {
   showCapital?: boolean
   capitalVersion?: 'v1' | 'v2'
   onToggleCapitalVersion?: (v: 'v1' | 'v2') => void
+  onToggleSystemLifespan?: (val: boolean) => void
 }
 
 interface PageData {
@@ -53,6 +54,7 @@ export function MGInvoicePreview({
   showCapital,
   capitalVersion = 'v1',
   onToggleCapitalVersion,
+  onToggleSystemLifespan,
 }: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -650,13 +652,6 @@ export function MGInvoicePreview({
                           </span>
                         </div>
                         <table className="w-full text-left text-[10px] border-collapse">
-                          <thead>
-                            <tr className="border-b border-[#E5E5E5] bg-[#F8F8F8]">
-                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-5/12">Component / Service</th>
-                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-4/12">Warranty Type</th>
-                              <th className="py-1 px-3 font-semibold text-[#111111] text-[9px] tracking-[0.05em] uppercase w-3/12 text-right">Coverage Period</th>
-                            </tr>
-                          </thead>
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
                             {(Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
                               .filter((w) => {
@@ -668,9 +663,9 @@ export function MGInvoicePreview({
                               .map((w) => {
                                 return (
                                   <tr key={w.id}>
-                                    <td className="py-1 px-3 font-semibold text-[#111111]">{w.component}</td>
-                                    <td className="py-1 px-3 text-[#555555]">{w.warrantyType}</td>
-                                    <td className="py-1 px-3 font-bold text-[#111111] text-right">{w.coverage}</td>
+                                    <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
+                                    <td className="py-1 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
+                                    <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
                                   </tr>
                                 )
                               })}
@@ -678,6 +673,96 @@ export function MGInvoicePreview({
                         </table>
                       </div>
                     )}
+
+                    {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Matching Warranty Coverage Design */}
+                    {page.showCondensedWarranty && (invoice.showSystemLifespan !== false) && (() => {
+                      const lifespanConfig = invoice.systemLifespan || getDefaultSystemLifespan()
+                      if (lifespanConfig.enabled === false) return null
+
+                      const activeItems = (lifespanConfig.items || []).filter((item) => {
+                        if (item.enabled === false) return false
+                        if (item.id === 'life-batteries' && !scopeData.hasBattery) return false
+                        return true
+                      })
+
+                      const getDisplayNotes = (item: typeof activeItems[0]) => {
+                        const raw = (item.bulletPoints || []).join(' • ')
+                        if (raw.includes('Degrade slowly') || raw.includes('no moving parts') || raw.includes('degradation') || raw.includes('guarantees ≥80%')) {
+                          return '~0.5%/yr degradation; ≥80% output guaranteed at 25 yrs. Operates 30+ yrs.'
+                        }
+                        if (raw.includes('heavy thermal') || raw.includes('Electrolytic capacitors') || raw.includes('capacitor replacement') || raw.includes('DC-to-AC') || raw.includes('conversion')) {
+                          return 'Heavy thermal load; scheduled mid-life capacitor replacement at 10–15 yrs.'
+                        }
+                        if (raw.includes('Depth of Discharge') || raw.includes('daily cycling') || raw.includes('6,000+ cycles') || raw.includes('cycling to 70%')) {
+                          return '6,000+ cycles at 80%–90% DoD; ~10–15 yrs daily cycling to 70% capacity.'
+                        }
+                        return raw
+                      }
+
+                      const getDisplayLifespan = (item: typeof activeItems[0]) => {
+                        if (item.lifespan.includes('25')) return '25–30+ Years'
+                        if (item.lifespan.includes('10')) return '10–15 Years'
+                        return item.lifespan
+                      }
+
+                      const getDisplayComponent = (item: typeof activeItems[0]) => {
+                        if (item.id === 'life-batteries' || item.component.toLowerCase().includes('lifepo4') || item.component.toLowerCase().includes('lithium')) {
+                          return 'LiFePO4 Batteries'
+                        }
+                        if (item.id === 'life-inverters') {
+                          return 'String & Hybrid Inverters'
+                        }
+                        if (item.id === 'life-panels') {
+                          return 'Solar Panels'
+                        }
+                        return item.component
+                      }
+
+                      const rawDets = (lifespanConfig.determinants || []).join(' • ')
+                      const displayDets = (rawDets.includes('shading and ventilation') || rawDets.includes('hotspot formation') || rawDets.includes('equipment ventilation') || rawDets.includes('Adequate ventilation'))
+                        ? 'Adequate ventilation • DC/AC surge & grounding protection • Periodic panel cleaning.'
+                        : rawDets
+
+                      return (
+                        <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                          {/* Header Bar - Exactly matching Warranty Coverage */}
+                          <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
+                            <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
+                              System Lifespan & Durability (25–30 Years)
+                            </span>
+                          </div>
+
+                          {/* Table without sub-header row */}
+                          <table className="w-full text-left text-[10px] border-collapse">
+                            <tbody className="divide-y divide-[#E5E5E5] bg-white">
+                              {activeItems.map((item) => (
+                                <tr key={item.id}>
+                                  <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">
+                                    {getDisplayComponent(item)}
+                                  </td>
+                                  <td className="py-1 px-3 text-[#555555] text-[9px] leading-snug w-5/12">
+                                    {getDisplayNotes(item)}
+                                  </td>
+                                  <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">
+                                    {getDisplayLifespan(item)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          {/* Key Determinants Footer */}
+                          {displayDets && (
+                            <div className="px-3 py-1 bg-[#F8F8F8] border-t border-[#E5E5E5] text-[8px] leading-tight text-[#555555]">
+                              <span className="font-semibold text-[#111111] uppercase tracking-[0.05em]">
+                                {lifespanConfig.determinantsTitle ? `${lifespanConfig.determinantsTitle.replace('Key Lifespan Determinants', 'Key Determinants')}:` : 'Key Determinants:'}
+                              </span>{' '}
+                              <span>{displayDets}</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 ) : (
                   page.items.length > 0 ? (

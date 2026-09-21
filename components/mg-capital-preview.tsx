@@ -25,6 +25,7 @@ export interface MGCapitalPreviewProps {
   onPagesChange?: (count: number) => void
   onToggleCondensed?: (val: boolean) => void
   onToggleWithBrandName?: (val: boolean) => void
+  onToggleSystemLifespan?: (val: boolean) => void
 }
 
 interface CapitalVirtualPage {
@@ -206,6 +207,7 @@ export function MGCapitalPreview({
   onPagesChange,
   onToggleCondensed,
   onToggleWithBrandName,
+  onToggleSystemLifespan,
 }: MGCapitalPreviewProps) {
   const [localVersion, setLocalVersion] = useState<'v1' | 'v2'>('v1')
   const version = controlledVersion ?? localVersion
@@ -226,6 +228,7 @@ export function MGCapitalPreview({
         showCapital={true}
         capitalVersion={version}
         onToggleCapitalVersion={handleSetVersion}
+        onToggleSystemLifespan={onToggleSystemLifespan}
       />
     )
   }
