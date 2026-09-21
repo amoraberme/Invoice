@@ -32,6 +32,66 @@ export interface ScopeOfWorkItem {
   enabled?: boolean
 }
 
+export interface SystemLifespanItem {
+  id: string
+  component: string
+  lifespan: string
+  bulletPoints: string[]
+  enabled?: boolean
+}
+
+export interface SystemLifespanConfig {
+  enabled: boolean
+  overviewTitle: string
+  overviewDescription: string
+  items: SystemLifespanItem[]
+  determinantsTitle: string
+  determinants: string[]
+}
+
+export function getDefaultSystemLifespan(): SystemLifespanConfig {
+  return {
+    enabled: true,
+    overviewTitle: 'System Lifespan (25–30 Years)',
+    overviewDescription: 'Overall lifespan matches panels; power electronics and storage require scheduled mid-life replacements.',
+    items: [
+      {
+        id: 'life-panels',
+        component: 'Solar Panels',
+        lifespan: '25–30+ Yrs',
+        bulletPoints: [
+          '~0.5%/yr degradation; ≥80% output guaranteed at 25 yrs. Operates 30+ yrs.'
+        ],
+        enabled: true
+      },
+      {
+        id: 'life-inverters',
+        component: 'String & Hybrid Inverters',
+        lifespan: '10–15 Yrs',
+        bulletPoints: [
+          'Heavy thermal load; scheduled mid-life capacitor replacement at 10–15 yrs.'
+        ],
+        enabled: true
+      },
+      {
+        id: 'life-batteries',
+        component: 'LiFePO4 Batteries',
+        lifespan: '10–15 Yrs',
+        bulletPoints: [
+          '6,000+ cycles at 80%–90% DoD; ~10–15 yrs daily cycling to 70% capacity.'
+        ],
+        enabled: true
+      }
+    ],
+    determinantsTitle: 'Key Determinants',
+    determinants: [
+      'Adequate ventilation',
+      'DC/AC surge & grounding protection',
+      'Periodic panel cleaning'
+    ]
+  }
+}
+
 export interface Invoice {
   fromName: string
   fromEmail: string
@@ -80,6 +140,8 @@ export interface Invoice {
   closing: string
   ceoName?: string
   ceoPosition?: string
+  showSystemLifespan?: boolean
+  systemLifespan?: SystemLifespanConfig
 }
 
 export interface InvoiceHistoryItem {
@@ -369,5 +431,7 @@ export const defaultInvoice: Invoice = {
   closing: 'We are looking forward to building a long-term relationship as your reliable supplier.',
   ceoName: 'Mary Grace E. Santos',
   ceoPosition: 'Chief Executive Officer',
+  showSystemLifespan: true,
+  systemLifespan: getDefaultSystemLifespan(),
   terms: 'Payment Terms:\n- Full payment after Installation.\n- Payments can be made via Cash / Bank Transfer / Credit Card / Crypto / Gold.\n\nPrice Validity:\n- This quotation is valid for 15 days from the date issued.\n- Prices may change after the validity period without prior notice.\n\nLate Payment Interest:\n- A penalty of 1/10% of the total contract will be charged on overdue balances.\n- Interest will be applied starting from the due date until full payment is received.\n\nDelivery Terms:\n- Delivery timeline: 2-3 working days\n- Delivery method: Pick-up | Delivery',
 }

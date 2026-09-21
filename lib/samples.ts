@@ -1,4 +1,4 @@
-import { type Invoice } from './types'
+import { type Invoice, getDefaultSystemLifespan } from './types'
 
 const sampleToday = new Date()
 const sampleDue = new Date()
@@ -41,6 +41,8 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   closing: 'We are looking forward to building a long-term relationship as your reliable supplier.',
   ceoName: 'Mary Grace E. Santos',
   ceoPosition: 'Chief Executive Officer',
+  showSystemLifespan: true,
+  systemLifespan: getDefaultSystemLifespan(),
   terms: 'Payment Terms:\n- Full payment after Installation.\n- Payments can be made via Cash / Bank Transfer / Credit Card / Crypto / Gold.\n\nPrice Validity:\n- This quotation is valid for 15 days from the date issued.\n- Prices may change after the validity period without prior notice.\n\nLate Payment Interest:\n- A penalty of 1/10% of the total contract will be charged on overdue balances.\n- Interest will be applied starting from the due date until full payment is received.\n\nDelivery Terms:\n- Delivery timeline: 2-3 working days\n- Delivery method: Pick-up | Delivery',
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type Invoice, type LineItem, type ExpenseItem, newLineItem, newExpenseItem, defaultInvoice, defaultWarranties } from './types'
+import { type Invoice, type LineItem, type ExpenseItem, type SystemLifespanConfig, newLineItem, newExpenseItem, defaultInvoice, defaultWarranties, getDefaultSystemLifespan } from './types'
 import { loadInvoice, saveInvoice } from './store'
 import { generateDocumentId, addDays } from './utils'
 
@@ -69,6 +69,46 @@ export function useMGInvoice() {
                 category: (exp?.category as ExpenseItem['category']) || 'additional',
               }
             })
+            continue
+          }
+          
+          if (key === 'systemLifespan') {
+            const raw = savedObj.systemLifespan as Partial<SystemLifespanConfig> | undefined
+            const def = getDefaultSystemLifespan()
+            if (!raw || typeof raw !== 'object') {
+              sanitized.systemLifespan = def
+            } else {
+              const sanitizedItems = Array.isArray(raw.items)
+                ? raw.items.map((item) => {
+                    const text = (item.bulletPoints || []).join(' ')
+                    if (item.id === 'life-panels' && (text.includes('Degrade slowly') || text.includes('no moving parts'))) {
+                      return { ...item, lifespan: '25–30+ Yrs', bulletPoints: def.items.find(i => i.id === 'life-panels')?.bulletPoints || item.bulletPoints }
+                    }
+                    if (item.id === 'life-inverters' && (text.includes('Experience heavy thermal') || text.includes('Electrolytic capacitors'))) {
+                      return { ...item, lifespan: '10–15 Yrs', bulletPoints: def.items.find(i => i.id === 'life-inverters')?.bulletPoints || item.bulletPoints }
+                    }
+                    if (item.id === 'life-batteries' && (text.includes('Rated for 6,000+') || text.includes('usable capacity drops'))) {
+                      return { ...item, lifespan: '10–15 Yrs', bulletPoints: def.items.find(i => i.id === 'life-batteries')?.bulletPoints || item.bulletPoints }
+                    }
+                    return item
+                  })
+                : def.items
+
+              const sanitizedDets = Array.isArray(raw.determinants)
+                ? raw.determinants.some(d => d.includes('Proper shading and ventilation') || d.includes('hotspot formation'))
+                  ? def.determinants
+                  : raw.determinants
+                : def.determinants
+
+              sanitized.systemLifespan = {
+                enabled: typeof raw.enabled === 'boolean' ? raw.enabled : def.enabled,
+                overviewTitle: raw.overviewTitle || def.overviewTitle,
+                overviewDescription: raw.overviewDescription || def.overviewDescription,
+                items: sanitizedItems,
+                determinantsTitle: raw.determinantsTitle || def.determinantsTitle,
+                determinants: sanitizedDets,
+              }
+            }
             continue
           }
           
