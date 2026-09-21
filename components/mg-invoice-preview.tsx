@@ -479,12 +479,12 @@ export function MGInvoicePreview({
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13 py-10"
+                className={cn("relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between", invoice.isCondensed ? "px-12 py-7" : "px-13 py-10")}
               >
                 <div>
                 {/* Header (First Page Only) or Continuation Header */}
                 {page.showTop ? (
-                  <div className="flex justify-between items-start mb-3.5">
+                  <div className={cn("flex justify-between items-start", invoice.isCondensed ? "mb-2" : "mb-3.5")}>
                     <div className={cn("max-w-xs p-0.5", getHighlightClass('sender'))}>
                       <p className="font-bold text-[#111111] tracking-tight leading-none text-[19px]">
                         {invoice.fromName || 'Your Company'}
@@ -525,7 +525,7 @@ export function MGInvoicePreview({
 
                 {/* Bill To + Dates (First Page Only) */}
                 {page.showTop && (
-                  <div className="flex justify-between items-start mb-3">
+                  <div className={cn("flex justify-between items-start", invoice.isCondensed ? "mb-2" : "mb-3")}>
                     <div className={cn("max-w-xs p-0.5", getHighlightClass('client'))}>
                       <p className="font-semibold text-[#888888] tracking-[0.1em] uppercase text-[9.5px] mb-0.5">
                         Bill To
@@ -568,7 +568,8 @@ export function MGInvoicePreview({
                 {/* Subject Line (First Page Only) */}
                 {page.showTop && invoice.subject && (
                   <div className={cn(
-                    "border-b border-[#E5E5E5]/50 flex gap-2 p-0.5 mb-2 pb-1 text-[11px]",
+                    "border-b border-[#E5E5E5]/50 flex gap-2 p-0.5 text-[11px]",
+                    invoice.isCondensed ? "mb-1.5 pb-0.5" : "mb-2 pb-1",
                     getHighlightClass('subject')
                   )}>
                     <span className="font-bold text-[#111111] shrink-0 uppercase tracking-[0.05em]">Subject:</span>
@@ -578,7 +579,7 @@ export function MGInvoicePreview({
 
                 {/* Salutation / Intro (First Page Only) */}
                 {page.showTop && invoice.salutation && (
-                  <div className={cn("mb-2.5 p-0.5", getHighlightClass('salutation'))}>
+                  <div className={cn("p-0.5", invoice.isCondensed ? "mb-1.5" : "mb-2.5", getHighlightClass('salutation'))}>
                     <p className="text-[#555555] whitespace-pre-wrap text-[10.5px] leading-relaxed">
                       {invoice.salutation}
                     </p>
@@ -587,12 +588,12 @@ export function MGInvoicePreview({
 
                 {/* Line items table OR Condensed Scope & Warranty */}
                 {invoice.isCondensed ? (
-                  <div className="mb-3">
+                  <div className="mb-2">
                     {/* Section 1: Structured Scope of Equipment & Works */}
                     {page.showCondensedScope && (
-                      <div className="mb-3">
-                        <div className="flex py-1 border-b-[1.5px] border-[#111111] mb-2">
-                          <span className="text-[9.5px] font-bold text-[#111111] tracking-[0.08em] uppercase">
+                      <div className="mb-2">
+                        <div className="flex py-0.5 border-b-[1.5px] border-[#111111] mb-1.5">
+                          <span className="text-[9px] font-bold text-[#111111] tracking-[0.08em] uppercase">
                             Scope of Equipment & Works
                           </span>
                         </div>
@@ -603,33 +604,33 @@ export function MGInvoicePreview({
                             : generateDefaultScopesFromInvoice(invoice)
 
                           return (
-                            <div className="space-y-1.5 text-[10.5px] text-[#222222]">
+                            <div className="space-y-1 text-[10px] text-[#222222]">
                               {activeScopes.map((scopeItem, idx) => (
-                                <div key={scopeItem.id || idx} className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                                  <div className="flex items-start gap-2">
+                                <div key={scopeItem.id || idx} className="p-1 px-2 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                                  <div className="flex items-start gap-1.5">
                                     <span 
-                                      className="font-bold text-white shrink-0 text-[9.5px] bg-[#111111] rounded-[2px] select-none shadow-xs mt-0.5" 
+                                      className="font-bold text-white shrink-0 text-[9px] bg-[#111111] rounded-[2px] select-none shadow-xs mt-0.5" 
                                       style={{ 
                                         color: '#ffffff', 
                                         backgroundColor: '#111111',
                                         display: 'inline-block',
-                                        width: '18px',
-                                        height: '18px',
-                                        lineHeight: '18px',
+                                        width: '16px',
+                                        height: '16px',
+                                        lineHeight: '16px',
                                         textAlign: 'center',
                                       }}
                                     >
                                       {scopeItem.letter || String.fromCharCode(65 + idx)}
                                     </span>
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-[#111111] text-[11px] leading-snug">
+                                      <div className="font-bold text-[#111111] text-[10.5px] leading-snug">
                                         {scopeItem.title}
                                         {scopeItem.subtitle ? (
                                           <>: <span className="font-semibold text-[#333333]">{scopeItem.subtitle}</span></>
                                         ) : null}
                                       </div>
                                       {scopeItem.description && (
-                                        <div className="text-[9.5px] text-[#555555] leading-tight mt-0.5 whitespace-pre-line">
+                                        <div className="text-[9px] text-[#555555] leading-tight mt-0.5 whitespace-pre-line">
                                           {scopeItem.description}
                                         </div>
                                       )}
@@ -645,13 +646,13 @@ export function MGInvoicePreview({
 
                     {/* Section 2: Warranty Coverage Table */}
                     {page.showCondensedWarranty && (
-                      <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                      <div className="mb-2 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
                         <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
                           <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
                             Warranty Coverage
                           </span>
                         </div>
-                        <table className="w-full text-left text-[10px] border-collapse">
+                        <table className="w-full text-left text-[9.5px] border-collapse">
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
                             {(Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
                               .filter((w) => {
@@ -663,9 +664,9 @@ export function MGInvoicePreview({
                               .map((w) => {
                                 return (
                                   <tr key={w.id}>
-                                    <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
-                                    <td className="py-1 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
-                                    <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
+                                    <td className="py-0.5 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
+                                    <td className="py-0.5 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
+                                    <td className="py-0.5 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
                                   </tr>
                                 )
                               })}
@@ -724,7 +725,7 @@ export function MGInvoicePreview({
                         : rawDets
 
                       return (
-                        <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="mb-2 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
                           {/* Header Bar - Exactly matching Warranty Coverage */}
                           <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
                             <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
@@ -733,17 +734,17 @@ export function MGInvoicePreview({
                           </div>
 
                           {/* Table without sub-header row */}
-                          <table className="w-full text-left text-[10px] border-collapse">
+                          <table className="w-full text-left text-[9.5px] border-collapse">
                             <tbody className="divide-y divide-[#E5E5E5] bg-white">
                               {activeItems.map((item) => (
                                 <tr key={item.id}>
-                                  <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">
+                                  <td className="py-0.5 px-3 font-semibold text-[#111111] w-4/12">
                                     {getDisplayComponent(item)}
                                   </td>
-                                  <td className="py-1 px-3 text-[#555555] text-[9px] leading-snug w-5/12">
+                                  <td className="py-0.5 px-3 text-[#555555] text-[8.5px] leading-snug w-5/12">
                                     {getDisplayNotes(item)}
                                   </td>
-                                  <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">
+                                  <td className="py-0.5 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">
                                     {getDisplayLifespan(item)}
                                   </td>
                                 </tr>
@@ -753,7 +754,7 @@ export function MGInvoicePreview({
 
                           {/* Key Determinants Footer */}
                           {displayDets && (
-                            <div className="px-3 py-1 bg-[#F8F8F8] border-t border-[#E5E5E5] text-[8px] leading-tight text-[#555555]">
+                            <div className="px-3 py-0.5 bg-[#F8F8F8] border-t border-[#E5E5E5] text-[8px] leading-tight text-[#555555]">
                               <span className="font-semibold text-[#111111] uppercase tracking-[0.05em]">
                                 {lifespanConfig.determinantsTitle ? `${lifespanConfig.determinantsTitle.replace('Key Lifespan Determinants', 'Key Determinants')}:` : 'Key Determinants:'}
                               </span>{' '}
@@ -978,51 +979,88 @@ export function MGInvoicePreview({
                           </div>
                         </div>
                       </div>
+                    ) : invoice.isCondensed ? (
+                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 mt-1.5 mb-1">
+                        <div className="w-80 space-y-1">
+                          <div className="flex justify-between items-center text-[11.5px]">
+                            <span className="text-[#888888]">Standard Price</span>
+                            <span className="font-medium text-[#111111] font-mono tabular-nums">{formatCurrency(subtotal, invoice.currency)}</span>
+                          </div>
+                          {discount > 0 && (
+                            <div className="flex justify-between items-center text-[11.5px]">
+                              <span className="text-[#888888]">Discount Amount</span>
+                              <span style={{ color: '#059669' }} className="font-semibold text-[#059669] font-mono tabular-nums">
+                                - {formatCurrency(discount, invoice.currency)}
+                              </span>
+                            </div>
+                          )}
+                          <div className={cn("flex justify-between items-center text-[11.5px] p-0.5", getHighlightClass('vatRate'))}>
+                            <span className="text-[#888888]">VAT {invoice.vatRate || 0}%</span>
+                            <span className="font-medium text-[#111111] font-mono tabular-nums">{formatCurrency(vat, invoice.currency)}</span>
+                          </div>
+                          <div className="w-full border-t border-[#E5E5E5] my-1" />
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-[#111111] text-[13.5px] tracking-tight">
+                              {showCapital 
+                                ? `Final Total Price ${(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}`
+                                : 'Final Total Price'}
+                            </span>
+                            <span className="font-bold text-[#111111] text-[17px] font-mono tracking-tight tabular-nums">
+                              {formatCurrency(total, invoice.currency)}
+                            </span>
+                          </div>
+                          {showCapital && (
+                            <div className="flex justify-between items-center pt-0.5">
+                              <span className="font-bold text-[#111111] text-[13px] tracking-tight">Capital</span>
+                              <span className="font-bold text-[#111111] text-[16px] font-mono tracking-tight tabular-nums">
+                                {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ) : (
-                      <div className={cn(
-                        "flex flex-col items-end print:break-inside-avoid pr-1",
-                        invoice.isCondensed ? "gap-1.5 mb-2 mt-2" : "gap-2 mb-4 mt-3"
-                      )}>
+                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 gap-2 mb-4 mt-3">
                         <div className="flex gap-8 items-center">
-                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Standard Price</span>
-                          <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                          <span className="text-[#888888] text-[12px]">Standard Price</span>
+                          <span className="font-medium text-[#111111] w-36 text-right font-mono text-[12px]">
                             {formatCurrency(subtotal, invoice.currency)}
                           </span>
                         </div>
                         {discount > 0 && (
                           <div className="flex gap-8 items-center">
-                            <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>Discount Amount</span>
+                            <span className="text-[#888888] text-[12px]">Discount Amount</span>
                             <span
                               style={{ color: '#059669' }}
-                              className={cn("font-semibold text-[#059669] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}
+                              className="font-semibold text-[#059669] w-36 text-right font-mono text-[12px]"
                             >
                               - {formatCurrency(discount, invoice.currency)}
                             </span>
                           </div>
                         )}
                         <div className={cn("flex gap-8 items-center p-0.5", getHighlightClass('vatRate'))}>
-                          <span className={cn("text-[#888888]", invoice.isCondensed ? "text-[11.5px]" : "text-[12px]")}>VAT {invoice.vatRate || 0}%</span>
-                          <span className={cn("font-medium text-[#111111] w-36 text-right font-mono", invoice.isCondensed ? "text-[12px]" : "text-[12px]")}>
+                          <span className="text-[#888888] text-[12px]">VAT {invoice.vatRate || 0}%</span>
+                          <span className="font-medium text-[#111111] w-36 text-right font-mono text-[12px]">
                             {formatCurrency(vat, invoice.currency)}
                           </span>
                         </div>
-                        <div className={cn("bg-[#E5E5E5]", invoice.isCondensed ? "w-48 h-px" : "w-52 h-px")} />
+                        <div className="bg-[#E5E5E5] w-52 h-px" />
                         <div className="flex gap-8 items-center">
-                          <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                          <span className="font-bold text-[#111111] tracking-tight text-[15px]">
                             {showCapital 
                               ? `Final Total Price ${(invoice.rateMarkup ?? 0) > 0 ? `(+${invoice.rateMarkup}%)` : ((invoice.rateMarkup ?? 0) < 0 ? `(${invoice.rateMarkup}%)` : '')}`
-                              : (invoice.isCondensed ? 'Final Total Price' : 'Total')}
+                              : 'Total'}
                           </span>
-                          <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                          <span className="font-bold text-[#111111] tracking-tight w-36 text-right font-mono text-[20px]">
                             {formatCurrency(total, invoice.currency)}
                           </span>
                         </div>
                         {showCapital && (
                           <div className="flex gap-8 items-center">
-                            <span className={cn("font-bold text-[#111111] tracking-tight", invoice.isCondensed ? "text-[14px]" : "text-[15px]")}>
+                            <span className="font-bold text-[#111111] tracking-tight text-[15px]">
                               Capital
                             </span>
-                            <span className={cn("font-bold text-[#111111] tracking-tight w-36 text-right font-mono", invoice.isCondensed ? "text-[18px]" : "text-[20px]")}>
+                            <span className="font-bold text-[#111111] tracking-tight w-36 text-right font-mono text-[20px]">
                               {formatCurrency(itemsBaseCapitalTotal, invoice.currency)}
                             </span>
                           </div>
