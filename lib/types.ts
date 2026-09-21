@@ -96,6 +96,7 @@ export interface Invoice {
   showCeoSignee?: boolean
   showAcknowledgmentTitle?: boolean
   showTermsTitle?: boolean
+  dedicatedTermsPage?: boolean
   footerOffsetY?: number
 }
 
@@ -413,6 +414,7 @@ export const defaultInvoice: Invoice = {
   showCeoSignee: true,
   showAcknowledgmentTitle: true,
   showTermsTitle: true,
+  dedicatedTermsPage: true,
   footerOffsetY: 0,
   terms: TERMS_PRESETS.standard,
 }

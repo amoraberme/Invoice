@@ -56,6 +56,7 @@ const BASE_INVOICE: Omit<Invoice, 'lineItems' | 'invoiceNumber' | 'subject'> = {
   showClientSignee: false,
   showCeoSignee: true,
   showAcknowledgmentTitle: true,
+  dedicatedTermsPage: true,
   terms: TERMS_PRESETS.standard,
 }
 

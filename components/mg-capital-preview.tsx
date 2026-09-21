@@ -32,6 +32,7 @@ export interface MGCapitalPreviewProps {
   onToggleTermsPreset?: (terms: string) => void
   onAdjustFooterOffset?: (val: number) => void
   onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
+  onToggleDedicatedTermsPage?: (val: boolean) => void
 }
 
 interface CapitalVirtualPage {
@@ -220,6 +221,7 @@ export function MGCapitalPreview({
   onToggleTermsPreset,
   onAdjustFooterOffset,
   onSignatureClick,
+  onToggleDedicatedTermsPage,
 }: MGCapitalPreviewProps) {
   const [localVersion, setLocalVersion] = useState<'v1' | 'v2'>('v1')
   const version = controlledVersion ?? localVersion
@@ -247,6 +249,7 @@ export function MGCapitalPreview({
         onToggleTermsPreset={onToggleTermsPreset}
         onAdjustFooterOffset={onAdjustFooterOffset}
         onSignatureClick={onSignatureClick}
+        onToggleDedicatedTermsPage={onToggleDedicatedTermsPage}
       />
     )
   }

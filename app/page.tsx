@@ -4610,25 +4610,44 @@ export default function Home() {
                       >
                         {invoice.showTermsTitle !== false ? '✕ Hide Title' : '+ Show Title'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => update('dedicatedTermsPage', !(invoice.dedicatedTermsPage ?? (!isGovernmentTerms(invoice.terms) && Boolean(invoice.terms?.trim()))))}
+                        className={cn(
+                          "text-[9.5px] px-2 py-0.5 rounded border transition-colors cursor-pointer select-none font-medium",
+                          (invoice.dedicatedTermsPage ?? (!isGovernmentTerms(invoice.terms) && Boolean(invoice.terms?.trim())))
+                            ? "border-primary/40 bg-primary/10 text-primary font-bold"
+                            : "border-border text-muted-foreground hover:text-foreground bg-background"
+                        )}
+                        title="When enabled, Terms & Conditions, Closing, and Signatures render on a dedicated final page"
+                      >
+                        📄 Dedicated Page: {(invoice.dedicatedTermsPage ?? (!isGovernmentTerms(invoice.terms) && Boolean(invoice.terms?.trim()))) ? 'ON' : 'OFF'}
+                      </button>
                     </div>
                     {/* Toggle between Standard Policy and Government / P.O. Terms */}
                     <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border/80 text-[10px] font-semibold">
                       <button
                         type="button"
-                        onClick={() => update('terms', TERMS_PRESETS.standard)}
+                        onClick={() => {
+                          update('terms', TERMS_PRESETS.standard)
+                          update('dedicatedTermsPage', true)
+                        }}
                         className={cn(
                           "px-2 py-0.5 rounded cursor-pointer transition-all",
                           !isGovernmentTerms(invoice.terms)
                             ? "bg-primary text-primary-foreground shadow-2xs font-bold"
                             : "text-muted-foreground hover:text-foreground"
                         )}
-                        title="Standard default terms and conditions policy"
+                        title="Standard default terms and conditions policy (Dedicated Page)"
                       >
                         Standard
                       </button>
                       <button
                         type="button"
-                        onClick={() => update('terms', TERMS_PRESETS.government)}
+                        onClick={() => {
+                          update('terms', TERMS_PRESETS.government)
+                          update('dedicatedTermsPage', false)
+                        }}
                         className={cn(
                           "px-2 py-0.5 rounded cursor-pointer transition-all",
                           isGovernmentTerms(invoice.terms)
@@ -4653,7 +4672,11 @@ export default function Home() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => update('terms', isGovernmentTerms(invoice.terms) ? TERMS_PRESETS.standard : TERMS_PRESETS.government)}
+                      onClick={() => {
+                        const isGov = isGovernmentTerms(invoice.terms)
+                        update('terms', isGov ? TERMS_PRESETS.standard : TERMS_PRESETS.government)
+                        update('dedicatedTermsPage', !isGov)
+                      }}
                       className="text-[10px] text-primary hover:underline cursor-pointer font-medium"
                     >
                       {isGovernmentTerms(invoice.terms) ? '⇄ Switch to Standard' : '⇄ Switch to Gov / P.O. Terms'}
@@ -7836,6 +7859,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               setActiveSigneeTab(signee)
               setSignatureModalOpen(true)
             }}
+            onToggleDedicatedTermsPage={(val) => update('dedicatedTermsPage', val)}
           />
         ) : (
           <MGInvoicePreview
@@ -7855,6 +7879,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               setActiveSigneeTab(signee)
               setSignatureModalOpen(true)
             }}
+            onToggleDedicatedTermsPage={(val) => update('dedicatedTermsPage', val)}
           />
         )}
 

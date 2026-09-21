@@ -39,6 +39,7 @@ export interface MGInvoicePreviewProps {
   onToggleTermsPreset?: (terms: string) => void
   onAdjustFooterOffset?: (val: number) => void
   onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
+  onToggleDedicatedTermsPage?: (val: boolean) => void
 }
 
 interface PageData {
@@ -82,6 +83,7 @@ export function MGInvoicePreview({
   onToggleTermsPreset,
   onAdjustFooterOffset,
   onSignatureClick,
+  onToggleDedicatedTermsPage,
 }: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -231,6 +233,13 @@ export function MGInvoicePreview({
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice, isCapitalMode = false): PageData[] => {
     const isGovMode = isGovernmentTerms(inv.terms)
+    const showSales = inv.showSalesSignee === true
+    const showClient = inv.showClientSignee === true
+    const showCeo = inv.showCeoSignee !== false
+    const hasVisibleSignees = showSales || showClient || showCeo
+    const showAck = inv.showAcknowledgment !== false && hasVisibleSignees
+    const hasFooterContent = Boolean(inv.terms?.trim()) || Boolean(inv.closing?.trim()) || Boolean(inv.note?.trim()) || showAck
+    const hasDedicatedTerms = Boolean((inv.dedicatedTermsPage ?? (!isGovMode && Boolean(inv.terms?.trim()))) && hasFooterContent)
 
     // 1. Measure fixed heights (Header + Bill To + Meta)
     const hasHeaderDetails = Boolean(inv.fromEmail || inv.fromPhone || inv.fromAddress)
@@ -253,25 +262,20 @@ export function MGInvoicePreview({
     
     // 3. Footer block height (Note, Terms, Sales Contact, Closing, Acknowledgment)
     const noteLines = getWrappedLines(inv.note, 65)
-    const noteHeight = inv.note ? (10 + noteLines * 13) : 0
+    const noteHeight = inv.note ? (16 + noteLines * 14) : 0
     
     const termsLines = getWrappedLines(inv.terms, 65)
-    const termsHeight = inv.terms ? (isGovMode ? (8 + termsLines * 12) : (12 + termsLines * 14)) : 0
+    const termsHeight = inv.terms ? (isGovMode ? (10 + termsLines * 12) : (26 + termsLines * 16)) : 0
     
     const hasSalesContact = Boolean(inv.note?.trim()) && Boolean(inv.salesName || inv.salesPosition || inv.salesCompany)
-    const salesContactHeight = hasSalesContact ? 55 : 0
-    const closingHeight = inv.closing ? (isGovMode ? 26 : 40) : 0
-    const showSales = inv.showSalesSignee === true
-    const showClient = inv.showClientSignee === true
-    const showCeo = inv.showCeoSignee !== false
-    const hasVisibleSignees = showSales || showClient || showCeo
-    const showAck = inv.showAcknowledgment !== false && hasVisibleSignees
-    const ackHeight = (inv.closing && showAck) ? (isGovMode ? 60 : 75) : 0
+    const salesContactHeight = hasSalesContact ? 60 : 0
+    const closingHeight = inv.closing ? (isGovMode ? 26 : 45) : 0
+    const ackHeight = (inv.closing && showAck) ? (isGovMode ? 65 : 150) : 0
     
-    const footerBlockHeight = noteHeight + termsHeight + salesContactHeight + closingHeight + ackHeight + (isGovMode ? 4 : 20)
+    const footerBlockHeight = noteHeight + termsHeight + salesContactHeight + closingHeight + ackHeight + (isGovMode ? 8 : 30)
 
     // Available content height inside A4 borders (PAPER_H 1123 with safe bottom margins)
-    const PAGE_MAX_H = isGovMode ? 980 : 940
+    const PAGE_MAX_H = isGovMode ? 980 : 920
 
     // Helper: calculate height of a line item
     const getItemHeight = (item: LineItem) => {
@@ -291,7 +295,7 @@ export function MGInvoicePreview({
 
     // Dedicated 2-page executive proposal for condensed mode:
     // Page 1: Header -> Bill To -> Scope of Works (A-F) -> Warranty Table -> Final Total Price
-    // Page 2: Bank / Payment Details -> Note -> Terms & Conditions -> Signatures
+    // Page 2: Note / Sales -> Terms & Conditions -> Signatures
     if (inv.isCondensed) {
       return [
         {
@@ -313,9 +317,120 @@ export function MGInvoicePreview({
       ]
     }
 
+    // Dedicated page for Terms & Conditions & Signatures
+    if (hasDedicatedTerms) {
+      const pages: PageData[] = []
+      let remainingItems = [...allItems]
+      let isFirst = true
+
+      if (remainingItems.length === 0) {
+        return [
+          {
+            items: [],
+            showTop: true,
+            showTotals: true,
+            showBottom: false,
+          },
+          {
+            items: [],
+            showTop: false,
+            showTotals: false,
+            showBottom: true,
+          }
+        ]
+      }
+
+      while (remainingItems.length > 0) {
+        const pageTopHeight = isFirst ? topSectionHeight : continuationHeaderHeight
+        let currentHeight = pageTopHeight + tableHeaderHeight
+        const currentItems: LineItem[] = []
+
+        while (remainingItems.length > 0) {
+          const item = remainingItems[0]
+          const h = getItemHeight(item)
+          
+          const remainingAfterThis = remainingItems.slice(1)
+          const remHeight = remainingAfterThis.reduce((s, it) => s + getItemHeight(it), 0)
+
+          // If this item + all remaining items + totals fit on this page:
+          if (currentHeight + h + remHeight + totalsHeight <= PAGE_MAX_H) {
+            currentItems.push(...remainingItems)
+            pages.push({
+              items: currentItems,
+              showTop: isFirst,
+              showTotals: true,
+              showBottom: false,
+            })
+            remainingItems = []
+            break
+          }
+
+          // If placing this item fits on current page
+          if (currentHeight + h <= PAGE_MAX_H || currentItems.length === 0) {
+            currentItems.push(item)
+            currentHeight += h
+            remainingItems.shift()
+          } else {
+            // Page is full for items
+            break
+          }
+        }
+
+        if (remainingItems.length === 0 && pages.length > 0 && pages[pages.length - 1].items === currentItems) {
+          break
+        }
+
+        if (remainingItems.length === 0) {
+          // All items placed. Check if totals fit on this page
+          if (currentHeight + totalsHeight <= PAGE_MAX_H) {
+            pages.push({
+              items: currentItems,
+              showTop: isFirst,
+              showTotals: true,
+              showBottom: false,
+            })
+          } else {
+            // Push items page, then totals on continuation page
+            pages.push({
+              items: currentItems,
+              showTop: isFirst,
+              showTotals: false,
+              showBottom: false,
+            })
+            pages.push({
+              items: [],
+              showTop: false,
+              showTotals: true,
+              showBottom: false,
+            })
+          }
+          break
+        } else {
+          // More items remain
+          pages.push({
+            items: currentItems,
+            showTop: isFirst,
+            showTotals: false,
+            showBottom: false,
+          })
+          isFirst = false
+        }
+      }
+
+      // Append dedicated Terms & Conditions page
+      pages.push({
+        items: [],
+        showTop: false,
+        showTotals: false,
+        showBottom: true,
+      })
+
+      return pages
+    }
+
     const totalItemsHeight = allItems.reduce((sum, item) => sum + getItemHeight(item), 0)
 
-    // Check if EVERYTHING fits on 1 page cleanly
+    // Check if EVERYTHING fits on 1 page cleanly (e.g. Gov Mode with short terms)
     if (topSectionHeight + tableHeaderHeight + totalItemsHeight + totalsHeight + footerBlockHeight <= PAGE_MAX_H) {
       return [{
         items: allItems,
@@ -519,7 +634,7 @@ export function MGInvoicePreview({
                 style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                 className={cn(
                   "relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between px-13",
-                  isGovMode ? "pt-7 pb-6" : "py-10"
+                  isGovMode ? "pt-7 pb-6" : (page.items.length === 0 && !page.showTotals && page.showBottom) ? "pt-8 pb-7" : "py-10"
                 )}
               >
                 <div>
@@ -588,7 +703,7 @@ export function MGInvoicePreview({
                 ) : (
                   <div className="flex justify-between items-center pb-2.5 mb-5 border-b border-[#E5E5E5]">
                     <span className="text-[11px] font-bold text-[#111111] uppercase tracking-[0.05em]">
-                      {invoice.fromName || 'M&G Commercial Proposal'} — Proposal Continuation
+                      {invoice.fromName || 'M&G Commercial Proposal'} — {(page.items.length === 0 && !page.showTotals && page.showBottom) ? 'Terms & Conditions' : 'Proposal Continuation'}
                     </span>
                     <span className="text-[10px] text-[#888888] font-medium font-mono">
                       {invoice.invoiceNumber ? `Ref: ${invoice.invoiceNumber}` : ''}
@@ -1031,17 +1146,22 @@ export function MGInvoicePreview({
                 {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
                 {page.showBottom && (() => {
                   const isGovMode = isGovernmentTerms(invoice.terms)
+                  const isDedicatedTermsPage = page.items.length === 0 && !page.showTotals && page.showBottom
                   let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed)
                   
                   const getSectionBorderClass = () => {
                     if (hasRenderedPriorBlock) {
                       return isGovMode
                         ? "pt-1 mb-2 print:break-inside-avoid p-0.5"
+                        : isDedicatedTermsPage
+                        ? "border-t border-[#E5E5E5] pt-4 mb-4 print:break-inside-avoid p-1"
                         : "border-t border-[#E5E5E5] pt-6 mb-6 print:break-inside-avoid p-1"
                     }
                     hasRenderedPriorBlock = true
                     return isGovMode
                       ? "mb-2 print:break-inside-avoid p-0.5"
+                      : isDedicatedTermsPage
+                      ? "mb-4 print:break-inside-avoid p-1"
                       : "mb-6 print:break-inside-avoid p-1"
                   }
 
@@ -1158,20 +1278,26 @@ export function MGInvoicePreview({
                                 <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px]">
                                   <button
                                     type="button"
-                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
+                                    onClick={() => {
+                                      onToggleTermsPreset(TERMS_PRESETS.standard)
+                                      onToggleDedicatedTermsPage?.(true)
+                                    }}
                                     className={cn(
                                       "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
                                       !isGovernmentTerms(invoice.terms)
                                         ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                                         : "text-muted-foreground hover:text-foreground"
                                     )}
-                                    title="Switch to Standard Policy"
+                                    title="Switch to Standard Policy (Dedicated Page)"
                                   >
                                     Standard
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
+                                    onClick={() => {
+                                      onToggleTermsPreset(TERMS_PRESETS.government)
+                                      onToggleDedicatedTermsPage?.(false)
+                                    }}
                                     className={cn(
                                       "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
                                       isGovernmentTerms(invoice.terms)
@@ -1203,20 +1329,26 @@ export function MGInvoicePreview({
                                   <>
                                     <button
                                       type="button"
-                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
+                                      onClick={() => {
+                                        onToggleTermsPreset(TERMS_PRESETS.standard)
+                                        onToggleDedicatedTermsPage?.(true)
+                                      }}
                                       className={cn(
                                         "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
                                         !isGovernmentTerms(invoice.terms)
                                           ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                                           : "text-muted-foreground hover:text-foreground"
                                       )}
-                                      title="Switch to Standard Policy"
+                                      title="Switch to Standard Policy (Dedicated Page)"
                                     >
                                       Standard
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
+                                      onClick={() => {
+                                        onToggleTermsPreset(TERMS_PRESETS.government)
+                                        onToggleDedicatedTermsPage?.(false)
+                                      }}
                                       className={cn(
                                         "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
                                         isGovernmentTerms(invoice.terms)
@@ -1246,6 +1378,8 @@ export function MGInvoicePreview({
                         <div className={cn(
                           isGovMode
                             ? "mt-1.5 pt-0 print:break-inside-avoid p-0.5"
+                            : isDedicatedTermsPage
+                            ? "mt-4 pt-3 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1"
                             : "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
                           getHighlightClass('closing')
                         )}>
@@ -1260,12 +1394,14 @@ export function MGInvoicePreview({
                         <div className={cn(
                           isGovMode
                             ? "mt-1.5 pt-0 print:break-inside-avoid relative group"
+                            : isDedicatedTermsPage
+                            ? "mt-5 pt-3 border-t border-[#E5E5E5] print:break-inside-avoid relative group"
                             : "mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid relative group"
                         )}>
                           <div className={cn(
                             "flex items-center justify-between",
                             invoice.showAcknowledgmentTitle !== false 
-                              ? (isGovMode ? "mb-1.5" : "mb-6") 
+                              ? (isGovMode ? "mb-1.5" : isDedicatedTermsPage ? "mb-3" : "mb-6") 
                               : "mb-1"
                           )}>
                             {invoice.showAcknowledgmentTitle !== false ? (
