@@ -115,8 +115,21 @@ export function useMGInvoice() {
           const savedVal = savedObj[key]
           const defaultVal = defaultInvoice[key]
           
+          if (key === 'showSystemLifespan') {
+            if (savedVal === undefined || savedVal === null) {
+              sanitized.showSystemLifespan = true
+            } else {
+              sanitized.showSystemLifespan = savedVal === true || savedVal === 'true'
+            }
+            continue
+          }
+
           if (typeof defaultVal === 'boolean') {
-            ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal === true || savedVal === 'true'
+            if (savedVal === undefined || savedVal === null) {
+              ;(sanitized as unknown as Record<string, unknown>)[key] = defaultVal
+            } else {
+              ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal === true || savedVal === 'true'
+            }
           } else if (typeof defaultVal === 'number') {
             const parsed = parseFloat(String(savedVal))
             let numVal = !isNaN(parsed) ? parsed : defaultVal
@@ -153,6 +166,22 @@ export function useMGInvoice() {
             }
           } else {
             ;(sanitized as unknown as Record<string, unknown>)[key] = savedVal !== undefined && savedVal !== null && savedVal !== 'undefined' ? String(savedVal) : defaultVal
+          }
+        }
+        
+        // Ensure showSystemLifespan and systemLifespan are active for returning users whose localStorage was corrupted to false
+        const hasMigratedLifespan = typeof window !== 'undefined' && localStorage.getItem('mg_lifespan_migrated_v2')
+        if (!hasMigratedLifespan) {
+          sanitized.showSystemLifespan = true
+          if (sanitized.systemLifespan) {
+            sanitized.systemLifespan.enabled = true
+          }
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('mg_lifespan_migrated_v2', 'true')
+            } catch {
+              // ignore
+            }
           }
         }
         
