@@ -4210,7 +4210,7 @@ export default function Home() {
 
 
           {/* Scrollable active tab form content */}
-          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", activeTab === 'roof' ? 'p-0 flex flex-col h-full overflow-hidden' : 'overflow-y-auto px-6 py-6 space-y-7')}>
+          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", activeTab === 'roof' ? 'p-0 flex flex-col h-full overflow-y-auto' : 'overflow-y-auto px-6 py-6 space-y-7')}>
             {activeTab === 'sender' && (
               <>
                 {/* FROM */}

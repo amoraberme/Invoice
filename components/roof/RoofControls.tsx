@@ -6,6 +6,7 @@ import {
   MousePointer,
   Ruler,
   Maximize2,
+  Minimize2,
   Sparkles,
   RotateCw,
   Trash2,
@@ -53,6 +54,8 @@ interface RoofControlsProps {
   targetBoqCount: number
   isDrawingPolygon?: boolean
   onClosePolygon?: () => void
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -84,17 +87,19 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   targetBoqCount,
   isDrawingPolygon,
   onClosePolygon,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
   const opacityPercent = Math.round(clampedOpacity * 100)
 
   return (
-    <div className="w-full bg-card border-b border-border px-4 py-2 flex flex-wrap items-center justify-between gap-2 select-none shrink-0">
+    <div className="w-full bg-card border-b border-border px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 select-none shrink-0">
       {/* Group 1: Primary Tools & Dimensions */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-0.5 shrink-0">
         {/* Tool Selector Bar */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border/80">
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border/80 shrink-0">
           <button
             type="button"
             onClick={() => onSelectTool('select')}
@@ -324,6 +329,21 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
           >
             <Maximize className="size-3.5" />
           </button>
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className={cn(
+                "p-1 rounded transition-colors cursor-pointer ml-0.5",
+                isFullscreen
+                  ? "bg-blue-600 text-white"
+                  : "hover:bg-background text-muted-foreground hover:text-foreground"
+              )}
+              title={isFullscreen ? "Exit Fullscreen Canvas (Esc)" : "Expand / Fullscreen Canvas View"}
+            >
+              {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            </button>
+          )}
         </div>
 
         {/* Clear Boundary Button */}

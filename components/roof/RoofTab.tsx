@@ -38,6 +38,7 @@ import {
   HelpCircle,
   Grid,
   Ruler,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -178,6 +179,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
   const [centerFitTrigger, setCenterFitTrigger] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -519,7 +521,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   }
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col bg-background text-foreground min-h-0 overflow-hidden">
+    <div className="w-full h-full flex-1 flex flex-col bg-background text-foreground min-h-0 overflow-y-auto">
       {/* Hidden File Input for Aerial Image Upload */}
       <input
         ref={fileInputRef}
@@ -540,12 +542,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
       {/* Selected Panel State Linkage Banner / Fallback */}
       {!activePanelInfo.found ? (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shrink-0">
-          <div className="flex items-center gap-2.5 text-xs">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-amber-900 dark:text-amber-200 shrink-0">
+          <div className="flex items-center gap-2 text-xs">
             <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              <strong>No solar panel detected in Items tab:</strong> Using standard fallback dimensions{' '}
-              <span className="font-mono font-semibold">2,278 mm × 1,134 mm (620W)</span>.
+              <strong>No panel detected in Items:</strong> Using fallback{' '}
+              <span className="font-mono font-semibold">2,278mm × 1,134mm (625W)</span>.
             </span>
           </div>
           <Button
@@ -555,46 +557,39 @@ export const RoofTab: React.FC<RoofTabProps> = ({
             onClick={() => onSwitchTab('items')}
             className="text-xs gap-1 border-amber-500/30 hover:bg-amber-500/20 text-amber-900 dark:text-amber-100 cursor-pointer"
           >
-            <span>Select Panel in Items Tab</span>
+            <span>Items Tab</span>
             <ArrowRight className="size-3" />
           </Button>
         </div>
       ) : (
-        <div className="bg-muted/40 border-b border-border/80 px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+        <div className="bg-muted/40 border-b border-border/80 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span className="inline-flex items-center gap-1 font-semibold text-foreground shrink-0">
               <Sun className="size-3.5 text-amber-500" />
-              Active Module:
+              <span className="hidden sm:inline">Active Module:</span>
             </span>
-            <span className="font-medium bg-background px-2 py-0.5 rounded border border-border text-foreground">
+            <span className="font-medium bg-background px-1.5 py-0.5 rounded border border-border text-foreground truncate max-w-[190px] sm:max-w-none">
               {activePanelInfo.dimensions.modelName}
             </span>
-            <span className="text-muted-foreground font-mono">
-              ({activePanelInfo.dimensions.lengthMm}mm × {activePanelInfo.dimensions.widthMm}mm)
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">
-              Rating: <strong className="text-foreground">{activePanelInfo.dimensions.wattage}W</strong>
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">
-              Invoice BoQ Qty: <strong className="text-foreground">{activePanelInfo.quantity} pcs</strong>
+            <span className="text-muted-foreground font-mono text-[11px] shrink-0">
+              ({activePanelInfo.dimensions.wattage}W • {activePanelInfo.quantity} pcs)
             </span>
             {targetBoqKwp > 0 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
                 {targetBoqKwp.toFixed(2)} kWp Target
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={triggerImageUpload}
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Upload className="size-3" />
-              <span>{backgroundImageUrl ? 'Change Roof Photo' : 'Upload Roof Photo'}</span>
+              <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Roof Photo' : 'Upload Roof Photo'}</span>
+              <span className="sm:hidden">Photo</span>
             </button>
           </div>
         </div>
@@ -602,11 +597,11 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
       {/* Prominent Quick Action Banner if 0 panels placed but BoQ has panels */}
       {activePanelInfo.quantity > 0 && metrics.validPanelsCount === 0 && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-emerald-950 dark:text-emerald-100 shrink-0">
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-emerald-950 dark:text-emerald-100 shrink-0">
           <div className="flex items-center gap-2 text-xs">
             <Sparkles className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>
-              <strong>{activePanelInfo.quantity} Panels ({targetBoqKwp.toFixed(2)} kWp)</strong> selected in BoQ. Click below to place them automatically onto the roof layout:
+              <strong>{activePanelInfo.quantity} Panels ({targetBoqKwp.toFixed(2)} kWp)</strong> selected in BoQ. Click below to place automatically:
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -627,23 +622,23 @@ export const RoofTab: React.FC<RoofTabProps> = ({
               className="border-emerald-500/30 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-500/20 text-xs cursor-pointer"
             >
               <Ruler className="size-3.5" />
-              <span>Set Roof Size (m / ft / m²)</span>
+              <span>Set Roof Size</span>
             </Button>
           </div>
         </div>
       )}
 
       {/* Real-Time Sizing Metrics Bar */}
-      <div className="w-full bg-card border-b border-border px-6 py-2.5 shadow-xs shrink-0">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-6 lg:gap-8">
+      <div className="w-full bg-card border-b border-border px-3 sm:px-6 py-2 shadow-xs shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-6 lg:gap-8">
             {/* Metric 1: Total Panels Placed vs Target */}
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Total Panels Placed
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Panels Placed
               </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold font-mono text-foreground">
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-lg sm:text-xl font-bold font-mono text-foreground">
                   {metrics.validPanelsCount}
                 </span>
                 {activePanelInfo.quantity > 0 && (
@@ -651,18 +646,18 @@ export const RoofTab: React.FC<RoofTabProps> = ({
                     / {activePanelInfo.quantity}
                   </span>
                 )}
-                <span className="text-xs text-muted-foreground">modules</span>
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">modules</span>
 
                 {activePanelInfo.quantity > 0 && metrics.validPanelsCount === activePanelInfo.quantity && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 ml-1">
-                    <CheckCircle2 className="size-3" />
-                    <span>BoQ Matched</span>
+                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 ml-1">
+                    <CheckCircle2 className="size-2.5" />
+                    <span>Matched</span>
                   </span>
                 )}
 
                 {metrics.invalidPanelsCount > 0 && (
-                  <span className="text-[11px] text-rose-500 font-medium ml-1">
-                    (+{metrics.invalidPanelsCount} out-of-bounds)
+                  <span className="text-[10px] text-rose-500 font-medium ml-0.5">
+                    (+{metrics.invalidPanelsCount})
                   </span>
                 )}
               </div>
@@ -672,19 +667,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
             {/* Metric 2: Total System Capacity */}
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Array Capacity (kWp)
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Array kWp
               </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-lg sm:text-xl font-bold font-mono text-blue-600 dark:text-blue-400">
                   {metrics.totalCapacityKwp.toFixed(2)}
                 </span>
-                <span className="text-xs text-muted-foreground">kWp</span>
-                {targetBoqKwp > 0 && (
-                  <span className="text-[11px] text-muted-foreground font-mono ml-1">
-                    (BoQ: {targetBoqKwp.toFixed(2)} kWp)
-                  </span>
-                )}
+                <span className="text-[11px] text-muted-foreground">kWp</span>
               </div>
             </div>
 
@@ -692,25 +682,16 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
             {/* Metric 3: Roof Utilization Area */}
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Roof Utilization Area
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Roof Area
               </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-base font-bold font-mono text-foreground">
-                  {metrics.panelsTotalAreaM2.toFixed(1)} m²
-                </span>
-                <span className="text-xs text-muted-foreground">/</span>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {metrics.roofPolygonAreaM2.toFixed(1)} m²
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-sm sm:text-base font-bold font-mono text-foreground">
+                  {metrics.panelsTotalAreaM2.toFixed(1)}m²
                 </span>
                 {metrics.roofPolygonAreaM2 > 0 && (
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 ml-1">
-                    ({metrics.utilizationRatePercent.toFixed(1)}%)
-                  </span>
-                )}
-                {metrics.roofPolygonAreaM2 > 0 && (
-                  <span className="text-[11px] text-muted-foreground font-mono hidden md:inline ml-1">
-                    • {sqmToSqft(metrics.roofPolygonAreaM2).toFixed(0)} sq ft
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    ({metrics.utilizationRatePercent.toFixed(0)}%)
                   </span>
                 )}
               </div>
@@ -719,14 +700,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
           {/* Sync Button */}
           {activePanelInfo.found && metrics.validPanelsCount > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end sm:justify-start gap-2">
               <Button
                 type="button"
                 variant={syncSuccess ? 'default' : 'outline'}
-                size="sm"
+                size="xs"
                 onClick={handleSyncToInvoice}
                 className={cn(
-                  'text-xs gap-1.5 transition-all cursor-pointer',
+                  'text-xs gap-1.5 transition-all cursor-pointer h-7',
                   syncSuccess
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                     : 'hover:bg-primary/5'
@@ -735,13 +716,13 @@ export const RoofTab: React.FC<RoofTabProps> = ({
               >
                 {syncSuccess ? (
                   <>
-                    <CheckCircle2 className="size-3.5" />
-                    <span>Updated Invoice ({metrics.validPanelsCount} pcs)</span>
+                    <CheckCircle2 className="size-3" />
+                    <span>Updated ({metrics.validPanelsCount} pcs)</span>
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="size-3.5 text-blue-600" />
-                    <span>Sync Placed Count to Invoice</span>
+                    <RefreshCw className="size-3 text-blue-600" />
+                    <span>Sync to Invoice ({metrics.validPanelsCount} pcs)</span>
                   </>
                 )}
               </Button>
@@ -809,10 +790,34 @@ export const RoofTab: React.FC<RoofTabProps> = ({
             setActiveTool('select')
           }
         }}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
       />
 
-      {/* Main Canvas Viewport (Fills 100% remaining space) */}
-      <div className="flex-1 relative min-h-0 w-full h-full overflow-hidden">
+      {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
+      <div
+        className={cn(
+          "w-full transition-all duration-200 shrink-0",
+          isFullscreen
+            ? "fixed inset-0 z-50 bg-zinc-950 flex flex-col h-screen w-screen"
+            : "relative h-[520px] sm:h-[600px] lg:h-full min-h-[460px] sm:min-h-[520px] flex-1 overflow-hidden"
+        )}
+      >
+        {isFullscreen && (
+          <div className="absolute top-3 right-3 z-50 flex items-center gap-2 bg-zinc-900/95 backdrop-blur-md border border-zinc-700 px-3 py-1.5 rounded-lg shadow-2xl">
+            <span className="text-xs text-zinc-300 font-medium font-mono">
+              {metrics.validPanelsCount}/{activePanelInfo.quantity} Modules ({metrics.totalCapacityKwp.toFixed(2)} kWp)
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer text-xs flex items-center gap-1 font-semibold ml-2"
+            >
+              <span>Exit Fullscreen</span>
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
         <RoofCanvas
           backgroundImageUrl={backgroundImageUrl}
           imageOpacity={imageOpacity}
@@ -835,7 +840,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       </div>
 
       {/* Helpful Keyboard & Interaction Guide Footer */}
-      <div className="border-t border-border px-4 py-1.5 bg-muted/30 flex flex-wrap items-center justify-between text-[11px] text-muted-foreground gap-2 shrink-0">
+      <div className="border-t border-border px-4 py-1.5 bg-muted/30 hidden sm:flex flex-wrap items-center justify-between text-[11px] text-muted-foreground gap-2 shrink-0">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">R</kbd>
