@@ -27,6 +27,7 @@ import {
   loadRoofWorkspaceSync,
   loadRoofWorkspaceAsync,
   clearRoofWorkspace,
+  toLightweightRoofState,
 } from '@/utils/roofStorage'
 import { RoofCanvas } from './RoofCanvas'
 import { RoofControls } from './RoofControls'
@@ -310,8 +311,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
         )
       })
-      // Sync into invoice record
-      onUpdateInvoice('roofLayout', currentState)
+      // Sync lightweight version into invoice record (keeps invoice localStorage < 20KB)
+      onUpdateInvoice('roofLayout', toLightweightRoofState(currentState))
     }, 350)
 
     return () => clearTimeout(timer)

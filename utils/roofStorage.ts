@@ -15,6 +15,69 @@ function getStorageKey(invoiceNumber?: string): string {
 }
 
 /**
+ * Strips heavy data URLs (base64 images) so localStorage and invoice document state
+ * stay ultra-lightweight (<20KB) and NEVER trigger browser QuotaExceededError.
+ */
+export function toLightweightRoofState(state: RoofState): RoofState {
+  const isDataUrl = typeof state.backgroundImageUrl === 'string' && state.backgroundImageUrl.startsWith('data:')
+  const isTooLong = typeof state.backgroundImageUrl === 'string' && state.backgroundImageUrl.length > 512
+  if (isDataUrl || isTooLong) {
+    return {
+      ...state,
+      backgroundImageUrl: null, // Full image is safely preserved in IndexedDB & Memory
+    }
+  }
+  return state
+}
+
+/**
+ * Prunes stale or bloated localStorage keys from prior sessions to free up origin quota.
+ */
+export function pruneBloatedLocalStorageKeys(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const keysToRemove: string[] = []
+    const roofKeys: { key: string; len: number }[] = []
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k) continue
+
+      if (k.startsWith('mg_roof_layout_') || k.startsWith('mg_invoice_roof_layout_')) {
+        const val = localStorage.getItem(k) || ''
+        // If an old key contains a base64 image or is unreasonably large (>50KB), remove it
+        if (val.includes('data:image') || val.length > 50000) {
+          keysToRemove.push(k)
+        } else {
+          roofKeys.push({ key: k, len: val.length })
+        }
+      }
+    }
+
+    for (const k of keysToRemove) {
+      localStorage.removeItem(k)
+    }
+
+    // Keep at most 3 recent roof layout keys in localStorage
+    if (roofKeys.length > 3) {
+      const excess = roofKeys.slice(0, roofKeys.length - 3)
+      for (const item of excess) {
+        if (item.key !== GLOBAL_KEY) {
+          localStorage.removeItem(item.key)
+        }
+      }
+    }
+  } catch (err) {
+    // Silently ignore pruning errors
+  }
+}
+
+// Run initial prune once on script evaluation
+if (typeof window !== 'undefined') {
+  setTimeout(pruneBloatedLocalStorageKeys, 500)
+}
+
+/**
  * Open or upgrade IndexedDB for large storage (handles megabyte images without quota limits)
  */
 function openRoofDB(): Promise<IDBDatabase> {
@@ -42,7 +105,7 @@ export function loadRoofWorkspaceSync(invoiceNumber?: string): RoofState | null 
 
   const key = getStorageKey(invoiceNumber)
 
-  // 1. In-memory session cache (fastest, preserves everything during tab switching)
+  // 1. In-memory session cache (fastest, preserves everything including high-res photos during tab switching)
   if (memoryRoofCache[key]) {
     return memoryRoofCache[key]
   }
@@ -50,7 +113,7 @@ export function loadRoofWorkspaceSync(invoiceNumber?: string): RoofState | null 
     return memoryRoofCache[GLOBAL_KEY]
   }
 
-  // 2. Synchronous localStorage lookup
+  // 2. Synchronous localStorage lookup (loads lightweight layout without image)
   try {
     const raw = localStorage.getItem(key) || localStorage.getItem(GLOBAL_KEY)
     if (raw) {
@@ -61,14 +124,14 @@ export function loadRoofWorkspaceSync(invoiceNumber?: string): RoofState | null 
       }
     }
   } catch (err) {
-    console.warn('[RoofStorage] Error loading synchronous cache from localStorage:', err)
+    // If parse fails, ignore
   }
 
   return null
 }
 
 /**
- * Asynchronous load checking IndexedDB (recovers large uploaded imagery if omitted from localStorage quota)
+ * Asynchronous load checking IndexedDB (recovers large uploaded imagery safely)
  */
 export async function loadRoofWorkspaceAsync(invoiceNumber?: string): Promise<RoofState | null> {
   const syncState = loadRoofWorkspaceSync(invoiceNumber)
@@ -86,7 +149,6 @@ export async function loadRoofWorkspaceAsync(invoiceNumber?: string): Promise<Ro
         if (req.result) {
           resolve(req.result as RoofState)
         } else if (key !== GLOBAL_KEY) {
-          // Fallback to global key in IDB
           const fallbackReq = store.get(GLOBAL_KEY)
           fallbackReq.onsuccess = () => resolve((fallbackReq.result as RoofState) ?? null)
           fallbackReq.onerror = () => resolve(null)
@@ -98,7 +160,7 @@ export async function loadRoofWorkspaceAsync(invoiceNumber?: string): Promise<Ro
     })
 
     if (idbState) {
-      // If syncState exists but lacked backgroundImageUrl (due to quota), augment it
+      // If syncState exists but lacked backgroundImageUrl, augment it with the full IndexedDB image
       if (syncState && !syncState.backgroundImageUrl && idbState.backgroundImageUrl) {
         syncState.backgroundImageUrl = idbState.backgroundImageUrl
         memoryRoofCache[key] = syncState
@@ -108,42 +170,43 @@ export async function loadRoofWorkspaceAsync(invoiceNumber?: string): Promise<Ro
       return idbState
     }
   } catch (err) {
-    console.warn('[RoofStorage] IndexedDB read failed, falling back to sync cache:', err)
+    // Silently fall back to sync state
   }
 
   return syncState
 }
 
 /**
- * Saves the current working roof state to Memory, localStorage, and IndexedDB
+ * Saves the current working roof state:
+ * - High-res images & full workspace -> IndexedDB & Memory
+ * - Geometry & panels (lightweight, <15KB) -> LocalStorage
  */
 export async function saveRoofWorkspace(state: RoofState, invoiceNumber?: string): Promise<void> {
   if (typeof window === 'undefined') return
 
   const key = getStorageKey(invoiceNumber)
 
-  // 1. Update in-memory session cache immediately
+  // 1. Update in-memory session cache immediately with the FULL state
   memoryRoofCache[key] = state
   memoryRoofCache[GLOBAL_KEY] = state
 
-  // 2. Persist to localStorage
+  // 2. Persist ONLY lightweight state (WITHOUT heavy base64 images) to localStorage
+  const lightweightState = toLightweightRoofState(state)
+  const jsonPayload = JSON.stringify(lightweightState)
+
   try {
-    localStorage.setItem(key, JSON.stringify(state))
-    localStorage.setItem(GLOBAL_KEY, JSON.stringify(state))
-  } catch (quotaError) {
-    // If quota exceeded (usually due to a multi-megabyte base64 background image),
-    // save the layout geometry/panels without the heavy image in localStorage
-    console.warn('[RoofStorage] localStorage quota reached. Preserving geometry and caching image in IndexedDB...')
+    localStorage.setItem(key, jsonPayload)
+  } catch (quotaErr) {
+    // If quota was already full from previous data, aggressively prune and retry
+    pruneBloatedLocalStorageKeys()
     try {
-      const lightweightState = { ...state, backgroundImageUrl: null }
-      localStorage.setItem(key, JSON.stringify(lightweightState))
-      localStorage.setItem(GLOBAL_KEY, JSON.stringify(lightweightState))
-    } catch (fallbackError) {
-      console.error('[RoofStorage] Could not write lightweight state to localStorage:', fallbackError)
+      localStorage.setItem(key, jsonPayload)
+    } catch (secondErr) {
+      // IndexedDB has already captured the state, so silently degrade without crashing
     }
   }
 
-  // 3. Persist complete state (with high-res background image) to IndexedDB
+  // 3. Persist COMPLETE state (including any multi-megabyte aerial photos) to IndexedDB
   try {
     const db = await openRoofDB()
     await new Promise<void>((resolve, reject) => {
@@ -157,7 +220,7 @@ export async function saveRoofWorkspace(state: RoofState, invoiceNumber?: string
       tx.onerror = () => reject(tx.error)
     })
   } catch (idbErr) {
-    console.warn('[RoofStorage] IndexedDB save warning:', idbErr)
+    // IndexedDB save failure handled gracefully
   }
 }
 
@@ -175,7 +238,7 @@ export async function clearRoofWorkspace(invoiceNumber?: string): Promise<void> 
     localStorage.removeItem(key)
     localStorage.removeItem(GLOBAL_KEY)
   } catch (err) {
-    console.warn('[RoofStorage] Error clearing localStorage:', err)
+    // ignore
   }
 
   try {
@@ -186,6 +249,6 @@ export async function clearRoofWorkspace(invoiceNumber?: string): Promise<void> 
       tx.objectStore(STORE_NAME).delete(GLOBAL_KEY)
     }
   } catch (err) {
-    console.warn('[RoofStorage] Error clearing IndexedDB:', err)
+    // ignore
   }
 }

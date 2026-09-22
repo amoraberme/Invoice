@@ -81,6 +81,86 @@ export function extractPanelInfoFromLineItems(lineItems: { description: string; 
   }
 }
 
+export function extractBatteryInfoFromLineItems(
+  lineItems: { description: string; quantity: number }[],
+  withBrandName: boolean = true
+): {
+  batteryItem: { description: string; quantity: number } | undefined
+  batteryQty: number
+  batteryTitle: string
+  hasBattery: boolean
+} {
+  const items = lineItems || []
+
+  // 1. Find battery storage units (excluding cables, wires, breakers, racks, mccb, switch, etc.)
+  let batteryUnits = items.filter(it => isBatteryUnit(it?.description || ''))
+  if (batteryUnits.length === 0) {
+    batteryUnits = items.filter(it => {
+      const d = (it?.description || '').toLowerCase()
+      if (
+        d.includes('cable') ||
+        d.includes('wire') ||
+        d.includes('breaker') ||
+        d.includes('mccb') ||
+        d.includes('switch') ||
+        d.includes('rack') ||
+        d.includes('tray') ||
+        d.includes('lug')
+      ) {
+        return false
+      }
+      return isBatteryItem(it?.description || '')
+    })
+  }
+
+  const primaryBattery = batteryUnits[0]
+  if (!primaryBattery) {
+    return {
+      batteryItem: undefined,
+      batteryQty: 0,
+      batteryTitle: 'N/A - Grid-Tied System',
+      hasBattery: false,
+    }
+  }
+
+  // 2. Calculate battery quantity from line item quantities and/or description multiplier
+  let totalQty = batteryUnits.reduce((sum, it) => sum + (it.quantity || 0), 0)
+
+  // Also check if any battery unit description explicitly contains a multiplier e.g. "2x battery", "2 * battery", "(2x) battery", "2 pcs"
+  for (const it of batteryUnits) {
+    const d = (it.description || '').trim()
+    const leadingMatch = d.match(/^(\d+)\s*[xX\*\-]/)
+    const parenMatch = d.match(/(?:^|\s|\()(\d+)\s*(?:x|pcs|units?|pc)\b/i)
+    const match = leadingMatch || parenMatch
+    if (match) {
+      const parsed = parseInt(match[1], 10)
+      if (parsed > 0) {
+        totalQty = Math.max(totalQty, parsed)
+      }
+    }
+  }
+
+  const batteryQty = totalQty > 0 ? totalQty : (primaryBattery.quantity || 1)
+
+  // 3. Clean and format the battery title without leading quantity
+  let rawDesc = formatItemDescription(primaryBattery.description, withBrandName)
+  rawDesc = rawDesc.replace(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/, '').trim()
+
+  if (rawDesc.toLowerCase() === 'battery' || !rawDesc) {
+    rawDesc = withBrandName ? 'Genix Green Lithium Battery 51.2V 200Ah' : 'LiFePO4 Deep-Cycle Lithium Battery 51.2V'
+  }
+
+  // 4. Construct title with quantity if battery exists
+  const batteryTitle = batteryQty > 0 ? `${batteryQty}x ${rawDesc}` : rawDesc
+
+  return {
+    batteryItem: primaryBattery,
+    batteryQty,
+    batteryTitle,
+    hasBattery: true,
+  }
+}
+
 export function isLaborItem(description: string): boolean {
   const d = (description || '').toLowerCase().trim()
   if (d.includes('delivery') || d.includes('freight')) {
@@ -419,8 +499,12 @@ export function formatBrandItemDescription(description: string): string {
       if (lower.includes('314ah') || lower.includes('314 ah')) {
         return d
       }
-      if (lower.startsWith('battery')) {
-        return `Genix ${d}`
+      const strippedOfLeadingQty = lower.replace(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/, '').trim()
+      if (strippedOfLeadingQty.startsWith('battery')) {
+        const leadingQtyMatch = d.match(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/)
+        const leadingPart = leadingQtyMatch ? leadingQtyMatch[0] : ''
+        const restPart = d.slice(leadingPart.length).trim()
+        return `${leadingPart}Genix ${restPart}`.trim()
       }
       return d
     }
