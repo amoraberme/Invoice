@@ -21,10 +21,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
+import dynamic from 'next/dynamic'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
-import { RoofTab } from '@/components/roof/RoofTab'
+
+const RoofTab = dynamic(() => import('@/components/roof/RoofTab').then((mod) => mod.RoofTab), {
+  ssr: false,
+})
 import {
   Dialog,
   DialogContent,

@@ -245,6 +245,11 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string>('')
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -654,6 +659,17 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       setSyncSuccess(true)
       setTimeout(() => setSyncSuccess(false), 2500)
     }
+  }
+
+  if (!isMounted) {
+    return (
+      <div className="w-full h-full flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground min-h-[460px]">
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <div className="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Loading solar roof layout...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
