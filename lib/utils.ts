@@ -558,7 +558,58 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     else if (isLabor) {
       categoryKey = 'services'
     }
-    // Priority 2: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice, Clip lock)
+    // Priority 2: Main Equipment - Solar Panels
+    else if (
+      descLower.includes('panel') ||
+      descLower.includes('module') ||
+      descLower.includes('ja solar') ||
+      descLower.includes('tongwei') ||
+      descLower.includes('solar panel') ||
+      descLower.includes('pv module')
+    ) {
+      categoryKey = 'panels'
+    }
+    // Priority 3: Main Equipment - Battery Storage Unit (checked before generic electrical)
+    else if (isBatteryUnit(formattedDesc) || isBatteryUnit(item.description)) {
+      categoryKey = 'battery'
+    }
+    // Priority 4: Main Equipment - Inverter
+    else if (
+      descLower.includes('inverter') ||
+      descLower.includes('anern') ||
+      descLower.includes('solis') ||
+      descLower.includes('goodwe') ||
+      descLower.includes('hypontech') ||
+      descLower.includes('solax') ||
+      descLower.includes('foxess') ||
+      descLower.includes('sunways') ||
+      descLower.includes('deye') ||
+      descLower.includes('growatt') ||
+      descLower.includes('sungrow') ||
+      descLower.includes('victron')
+    ) {
+      categoryKey = 'inverter'
+    }
+    // Priority 5: Mounting Rails / Structure / Hardware
+    else if (
+      descLower.includes('railing') ||
+      descLower.includes('rail') ||
+      descLower.includes('clamp') ||
+      descLower.includes('l foot') ||
+      descLower.includes('l-foot') ||
+      descLower.includes('mid clamp') ||
+      descLower.includes('end clamp') ||
+      descLower.includes('mounting') ||
+      descLower.includes('structure') ||
+      descLower.includes('hardware') ||
+      descLower.includes('rack') ||
+      descLower.includes('bracket') ||
+      descLower.includes('sealant') ||
+      descLower.includes('pu sealant')
+    ) {
+      categoryKey = 'materials'
+    }
+    // Priority 6: Electrical Hardware (Wire, Cable, Breaker, Switch, MCB, SPD, MCCB, Flexcon, Conduit, Boxes, Lugs, Terminals, Combiner, Splice, Clip lock)
     else if (
       descLower.includes('wire') ||
       descLower.includes('cable') ||
@@ -588,64 +639,24 @@ export function getCondensedLineItems(invoice: Invoice): LineItem[] {
     ) {
       categoryKey = 'electrical'
     }
-    // Priority 3: Mounting Rails / Structure / Hardware
-    else if (
-      descLower.includes('railing') ||
-      descLower.includes('rail') ||
-      descLower.includes('clamp') ||
-      descLower.includes('l foot') ||
-      descLower.includes('l-foot') ||
-      descLower.includes('mid clamp') ||
-      descLower.includes('end clamp') ||
-      descLower.includes('mounting') ||
-      descLower.includes('structure') ||
-      descLower.includes('hardware') ||
-      descLower.includes('rack') ||
-      descLower.includes('bracket') ||
-      descLower.includes('sealant') ||
-      descLower.includes('pu sealant')
-    ) {
-      categoryKey = 'materials'
-    }
-    // Priority 4: Main Equipment - Solar Panels
-    else if (
-      descLower.includes('panel') ||
-      descLower.includes('module') ||
-      descLower.includes('ja solar') ||
-      descLower.includes('tongwei') ||
-      descLower.includes('solar panel') ||
-      descLower.includes('pv module')
-    ) {
-      categoryKey = 'panels'
-    }
-    // Priority 5: Main Equipment - Battery
-    else if (isBatteryUnit(formattedDesc)) {
-      categoryKey = 'battery'
-    }
-    // Priority 6: Main Equipment - Inverter
-    else if (
-      descLower.includes('inverter') ||
-      descLower.includes('anern') ||
-      descLower.includes('solis') ||
-      descLower.includes('goodwe') ||
-      descLower.includes('hypontech') ||
-      descLower.includes('solax') ||
-      descLower.includes('foxess') ||
-      descLower.includes('sunways') ||
-      descLower.includes('deye') ||
-      descLower.includes('growatt') ||
-      descLower.includes('sungrow') ||
-      descLower.includes('victron')
-    ) {
-      categoryKey = 'inverter'
-    }
 
     const grp = groups[categoryKey]
     grp.totalAmount += itemAmount
     if (categoryKey === 'panels' || categoryKey === 'inverter' || categoryKey === 'battery') {
-      grp.totalQty += item.quantity
+      let itemQty = item.quantity || 0
+      if (categoryKey === 'battery') {
+        const descMatch = (item.description || '').match(/^(\d+)[\s*xX\-\.]/)
+        if (descMatch) {
+          const parsed = parseInt(descMatch[1], 10)
+          if (parsed > 0 && parsed > itemQty) {
+            itemQty = parsed
+          }
+        }
+      }
+      grp.totalQty += itemQty
       if (!grp.primaryDescription) {
-        grp.primaryDescription = formattedDesc
+        const cleanDesc = formattedDesc.replace(/^(\d+[\s*xX\-\.]+|\(\d+\)\s*)/, '').trim()
+        grp.primaryDescription = cleanDesc || formattedDesc
       }
     }
     grp.count += 1
@@ -776,15 +787,17 @@ export function generateDefaultScopesFromInvoice(invoice: Partial<Invoice>): Sco
     const d = (it.description || '').toLowerCase()
     return d.includes('inverter') || d.includes('anern') || d.includes('solis') || d.includes('goodwe') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow') || d.includes('victron')
   })
-  const inverterSubtitle = inverterItem
+  const inverterQty = inverterItem?.quantity || 1
+  const rawInverterDesc = inverterItem
     ? cleanDescWithoutQty(inverterItem.description)
     : 'High-Efficiency Smart Solar Inverter'
+  const inverterSubtitle = inverterQty > 1 ? `${inverterQty}x ${rawInverterDesc}` : rawInverterDesc
 
   // C. Battery
-  const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
-  const hasBattery = !invoice.excludeBattery && !!batteryItem
-  const batterySubtitle = hasBattery && batteryItem
-    ? cleanDescWithoutQty(batteryItem.description)
+  const batteryInfo = extractBatteryInfoFromLineItems(items, withBrand)
+  const hasBattery = !invoice.excludeBattery && batteryInfo.hasBattery
+  const batterySubtitle = hasBattery
+    ? batteryInfo.batteryTitle
     : 'N/A - Grid-Tied System'
 
   // D. Materials

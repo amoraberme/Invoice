@@ -12,6 +12,7 @@ import {
   sortLineItems, 
   formatItemDescription,
   extractPanelInfoFromLineItems,
+  extractBatteryInfoFromLineItems,
   getPanelDimensions,
   isBatteryItem,
   isBatteryUnit,
@@ -148,16 +149,19 @@ export function MGInvoicePreview({
       const d = (it.description || '').toLowerCase()
       return d.includes('inverter') || d.includes('anern') || d.includes('solis') || d.includes('goodwe') || d.includes('hypontech') || d.includes('solax') || d.includes('foxess') || d.includes('sunways') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow') || d.includes('victron')
     })
-    const inverterTitle = inverterItem
+    const inverterQty = inverterItem?.quantity || 1
+    const rawInverterDesc = inverterItem
       ? cleanDescWithoutQty(inverterItem.description)
       : 'High-Efficiency Smart Solar Inverter'
+    const inverterTitle = inverterQty > 1 ? `${inverterQty}x ${rawInverterDesc}` : rawInverterDesc
 
     // C. Battery
-    const batteryItem = items.find(it => isBatteryItem(it.description) || isBatteryUnit(it.description))
-    const hasBattery = !invoice.excludeBattery && !!batteryItem
-    const batteryTitle = batteryItem
-      ? cleanDescWithoutQty(batteryItem.description)
+    const batteryInfo = extractBatteryInfoFromLineItems(items, withBrand)
+    const hasBattery = !invoice.excludeBattery && batteryInfo.hasBattery
+    const batteryTitle = hasBattery
+      ? batteryInfo.batteryTitle
       : 'N/A - Grid-Tied System'
+    const batteryQty = batteryInfo.batteryQty
 
     // D. Materials
     const materialItems = items.filter(it => {
@@ -183,6 +187,7 @@ export function MGInvoicePreview({
       inverterTitle,
       hasBattery,
       batteryTitle,
+      batteryQty,
       materialsList,
       electricalList,
     }
@@ -599,9 +604,31 @@ export function MGInvoicePreview({
                         </div>
 
                         {(() => {
+                          const defaultScopes = generateDefaultScopesFromInvoice(invoice)
                           const activeScopes = (invoice.scopes && invoice.scopes.length > 0)
-                            ? invoice.scopes.filter(s => s.enabled !== false)
-                            : generateDefaultScopesFromInvoice(invoice)
+                            ? invoice.scopes.filter(s => s.enabled !== false).map(scope => {
+                                if (scope.id === 'scope-c') {
+                                  const defBattery = defaultScopes.find(d => d.id === 'scope-c')
+                                  if (defBattery) {
+                                    return {
+                                      ...scope,
+                                      subtitle: defBattery.subtitle,
+                                      description: scope.description || defBattery.description,
+                                    }
+                                  }
+                                }
+                                if (scope.id === 'scope-a') {
+                                  const defPanel = defaultScopes.find(d => d.id === 'scope-a')
+                                  if (defPanel) {
+                                    return {
+                                      ...scope,
+                                      subtitle: defPanel.subtitle,
+                                    }
+                                  }
+                                }
+                                return scope
+                              })
+                            : defaultScopes
 
                           return (
                             <div className="space-y-1 text-[10px] text-[#222222]">

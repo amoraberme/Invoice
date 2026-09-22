@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info, Sun } from 'lucide-react'
-import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
+import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, extractBatteryInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
@@ -321,7 +321,8 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
 
   const runLength = 30
   const batteryItems = lineItems.filter(it => isBatteryUnit(it.description))
-  const totalBatteryQty = batteryItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
+  const batteryInfo = extractBatteryInfoFromLineItems(lineItems)
+  const totalBatteryQty = batteryInfo.batteryQty
   const effectiveBatteryQty = totalBatteryQty > 0 ? totalBatteryQty : ((inverterKw >= 20 && !isOld20Kw) ? 2 : 1)
 
   let detectedBatteryAh: number | undefined
@@ -2870,8 +2871,8 @@ export default function Home() {
     const pricePerWatt = invoice.laborPricePerWatt ?? 6
     const expectedLaborRate = Math.round(totalWatts * pricePerWatt)
 
-    const batteryItems = (invoice.lineItems || []).filter(item => isBatteryUnit(item.description))
-    const totalBatteryQty = batteryItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
+    const batteryInfo = extractBatteryInfoFromLineItems(invoice.lineItems)
+    const totalBatteryQty = batteryInfo.batteryQty
 
     let currentItems = invoice.lineItems
     let itemsModified = false
@@ -2884,6 +2885,22 @@ export default function Home() {
           itemsModified = true
           const newRows = panelQty <= 0 ? 0 : Math.ceil(panelQty / 2)
           setRowsCount(newRows)
+        }
+        // If scopes are customized in state, sync scope-c & scope-a to reflect updated quantities
+        if (invoice.scopes && invoice.scopes.length > 0) {
+          const freshScopes = generateDefaultScopesFromInvoice({ ...invoice, lineItems: currentItems })
+          const freshBattery = freshScopes.find(s => s.id === 'scope-c')
+          const freshPanel = freshScopes.find(s => s.id === 'scope-a')
+          const updatedScopes = invoice.scopes.map(s => {
+            if (s.id === 'scope-c' && freshBattery) {
+              return { ...s, subtitle: freshBattery.subtitle, description: s.description || freshBattery.description }
+            }
+            if (s.id === 'scope-a' && freshPanel) {
+              return { ...s, subtitle: freshPanel.subtitle }
+            }
+            return s
+          })
+          update('scopes', updatedScopes)
         }
       }
     }
