@@ -45,6 +45,9 @@ export interface RoofViewport {
   panY: number
 }
 
+import type { Quad, Point2D, Matrix3x3 } from '@/utils/homography'
+export type { Quad, Point2D, Matrix3x3 }
+
 export interface RoofState {
   backgroundImageUrl: string | null
   imageOpacity: number // Clamped strictly between 0.20 and 0.80, default 0.50
@@ -60,7 +63,13 @@ export interface RoofState {
   isRoofLocked?: boolean
   defaultTiltAngle?: number // Default mounting pitch angle (0° flush, 10°, 15°, 20°, 25°, 30°)
   defaultRotation?: number // Default planar rotation angle in degrees
+  // Perspective plane projection extensions
+  isPerspectiveEnabled?: boolean
+  perspectiveQuad?: Quad
 }
+
+export type SavedRoofState = RoofState
+
 
 export interface RoofMetrics {
   totalPanelsCount: number

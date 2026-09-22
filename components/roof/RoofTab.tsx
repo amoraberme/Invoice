@@ -12,6 +12,7 @@ import {
   RoofViewport,
   RoofMetrics,
   RoofState,
+  Quad,
 } from '@/types/roof'
 import {
   calculatePolygonAreaM2,
@@ -23,7 +24,17 @@ import {
   rotatePanelsAsArray,
   setPanelsArrayRotation,
   alignPanelsCollinear,
+  getPanelCorners,
 } from '@/utils/geometry'
+import {
+  getHomographyMatrix,
+  invertHomography,
+  projectPoint,
+  projectPanelQuad,
+  isConvexQuad,
+  isQuadInsidePolygon,
+  orderQuadClockwise,
+} from '@/utils/homography'
 import { downloadRoofLayoutPng } from '@/utils/roofExport'
 import {
   saveRoofWorkspace,
@@ -250,6 +261,30 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [defaultRotation, setDefaultRotation] = useState<number>(
     () => (typeof initialWorkspace?.defaultRotation === 'number' ? initialWorkspace.defaultRotation : 0)
   )
+  const [isPerspectiveEnabled, setIsPerspectiveEnabled] = useState<boolean>(
+    () => initialWorkspace?.isPerspectiveEnabled ?? false
+  )
+  const [perspectiveQuad, setPerspectiveQuad] = useState<Quad | null>(() => {
+    if (initialWorkspace?.perspectiveQuad && initialWorkspace.perspectiveQuad.length === 4) {
+      return initialWorkspace.perspectiveQuad
+    }
+    if (
+      initialWorkspace?.polygon &&
+      initialWorkspace.polygon.points.length === 4 &&
+      initialWorkspace.polygon.isClosed
+    ) {
+      return orderQuadClockwise(initialWorkspace.polygon.points as [Point, Point, Point, Point])
+    }
+    return null
+  })
+
+  // Auto-detect 4-vertex roof polygons for perspective plane
+  useEffect(() => {
+    if (polygon.points.length === 4 && polygon.isClosed && !perspectiveQuad) {
+      setPerspectiveQuad(orderQuadClockwise(polygon.points as [Point, Point, Point, Point]))
+    }
+  }, [polygon, perspectiveQuad])
+
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
   const [centerFitTrigger, setCenterFitTrigger] = useState(0)
@@ -320,6 +355,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       isRoofLocked,
       defaultTiltAngle,
       defaultRotation,
+      isPerspectiveEnabled,
+      perspectiveQuad: perspectiveQuad || undefined,
     }
 
     setIsSaving(true)
@@ -351,6 +388,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     isRoofLocked,
     defaultTiltAngle,
     defaultRotation,
+    isPerspectiveEnabled,
+    perspectiveQuad,
     invoice.invoiceNumber,
   ])
 
@@ -372,6 +411,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         isRoofLocked,
         defaultTiltAngle,
         defaultRotation,
+        isPerspectiveEnabled,
+        perspectiveQuad: perspectiveQuad || undefined,
       }
       saveRoofWorkspace(currentState, invoice.invoiceNumber)
     }
@@ -392,6 +433,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     isRoofLocked,
     defaultTiltAngle,
     defaultRotation,
+    isPerspectiveEnabled,
+    perspectiveQuad,
     invoice.invoiceNumber,
   ])
 
@@ -547,9 +590,166 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     fileInputRef.current?.click()
   }
 
+  // Perspective Mode Toggling & 4-Point Plane Calibration
+  const handleTogglePerspective = useCallback(() => {
+    setIsPerspectiveEnabled((prev) => {
+      const next = !prev
+      let activeQuad = perspectiveQuad
+      if (next && !activeQuad) {
+        if (polygon.points.length === 4 && polygon.isClosed) {
+          activeQuad = orderQuadClockwise(polygon.points as [Point, Point, Point, Point])
+        } else if (polygon.points.length >= 3) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+          for (const pt of polygon.points) {
+            if (pt.x < minX) minX = pt.x
+            if (pt.x > maxX) maxX = pt.x
+            if (pt.y < minY) minY = pt.y
+            if (pt.y > maxY) maxY = pt.y
+          }
+          activeQuad = [
+            { x: minX, y: minY },
+            { x: maxX, y: minY },
+            { x: maxX, y: maxY },
+            { x: minX, y: maxY },
+          ]
+        }
+        if (activeQuad) setPerspectiveQuad(activeQuad)
+      }
+
+      // Convert panels between flat model space and screen space seamlessly
+      if (activeQuad && isConvexQuad(activeQuad) && placedPanels.length > 0) {
+        const [tl, tr, br, bl] = activeQuad
+        const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
+        const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
+        const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
+        const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
+        const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
+        const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
+        const srcQuad: Quad = [
+          { x: 0, y: 0 },
+          { x: flatWidth, y: 0 },
+          { x: flatWidth, y: flatHeight },
+          { x: 0, y: flatHeight },
+        ]
+        const H = getHomographyMatrix(srcQuad, activeQuad)
+        const H_inv = invertHomography(H)
+
+        if (next) {
+          // Screen -> Flat space conversion
+          setPlacedPanels((prev) =>
+            prev.map((p) => {
+              const cx = p.x + p.width / 2
+              const cy = p.y + p.height / 2
+              const flatCenter = projectPoint(H_inv, { x: cx, y: cy })
+              const updated = {
+                ...p,
+                x: flatCenter.x - p.width / 2,
+                y: flatCenter.y - p.height / 2,
+              }
+              const corners = getPanelCorners(updated) as [Point, Point, Point, Point]
+              const projQuad = projectPanelQuad(H, corners)
+              return {
+                ...updated,
+                isValid: polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false,
+              }
+            })
+          )
+        } else {
+          // Flat -> Screen space conversion
+          setPlacedPanels((prev) =>
+            prev.map((p) => {
+              const cx = p.x + p.width / 2
+              const cy = p.y + p.height / 2
+              const screenCenter = projectPoint(H, { x: cx, y: cy })
+              const updated = {
+                ...p,
+                x: screenCenter.x - p.width / 2,
+                y: screenCenter.y - p.height / 2,
+              }
+              return {
+                ...updated,
+                isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+              }
+            })
+          )
+        }
+      }
+
+      return next
+    })
+  }, [perspectiveQuad, polygon, placedPanels])
+
+  const handleResetPerspectiveQuad = useCallback(() => {
+    if (polygon.points.length === 4 && polygon.isClosed) {
+      setPerspectiveQuad(orderQuadClockwise(polygon.points as [Point, Point, Point, Point]))
+    } else if (polygon.points.length >= 3) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      for (const pt of polygon.points) {
+        if (pt.x < minX) minX = pt.x
+        if (pt.x > maxX) maxX = pt.x
+        if (pt.y < minY) minY = pt.y
+        if (pt.y > maxY) maxY = pt.y
+      }
+      setPerspectiveQuad([
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: maxX, y: maxY },
+        { x: minX, y: maxY },
+      ])
+    }
+  }, [polygon])
+
   // Auto-Fill Roof Action: Programmatically fills maximum fitting panels inside polygon
   const handleAutoFill = () => {
     if (!polygon.isClosed || polygon.points.length < 3) return
+
+    if (isPerspectiveEnabled && perspectiveQuad && isConvexQuad(perspectiveQuad)) {
+      const [tl, tr, br, bl] = perspectiveQuad
+      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
+      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
+      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
+      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
+      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
+      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
+      const srcQuad: Quad = [
+        { x: 0, y: 0 },
+        { x: flatWidth, y: 0 },
+        { x: flatWidth, y: flatHeight },
+        { x: 0, y: flatHeight },
+      ]
+      const H = getHomographyMatrix(srcQuad, perspectiveQuad)
+      const H_inv = invertHomography(H)
+
+      const flatPolygon = polygon.points.map((pt) => projectPoint(H_inv, pt))
+
+      const flatGrid = generateAutoGrid(
+        flatPolygon,
+        activePanelInfo.dimensions,
+        orientation,
+        scale.pixelsPerMeter,
+        interPanelGapMm,
+        defaultRotation,
+        defaultTiltAngle
+      )
+
+      if (flatGrid.length === 0) {
+        alert('No panels could fit within the perspective roof plane. Try calibrating scale or expanding boundary.')
+        return
+      }
+
+      const validatedGrid = flatGrid.map((panel) => {
+        const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
+        const projQuad = projectPanelQuad(H, corners)
+        return {
+          ...panel,
+          isValid: isQuadInsidePolygon(projQuad, polygon.points),
+        }
+      })
+
+      setPlacedPanels(validatedGrid)
+      setActiveTool('select')
+      return
+    }
 
     const newGrid = generateAutoGrid(
       polygon.points,
@@ -575,6 +775,54 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
     const pxPerMeter = scale.pixelsPerMeter || 35
     const centerPt = backgroundImageUrl ? DEFAULT_ROOF_CENTER : { x: 700, y: 500 }
+
+    // Perspective Mode: Place inside flat bounding space and project
+    if (isPerspectiveEnabled && perspectiveQuad && isConvexQuad(perspectiveQuad)) {
+      const [tl, tr, br, bl] = perspectiveQuad
+      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
+      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
+      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
+      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
+      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
+      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
+      const srcQuad: Quad = [
+        { x: 0, y: 0 },
+        { x: flatWidth, y: 0 },
+        { x: flatWidth, y: flatHeight },
+        { x: 0, y: flatHeight },
+      ]
+      const H = getHomographyMatrix(srcQuad, perspectiveQuad)
+      const H_inv = invertHomography(H)
+
+      const flatPolygon = polygon.points.length >= 3 ? polygon.points.map((pt) => projectPoint(H_inv, pt)) : srcQuad
+      const flatCenter = { x: flatWidth / 2, y: flatHeight / 2 }
+
+      const flatPanels = generateTargetBoqPanels(
+        flatPolygon,
+        activePanelInfo.dimensions,
+        targetCount,
+        orientation,
+        pxPerMeter,
+        interPanelGapMm,
+        flatCenter,
+        defaultRotation,
+        defaultTiltAngle
+      )
+
+      const validated = flatPanels.map((panel) => {
+        const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
+        const projQuad = projectPanelQuad(H, corners)
+        return {
+          ...panel,
+          isValid: polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false,
+        }
+      })
+
+      setPlacedPanels(validated)
+      setActiveTool('select')
+      setCenterFitTrigger((prev) => prev + 1)
+      return
+    }
 
     // Case 1: Polygon already exists
     if (polygon.isClosed && polygon.points.length >= 3) {
@@ -624,6 +872,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     backgroundImageUrl,
     defaultRotation,
     defaultTiltAngle,
+    isPerspectiveEnabled,
+    perspectiveQuad,
   ])
 
   // Apply user-defined Roof Dimensions from RoofSizeModal (meters, feet, or sqm)
@@ -675,6 +925,54 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
     const pW = widthM * scale.pixelsPerMeter
     const pH = heightM * scale.pixelsPerMeter
+
+    if (isPerspectiveEnabled && perspectiveQuad && isConvexQuad(perspectiveQuad)) {
+      const [tl, tr, br, bl] = perspectiveQuad
+      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
+      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
+      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
+      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
+      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
+      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
+      const srcQuad: Quad = [
+        { x: 0, y: 0 },
+        { x: flatWidth, y: 0 },
+        { x: flatWidth, y: flatHeight },
+        { x: 0, y: flatHeight },
+      ]
+      const H = getHomographyMatrix(srcQuad, perspectiveQuad)
+
+      const posX = flatWidth / 2 - pW / 2
+      const posY = flatHeight / 2 - pH / 2
+
+      const candidate = {
+        x: posX,
+        y: posY,
+        width: pW,
+        height: pH,
+        rotation: defaultRotation,
+      }
+
+      const corners = getPanelCorners(candidate) as [Point, Point, Point, Point]
+      const projQuad = projectPanelQuad(H, corners)
+      const isValid = polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false
+
+      const newPanel: PlacedPanel = {
+        id: `panel-manual-${Date.now()}`,
+        x: posX,
+        y: posY,
+        width: pW,
+        height: pH,
+        orientation,
+        isValid,
+        rotation: defaultRotation,
+        tiltAngle: defaultTiltAngle,
+      }
+
+      setPlacedPanels((prev) => [...prev, newPanel])
+      setActiveTool('select')
+      return
+    }
 
     let posX = 600
     let posY = 400
@@ -788,6 +1086,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         imageOpacity,
         metrics,
         projectName: invoice.invoiceNumber ? `Quotation #${invoice.invoiceNumber}` : 'Solar PV Array Layout',
+        isPerspectiveEnabled,
+        perspectiveQuad: perspectiveQuad || undefined,
       })
     } catch (err) {
       console.error('Failed to export layout image', err)
@@ -1109,6 +1409,10 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         onApplyTiltToAll={handleApplyTiltToAll}
         onApplyRotationToAll={handleApplyRotationToAll}
         onAlignCollinear={handleAlignCollinear}
+        isPerspectiveEnabled={isPerspectiveEnabled}
+        onTogglePerspective={handleTogglePerspective}
+        onResetPerspectiveQuad={handleResetPerspectiveQuad}
+        hasFourVertices={polygon.points.length === 4}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
@@ -1159,6 +1463,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
           selectedPanelId={selectedPanelId}
           onSelectPanel={setSelectedPanelId}
+          isPerspectiveEnabled={isPerspectiveEnabled}
+          perspectiveQuad={perspectiveQuad || undefined}
+          onUpdatePerspectiveQuad={setPerspectiveQuad}
         />
       </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Point,
   RoofPolygon,
@@ -18,7 +18,17 @@ import {
   getDistance,
   calculatePolygonAreaM2,
   getPolygonCentroid,
+  getPanelCorners,
 } from '@/utils/geometry'
+import {
+  Quad,
+  getHomographyMatrix,
+  invertHomography,
+  projectPoint,
+  projectPanelQuad,
+  isConvexQuad,
+  isQuadInsidePolygon,
+} from '@/utils/homography'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, RotateCw, Trash2, Upload, Move, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -47,6 +57,9 @@ interface RoofCanvasProps {
   onToggleRoofLock?: () => void
   selectedPanelId?: string | null
   onSelectPanel?: (panelId: string | null) => void
+  isPerspectiveEnabled?: boolean
+  perspectiveQuad?: Quad
+  onUpdatePerspectiveQuad?: (quad: Quad) => void
 }
 
 export const RoofCanvas: React.FC<RoofCanvasProps> = ({
@@ -73,6 +86,9 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   onToggleRoofLock,
   selectedPanelId: propSelectedPanelId,
   onSelectPanel,
+  isPerspectiveEnabled = false,
+  perspectiveQuad,
+  onUpdatePerspectiveQuad,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -105,6 +121,40 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [rectStart, setRectStart] = useState<Point | null>(null)
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false)
   const [polyDragStart, setPolyDragStart] = useState<Point>({ x: 0, y: 0 })
+
+  // Perspective Plane Control State
+  const [draggingPerspectiveIdx, setDraggingPerspectiveIdx] = useState<number | null>(null)
+
+  // Compute Homography Matrices when Perspective Mode is Active
+  const perspectiveMetrics = useMemo(() => {
+    if (!isPerspectiveEnabled || !perspectiveQuad || !isConvexQuad(perspectiveQuad)) {
+      return null
+    }
+    const [tl, tr, br, bl] = perspectiveQuad
+    const topW = getDistance(tl, tr)
+    const botW = getDistance(bl, br)
+    const leftH = getDistance(tl, bl)
+    const rightH = getDistance(tr, br)
+    const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
+    const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
+
+    const srcQuad: Quad = [
+      { x: 0, y: 0 },
+      { x: flatWidth, y: 0 },
+      { x: flatWidth, y: flatHeight },
+      { x: 0, y: flatHeight },
+    ]
+    const H = getHomographyMatrix(srcQuad, perspectiveQuad)
+    const H_inv = invertHomography(H)
+
+    return {
+      flatWidth,
+      flatHeight,
+      srcQuad,
+      H,
+      H_inv,
+    }
+  }, [isPerspectiveEnabled, perspectiveQuad])
 
   // Track image load
   useEffect(() => {
@@ -205,12 +255,22 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       if (!currentPolygon.isClosed || currentPolygon.points.length < 3) {
         return panels.map((p) => ({ ...p, isValid: false }))
       }
+      if (isPerspectiveEnabled && perspectiveMetrics) {
+        return panels.map((panel) => {
+          const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
+          const projQuad = projectPanelQuad(perspectiveMetrics.H, corners)
+          return {
+            ...panel,
+            isValid: isQuadInsidePolygon(projQuad, currentPolygon.points),
+          }
+        })
+      }
       return panels.map((panel) => ({
         ...panel,
         isValid: isPanelInsidePolygon(panel, currentPolygon.points),
       }))
     },
-    []
+    [isPerspectiveEnabled, perspectiveMetrics]
   )
 
   // Handle Wheel Zoom (Zoom in/out centered on mouse cursor)
@@ -344,6 +404,34 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
+    // Handle perspective plane corner dragging
+    if (draggingPerspectiveIdx !== null && perspectiveQuad && onUpdatePerspectiveQuad) {
+      const updatedQuad: Quad = [
+        perspectiveQuad[0],
+        perspectiveQuad[1],
+        perspectiveQuad[2],
+        perspectiveQuad[3],
+      ]
+      updatedQuad[draggingPerspectiveIdx] = canvasPt
+      if (isConvexQuad(updatedQuad)) {
+        onUpdatePerspectiveQuad(updatedQuad)
+        if (perspectiveMetrics) {
+          const newH = getHomographyMatrix(perspectiveMetrics.srcQuad, updatedQuad)
+          onUpdatePanels(
+            placedPanels.map((p) => {
+              const corners = getPanelCorners(p) as [Point, Point, Point, Point]
+              const projQuad = projectPanelQuad(newH, corners)
+              return {
+                ...p,
+                isValid: polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false,
+              }
+            })
+          )
+        }
+      }
+      return
+    }
+
     // Handle vertex dragging
     if (draggingVertexIdx !== null && polygon.points[draggingVertexIdx]) {
       const updatedPoints = [...polygon.points]
@@ -389,9 +477,16 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         rotation: customAngle,
       }
 
-      const isValid = polygon.isClosed
-        ? isPanelInsidePolygon(candidatePanel, polygon.points)
-        : false
+      let isValid = false
+      if (polygon.isClosed) {
+        if (isPerspectiveEnabled && perspectiveMetrics) {
+          const corners = getPanelCorners(candidatePanel) as [Point, Point, Point, Point]
+          const projQuad = projectPanelQuad(perspectiveMetrics.H, corners)
+          isValid = isQuadInsidePolygon(projQuad, polygon.points)
+        } else {
+          isValid = isPanelInsidePolygon(candidatePanel, polygon.points)
+        }
+      }
 
       onUpdatePanels(
         placedPanels.map((p) =>
@@ -405,11 +500,70 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
 
     // Handle panel dragging with real-time snap-to-adjacent logic or manual freeform
     if (draggingPanelId !== null) {
-      const rawX = canvasPt.x - dragOffset.x
-      const rawY = canvasPt.y - dragOffset.y
-
       const currentPanel = placedPanels.find((p) => p.id === draggingPanelId)
       if (!currentPanel) return
+
+      // Perspective Mode Panel Dragging
+      if (isPerspectiveEnabled && perspectiveMetrics) {
+        const flatPt = projectPoint(perspectiveMetrics.H_inv, canvasPt)
+        const rawX = flatPt.x - dragOffset.x
+        const rawY = flatPt.y - dragOffset.y
+
+        const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
+        let targetX = rawX
+        let targetY = rawY
+        let targetRot = currentPanel.rotation || 0
+
+        if (effectiveSnap) {
+          const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
+          const snapResult = getAdjacentSnapPosition(
+            {
+              id: currentPanel.id,
+              x: rawX,
+              y: rawY,
+              width: currentPanel.width,
+              height: currentPanel.height,
+              rotation: currentPanel.rotation,
+            },
+            placedPanels,
+            14 / viewport.zoom,
+            gapPx
+          )
+          if (snapResult.snapped) {
+            targetX = snapResult.x
+            targetY = snapResult.y
+            if (snapResult.matchedRotation !== undefined) {
+              targetRot = snapResult.matchedRotation
+            }
+          }
+        }
+
+        const candidatePanel = {
+          ...currentPanel,
+          x: targetX,
+          y: targetY,
+          rotation: targetRot,
+        }
+
+        const corners = getPanelCorners(candidatePanel) as [Point, Point, Point, Point]
+        const projQuad = projectPanelQuad(perspectiveMetrics.H, corners)
+        const isValid = polygon.isClosed
+          ? isQuadInsidePolygon(projQuad, polygon.points)
+          : false
+
+        onUpdatePanels(
+          placedPanels.map((p) =>
+            p.id === draggingPanelId
+              ? { ...p, x: targetX, y: targetY, rotation: targetRot, isValid }
+              : p
+          )
+        )
+        return
+      }
+
+      // Flat 2D Mode Panel Dragging
+      const rawX = canvasPt.x - dragOffset.x
+      const rawY = canvasPt.y - dragOffset.y
 
       // Snapping condition: can be globally enabled/disabled, and holding Alt inverts it temporarily
       const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
@@ -475,6 +629,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setDraggingPanelId(null)
     setDraggingRotationPanelId(null)
     setIsDraggingPolygon(false)
+    setDraggingPerspectiveIdx(null)
 
     // Complete Rect tool drag
     if (activeTool === 'rect' && rectStart && cursorPos) {
@@ -509,10 +664,18 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setSelectedPanelId(panel.id)
     setDraggingPanelId(panel.id)
     const canvasPt = screenToCanvas(e.clientX, e.clientY)
-    setDragOffset({
-      x: canvasPt.x - panel.x,
-      y: canvasPt.y - panel.y,
-    })
+    if (isPerspectiveEnabled && perspectiveMetrics) {
+      const flatPt = projectPoint(perspectiveMetrics.H_inv, canvasPt)
+      setDragOffset({
+        x: flatPt.x - panel.x,
+        y: flatPt.y - panel.y,
+      })
+    } else {
+      setDragOffset({
+        x: canvasPt.x - panel.x,
+        y: canvasPt.y - panel.y,
+      })
+    }
   }
 
   // Rotate panel 90 degrees
@@ -1071,6 +1234,310 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
               const rot = panel.rotation || 0
               const tilt = panel.tiltAngle || 0
 
+              if (isPerspectiveEnabled && perspectiveMetrics) {
+                const flatCorners = getPanelCorners(panel) as [Point, Point, Point, Point]
+                const quad = projectPanelQuad(perspectiveMetrics.H, flatCorners)
+                const [p0, p1, p2, p3] = quad
+                const quadPoints = `${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`
+                const centerPt = {
+                  x: (p0.x + p1.x + p2.x + p3.x) / 4,
+                  y: (p0.y + p1.y + p2.y + p3.y) / 4,
+                }
+                const topMid = {
+                  x: (p0.x + p1.x) / 2,
+                  y: (p0.y + p1.y) / 2,
+                }
+
+                // Solar cell internal grid lines in perspective
+                const rad = ((rot || 0) * Math.PI) / 180
+                const cos = Math.cos(rad)
+                const sin = Math.sin(rad)
+                const fcx = panel.x + panel.width / 2
+                const fcy = panel.y + panel.height / 2
+                const rotatePt = (px: number, py: number) => ({
+                  x: fcx + (px - fcx) * cos - (py - fcy) * sin,
+                  y: fcy + (px - fcx) * sin + (py - fcy) * cos,
+                })
+
+                const cellLines: { pA: Point; pB: Point }[] = []
+                if (isValid && panel.width > 20 && panel.height > 20) {
+                  for (let r = 1; r < 6; r++) {
+                    const flatA = rotatePt(panel.x, panel.y + (r * panel.height) / 6)
+                    const flatB = rotatePt(panel.x + panel.width, panel.y + (r * panel.height) / 6)
+                    cellLines.push({
+                      pA: projectPoint(perspectiveMetrics.H, flatA),
+                      pB: projectPoint(perspectiveMetrics.H, flatB),
+                    })
+                  }
+                  const midFlatA = rotatePt(panel.x + panel.width / 2, panel.y)
+                  const midFlatB = rotatePt(panel.x + panel.width / 2, panel.y + panel.height)
+                  cellLines.push({
+                    pA: projectPoint(perspectiveMetrics.H, midFlatA),
+                    pB: projectPoint(perspectiveMetrics.H, midFlatB),
+                  })
+                }
+
+                return (
+                  <g
+                    key={panel.id}
+                    onPointerDown={(e) => handlePanelPointerDown(panel, e)}
+                    onPointerUp={(e) => {
+                      try {
+                        (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+                      } catch (_) {}
+                      setDraggingPanelId(null)
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedPanelId(panel.id)
+                    }}
+                    className="cursor-move group"
+                  >
+                    {/* Warped Panel Polygon */}
+                    <polygon
+                      points={quadPoints}
+                      fill={
+                        isValid
+                          ? isSelected
+                            ? 'rgba(30, 58, 138, 0.96)'
+                            : 'rgba(23, 37, 84, 0.92)'
+                          : 'rgba(239, 68, 68, 0.55)'
+                      }
+                      stroke={
+                        isValid
+                          ? isSelected
+                            ? '#38bdf8'
+                            : '#60a5fa'
+                          : '#ef4444'
+                      }
+                      strokeWidth={isSelected ? 2.5 : isValid ? 1.5 : 2.5}
+                      strokeLinejoin="round"
+                      className="transition-colors duration-100"
+                    />
+
+                    {/* Perspective Cell Grid Texture */}
+                    {isValid &&
+                      cellLines.map((line, lIdx) => (
+                        <line
+                          key={lIdx}
+                          x1={line.pA.x}
+                          y1={line.pA.y}
+                          x2={line.pB.x}
+                          y2={line.pB.y}
+                          stroke="rgba(96, 165, 250, 0.45)"
+                          strokeWidth="0.75"
+                          pointerEvents="none"
+                        />
+                      ))}
+
+                    {/* Invalid Stripe / Warning Mark */}
+                    {!isValid && (
+                      <g transform={`translate(${centerPt.x}, ${centerPt.y})`} pointerEvents="none">
+                        <circle r="10" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                        <text x="0" y="4" fill="#ffffff" fontSize="12" fontWeight="bold" textAnchor="middle">
+                          !
+                        </text>
+                      </g>
+                    )}
+
+                    {/* Wattage / ID & Rotation Label */}
+                    {isValid && (
+                      <text
+                        x={centerPt.x}
+                        y={centerPt.y + 3}
+                        fill="#93c5fd"
+                        fontSize="9"
+                        fontWeight="600"
+                        fontFamily="monospace"
+                        textAnchor="middle"
+                        pointerEvents="none"
+                      >
+                        {panelDimensions.wattage}W{rot !== 0 ? ` • ${rot}°` : ''}
+                      </text>
+                    )}
+
+                    {/* Selection Ring & Floating Quick Actions */}
+                    {isSelected && (
+                      <g className="panel-actions-overlay">
+                        {/* Interactive CAD Rotation Stem & Handle */}
+                        <line
+                          x1={topMid.x}
+                          y1={topMid.y}
+                          x2={topMid.x}
+                          y2={topMid.y - 18}
+                          stroke="#38bdf8"
+                          strokeWidth="1.5"
+                          strokeDasharray="2,2"
+                          pointerEvents="none"
+                        />
+                        <g
+                          transform={`translate(${topMid.x}, ${topMid.y - 20})`}
+                          className="cursor-crosshair group/handle"
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            try {
+                              (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
+                            } catch (_) {}
+                            setDraggingRotationPanelId(panel.id)
+                          }}
+                          onPointerUp={(e) => {
+                            try {
+                              (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+                            } catch (_) {}
+                            setDraggingRotationPanelId(null)
+                          }}
+                        >
+                          <circle
+                            r="7"
+                            fill="#0284c7"
+                            stroke="#ffffff"
+                            strokeWidth="2"
+                            className="hover:scale-125 transition-transform"
+                          />
+                          <path
+                            d="M -2 -1 A 3 3 0 1 1 -2 2"
+                            fill="none"
+                            stroke="#ffffff"
+                            strokeWidth="1"
+                            pointerEvents="none"
+                          />
+                          {(draggingRotationPanelId === panel.id || rot !== 0) && (
+                            <g
+                              transform="translate(12, -1)"
+                              className="cursor-pointer hover:opacity-90"
+                              onClick={(e) => handlePromptCustomRotation(panel.id, rot, e)}
+                              role="button"
+                              aria-label={`Current rotation: ${rot} degrees. Click to enter custom angle.`}
+                            >
+                              <title>Current rotation: {rot}°. Click to enter custom degree angle.</title>
+                              <rect x="-2" y="-8" width="36" height="15" rx="3" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
+                              <text x="16" y="3" fill="#38bdf8" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                                {rot}°
+                              </text>
+                            </g>
+                          )}
+                        </g>
+
+                        {/* Floating Quick Action Toolbar: Fine -1°, Custom Degree, Fine +1°, 90°, Rack Tilt, Delete */}
+                        <g
+                          transform={`translate(${topMid.x - 105}, ${topMid.y - 50})`}
+                          className="cursor-pointer select-none"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <rect
+                            x="0"
+                            y="0"
+                            width="210"
+                            height="24"
+                            rx="6"
+                            fill="#18181b"
+                            stroke="#3f3f46"
+                            strokeWidth="1"
+                            className="filter drop-shadow-lg"
+                          />
+
+                          {/* Fine Rotate -1° */}
+                          <g
+                            onClick={(e) => handleRotatePanelBy(panel.id, -1, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Rotate -1 degree"
+                          >
+                            <title>Fine Rotate -1° (Shift+[ or ,)</title>
+                            <rect x="2" y="2" width="22" height="20" rx="3" fill="transparent" />
+                            <text x="13" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                              -1°
+                            </text>
+                          </g>
+
+                          {/* Custom Degree Readout Button (Click to Enter Any Angle) */}
+                          <g
+                            onClick={(e) => handlePromptCustomRotation(panel.id, rot, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Set custom rotation angle"
+                          >
+                            <title>Current rotation: {rot}°. Click to type any custom angle!</title>
+                            <rect x="26" y="2" width="38" height="20" rx="3" fill="#0369a1" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="0.75" />
+                            <text x="45" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                              {rot}°
+                            </text>
+                          </g>
+
+                          {/* Fine Rotate +1° */}
+                          <g
+                            onClick={(e) => handleRotatePanelBy(panel.id, 1, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Rotate +1 degree"
+                          >
+                            <title>Fine Rotate +1° (Shift+] or .)</title>
+                            <rect x="66" y="2" width="22" height="20" rx="3" fill="transparent" />
+                            <text x="77" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                              +1°
+                            </text>
+                          </g>
+
+                          <line x1="90" y1="4" x2="90" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                          {/* Rotate 90° Orientation */}
+                          <g
+                            onClick={(e) => handleRotatePanel(panel.id, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Rotate 90 degrees"
+                          >
+                            <title>Rotate 90° Orientation</title>
+                            <rect x="92" y="2" width="24" height="20" rx="3" fill="transparent" />
+                            <path
+                              d="M 104 8 A 4 4 0 1 1 100 12 M 100 9 L 100 12 L 103 12"
+                              fill="none"
+                              stroke="#38bdf8"
+                              strokeWidth="1.5"
+                            />
+                          </g>
+
+                          <line x1="118" y1="4" x2="118" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                          {/* Rack Tilt Cycler */}
+                          <g
+                            onClick={(e) => handleCyclePanelTilt(panel.id, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Cycle mounting rack tilt"
+                          >
+                            <title>Cycle Rack Tilt Pitch (0°, 10°, 15°, 20°, 25°, 30° / T)</title>
+                            <rect x="120" y="2" width="42" height="20" rx="3" fill="transparent" />
+                            <text x="141" y="15" fill="#a855f7" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                              ∠{tilt}°
+                            </text>
+                          </g>
+
+                          <line x1="164" y1="4" x2="164" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                          {/* Delete */}
+                          <g
+                            onClick={(e) => handleDeletePanel(panel.id, e)}
+                            className="hover:opacity-80"
+                            role="button"
+                            aria-label="Delete panel"
+                          >
+                            <title>Delete panel (Del)</title>
+                            <rect x="166" y="2" width="40" height="20" rx="3" fill="transparent" />
+                            <path
+                              d="M 181 7 L 191 17 M 191 7 L 181 17"
+                              fill="none"
+                              stroke="#f87171"
+                              strokeWidth="1.5"
+                            />
+                          </g>
+                        </g>
+                      </g>
+                    )}
+                  </g>
+                )
+              }
+
               return (
                 <g
                   key={panel.id}
@@ -1377,6 +1844,116 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
               )
             })}
           </g>
+
+          {/* Perspective Plane Control Layer (4 Draggable Corner Handles + Pitch Vanishing Grid) */}
+          {isPerspectiveEnabled && perspectiveQuad && (
+            <g className="perspective-plane-control-layer">
+              {/* 4-Point Plane Boundary */}
+              <polygon
+                points={perspectiveQuad.map((p) => `${p.x},${p.y}`).join(' ')}
+                fill="rgba(6, 182, 212, 0.05)"
+                stroke="#06b6d4"
+                strokeWidth="2"
+                strokeDasharray="6,4"
+                className="pointer-events-none"
+              />
+
+              {/* Pitch Vanishing Guide Lines (25%, 50%, 75% between top edge and bottom edge) */}
+              {[0.25, 0.5, 0.75].map((ratio, rIdx) => {
+                const topPt = {
+                  x: perspectiveQuad[0].x + (perspectiveQuad[1].x - perspectiveQuad[0].x) * ratio,
+                  y: perspectiveQuad[0].y + (perspectiveQuad[1].y - perspectiveQuad[0].y) * ratio,
+                }
+                const botPt = {
+                  x: perspectiveQuad[3].x + (perspectiveQuad[2].x - perspectiveQuad[3].x) * ratio,
+                  y: perspectiveQuad[3].y + (perspectiveQuad[2].y - perspectiveQuad[3].y) * ratio,
+                }
+                return (
+                  <line
+                    key={`p-guide-${rIdx}`}
+                    x1={topPt.x}
+                    y1={topPt.y}
+                    x2={botPt.x}
+                    y2={botPt.y}
+                    stroke="#06b6d4"
+                    strokeWidth="1"
+                    strokeDasharray="3,3"
+                    strokeOpacity="0.4"
+                    className="pointer-events-none"
+                  />
+                )
+              })}
+
+              {/* Draggable Corner Handles */}
+              {perspectiveQuad.map((pt, pIdx) => {
+                const labels = ['TL (Ridge)', 'TR (Ridge)', 'BR (Eave)', 'BL (Eave)']
+                const isDragging = draggingPerspectiveIdx === pIdx
+                return (
+                  <g
+                    key={`persp-handle-${pIdx}`}
+                    transform={`translate(${pt.x}, ${pt.y})`}
+                    className="cursor-pointer select-none"
+                    onPointerDown={(e) => {
+                      e.stopPropagation()
+                      try {
+                        (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
+                      } catch (_) {}
+                      setDraggingPerspectiveIdx(pIdx)
+                    }}
+                    onPointerUp={(e) => {
+                      try {
+                        (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+                      } catch (_) {}
+                      setDraggingPerspectiveIdx(null)
+                    }}
+                  >
+                    {/* Touch / Hit Target Area */}
+                    <circle r="14" fill="transparent" />
+                    {/* Glow Ring */}
+                    <circle
+                      r={isDragging ? 11 : 9}
+                      fill="rgba(6, 182, 212, 0.25)"
+                      stroke="#06b6d4"
+                      strokeWidth="1"
+                    />
+                    {/* Center Handle Knob */}
+                    <circle
+                      r="5"
+                      fill="#06b6d4"
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      className="transition-transform hover:scale-125"
+                    />
+                    {/* Handle Position Badge */}
+                    <g transform="translate(10, -10)" pointerEvents="none">
+                      <rect
+                        x="-2"
+                        y="-8"
+                        width="54"
+                        height="14"
+                        rx="3"
+                        fill="#083344"
+                        stroke="#06b6d4"
+                        strokeWidth="0.8"
+                        fillOpacity="0.9"
+                      />
+                      <text
+                        x="25"
+                        y="2.5"
+                        fill="#67e8f9"
+                        fontSize="8"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        fontFamily="monospace"
+                      >
+                        {labels[pIdx]}
+                      </text>
+                    </g>
+                  </g>
+                )
+              })}
+            </g>
+          )}
         </svg>
       </div>
 
