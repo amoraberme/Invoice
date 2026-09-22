@@ -584,12 +584,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       />
 
       {/* Selected Panel State Linkage Banner / Fallback */}
-      {!activePanelInfo.found ? (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-amber-900 dark:text-amber-200 shrink-0">
-          <div className="flex items-center gap-2 text-xs">
+      {!activePanelInfo.found && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 sm:px-4 py-1.5 flex flex-wrap items-center justify-between gap-2 text-amber-900 dark:text-amber-200 text-xs shrink-0">
+          <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              <strong>No panel detected in Items:</strong> Using fallback{' '}
+              <strong>No panel detected in BoQ:</strong> Using standard{' '}
               <span className="font-mono font-semibold">2,278mm × 1,134mm (625W)</span>.
             </span>
           </div>
@@ -598,179 +598,138 @@ export const RoofTab: React.FC<RoofTabProps> = ({
             variant="outline"
             size="xs"
             onClick={() => onSwitchTab('items')}
-            className="text-xs gap-1 border-amber-500/30 hover:bg-amber-500/20 text-amber-900 dark:text-amber-100 cursor-pointer"
+            className="text-xs gap-1 border-amber-500/30 hover:bg-amber-500/20 text-amber-900 dark:text-amber-100 cursor-pointer h-6"
           >
             <span>Items Tab</span>
             <ArrowRight className="size-3" />
           </Button>
         </div>
-      ) : (
-        <div className="bg-muted/40 border-b border-border/80 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs shrink-0">
+      )}
+
+      {/* Executive Solar Summary & Metrics Bar */}
+      <div className="w-full bg-card border-b border-border px-3 sm:px-4 py-2 shadow-2xs shrink-0 flex flex-col gap-2">
+        {/* Upper Row: Active Module Info, Target Capacity, Upload & Sync Actions */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {/* Left: Active Module Chip */}
           <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-            <span className="inline-flex items-center gap-1 font-semibold text-foreground shrink-0">
-              <Sun className="size-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Active Module:</span>
-            </span>
-            <span className="font-medium bg-background px-1.5 py-0.5 rounded border border-border text-foreground truncate max-w-[190px] sm:max-w-none">
-              {activePanelInfo.dimensions.modelName}
-            </span>
-            <span className="text-muted-foreground font-mono text-[11px] shrink-0">
-              ({activePanelInfo.dimensions.wattage}W • {activePanelInfo.quantity} pcs)
-            </span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border/80 text-xs font-medium text-foreground">
+              <Sun className="size-3.5 text-amber-500 shrink-0" />
+              <span className="font-semibold truncate max-w-[170px] sm:max-w-xs">
+                {activePanelInfo.dimensions.modelName.replace(/\(.*?\)/g, '').trim() || 'Solar PV Module'}
+              </span>
+              <span className="text-muted-foreground font-mono text-[11px] shrink-0">
+                {activePanelInfo.dimensions.wattage}W • {activePanelInfo.quantity} pcs
+              </span>
+            </div>
+
             {targetBoqKwp > 0 && (
-              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-mono shrink-0">
                 {targetBoqKwp.toFixed(2)} kWp Target
               </span>
             )}
           </div>
 
+          {/* Right: Upload Photo & Sync to BoQ CTA */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={triggerImageUpload}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors"
+              className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md border border-border/80 flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Upload aerial roof imagery or satellite photo"
             >
-              <Upload className="size-3" />
-              <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Roof Photo' : 'Upload Roof Photo'}</span>
+              <Upload className="size-3 text-muted-foreground" />
+              <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Photo' : 'Upload Photo'}</span>
               <span className="sm:hidden">Photo</span>
             </button>
-          </div>
-        </div>
-      )}
 
-      {/* Prominent Quick Action Banner if 0 panels placed but BoQ has panels */}
-      {activePanelInfo.quantity > 0 && metrics.validPanelsCount === 0 && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-emerald-950 dark:text-emerald-100 shrink-0">
-          <div className="flex items-center gap-2 text-xs">
-            <Sparkles className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>
-              <strong>{activePanelInfo.quantity} Panels ({targetBoqKwp.toFixed(2)} kWp)</strong> selected in BoQ. Click below to place automatically:
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="xs"
-              onClick={handlePlaceBoqPanels}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 text-xs cursor-pointer shadow-xs"
-            >
-              <Grid className="size-3.5" />
-              <span>Place {activePanelInfo.quantity} BoQ Panels</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => setRoofSizeModalOpen(true)}
-              className="border-emerald-500/30 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-500/20 text-xs cursor-pointer"
-            >
-              <Ruler className="size-3.5" />
-              <span>Set Roof Size</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Real-Time Sizing Metrics Bar */}
-      <div className="w-full bg-card border-b border-border px-3 sm:px-6 py-2 shadow-xs shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-6 lg:gap-8">
-            {/* Metric 1: Total Panels Placed vs Target */}
-            <div className="flex flex-col">
-              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Panels Placed
-              </span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg sm:text-xl font-bold font-mono text-foreground">
-                  {metrics.validPanelsCount}
-                </span>
-                {activePanelInfo.quantity > 0 && (
-                  <span className="text-xs text-muted-foreground font-mono">
-                    / {activePanelInfo.quantity}
-                  </span>
-                )}
-                <span className="text-[11px] text-muted-foreground hidden sm:inline">modules</span>
-
-                {activePanelInfo.quantity > 0 && metrics.validPanelsCount === activePanelInfo.quantity && (
-                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 ml-1">
-                    <CheckCircle2 className="size-2.5" />
-                    <span>Matched</span>
-                  </span>
-                )}
-
-                {metrics.invalidPanelsCount > 0 && (
-                  <span className="text-[10px] text-rose-500 font-medium ml-0.5">
-                    (+{metrics.invalidPanelsCount})
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="w-px h-7 bg-border hidden sm:block" />
-
-            {/* Metric 2: Total System Capacity */}
-            <div className="flex flex-col">
-              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Array kWp
-              </span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-lg sm:text-xl font-bold font-mono text-blue-600 dark:text-blue-400">
-                  {metrics.totalCapacityKwp.toFixed(2)}
-                </span>
-                <span className="text-[11px] text-muted-foreground">kWp</span>
-              </div>
-            </div>
-
-            <div className="w-px h-7 bg-border hidden sm:block" />
-
-            {/* Metric 3: Roof Utilization Area */}
-            <div className="flex flex-col">
-              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Roof Area
-              </span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-sm sm:text-base font-bold font-mono text-foreground">
-                  {metrics.panelsTotalAreaM2.toFixed(1)}m²
-                </span>
-                {metrics.roofPolygonAreaM2 > 0 && (
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    ({metrics.utilizationRatePercent.toFixed(0)}%)
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Sync Button */}
-          {metrics.validPanelsCount > 0 && (
-            <div className="flex items-center justify-end sm:justify-start gap-2">
+            {metrics.validPanelsCount > 0 && (
               <Button
                 type="button"
-                variant={syncSuccess ? 'default' : 'outline'}
+                variant="default"
                 size="xs"
                 onClick={handleSyncToInvoice}
                 className={cn(
-                  'text-xs gap-1.5 transition-all cursor-pointer h-7',
+                  'text-xs gap-1.5 transition-all cursor-pointer h-7 font-semibold shadow-xs',
                   syncSuccess
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'hover:bg-primary/5'
+                    ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
                 )}
-                title="Update the quotation line item quantity to match placed valid panels"
+                title="Update the quotation line item quantity in Items tab to match placed valid panels"
               >
                 {syncSuccess ? (
                   <>
-                    <CheckCircle2 className="size-3" />
-                    <span>Updated ({metrics.validPanelsCount} pcs)</span>
+                    <CheckCircle2 className="size-3.5 animate-bounce" />
+                    <span>Updated BoQ!</span>
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="size-3 text-blue-600" />
-                    <span>Sync to Invoice ({metrics.validPanelsCount} pcs)</span>
+                    <RefreshCw className="size-3.5" />
+                    <span>Sync to BoQ ({metrics.validPanelsCount} pcs)</span>
                   </>
                 )}
               </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Lower Row: 3-Column Engineering Metrics Widget */}
+        <div className="grid grid-cols-3 gap-2 bg-muted/40 p-2 rounded-lg border border-border/60 items-center">
+          {/* Metric 1: Panels Placed */}
+          <div className="flex flex-col pl-1 sm:pl-2">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Panels Placed
+            </span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-base sm:text-lg font-bold font-mono text-foreground">
+                {metrics.validPanelsCount}
+              </span>
+              {activePanelInfo.quantity > 0 && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  / {activePanelInfo.quantity}
+                </span>
+              )}
+              {activePanelInfo.quantity > 0 && metrics.validPanelsCount === activePanelInfo.quantity && (
+                <span className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded ml-1">
+                  ✓ Matched
+                </span>
+              )}
+              {metrics.invalidPanelsCount > 0 && (
+                <span className="text-[10px] text-rose-500 font-medium ml-0.5" title="Panels outside roof boundary">
+                  (+{metrics.invalidPanelsCount})
+                </span>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Metric 2: Array Output kWp */}
+          <div className="flex flex-col border-x border-border/60 px-2 sm:px-4">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Array Output
+            </span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-base sm:text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
+                {metrics.totalCapacityKwp.toFixed(2)}
+              </span>
+              <span className="text-[11px] text-muted-foreground font-medium">kWp</span>
+            </div>
+          </div>
+
+          {/* Metric 3: Roof Area & Coverage */}
+          <div className="flex flex-col pr-1 sm:pr-2">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Roof Coverage
+            </span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-sm sm:text-base font-bold font-mono text-foreground">
+                {metrics.panelsTotalAreaM2.toFixed(1)}m²
+              </span>
+              {metrics.roofPolygonAreaM2 > 0 && (
+                <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  ({metrics.utilizationRatePercent.toFixed(0)}%)
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
