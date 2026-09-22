@@ -36,7 +36,7 @@ export interface ScaleCalibration {
   isCalibrated: boolean
 }
 
-export type RoofTool = 'select' | 'pen' | 'scale' | 'pan'
+export type RoofTool = 'select' | 'pen' | 'rect' | 'scale' | 'pan'
 
 export interface RoofViewport {
   zoom: number

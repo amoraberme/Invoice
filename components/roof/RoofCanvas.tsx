@@ -17,9 +17,11 @@ import {
   getAdjacentSnapPosition,
   getDistance,
   calculatePolygonAreaM2,
+  getPolygonCentroid,
 } from '@/utils/geometry'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, RotateCw, Trash2, Upload, Move, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface RoofCanvasProps {
   backgroundImageUrl: string | null
@@ -31,6 +33,7 @@ interface RoofCanvasProps {
   scale: ScaleCalibration
   onUpdateScale: (scale: ScaleCalibration) => void
   activeTool: RoofTool
+  onSelectTool?: (tool: RoofTool) => void
   panelDimensions: PanelDimensions
   orientation: PanelOrientation
   interPanelGapMm: number
@@ -50,6 +53,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   scale,
   onUpdateScale,
   activeTool,
+  onSelectTool,
   panelDimensions,
   orientation,
   interPanelGapMm,
@@ -77,6 +81,11 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 })
   const isSpacePressedRef = useRef(false)
+
+  // Rect Tool & Whole Polygon Drag State
+  const [rectStart, setRectStart] = useState<Point | null>(null)
+  const [isDraggingPolygon, setIsDraggingPolygon] = useState(false)
+  const [polyDragStart, setPolyDragStart] = useState<Point>({ x: 0, y: 0 })
 
   // Track image load
   useEffect(() => {
@@ -221,6 +230,12 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
+    // Mode: Rect Tool (Draw Roof Box by dragging)
+    if (activeTool === 'rect') {
+      setRectStart(canvasPt)
+      return
+    }
+
     // Mode: Scale Calibration
     if (activeTool === 'scale') {
       if (!scaleTempStart) {
@@ -240,25 +255,30 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
 
     // Mode: Pen Tool (Polygon Boundary Tracing)
     if (activeTool === 'pen') {
-      const snapRadius = 16 / viewport.zoom
+      const snapRadius = 18 / viewport.zoom
 
-      if (!polygon.isClosed) {
-        // If clicking near first point, close the polygon
-        if (polygon.points.length >= 3) {
-          const firstPoint = polygon.points[0]
-          if (getDistance(canvasPt, firstPoint) <= snapRadius) {
-            const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
-            onUpdatePolygon(closedPoly)
-            onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
-            return
-          }
-        }
-
-        // Otherwise append new vertex
-        const newPoints = [...polygon.points, canvasPt]
-        onUpdatePolygon({ ...polygon, points: newPoints })
+      if (polygon.isClosed) {
+        // Automatically start fresh polygon
+        onUpdatePolygon({ points: [canvasPt], isClosed: false })
         return
       }
+
+      // If clicking near first point, close the polygon
+      if (polygon.points.length >= 3) {
+        const firstPoint = polygon.points[0]
+        if (getDistance(canvasPt, firstPoint) <= snapRadius) {
+          const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
+          onUpdatePolygon(closedPoly)
+          onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
+          if (onSelectTool) onSelectTool('select')
+          return
+        }
+      }
+
+      // Otherwise append new vertex
+      const newPoints = [...polygon.points, canvasPt]
+      onUpdatePolygon({ ...polygon, points: newPoints })
+      return
     }
   }
 
@@ -274,6 +294,21 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         panX: e.clientX - panStart.x,
         panY: e.clientY - panStart.y,
       })
+      return
+    }
+
+    // Handle whole polygon dragging
+    if (isDraggingPolygon && polygon.points.length > 0) {
+      const dx = canvasPt.x - polyDragStart.x
+      const dy = canvasPt.y - polyDragStart.y
+      setPolyDragStart(canvasPt)
+
+      const updatedPoints = polygon.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+      const updatedPoly = { ...polygon, points: updatedPoints }
+      onUpdatePolygon(updatedPoly)
+
+      const updatedPanels = placedPanels.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy }))
+      onUpdatePanels(recheckAllPanelsValidity(updatedPoly, updatedPanels))
       return
     }
 
@@ -337,6 +372,29 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setIsPanning(false)
     setDraggingVertexIdx(null)
     setDraggingPanelId(null)
+    setIsDraggingPolygon(false)
+
+    // Complete Rect tool drag
+    if (activeTool === 'rect' && rectStart && cursorPos) {
+      const minX = Math.min(rectStart.x, cursorPos.x)
+      const maxX = Math.max(rectStart.x, cursorPos.x)
+      const minY = Math.min(rectStart.y, cursorPos.y)
+      const maxY = Math.max(rectStart.y, cursorPos.y)
+
+      if (maxX - minX > 20 && maxY - minY > 20) {
+        const newPoints = [
+          { x: minX, y: minY },
+          { x: maxX, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY },
+        ]
+        const closedPoly: RoofPolygon = { points: newPoints, isClosed: true }
+        onUpdatePolygon(closedPoly)
+        onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
+        if (onSelectTool) onSelectTool('select')
+      }
+      setRectStart(null)
+    }
   }
 
   // Panel drag start
@@ -422,11 +480,43 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setPendingScalePoints(null)
   }
 
-  // Keyboard shortcut support (Delete / Backspace to delete selected panel, Space for pan)
+  // Double-click to close active polygon
+  const handleDoubleClick = () => {
+    if (!polygon.isClosed && polygon.points.length >= 3) {
+      const closedPoly = { ...polygon, isClosed: true }
+      onUpdatePolygon(closedPoly)
+      onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
+      if (onSelectTool) onSelectTool('select')
+    }
+  }
+
+  // Keyboard shortcut support (Delete / Backspace to delete selected panel, Space for pan, Enter to close polygon)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger tool shortcuts if user is typing in an input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return
+      }
+
       if (e.code === 'Space') {
         isSpacePressedRef.current = true
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        if (onSelectTool) onSelectTool('rect')
+      } else if (e.key === 'p' || e.key === 'P') {
+        if (onSelectTool) onSelectTool('pen')
+      } else if (e.key === 'v' || e.key === 'V') {
+        if (onSelectTool) onSelectTool('select')
+      } else if (e.key === 's' || e.key === 'S') {
+        if (onSelectTool) onSelectTool('scale')
+      } else if (e.key === 'h' || e.key === 'H') {
+        if (onSelectTool) onSelectTool('pan')
+      }
+      if (e.key === 'Enter' && !polygon.isClosed && polygon.points.length >= 3) {
+        const closedPoly = { ...polygon, isClosed: true }
+        onUpdatePolygon(closedPoly)
+        onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
+        if (onSelectTool) onSelectTool('select')
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPanelId) {
         onUpdatePanels(placedPanels.filter((p) => p.id !== selectedPanelId))
@@ -444,7 +534,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedPanelId, placedPanels, onUpdatePanels])
+  }, [selectedPanelId, placedPanels, onUpdatePanels, polygon, recheckAllPanelsValidity, onUpdatePolygon, onSelectTool])
 
   return (
     <div
@@ -454,15 +544,16 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
       className="relative w-full h-full min-h-[480px] flex-1 bg-zinc-950 overflow-hidden select-none cursor-crosshair"
       style={{
         cursor:
           activeTool === 'pan' || isPanning
             ? 'grab'
-            : activeTool === 'pen'
+            : activeTool === 'pen' || activeTool === 'rect' || activeTool === 'scale'
             ? 'crosshair'
-            : activeTool === 'scale'
-            ? 'crosshair'
+            : isDraggingPolygon
+            ? 'move'
             : 'default',
       }}
     >
@@ -529,19 +620,63 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             </pattern>
           </defs>
 
+          {/* Active Rect Tool Drag Preview */}
+          {activeTool === 'rect' && rectStart && cursorPos && (
+            <g className="roof-rect-drag-preview pointer-events-none">
+              <rect
+                x={Math.min(rectStart.x, cursorPos.x)}
+                y={Math.min(rectStart.y, cursorPos.y)}
+                width={Math.abs(cursorPos.x - rectStart.x)}
+                height={Math.abs(cursorPos.y - rectStart.y)}
+                fill="rgba(59, 130, 246, 0.22)"
+                stroke="#3b82f6"
+                strokeWidth="2.5"
+                strokeDasharray="6,4"
+              />
+              <g transform={`translate(${(rectStart.x + cursorPos.x) / 2}, ${(rectStart.y + cursorPos.y) / 2})`}>
+                <rect x="-46" y="-12" width="92" height="24" rx="5" fill="#18181b" stroke="#3b82f6" strokeWidth="1" />
+                <text x="0" y="4" fill="#60a5fa" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                  {(Math.abs(cursorPos.x - rectStart.x) / scale.pixelsPerMeter).toFixed(1)}m × {(Math.abs(cursorPos.y - rectStart.y) / scale.pixelsPerMeter).toFixed(1)}m
+                </text>
+              </g>
+            </g>
+          )}
+
           {/* Traced Roof Polygon Layer */}
           {polygon.points.length > 0 && (
             <g className="roof-polygon-layer">
               {polygon.isClosed ? (
                 /* Closed Polygon Boundary */
-                <polygon
-                  points={polygon.points.map((p) => `${p.x},${p.y}`).join(' ')}
-                  fill="rgba(37, 99, 235, 0.14)"
-                  stroke="#3b82f6"
-                  strokeWidth="3"
-                  strokeLinejoin="round"
-                  className="filter drop-shadow-sm"
-                />
+                <>
+                  <polygon
+                    points={polygon.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                    fill="rgba(37, 99, 235, 0.16)"
+                    stroke="#3b82f6"
+                    strokeWidth="3"
+                    strokeLinejoin="round"
+                    className={cn('filter drop-shadow-sm', activeTool === 'select' ? 'cursor-move' : '')}
+                    onPointerDown={(e) => {
+                      if (activeTool === 'select') {
+                        e.stopPropagation()
+                        const canvasPt = screenToCanvas(e.clientX, e.clientY)
+                        setIsDraggingPolygon(true)
+                        setPolyDragStart(canvasPt)
+                      }
+                    }}
+                  />
+                  {/* Center Move Handle in Select Mode */}
+                  {activeTool === 'select' && (
+                    <g
+                      transform={`translate(${getPolygonCentroid(polygon.points).x}, ${getPolygonCentroid(polygon.points).y})`}
+                      className="cursor-move pointer-events-none"
+                    >
+                      <rect x="-45" y="-11" width="90" height="22" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="1" fillOpacity="0.9" />
+                      <text x="0" y="3.5" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle">
+                        ✜ Move Roof
+                      </text>
+                    </g>
+                  )}
+                </>
               ) : (
                 /* Active Drawing Path */
                 <>

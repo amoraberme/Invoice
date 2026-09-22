@@ -51,6 +51,8 @@ interface RoofControlsProps {
   onOpenRoofSizeModal: () => void
   onPlaceBoqPanels: () => void
   targetBoqCount: number
+  isDrawingPolygon?: boolean
+  onClosePolygon?: () => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -80,13 +82,15 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onOpenRoofSizeModal,
   onPlaceBoqPanels,
   targetBoqCount,
+  isDrawingPolygon,
+  onClosePolygon,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
   const opacityPercent = Math.round(clampedOpacity * 100)
 
   return (
-    <div className="w-full bg-card border-b border-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 select-none shrink-0">
+    <div className="w-full bg-card border-b border-border px-4 py-2 flex flex-wrap items-center justify-between gap-2 select-none shrink-0">
       {/* Group 1: Primary Tools & Dimensions */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Tool Selector Bar */}
@@ -108,6 +112,21 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
 
           <button
             type="button"
+            onClick={() => onSelectTool('rect')}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer',
+              activeTool === 'rect'
+                ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+            )}
+            title="Draw Roof Box: Click and drag directly over the roof plane on photo (R)"
+          >
+            <Maximize2 className="size-3.5" />
+            <span>Draw Roof Box</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => onSelectTool('pen')}
             className={cn(
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer',
@@ -115,11 +134,24 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
                 ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
             )}
-            title="Pen Tool: Click vertices to trace roof perimeter (P)"
+            title="Pen Tool: Click vertices to trace arbitrary roof perimeter (P)"
           >
             <PenTool className="size-3.5" />
-            <span>Trace Boundary</span>
+            <span>Trace Polygon</span>
           </button>
+
+          {/* Close Boundary Button while Pen tool is actively drawing points */}
+          {isDrawingPolygon && (
+            <button
+              type="button"
+              onClick={onClosePolygon}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white shadow-xs hover:bg-emerald-700 transition-colors animate-pulse cursor-pointer"
+              title="Click or press Enter/Double-click to close roof polygon"
+            >
+              <CheckCircle2 className="size-3.5" />
+              <span>Close Boundary</span>
+            </button>
+          )}
 
           <button
             type="button"

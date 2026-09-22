@@ -52,22 +52,37 @@ const STORAGE_KEY = 'mg_invoice_roof_layout_v2'
 const DEFAULT_PANEL_DIMS: PanelDimensions = {
   lengthMm: 2278,
   widthMm: 1134,
-  wattage: 620,
-  modelName: 'Standard 620W N-Type Panel',
+  wattage: 625,
+  modelName: 'Tongwei Panel 625W (7.82ft x 3.72ft)',
 }
 
-const INITIAL_SCALE: ScaleCalibration = {
-  pointA: null,
-  pointB: null,
-  realWorldDistanceMeters: 5.0,
-  pixelsPerMeter: 50.0, // Default 50 pixels per meter
-  isCalibrated: false,
+export const DEFAULT_AERIAL_IMAGE = '/roof-aerial-default.webp'
+
+// Calibrated to the ~4.8m SUV in the driveway of roof-aerial-default.webp (1024x576)
+export const DEFAULT_SCALE: ScaleCalibration = {
+  pointA: { x: 740, y: 440 },
+  pointB: { x: 890, y: 520 },
+  realWorldDistanceMeters: 4.8,
+  pixelsPerMeter: 35.0,
+  isCalibrated: true,
 }
+
+// Front / south-facing roof plane of the residential hip roof in roof-aerial-default.webp
+export const DEFAULT_ROOF_POINTS: Point[] = [
+  { x: 360, y: 260 },
+  { x: 660, y: 260 },
+  { x: 695, y: 400 },
+  { x: 325, y: 400 },
+]
+
+export const DEFAULT_ROOF_CENTER: Point = { x: 510, y: 330 }
+
+const INITIAL_SCALE: ScaleCalibration = DEFAULT_SCALE
 
 const INITIAL_VIEWPORT: RoofViewport = {
   zoom: 1.0,
   panX: 80,
-  panY: 60,
+  panY: 40,
 }
 
 export const RoofTab: React.FC<RoofTabProps> = ({
@@ -78,51 +93,86 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   // 1. Selected Panel State Linkage: Read active panel and BoQ quantity from Items tab state
   const activePanelInfo = useMemo(() => {
     const items = invoice.lineItems || []
-    const panelItem = items.find((it) => {
+    
+    // Find all panel items in BoQ
+    const panelItems = items.filter((it) => {
       const desc = (it?.description || '').toLowerCase()
-      return desc.includes('panel') || desc.includes('module')
+      return (
+        desc.includes('panel') ||
+        desc.includes('module') ||
+        desc.includes('tongwei') ||
+        desc.includes('ja solar') ||
+        desc.includes('jinko') ||
+        desc.includes('longi') ||
+        desc.includes('pv module') ||
+        desc.includes('solar panel')
+      )
     })
 
-    if (!panelItem) {
-      return {
-        found: false,
-        panelItem: null,
-        dimensions: DEFAULT_PANEL_DIMS,
-        quantity: 0,
+    const panelItem = panelItems[0] || null
+    let totalQty = panelItems.reduce((sum, it) => sum + (it.quantity || 0), 0)
+
+    // Smart fallback if panel quantity is 0: inspect inverter kW or package notes
+    if (totalQty === 0) {
+      const inverterItem = items.find((it) => {
+        const desc = (it?.description || '').toLowerCase()
+        return (
+          desc.includes('inverter') ||
+          desc.includes('solis') ||
+          desc.includes('goodwe') ||
+          desc.includes('deye') ||
+          desc.includes('anern') ||
+          desc.includes('growatt')
+        )
+      })
+      if (inverterItem) {
+        const match = inverterItem.description.match(/(\d+(?:\.\d+)?)\s*kw/i)
+        if (match) {
+          const kw = parseFloat(match[1])
+          if (kw === 4) totalQty = 6
+          else if (kw === 3) totalQty = 5
+          else if (kw === 5) totalQty = 8
+          else if (kw === 6) totalQty = 10
+          else if (kw === 8) totalQty = 14
+          else if (kw === 10) totalQty = 18
+          else totalQty = Math.round((kw * 1000) / 625)
+        }
       }
     }
 
-    const desc = panelItem.description
+    // Default to 6 modules for 4kW setup if still 0
+    const finalQuantity = totalQty > 0 ? totalQty : 6
+    const desc = panelItem?.description || 'Tongwei Panel 625W (7.82ft x 3.72ft)'
     const wattMatch = desc.match(/(\d{3,4})\s*w/i)
     const wattage = wattMatch ? parseInt(wattMatch[1], 10) : 625
 
-    // Standard panel dimensions
+    // Standard physical panel dimensions
     const isLargeFormat = wattage >= 720
     const lengthMm = isLargeFormat ? 2384 : 2278
     const widthMm = isLargeFormat ? 1303 : 1134
 
     return {
-      found: true,
+      found: panelItems.length > 0 || totalQty > 0,
       panelItem,
       dimensions: {
         lengthMm,
         widthMm,
         wattage,
-        modelName: panelItem.description || `${wattage}W Solar Panel`,
+        modelName: desc,
       },
-      quantity: panelItem.quantity || 0,
+      quantity: finalQuantity,
     }
   }, [invoice.lineItems])
 
   // Roof state
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null)
-  // Strict Opacity Clamping: 20% (0.2) to 80% (0.8), default 50% (0.5)
-  const [imageOpacity, setImageOpacity] = useState<number>(0.5)
-  const [polygon, setPolygon] = useState<RoofPolygon>({ points: [], isClosed: false })
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(DEFAULT_AERIAL_IMAGE)
+  // Strict Opacity Clamping: 20% (0.2) to 80% (0.8), default 60% (0.6)
+  const [imageOpacity, setImageOpacity] = useState<number>(0.6)
+  const [polygon, setPolygon] = useState<RoofPolygon>({ points: DEFAULT_ROOF_POINTS, isClosed: true })
   const [placedPanels, setPlacedPanels] = useState<PlacedPanel[]>([])
-  const [scale, setScale] = useState<ScaleCalibration>(INITIAL_SCALE)
+  const [scale, setScale] = useState<ScaleCalibration>(DEFAULT_SCALE)
   const [activeTool, setActiveTool] = useState<RoofTool>('select')
-  const [orientation, setOrientation] = useState<PanelOrientation>('portrait')
+  const [orientation, setOrientation] = useState<PanelOrientation>('landscape')
   const [interPanelGapMm, setInterPanelGapMm] = useState<number>(20) // 20mm standard clamp gap
   const [viewport, setViewport] = useState<RoofViewport>(INITIAL_VIEWPORT)
   const [syncSuccess, setSyncSuccess] = useState(false)
@@ -138,45 +188,59 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
+      let loadedImage = DEFAULT_AERIAL_IMAGE
+      let loadedOpacity = 0.6
+      let loadedPoly: RoofPolygon = { points: DEFAULT_ROOF_POINTS, isClosed: true }
+      let loadedPanels: PlacedPanel[] = []
+      let loadedScale: ScaleCalibration = DEFAULT_SCALE
+      let loadedOrientation: PanelOrientation = 'landscape'
+
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (parsed.backgroundImageUrl) setBackgroundImageUrl(parsed.backgroundImageUrl)
+        if (parsed.backgroundImageUrl) loadedImage = parsed.backgroundImageUrl
         if (typeof parsed.imageOpacity === 'number') {
-          setImageOpacity(Math.min(0.8, Math.max(0.2, parsed.imageOpacity)))
+          loadedOpacity = Math.min(0.8, Math.max(0.2, parsed.imageOpacity))
         }
-        if (parsed.polygon && Array.isArray(parsed.polygon.points)) {
-          setPolygon(parsed.polygon)
+        if (
+          parsed.polygon &&
+          Array.isArray(parsed.polygon.points) &&
+          parsed.polygon.points.length >= 3 &&
+          parsed.polygon.isClosed
+        ) {
+          loadedPoly = parsed.polygon
         }
-        if (Array.isArray(parsed.placedPanels)) {
-          setPlacedPanels(parsed.placedPanels)
+        if (Array.isArray(parsed.placedPanels) && parsed.placedPanels.length > 0) {
+          loadedPanels = parsed.placedPanels
         }
-        if (parsed.scale && parsed.scale.pixelsPerMeter) {
-          setScale(parsed.scale)
+        if (parsed.scale && parsed.scale.pixelsPerMeter && parsed.scale.isCalibrated) {
+          loadedScale = parsed.scale
         }
         if (parsed.orientation) {
-          setOrientation(parsed.orientation)
+          loadedOrientation = parsed.orientation
         }
-      } else if (activePanelInfo.quantity > 0) {
-        // First time initialization: auto-generate standard roof and place BoQ panels
-        const targetCount = activePanelInfo.quantity
-        const widthM = targetCount <= 6 ? 7.5 : targetCount <= 12 ? 10.0 : 13.0
-        const lengthM = targetCount <= 6 ? 5.0 : targetCount <= 12 ? 6.5 : 8.0
-        const centerPt = { x: 700, y: 500 }
-        const points = createRectangularRoofPolygon(widthM, lengthM, centerPt, 50)
-        const initialPoly = { points, isClosed: true }
-        setPolygon(initialPoly)
-        const panels = generateTargetBoqPanels(
-          points,
+      }
+
+      // If no panels loaded yet (or empty in storage), auto-seed the BoQ modules (e.g. 6 panels for 4kW)
+      const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
+      if (loadedPanels.length === 0) {
+        loadedPanels = generateTargetBoqPanels(
+          loadedPoly.points,
           activePanelInfo.dimensions,
           targetCount,
-          'portrait',
-          50,
+          loadedOrientation,
+          loadedScale.pixelsPerMeter,
           20,
-          centerPt
+          DEFAULT_ROOF_CENTER
         )
-        setPlacedPanels(panels)
-        setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 150)
       }
+
+      setBackgroundImageUrl(loadedImage)
+      setImageOpacity(loadedOpacity)
+      setPolygon(loadedPoly)
+      setPlacedPanels(loadedPanels)
+      setScale(loadedScale)
+      setOrientation(loadedOrientation)
+      setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 100)
     } catch (e) {
       console.error('Failed to load roof layout state', e)
     }
@@ -248,7 +312,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   // Place BoQ Target Panels (e.g. exactly 6 panels for 4kW setup)
   const handlePlaceBoqPanels = useCallback(() => {
     const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
-    const pxPerMeter = scale.pixelsPerMeter || 50
+    const pxPerMeter = scale.pixelsPerMeter || 35
+    const centerPt = backgroundImageUrl ? DEFAULT_ROOF_CENTER : { x: 700, y: 500 }
 
     // Case 1: Polygon already exists
     if (polygon.isClosed && polygon.points.length >= 3) {
@@ -258,7 +323,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         targetCount,
         orientation,
         pxPerMeter,
-        interPanelGapMm
+        interPanelGapMm,
+        centerPt
       )
       setPlacedPanels(panels)
       setActiveTool('select')
@@ -267,10 +333,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     }
 
     // Case 2: No polygon yet -> create standard roof plane and place panels
-    const widthM = targetCount <= 6 ? 7.5 : targetCount <= 12 ? 10.0 : 13.0
-    const lengthM = targetCount <= 6 ? 5.0 : targetCount <= 12 ? 6.5 : 8.0
-    const centerPt = { x: 700, y: 500 }
-    const points = createRectangularRoofPolygon(widthM, lengthM, centerPt, pxPerMeter)
+    const points = DEFAULT_ROOF_POINTS
     const newPoly: RoofPolygon = { points, isClosed: true }
     setPolygon(newPoly)
 
@@ -293,21 +356,23 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     scale.pixelsPerMeter,
     orientation,
     interPanelGapMm,
+    backgroundImageUrl,
   ])
 
   // Apply user-defined Roof Dimensions from RoofSizeModal (meters, feet, or sqm)
   const handleApplyRoofSize = (widthM: number, lengthM: number, autoPlaceBoq: boolean) => {
-    const pxPerMeter = scale.pixelsPerMeter || 50
-    const centerPt = { x: 700, y: 500 }
+    const pxPerMeter = scale.pixelsPerMeter || 35
+    const centerPt = backgroundImageUrl ? DEFAULT_ROOF_CENTER : { x: 700, y: 500 }
     const points = createRectangularRoofPolygon(widthM, lengthM, centerPt, pxPerMeter)
     const newPoly: RoofPolygon = { points, isClosed: true }
     setPolygon(newPoly)
 
-    if (autoPlaceBoq && activePanelInfo.quantity > 0) {
+    if (autoPlaceBoq) {
+      const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
       const panels = generateTargetBoqPanels(
         points,
         activePanelInfo.dimensions,
-        activePanelInfo.quantity,
+        targetCount,
         orientation,
         pxPerMeter,
         interPanelGapMm,
@@ -730,6 +795,20 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         onOpenRoofSizeModal={() => setRoofSizeModalOpen(true)}
         onPlaceBoqPanels={handlePlaceBoqPanels}
         targetBoqCount={activePanelInfo.quantity}
+        isDrawingPolygon={!polygon.isClosed && polygon.points.length >= 3}
+        onClosePolygon={() => {
+          if (!polygon.isClosed && polygon.points.length >= 3) {
+            const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
+            setPolygon(closedPoly)
+            setPlacedPanels((prev) =>
+              prev.map((p) => ({
+                ...p,
+                isValid: isPanelInsidePolygon(p, closedPoly.points),
+              }))
+            )
+            setActiveTool('select')
+          }
+        }}
       />
 
       {/* Main Canvas Viewport (Fills 100% remaining space) */}
@@ -744,6 +823,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           scale={scale}
           onUpdateScale={setScale}
           activeTool={activeTool}
+          onSelectTool={setActiveTool}
           panelDimensions={activePanelInfo.dimensions}
           orientation={orientation}
           interPanelGapMm={interPanelGapMm}
@@ -757,6 +837,10 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       {/* Helpful Keyboard & Interaction Guide Footer */}
       <div className="border-t border-border px-4 py-1.5 bg-muted/30 flex flex-wrap items-center justify-between text-[11px] text-muted-foreground gap-2 shrink-0">
         <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">R</kbd>
+            Draw Roof Box
+          </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">P</kbd>
             Trace Boundary
