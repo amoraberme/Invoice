@@ -21,6 +21,9 @@ import {
   Maximize,
   Grid,
   Magnet,
+  Lock,
+  Unlock,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RoofTool, PanelOrientation } from '@/types/roof'
@@ -59,6 +62,9 @@ interface RoofControlsProps {
   onToggleFullscreen?: () => void
   enableSnapping?: boolean
   onToggleSnapping?: () => void
+  isRoofLocked?: boolean
+  onToggleRoofLock?: () => void
+  onDownloadLayout?: () => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -94,6 +100,9 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onToggleFullscreen,
   enableSnapping = true,
   onToggleSnapping,
+  isRoofLocked = true,
+  onToggleRoofLock,
+  onDownloadLayout,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -234,6 +243,28 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
               <span>{enableSnapping ? 'Snap: ON' : 'Snap: OFF'}</span>
             </button>
           )}
+
+          {/* Roof Lock / Unlock Toggle */}
+          {hasBoundary && onToggleRoofLock && (
+            <button
+              type="button"
+              onClick={onToggleRoofLock}
+              className={cn(
+                'flex items-center gap-1 px-2 h-7 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 border',
+                isRoofLocked
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-semibold shadow-2xs hover:bg-amber-500/20'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold shadow-2xs hover:bg-emerald-500/20'
+              )}
+              title={
+                isRoofLocked
+                  ? 'Roof boundary is LOCKED (prevents moving roof while dragging panels). Click to Unlock.'
+                  : 'Roof boundary is UNLOCKED (vertices & center can be edited). Click to Lock.'
+              }
+            >
+              {isRoofLocked ? <Lock className="size-3.5 text-amber-500" /> : <Unlock className="size-3.5 text-emerald-500" />}
+              <span>{isRoofLocked ? 'Locked' : 'Unlocked'}</span>
+            </button>
+          )}
         </div>
 
         {/* Right: Array Actions */}
@@ -292,6 +323,21 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
             <RotateCw className="size-3.5 text-muted-foreground" />
             <span className="capitalize">{orientation}</span>
           </Button>
+
+          {/* Download Layout Plan */}
+          {onDownloadLayout && (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={onDownloadLayout}
+              className="h-7 text-xs gap-1 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 font-medium shrink-0 cursor-pointer shadow-2xs"
+              title="Download high-resolution PNG architectural solar plan"
+            >
+              <Download className="size-3.5" />
+              <span className="hidden sm:inline">Download</span>
+            </Button>
+          )}
         </div>
       </div>
 

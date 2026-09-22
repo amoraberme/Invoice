@@ -56,6 +56,7 @@ export interface RoofState {
   defaultOrientation: PanelOrientation
   viewport: RoofViewport
   enableSnapping?: boolean
+  isRoofLocked?: boolean
 }
 
 export interface RoofMetrics {

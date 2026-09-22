@@ -20,6 +20,7 @@ import {
   generateTargetBoqPanels,
   sqmToSqft,
 } from '@/utils/geometry'
+import { downloadRoofLayoutPng } from '@/utils/roofExport'
 import { RoofCanvas } from './RoofCanvas'
 import { RoofControls } from './RoofControls'
 import { RoofSizeModal } from './RoofSizeModal'
@@ -39,6 +40,7 @@ import {
   Grid,
   Ruler,
   X,
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -194,6 +196,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [orientation, setOrientation] = useState<PanelOrientation>('landscape')
   const [interPanelGapMm, setInterPanelGapMm] = useState<number>(20) // 20mm standard clamp gap
   const [enableSnapping, setEnableSnapping] = useState<boolean>(true)
+  const [isRoofLocked, setIsRoofLocked] = useState<boolean>(true)
   const [viewport, setViewport] = useState<RoofViewport>(INITIAL_VIEWPORT)
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
@@ -216,6 +219,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       let loadedScale: ScaleCalibration = DEFAULT_SCALE
       let loadedOrientation: PanelOrientation = 'landscape'
       let loadedSnapping = true
+      let loadedRoofLocked = true
 
       if (saved) {
         const parsed = JSON.parse(saved)
@@ -243,6 +247,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         if (typeof parsed.enableSnapping === 'boolean') {
           loadedSnapping = parsed.enableSnapping
         }
+        if (typeof parsed.isRoofLocked === 'boolean') {
+          loadedRoofLocked = parsed.isRoofLocked
+        }
       }
 
       // If no panels loaded yet (or empty in storage), auto-seed the BoQ modules (e.g. 6 panels for 4kW)
@@ -266,6 +273,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       setScale(loadedScale)
       setOrientation(loadedOrientation)
       setEnableSnapping(loadedSnapping)
+      setIsRoofLocked(loadedRoofLocked)
       setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 100)
     } catch (e) {
       console.error('Failed to load roof layout state', e)
@@ -283,12 +291,13 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         scale,
         orientation,
         enableSnapping,
+        isRoofLocked,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
     } catch (e) {
       console.warn('Could not persist roof layout state', e)
     }
-  }, [backgroundImageUrl, imageOpacity, polygon, placedPanels, scale, orientation, enableSnapping])
+  }, [backgroundImageUrl, imageOpacity, polygon, placedPanels, scale, orientation, enableSnapping, isRoofLocked])
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -535,6 +544,25 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     }
   }, [placedPanels, activePanelInfo, polygon, scale.pixelsPerMeter, targetBoqKwp])
 
+  // Download high-resolution architectural layout plan
+  const handleDownloadPlan = async () => {
+    try {
+      await downloadRoofLayoutPng({
+        polygon,
+        placedPanels,
+        scale,
+        panelDimensions: activePanelInfo.dimensions,
+        backgroundImageUrl,
+        imageOpacity,
+        metrics,
+        projectName: invoice.invoiceNumber ? `Quotation #${invoice.invoiceNumber}` : 'Solar PV Array Layout',
+      })
+    } catch (err) {
+      console.error('Failed to export layout image', err)
+      alert('Could not export layout image. Please try again.')
+    }
+  }
+
   // Synchronize placed valid panels count back to the Items Tab
   const handleSyncToInvoice = () => {
     if (metrics.validPanelsCount <= 0) return
@@ -641,6 +669,20 @@ export const RoofTab: React.FC<RoofTabProps> = ({
               <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Photo' : 'Upload Photo'}</span>
               <span className="sm:hidden">Photo</span>
             </button>
+
+            {/* Download Plan CTA */}
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={handleDownloadPlan}
+              className="h-7 px-2.5 text-xs border-border/80 hover:bg-muted text-foreground flex items-center gap-1.5 cursor-pointer shadow-2xs font-medium"
+              title="Download high-resolution architectural solar plan (PNG)"
+            >
+              <Download className="size-3 text-blue-500" />
+              <span className="hidden sm:inline">Download Plan</span>
+              <span className="sm:hidden">Download</span>
+            </Button>
 
             {metrics.validPanelsCount > 0 && (
               <Button
@@ -796,6 +838,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
         enableSnapping={enableSnapping}
         onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+        isRoofLocked={isRoofLocked}
+        onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+        onDownloadLayout={handleDownloadPlan}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
@@ -842,6 +887,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           centerFitTrigger={centerFitTrigger}
           enableSnapping={enableSnapping}
           onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+          isRoofLocked={isRoofLocked}
+          onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
         />
       </div>
 

@@ -43,6 +43,8 @@ interface RoofCanvasProps {
   centerFitTrigger?: number
   enableSnapping?: boolean
   onToggleSnapping?: () => void
+  isRoofLocked?: boolean
+  onToggleRoofLock?: () => void
 }
 
 export const RoofCanvas: React.FC<RoofCanvasProps> = ({
@@ -65,6 +67,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   centerFitTrigger,
   enableSnapping = true,
   onToggleSnapping,
+  isRoofLocked = true,
+  onToggleRoofLock,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -262,6 +266,14 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       const snapRadius = 18 / viewport.zoom
 
       if (polygon.isClosed) {
+        if (isRoofLocked) {
+          alert('Roof boundary is locked. Click "Unlock" in the toolbar to redraw or modify the roof boundary.')
+          return
+        }
+        if (polygon.points.length >= 3) {
+          const ok = window.confirm('Start drawing a new roof boundary? This will replace the current boundary.')
+          if (!ok) return
+        }
         // Automatically start fresh polygon
         onUpdatePolygon({ points: [canvasPt], isClosed: false })
         return
@@ -386,7 +398,12 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   }
 
   // Pointer Up (Release vertex, panel, or pan)
-  const handlePointerUp = () => {
+  const handlePointerUp = (e?: React.PointerEvent) => {
+    if (e) {
+      try {
+        (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+      } catch (_) {}
+    }
     setIsPanning(false)
     setDraggingVertexIdx(null)
     setDraggingPanelId(null)
@@ -419,6 +436,9 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const handlePanelPointerDown = (panel: PlacedPanel, e: React.PointerEvent) => {
     if (activeTool !== 'select') return
     e.stopPropagation()
+    try {
+      (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
+    } catch (_) {}
     setSelectedPanelId(panel.id)
     setDraggingPanelId(panel.id)
     const canvasPt = screenToCanvas(e.clientX, e.clientY)
@@ -692,24 +712,22 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                     stroke="#3b82f6"
                     strokeWidth="3"
                     strokeLinejoin="round"
-                    className={cn('filter drop-shadow-sm', activeTool === 'select' ? 'cursor-move' : '')}
-                    onPointerDown={(e) => {
-                      if (activeTool === 'select') {
+                    className="filter drop-shadow-sm pointer-events-none"
+                  />
+                  {/* Explicit Center Move Handle in Select Mode (Only when UNLOCKED) */}
+                  {activeTool === 'select' && !isRoofLocked && (
+                    <g
+                      transform={`translate(${getPolygonCentroid(polygon.points).x}, ${getPolygonCentroid(polygon.points).y})`}
+                      className="cursor-move select-none"
+                      onPointerDown={(e) => {
                         e.stopPropagation()
                         const canvasPt = screenToCanvas(e.clientX, e.clientY)
                         setIsDraggingPolygon(true)
                         setPolyDragStart(canvasPt)
-                      }
-                    }}
-                  />
-                  {/* Center Move Handle in Select Mode */}
-                  {activeTool === 'select' && (
-                    <g
-                      transform={`translate(${getPolygonCentroid(polygon.points).x}, ${getPolygonCentroid(polygon.points).y})`}
-                      className="cursor-move pointer-events-none"
+                      }}
                     >
-                      <rect x="-45" y="-11" width="90" height="22" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="1" fillOpacity="0.9" />
-                      <text x="0" y="3.5" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle">
+                      <rect x="-48" y="-12" width="96" height="24" rx="5" fill="#0f172a" stroke="#38bdf8" strokeWidth="1.5" fillOpacity="0.95" className="filter drop-shadow-md" />
+                      <text x="0" y="4" fill="#38bdf8" fontSize="11" fontWeight="bold" textAnchor="middle">
                         ✜ Move Roof
                       </text>
                     </g>
@@ -785,6 +803,23 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                 const isFirst = idx === 0
                 const isHovered = hoveredPointIdx === idx
                 const canClose = !polygon.isClosed && isFirst && polygon.points.length >= 3
+
+                // If roof is closed and locked, render non-interactive subtle corner markers
+                if (polygon.isClosed && isRoofLocked) {
+                  return (
+                    <g key={`vertex-${idx}`} className="pointer-events-none">
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={4}
+                        fill="#3b82f6"
+                        stroke="#ffffff"
+                        strokeWidth="1.5"
+                        opacity="0.8"
+                      />
+                    </g>
+                  )
+                }
 
                 return (
                   <g
@@ -886,6 +921,12 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                   key={panel.id}
                   transform={`translate(${panel.x}, ${panel.y})`}
                   onPointerDown={(e) => handlePanelPointerDown(panel, e)}
+                  onPointerUp={(e) => {
+                    try {
+                      (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+                    } catch (_) {}
+                    setDraggingPanelId(null)
+                  }}
                   onClick={(e) => {
                     e.stopPropagation()
                     setSelectedPanelId(panel.id)
@@ -1077,6 +1118,27 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             Snap:{' '}
             <span className={cn('font-semibold', enableSnapping ? 'text-blue-400' : 'text-amber-300')}>
               {enableSnapping ? 'ON' : 'OFF'}
+            </span>
+          </div>
+        )}
+        <div className="w-px h-3 bg-zinc-700" />
+        {onToggleRoofLock ? (
+          <button
+            type="button"
+            onClick={onToggleRoofLock}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+            title="Click to toggle roof lock (prevent moving roof while dragging panels)"
+          >
+            <span>Roof:</span>
+            <span className={cn('font-semibold', isRoofLocked ? 'text-emerald-400' : 'text-amber-400')}>
+              {isRoofLocked ? 'Locked 🔒' : 'Unlocked 🔓'}
+            </span>
+          </button>
+        ) : (
+          <div>
+            Roof:{' '}
+            <span className={cn('font-semibold', isRoofLocked ? 'text-emerald-400' : 'text-amber-400')}>
+              {isRoofLocked ? 'Locked 🔒' : 'Unlocked 🔓'}
             </span>
           </div>
         )}
