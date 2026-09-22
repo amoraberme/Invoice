@@ -43,6 +43,13 @@ interface PageData {
   showBottom: boolean
   showCondensedScope?: boolean
   showCondensedWarranty?: boolean
+  showCondensedLifespan?: boolean
+}
+
+function getScopeBadgeDataUrl(letter: string): string {
+  const safeLetter = (letter || 'A').slice(0, 2)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="6" fill="%23111111"/><text x="18" y="20" fill="%23ffffff" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif">${safeLetter}</text></svg>`
+  return `data:image/svg+xml;utf8,${svg}`
 }
 
 export function MGInvoicePreview({ 
@@ -268,6 +275,7 @@ export function MGInvoicePreview({
           showBottom: false,
           showCondensedScope: true,
           showCondensedWarranty: true,
+          showCondensedLifespan: false,
         },
         {
           items: [],
@@ -276,6 +284,7 @@ export function MGInvoicePreview({
           showBottom: true,
           showCondensedScope: false,
           showCondensedWarranty: false,
+          showCondensedLifespan: true,
         }
       ]
     }
@@ -483,7 +492,13 @@ export function MGInvoicePreview({
             >
               {/* Invoice paper — fixed A4 proportion on screen, matches printed sheet exactly */}
               <div
-                style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+                style={{
+                  width: PAPER_W,
+                  height: PAPER_H,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                }}
                 className={cn("relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between", invoice.isCondensed ? "px-12 py-7" : "px-13 py-10")}
               >
                 <div>
@@ -596,11 +611,12 @@ export function MGInvoicePreview({
                   <div className="mb-2">
                     {/* Section 1: Structured Scope of Equipment & Works */}
                     {page.showCondensedScope && (
-                      <div className="mb-2">
-                        <div className="flex py-0.5 border-b-[1.5px] border-[#111111] mb-1.5">
-                          <span className="text-[9px] font-bold text-[#111111] tracking-[0.08em] uppercase">
+                      <div className="mb-3">
+                        <div className="mb-2">
+                          <div className="text-[9.5px] font-bold text-[#111111] tracking-[0.08em] uppercase leading-none">
                             Scope of Equipment & Works
-                          </span>
+                          </div>
+                          <div className="w-full h-[1.5px] bg-[#111111] mt-1.5 mb-2" />
                         </div>
 
                         {(() => {
@@ -631,24 +647,18 @@ export function MGInvoicePreview({
                             : defaultScopes
 
                           return (
-                            <div className="space-y-1 text-[10px] text-[#222222]">
+                            <div className="space-y-1.5 text-[10px] text-[#222222]">
                               {activeScopes.map((scopeItem, idx) => (
-                                <div key={scopeItem.id || idx} className="p-1 px-2 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
-                                  <div className="flex items-start gap-1.5">
-                                    <span 
-                                      className="font-bold text-white shrink-0 text-[9px] bg-[#111111] rounded-[2px] select-none shadow-xs mt-0.5" 
-                                      style={{ 
-                                        color: '#ffffff', 
-                                        backgroundColor: '#111111',
-                                        display: 'inline-block',
-                                        width: '16px',
-                                        height: '16px',
-                                        lineHeight: '16px',
-                                        textAlign: 'center',
-                                      }}
-                                    >
-                                      {scopeItem.letter || String.fromCharCode(65 + idx)}
-                                    </span>
+                                <div key={scopeItem.id || idx} className="p-1.5 px-2.5 rounded-[4px] bg-[#FAFAFA] border border-[#EBEBEB]">
+                                  <div className="flex items-start gap-2">
+                                    <img 
+                                      src={getScopeBadgeDataUrl(scopeItem.letter || String.fromCharCode(65 + idx))}
+                                      alt={scopeItem.letter || String.fromCharCode(65 + idx)}
+                                      width={18}
+                                      height={18}
+                                      className="scope-badge-img w-[18px] h-[18px] shrink-0 mt-0.5 select-none"
+                                      style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', display: 'block' }}
+                                    />
                                     <div className="flex-1 min-w-0">
                                       <div className="font-bold text-[#111111] text-[10.5px] leading-snug">
                                         {scopeItem.title}
@@ -657,7 +667,7 @@ export function MGInvoicePreview({
                                         ) : null}
                                       </div>
                                       {scopeItem.description && (
-                                        <div className="text-[9px] text-[#555555] leading-tight mt-0.5 whitespace-pre-line">
+                                        <div className="text-[9px] text-[#555555] leading-normal mt-0.5 whitespace-pre-line">
                                           {scopeItem.description}
                                         </div>
                                       )}
@@ -673,9 +683,9 @@ export function MGInvoicePreview({
 
                     {/* Section 2: Warranty Coverage Table */}
                     {page.showCondensedWarranty && (
-                      <div className="mb-2 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
-                        <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
-                          <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
+                      <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="bg-[#111111] px-3 py-1.5 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
+                          <span className="text-[9.5px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
                             Warranty Coverage
                           </span>
                         </div>
@@ -691,9 +701,9 @@ export function MGInvoicePreview({
                               .map((w) => {
                                 return (
                                   <tr key={w.id}>
-                                    <td className="py-0.5 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
-                                    <td className="py-0.5 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
-                                    <td className="py-0.5 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
+                                    <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
+                                    <td className="py-1 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
+                                    <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
                                   </tr>
                                 )
                               })}
@@ -702,8 +712,8 @@ export function MGInvoicePreview({
                       </div>
                     )}
 
-                    {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Matching Warranty Coverage Design */}
-                    {page.showCondensedWarranty && (invoice.showSystemLifespan !== false) && (() => {
+                    {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Featured on Page 2 in Condensed Mode */}
+                    {page.showCondensedLifespan && (invoice.showSystemLifespan !== false) && (() => {
                       const lifespanConfig = invoice.systemLifespan || getDefaultSystemLifespan()
                       if (lifespanConfig.enabled === false) return null
 
@@ -752,10 +762,10 @@ export function MGInvoicePreview({
                         : rawDets
 
                       return (
-                        <div className="mb-2 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="mb-4 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
                           {/* Header Bar - Exactly matching Warranty Coverage */}
-                          <div className="bg-[#111111] px-3 py-1 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
-                            <span className="text-[9px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
+                          <div className="bg-[#111111] px-3 py-1.5 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
+                            <span className="text-[9.5px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
                               System Lifespan & Durability (25–30 Years)
                             </span>
                           </div>
@@ -765,13 +775,13 @@ export function MGInvoicePreview({
                             <tbody className="divide-y divide-[#E5E5E5] bg-white">
                               {activeItems.map((item) => (
                                 <tr key={item.id}>
-                                  <td className="py-0.5 px-3 font-semibold text-[#111111] w-4/12">
+                                  <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">
                                     {getDisplayComponent(item)}
                                   </td>
-                                  <td className="py-0.5 px-3 text-[#555555] text-[8.5px] leading-snug w-5/12">
+                                  <td className="py-1 px-3 text-[#555555] text-[9px] leading-normal w-5/12">
                                     {getDisplayNotes(item)}
                                   </td>
-                                  <td className="py-0.5 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">
+                                  <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">
                                     {getDisplayLifespan(item)}
                                   </td>
                                 </tr>
@@ -781,7 +791,7 @@ export function MGInvoicePreview({
 
                           {/* Key Determinants Footer */}
                           {displayDets && (
-                            <div className="px-3 py-0.5 bg-[#F8F8F8] border-t border-[#E5E5E5] text-[8px] leading-tight text-[#555555]">
+                            <div className="px-3 py-1.5 bg-[#F8F8F8] border-t border-[#E5E5E5] text-[8.5px] leading-normal text-[#555555]">
                               <span className="font-semibold text-[#111111] uppercase tracking-[0.05em]">
                                 {lifespanConfig.determinantsTitle ? `${lifespanConfig.determinantsTitle.replace('Key Lifespan Determinants', 'Key Determinants')}:` : 'Key Determinants:'}
                               </span>{' '}
@@ -1007,8 +1017,8 @@ export function MGInvoicePreview({
                         </div>
                       </div>
                     ) : invoice.isCondensed ? (
-                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 mt-1.5 mb-1">
-                        <div className="w-80 space-y-1">
+                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 mt-4 mb-2">
+                        <div className="w-80 space-y-1.5">
                           <div className="flex justify-between items-center text-[11.5px]">
                             <span className="text-[#888888]">Standard Price</span>
                             <span className="font-medium text-[#111111] font-mono tabular-nums">{formatCurrency(subtotal, invoice.currency)}</span>
@@ -1025,7 +1035,7 @@ export function MGInvoicePreview({
                             <span className="text-[#888888]">VAT {invoice.vatRate || 0}%</span>
                             <span className="font-medium text-[#111111] font-mono tabular-nums">{formatCurrency(vat, invoice.currency)}</span>
                           </div>
-                          <div className="w-full border-t border-[#E5E5E5] my-1" />
+                          <div className="w-full border-t border-[#E5E5E5] my-1.5" />
                           <div className="flex justify-between items-center">
                             <span className="font-bold text-[#111111] text-[13.5px] tracking-tight">
                               {showCapital 
@@ -1099,14 +1109,14 @@ export function MGInvoicePreview({
 
                 {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
                 {page.showBottom && (() => {
-                  let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed)
+                  let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed) || (page.showCondensedLifespan && invoice.showSystemLifespan !== false)
                   
                   const getSectionBorderClass = () => {
                     if (hasRenderedPriorBlock) {
-                      return "border-t border-[#E5E5E5] pt-6 mb-6 print:break-inside-avoid p-1"
+                      return "border-t border-[#E5E5E5] pt-4 mb-4 print:break-inside-avoid p-1"
                     }
                     hasRenderedPriorBlock = true
-                    return "mb-6 print:break-inside-avoid p-1"
+                    return "mb-4 print:break-inside-avoid p-1"
                   }
 
                   return (

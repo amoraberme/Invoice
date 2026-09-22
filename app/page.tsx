@@ -4039,7 +4039,7 @@ export default function Home() {
           setActiveTab('capital')
         }
 
-        await new Promise(r => setTimeout(r, 260))
+        await new Promise(r => setTimeout(r, 400))
 
         if (downloadFormat === 'png') {
           const res = await exportToPngDirect({

@@ -24,6 +24,19 @@ function patchFile(filePath) {
     modified = true
   }
 
+  // Fix html2canvas letter-spacing bug that breaks text into graphemes and removes spaces between words
+  const unminifiedBreakText = /styles\.letterSpacing\s*!==\s*0\s*\?\s*segmentGraphemes\(value\)\s*:\s*segmentWords\(value,\s*styles\)/g
+  if (unminifiedBreakText.test(content)) {
+    content = content.replace(unminifiedBreakText, 'segmentWords(value, styles)')
+    modified = true
+  }
+
+  const minifiedBreakText = /0\s*!==\s*e\.letterSpacing\s*\?\s*Zr\(A\)\s*:/g
+  if (minifiedBreakText.test(content)) {
+    content = content.replace(minifiedBreakText, '0!==0?Zr(A):')
+    modified = true
+  }
+
   if (modified) {
     fs.writeFileSync(filePath, content, 'utf8')
     console.log(`[patch-html2canvas] Successfully patched: ${filePath}`)

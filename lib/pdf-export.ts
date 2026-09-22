@@ -177,7 +177,7 @@ function isColorFunctionWarning(args: unknown[]): boolean {
  * 6. Critical image dimensions (e.g. logo) are hard-clamped so natural image dimensions never blow up layout.
  * 7. Modern CSS color variables are mapped to solid fallback hex codes for robust rasterization.
  */
-function prepareClonedDocument(clonedDoc: Document): void {
+async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
   // 1. Reset all scroll positions so content is never cropped
   if (clonedDoc.defaultView) {
     try { clonedDoc.defaultView.scrollTo(0, 0) } catch {}
@@ -312,6 +312,15 @@ function prepareClonedDocument(clonedDoc: Document): void {
       img.style.maxHeight = '40px'
       img.style.width = 'auto'
       img.style.objectFit = 'contain'
+    } else if (img.classList.contains('scope-badge-img') || src.startsWith('data:image/svg+xml')) {
+      img.style.width = '18px'
+      img.style.height = '18px'
+      img.style.minWidth = '18px'
+      img.style.minHeight = '18px'
+      img.style.maxWidth = '18px'
+      img.style.maxHeight = '18px'
+      img.style.objectFit = 'contain'
+      img.style.display = 'block'
     }
   })
 
@@ -345,6 +354,16 @@ function prepareClonedDocument(clonedDoc: Document): void {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       box-shadow: none !important;
+      letter-spacing: normal !important;
+      word-spacing: normal !important;
+      text-rendering: geometricPrecision !important;
+    }
+    body, .print-page, .print-page *:not(.font-mono):not([class*="font-mono"]) {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    }
+    .print-page .font-mono,
+    .print-page [class*="font-mono"] {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
     }
     .text-emerald-600, [class*="text-emerald-600"], [class*="text-[#059669]"] {
       color: #059669 !important;
@@ -359,6 +378,22 @@ function prepareClonedDocument(clonedDoc: Document): void {
   emeraldNodes.forEach((node) => {
     node.style.color = '#059669'
   })
+
+  // 12. Copy loaded fonts from parent document into cloned iframe so word metrics are accurate
+  if (typeof document !== 'undefined' && (document as any).fonts && (clonedDoc as any).fonts) {
+    try {
+      (document as any).fonts.forEach((font: any) => {
+        ;(clonedDoc as any).fonts.add(font)
+      })
+    } catch {}
+  }
+
+  // 13. Wait for cloned document fonts to settle
+  if ((clonedDoc as any).fonts && (clonedDoc as any).fonts.ready) {
+    try {
+      await (clonedDoc as any).fonts.ready
+    } catch {}
+  }
 }
 
 /**
@@ -466,8 +501,8 @@ export async function exportToPdfDirect({
           backgroundColor: '#ffffff',
           logging: false,
           imageTimeout: 15000,
-          onclone: (clonedDoc) => {
-            prepareClonedDocument(clonedDoc)
+          onclone: async (clonedDoc) => {
+            await prepareClonedDocument(clonedDoc)
           },
         })
 
@@ -636,8 +671,8 @@ export async function exportToPngDirect({
           backgroundColor: '#ffffff',
           logging: false,
           imageTimeout: 15000,
-          onclone: (clonedDoc) => {
-            prepareClonedDocument(clonedDoc)
+          onclone: async (clonedDoc) => {
+            await prepareClonedDocument(clonedDoc)
           },
         })
 
