@@ -28,6 +28,7 @@ import {
   projectPanelQuad,
   isConvexQuad,
   isQuadInsidePolygon,
+  getQuadFromPolygon,
 } from '@/utils/homography'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, RotateCw, Trash2, Upload, Move, Check } from 'lucide-react'
@@ -122,15 +123,23 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false)
   const [polyDragStart, setPolyDragStart] = useState<Point>({ x: 0, y: 0 })
 
-  // Perspective Plane Control State
-  const [draggingPerspectiveIdx, setDraggingPerspectiveIdx] = useState<number | null>(null)
+  // Active Perspective Quad: automatically bound to the roof polygon vertices
+  const activePerspectiveQuad = useMemo(() => {
+    if (perspectiveQuad && isConvexQuad(perspectiveQuad)) {
+      return perspectiveQuad
+    }
+    if (polygon.points.length >= 3) {
+      return getQuadFromPolygon(polygon.points)
+    }
+    return null
+  }, [perspectiveQuad, polygon.points])
 
-  // Compute Homography Matrices when Perspective Mode is Active
+  // Compute Homography Matrices whenever activePerspectiveQuad is valid
   const perspectiveMetrics = useMemo(() => {
-    if (!isPerspectiveEnabled || !perspectiveQuad || !isConvexQuad(perspectiveQuad)) {
+    if (!activePerspectiveQuad || !isConvexQuad(activePerspectiveQuad)) {
       return null
     }
-    const [tl, tr, br, bl] = perspectiveQuad
+    const [tl, tr, br, bl] = activePerspectiveQuad
     const topW = getDistance(tl, tr)
     const botW = getDistance(bl, br)
     const leftH = getDistance(tl, bl)
@@ -144,7 +153,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       { x: flatWidth, y: flatHeight },
       { x: 0, y: flatHeight },
     ]
-    const H = getHomographyMatrix(srcQuad, perspectiveQuad)
+    const H = getHomographyMatrix(srcQuad, activePerspectiveQuad)
     const H_inv = invertHomography(H)
 
     return {
@@ -154,7 +163,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       H,
       H_inv,
     }
-  }, [isPerspectiveEnabled, perspectiveQuad])
+  }, [activePerspectiveQuad])
 
   // Track image load
   useEffect(() => {
@@ -255,7 +264,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       if (!currentPolygon.isClosed || currentPolygon.points.length < 3) {
         return panels.map((p) => ({ ...p, isValid: false }))
       }
-      if (isPerspectiveEnabled && perspectiveMetrics) {
+      if (perspectiveMetrics) {
         return panels.map((panel) => {
           const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
           const projQuad = projectPanelQuad(perspectiveMetrics.H, corners)
@@ -270,7 +279,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         isValid: isPanelInsidePolygon(panel, currentPolygon.points),
       }))
     },
-    [isPerspectiveEnabled, perspectiveMetrics]
+    [perspectiveMetrics]
   )
 
   // Handle Wheel Zoom (Zoom in/out centered on mouse cursor)
@@ -356,6 +365,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         if (getDistance(canvasPt, firstPoint) <= snapRadius) {
           const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
           onUpdatePolygon(closedPoly)
+          const newQuad = getQuadFromPolygon(closedPoly.points)
+          if (newQuad && onUpdatePerspectiveQuad) {
+            onUpdatePerspectiveQuad(newQuad)
+          }
           onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
           if (onSelectTool) onSelectTool('select')
           return
@@ -398,37 +411,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       const updatedPoints = polygon.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
       const updatedPoly = { ...polygon, points: updatedPoints }
       onUpdatePolygon(updatedPoly)
+      const newQuad = getQuadFromPolygon(updatedPoints)
+      if (newQuad && onUpdatePerspectiveQuad) {
+        onUpdatePerspectiveQuad(newQuad)
+      }
 
       const updatedPanels = placedPanels.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy }))
       onUpdatePanels(recheckAllPanelsValidity(updatedPoly, updatedPanels))
-      return
-    }
-
-    // Handle perspective plane corner dragging
-    if (draggingPerspectiveIdx !== null && perspectiveQuad && onUpdatePerspectiveQuad) {
-      const updatedQuad: Quad = [
-        perspectiveQuad[0],
-        perspectiveQuad[1],
-        perspectiveQuad[2],
-        perspectiveQuad[3],
-      ]
-      updatedQuad[draggingPerspectiveIdx] = canvasPt
-      if (isConvexQuad(updatedQuad)) {
-        onUpdatePerspectiveQuad(updatedQuad)
-        if (perspectiveMetrics) {
-          const newH = getHomographyMatrix(perspectiveMetrics.srcQuad, updatedQuad)
-          onUpdatePanels(
-            placedPanels.map((p) => {
-              const corners = getPanelCorners(p) as [Point, Point, Point, Point]
-              const projQuad = projectPanelQuad(newH, corners)
-              return {
-                ...p,
-                isValid: polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false,
-              }
-            })
-          )
-        }
-      }
       return
     }
 
@@ -438,6 +427,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       updatedPoints[draggingVertexIdx] = canvasPt
       const updatedPoly = { ...polygon, points: updatedPoints }
       onUpdatePolygon(updatedPoly)
+      const newQuad = getQuadFromPolygon(updatedPoints)
+      if (newQuad && onUpdatePerspectiveQuad) {
+        onUpdatePerspectiveQuad(newQuad)
+      }
       onUpdatePanels(recheckAllPanelsValidity(updatedPoly, placedPanels))
       return
     }
@@ -479,7 +472,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
 
       let isValid = false
       if (polygon.isClosed) {
-        if (isPerspectiveEnabled && perspectiveMetrics) {
+        if (perspectiveMetrics) {
           const corners = getPanelCorners(candidatePanel) as [Point, Point, Point, Point]
           const projQuad = projectPanelQuad(perspectiveMetrics.H, corners)
           isValid = isQuadInsidePolygon(projQuad, polygon.points)
@@ -504,7 +497,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       if (!currentPanel) return
 
       // Perspective Mode Panel Dragging
-      if (isPerspectiveEnabled && perspectiveMetrics) {
+      if (perspectiveMetrics) {
         const flatPt = projectPoint(perspectiveMetrics.H_inv, canvasPt)
         const rawX = flatPt.x - dragOffset.x
         const rawY = flatPt.y - dragOffset.y
@@ -629,7 +622,6 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setDraggingPanelId(null)
     setDraggingRotationPanelId(null)
     setIsDraggingPolygon(false)
-    setDraggingPerspectiveIdx(null)
 
     // Complete Rect tool drag
     if (activeTool === 'rect' && rectStart && cursorPos) {
@@ -647,6 +639,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         ]
         const closedPoly: RoofPolygon = { points: newPoints, isClosed: true }
         onUpdatePolygon(closedPoly)
+        const newQuad = getQuadFromPolygon(newPoints)
+        if (newQuad && onUpdatePerspectiveQuad) {
+          onUpdatePerspectiveQuad(newQuad)
+        }
         onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
         if (onSelectTool) onSelectTool('select')
       }
@@ -664,7 +660,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setSelectedPanelId(panel.id)
     setDraggingPanelId(panel.id)
     const canvasPt = screenToCanvas(e.clientX, e.clientY)
-    if (isPerspectiveEnabled && perspectiveMetrics) {
+    if (perspectiveMetrics) {
       const flatPt = projectPoint(perspectiveMetrics.H_inv, canvasPt)
       setDragOffset({
         x: flatPt.x - panel.x,
@@ -681,57 +677,42 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   // Rotate panel 90 degrees
   const handleRotatePanel = (panelId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    onUpdatePanels(
-      placedPanels.map((panel) => {
-        if (panel.id !== panelId) return panel
-        const newOrientation: PanelOrientation =
-          panel.orientation === 'portrait' ? 'landscape' : 'portrait'
-        const newWidth = panel.height
-        const newHeight = panel.width
-        const updated = {
-          ...panel,
-          orientation: newOrientation,
-          width: newWidth,
-          height: newHeight,
-        }
-        return {
-          ...updated,
-          isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-        }
-      })
-    )
+    const updated = placedPanels.map((panel) => {
+      if (panel.id !== panelId) return panel
+      const newOrientation: PanelOrientation =
+        panel.orientation === 'portrait' ? 'landscape' : 'portrait'
+      const newWidth = panel.height
+      const newHeight = panel.width
+      return {
+        ...panel,
+        orientation: newOrientation,
+        width: newWidth,
+        height: newHeight,
+      }
+    })
+    onUpdatePanels(recheckAllPanelsValidity(polygon, updated))
   }
 
   // Incremental angle rotation (e.g. +/- 1° or +/- 15°)
   const handleRotatePanelBy = (panelId: string, delta: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    onUpdatePanels(
-      placedPanels.map((panel) => {
-        if (panel.id !== panelId) return panel
-        const newRotation = Math.round((((panel.rotation || 0) + delta) % 360 + 360) % 360)
-        const updated = { ...panel, rotation: newRotation }
-        return {
-          ...updated,
-          isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-        }
-      })
-    )
+    const updated = placedPanels.map((panel) => {
+      if (panel.id !== panelId) return panel
+      const newRotation = Math.round((((panel.rotation || 0) + delta) % 360 + 360) % 360)
+      return { ...panel, rotation: newRotation }
+    })
+    onUpdatePanels(recheckAllPanelsValidity(polygon, updated))
   }
 
   // Set exact custom angle on a panel
   const handleSetPanelRotation = (panelId: string, angle: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
-    onUpdatePanels(
-      placedPanels.map((panel) => {
-        if (panel.id !== panelId) return panel
-        const updated = { ...panel, rotation: normalized }
-        return {
-          ...updated,
-          isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-        }
-      })
-    )
+    const updated = placedPanels.map((panel) => {
+      if (panel.id !== panelId) return panel
+      return { ...panel, rotation: normalized }
+    })
+    onUpdatePanels(recheckAllPanelsValidity(polygon, updated))
   }
 
   // Prompt user for custom angle entry
@@ -752,18 +733,17 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   // Cycle mounting rack pitch tilt angle (0° -> 10° -> 15° -> 20° -> 25° -> 30° -> 0°)
   const handleCyclePanelTilt = (panelId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    onUpdatePanels(
-      placedPanels.map((panel) => {
-        if (panel.id !== panelId) return panel
-        const currentTilt = panel.tiltAngle || 0
-        const nextIdx = (TILT_ANGLES.indexOf(currentTilt) + 1) % TILT_ANGLES.length
-        const newTilt = TILT_ANGLES[nextIdx]
-        return {
-          ...panel,
-          tiltAngle: newTilt,
-        }
-      })
-    )
+    const updated = placedPanels.map((panel) => {
+      if (panel.id !== panelId) return panel
+      const currentTilt = panel.tiltAngle || 0
+      const nextIdx = (TILT_ANGLES.indexOf(currentTilt) + 1) % TILT_ANGLES.length
+      const newTilt = TILT_ANGLES[nextIdx]
+      return {
+        ...panel,
+        tiltAngle: newTilt,
+      }
+    })
+    onUpdatePanels(recheckAllPanelsValidity(polygon, updated))
   }
 
   // Delete single panel
@@ -817,6 +797,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     if (!polygon.isClosed && polygon.points.length >= 3) {
       const closedPoly = { ...polygon, isClosed: true }
       onUpdatePolygon(closedPoly)
+      const newQuad = getQuadFromPolygon(closedPoly.points)
+      if (newQuad && onUpdatePerspectiveQuad) {
+        onUpdatePerspectiveQuad(newQuad)
+      }
       onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
       if (onSelectTool) onSelectTool('select')
     }
@@ -862,6 +846,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       if (e.key === 'Enter' && !polygon.isClosed && polygon.points.length >= 3) {
         const closedPoly = { ...polygon, isClosed: true }
         onUpdatePolygon(closedPoly)
+        const newQuad = getQuadFromPolygon(closedPoly.points)
+        if (newQuad && onUpdatePerspectiveQuad) {
+          onUpdatePerspectiveQuad(newQuad)
+        }
         onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
         if (onSelectTool) onSelectTool('select')
       }
@@ -1145,6 +1133,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                       if (canClose) {
                         const closedPoly = { ...polygon, isClosed: true }
                         onUpdatePolygon(closedPoly)
+                        const newQuad = getQuadFromPolygon(closedPoly.points)
+                        if (newQuad && onUpdatePerspectiveQuad) {
+                          onUpdatePerspectiveQuad(newQuad)
+                        }
                         onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
                       } else {
                         setDraggingVertexIdx(idx)
@@ -1234,7 +1226,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
               const rot = panel.rotation || 0
               const tilt = panel.tiltAngle || 0
 
-              if (isPerspectiveEnabled && perspectiveMetrics) {
+              if (perspectiveMetrics) {
                 const flatCorners = getPanelCorners(panel) as [Point, Point, Point, Point]
                 const quad = projectPanelQuad(perspectiveMetrics.H, flatCorners)
                 const [p0, p1, p2, p3] = quad
@@ -1845,28 +1837,17 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             })}
           </g>
 
-          {/* Perspective Plane Control Layer (4 Draggable Corner Handles + Pitch Vanishing Grid) */}
-          {isPerspectiveEnabled && perspectiveQuad && (
-            <g className="perspective-plane-control-layer">
-              {/* 4-Point Plane Boundary */}
-              <polygon
-                points={perspectiveQuad.map((p) => `${p.x},${p.y}`).join(' ')}
-                fill="rgba(6, 182, 212, 0.05)"
-                stroke="#06b6d4"
-                strokeWidth="2"
-                strokeDasharray="6,4"
-                className="pointer-events-none"
-              />
-
-              {/* Pitch Vanishing Guide Lines (25%, 50%, 75% between top edge and bottom edge) */}
+          {/* Perspective Pitch Vanishing Guide Lines */}
+          {activePerspectiveQuad && polygon.isClosed && (
+            <g className="perspective-pitch-guides pointer-events-none">
               {[0.25, 0.5, 0.75].map((ratio, rIdx) => {
                 const topPt = {
-                  x: perspectiveQuad[0].x + (perspectiveQuad[1].x - perspectiveQuad[0].x) * ratio,
-                  y: perspectiveQuad[0].y + (perspectiveQuad[1].y - perspectiveQuad[0].y) * ratio,
+                  x: activePerspectiveQuad[0].x + (activePerspectiveQuad[1].x - activePerspectiveQuad[0].x) * ratio,
+                  y: activePerspectiveQuad[0].y + (activePerspectiveQuad[1].y - activePerspectiveQuad[0].y) * ratio,
                 }
                 const botPt = {
-                  x: perspectiveQuad[3].x + (perspectiveQuad[2].x - perspectiveQuad[3].x) * ratio,
-                  y: perspectiveQuad[3].y + (perspectiveQuad[2].y - perspectiveQuad[3].y) * ratio,
+                  x: activePerspectiveQuad[3].x + (activePerspectiveQuad[2].x - activePerspectiveQuad[3].x) * ratio,
+                  y: activePerspectiveQuad[3].y + (activePerspectiveQuad[2].y - activePerspectiveQuad[3].y) * ratio,
                 }
                 return (
                   <line
@@ -1877,79 +1858,9 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                     y2={botPt.y}
                     stroke="#06b6d4"
                     strokeWidth="1"
-                    strokeDasharray="3,3"
-                    strokeOpacity="0.4"
-                    className="pointer-events-none"
+                    strokeDasharray="4,4"
+                    strokeOpacity="0.35"
                   />
-                )
-              })}
-
-              {/* Draggable Corner Handles */}
-              {perspectiveQuad.map((pt, pIdx) => {
-                const labels = ['TL (Ridge)', 'TR (Ridge)', 'BR (Eave)', 'BL (Eave)']
-                const isDragging = draggingPerspectiveIdx === pIdx
-                return (
-                  <g
-                    key={`persp-handle-${pIdx}`}
-                    transform={`translate(${pt.x}, ${pt.y})`}
-                    className="cursor-pointer select-none"
-                    onPointerDown={(e) => {
-                      e.stopPropagation()
-                      try {
-                        (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
-                      } catch (_) {}
-                      setDraggingPerspectiveIdx(pIdx)
-                    }}
-                    onPointerUp={(e) => {
-                      try {
-                        (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
-                      } catch (_) {}
-                      setDraggingPerspectiveIdx(null)
-                    }}
-                  >
-                    {/* Touch / Hit Target Area */}
-                    <circle r="14" fill="transparent" />
-                    {/* Glow Ring */}
-                    <circle
-                      r={isDragging ? 11 : 9}
-                      fill="rgba(6, 182, 212, 0.25)"
-                      stroke="#06b6d4"
-                      strokeWidth="1"
-                    />
-                    {/* Center Handle Knob */}
-                    <circle
-                      r="5"
-                      fill="#06b6d4"
-                      stroke="#ffffff"
-                      strokeWidth="2"
-                      className="transition-transform hover:scale-125"
-                    />
-                    {/* Handle Position Badge */}
-                    <g transform="translate(10, -10)" pointerEvents="none">
-                      <rect
-                        x="-2"
-                        y="-8"
-                        width="54"
-                        height="14"
-                        rx="3"
-                        fill="#083344"
-                        stroke="#06b6d4"
-                        strokeWidth="0.8"
-                        fillOpacity="0.9"
-                      />
-                      <text
-                        x="25"
-                        y="2.5"
-                        fill="#67e8f9"
-                        fontSize="8"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        fontFamily="monospace"
-                      >
-                        {labels[pIdx]}
-                      </text>
-                    </g>
-                  </g>
                 )
               })}
             </g>

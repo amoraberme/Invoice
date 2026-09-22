@@ -349,3 +349,29 @@ export function isQuadInsidePolygon(quad: Quad, polygon: Point2D[]): boolean {
 
   return true
 }
+
+/**
+ * Resolves a 4-point Quad directly from a traced polygon:
+ * - If 4 vertices: returns orderQuadClockwise(polygon)
+ * - If other vertex counts: returns extreme 4-corner bounding quad
+ */
+export function getQuadFromPolygon(points: Point2D[]): Quad | null {
+  if (points.length < 3) return null
+  if (points.length === 4) {
+    const q: Quad = [points[0], points[1], points[2], points[3]]
+    return isConvexQuad(q) ? orderQuadClockwise(q) : q
+  }
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (const p of points) {
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
+  return [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY },
+  ]
+}

@@ -4054,6 +4054,9 @@ export default function Home() {
               filename: task.filename,
               blob: res.blob,
             })
+          } else {
+            console.error(`PNG export failed for ${task.title}:`, res)
+            throw new Error(`Failed to generate PNG for ${task.title}`)
           }
         } else {
           const res = await exportToPdfDirect({
@@ -4066,6 +4069,9 @@ export default function Home() {
               filename: task.filename,
               blob: res.blob,
             })
+          } else {
+            console.error(`PDF export failed for ${task.title}:`, res)
+            throw new Error(`Failed to generate PDF for ${task.title}`)
           }
         }
       }
@@ -4106,6 +4112,8 @@ export default function Home() {
       setDownloadModalOpen(false)
     } catch (err) {
       console.error('Direct export error:', err)
+      setPdfExportStatus('Direct export encountered an error. Opening print fallback...')
+      await new Promise(r => setTimeout(r, 600))
       if (typeof window !== 'undefined' && typeof window.print === 'function') {
         window.print()
       }

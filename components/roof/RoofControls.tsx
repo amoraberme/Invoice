@@ -76,10 +76,6 @@ interface RoofControlsProps {
   onApplyTiltToAll?: (tiltAngle: number) => void
   onApplyRotationToAll?: (angle: number) => void
   onAlignCollinear?: () => void
-  isPerspectiveEnabled?: boolean
-  onTogglePerspective?: () => void
-  onResetPerspectiveQuad?: () => void
-  hasFourVertices?: boolean
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -128,10 +124,6 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onApplyTiltToAll,
   onApplyRotationToAll,
   onAlignCollinear,
-  isPerspectiveEnabled,
-  onTogglePerspective,
-  onResetPerspectiveQuad,
-  hasFourVertices,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -292,40 +284,6 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
             >
               {isRoofLocked ? <Lock className="size-3.5 text-amber-500" /> : <Unlock className="size-3.5 text-emerald-500" />}
               <span>{isRoofLocked ? 'Locked' : 'Unlocked'}</span>
-            </button>
-          )}
-
-          {/* Perspective Plane Mode Toggle */}
-          {onTogglePerspective && (
-            <button
-              type="button"
-              onClick={onTogglePerspective}
-              className={cn(
-                'flex items-center gap-1 px-2 h-7 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 border',
-                isPerspectiveEnabled
-                  ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-600 dark:text-cyan-400 font-semibold shadow-2xs hover:bg-cyan-500/25'
-                  : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-              )}
-              title={
-                isPerspectiveEnabled
-                  ? 'Perspective Plane Mode is ON (Homography 3D Projection). Click to switch to Flat 2D.'
-                  : 'Enable Perspective Plane Mode (Project solar panels onto 3D sloped roof pitch using 4-point homography).'
-              }
-            >
-              <Layers className={cn('size-3.5', isPerspectiveEnabled ? 'text-cyan-600 dark:text-cyan-400' : 'text-muted-foreground')} />
-              <span>{isPerspectiveEnabled ? 'Perspective: ON' : 'Perspective: OFF'}</span>
-            </button>
-          )}
-
-          {/* Reset / Sync 4-Pt Perspective Plane Guide */}
-          {isPerspectiveEnabled && onResetPerspectiveQuad && (
-            <button
-              type="button"
-              onClick={onResetPerspectiveQuad}
-              className="flex items-center gap-1 px-1.5 h-7 rounded-md text-[11px] font-medium border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer shrink-0"
-              title="Reset or re-align 4-point perspective plane guide to match roof boundary"
-            >
-              <span>{hasFourVertices ? 'Sync Roof Plane' : 'Set 4-Pt Plane'}</span>
             </button>
           )}
         </div>

@@ -397,6 +397,33 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
 }
 
 /**
+ * Polling helper that waits for `.print-page` elements to exist and settle in the DOM
+ */
+async function waitForPrintPages(container?: HTMLElement | null, maxWaitMs = 2000): Promise<HTMLElement[]> {
+  const startTime = Date.now()
+  while (Date.now() - startTime < maxWaitMs) {
+    let pages: HTMLElement[] = []
+    if (container) {
+      const pageNodes = container.querySelectorAll<HTMLElement>('.print-page')
+      pages = Array.from(pageNodes)
+    } else {
+      const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
+      if (allPageNodes && allPageNodes.length > 0) {
+        const visiblePages = Array.from(allPageNodes).filter((el) => {
+          return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
+        })
+        pages = visiblePages.length > 0 ? visiblePages : Array.from(allPageNodes)
+      }
+    }
+    if (pages.length > 0) {
+      return pages
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  return []
+}
+
+/**
  * Exports the active quotation / capital / checklist preview directly to a pure A4 PDF file or Blob.
  */
 export async function exportToPdfDirect({
@@ -414,27 +441,16 @@ export async function exportToPdfDirect({
 
     onProgress?.('Preparing pages...')
 
-    // Locate visible printable page elements in the DOM or container
+    // Locate visible printable page elements in the DOM or container with DOM settlement polling
     let targetPages: HTMLElement[] = []
     if (elements && elements.length > 0) {
       targetPages = elements
-    } else if (container) {
-      const pageNodes = container.querySelectorAll<HTMLElement>('.print-page')
-      targetPages = Array.from(pageNodes)
     } else {
-      const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
-      if (!allPageNodes || allPageNodes.length === 0) {
-        console.warn('No .print-page elements found to export')
-        return { success: false, filename }
-      }
-      const visiblePages = Array.from(allPageNodes).filter((el) => {
-        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
-      })
-      targetPages = visiblePages.length > 0 ? visiblePages : Array.from(allPageNodes)
+      targetPages = await waitForPrintPages(container, 2000)
     }
 
     if (targetPages.length === 0) {
-      console.warn('No target pages found to export')
+      console.warn('No target .print-page elements found to export')
       return { success: false, filename }
     }
 
@@ -497,7 +513,7 @@ export async function exportToPdfDirect({
           x: 0,
           y: 0,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false,
           backgroundColor: '#ffffff',
           logging: false,
           imageTimeout: 15000,
@@ -506,13 +522,41 @@ export async function exportToPdfDirect({
           },
         })
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.95)
+        // Robust high-resolution PNG extraction matching exportToPngDirect reliability
+        let imgData: string
+        try {
+          imgData = canvas.toDataURL('image/png')
+          if (!imgData || imgData === 'data:,' || !imgData.startsWith('data:image/png')) {
+            throw new Error('Invalid PNG data URL from canvas')
+          }
+        } catch {
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))), 'image/png')
+          })
+          imgData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = () => reject(new Error('FileReader failed'))
+            reader.readAsDataURL(blob)
+          })
+        }
 
         if (i > 0) {
           pdf.addPage('a4', 'portrait')
         }
 
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
+        try {
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
+        } catch (addErr) {
+          console.warn('PNG addImage failed with FAST compression, trying default compression:', addErr)
+          try {
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+          } catch (pngErr) {
+            console.warn('PNG addImage failed completely, attempting JPEG fallback:', pngErr)
+            const jpegData = canvas.toDataURL('image/jpeg', 0.95)
+            pdf.addImage(jpegData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
+          }
+        }
       }
     } finally {
       console.warn = origWarn
@@ -524,7 +568,16 @@ export async function exportToPdfDirect({
     onProgress?.('Finalizing PDF...')
 
     const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`
-    const pdfBlob = pdf.output('blob')
+    let pdfBlob: Blob
+    try {
+      pdfBlob = pdf.output('blob')
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Empty PDF blob generated')
+      }
+    } catch {
+      const arrayBuffer = pdf.output('arraybuffer')
+      pdfBlob = new Blob([arrayBuffer], { type: 'application/pdf' })
+    }
 
     if (returnBlobOnly) {
       return {
@@ -579,29 +632,16 @@ export async function exportToPngDirect({
     let targetPages: HTMLElement[] = []
     if (elements && elements.length > 0) {
       targetPages = elements
-    } else if (container) {
-      const pageNodes = container.querySelectorAll<HTMLElement>('.print-page')
-      targetPages = Array.from(pageNodes)
     } else {
-      const allPageNodes = document.querySelectorAll<HTMLElement>('.print-page')
-      if (!allPageNodes || allPageNodes.length === 0) {
-        console.warn('No .print-page elements found to export')
-        return { success: false, filename }
-      }
-      const visiblePages = Array.from(allPageNodes).filter((el) => {
-        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0
-      })
-      targetPages = visiblePages.length > 0 ? visiblePages : Array.from(allPageNodes)
+      targetPages = await waitForPrintPages(container, 2000)
     }
 
     if (targetPages.length === 0) {
-      console.warn('No target pages found to export')
+      console.warn('No target .print-page elements found to export')
       return { success: false, filename }
     }
 
     const totalPages = targetPages.length
-    const A4_WIDTH_PX = 794
-    const A4_HEIGHT_PX = 1123
 
     const origWarn = console.warn
     const origError = console.error
@@ -667,7 +707,7 @@ export async function exportToPngDirect({
           x: 0,
           y: 0,
           useCORS: true,
-          allowTaint: true,
+          allowTaint: false,
           backgroundColor: '#ffffff',
           logging: false,
           imageTimeout: 15000,

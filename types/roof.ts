@@ -46,6 +46,7 @@ export interface RoofViewport {
 }
 
 import type { Quad, Point2D, Matrix3x3 } from '@/utils/homography'
+export { getQuadFromPolygon } from '@/utils/homography'
 export type { Quad, Point2D, Matrix3x3 }
 
 export interface RoofState {
