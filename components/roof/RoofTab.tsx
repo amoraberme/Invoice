@@ -11,6 +11,7 @@ import {
   PanelOrientation,
   RoofViewport,
   RoofMetrics,
+  RoofState,
 } from '@/types/roof'
 import {
   calculatePolygonAreaM2,
@@ -21,6 +22,12 @@ import {
   sqmToSqft,
 } from '@/utils/geometry'
 import { downloadRoofLayoutPng } from '@/utils/roofExport'
+import {
+  saveRoofWorkspace,
+  loadRoofWorkspaceSync,
+  loadRoofWorkspaceAsync,
+  clearRoofWorkspace,
+} from '@/utils/roofStorage'
 import { RoofCanvas } from './RoofCanvas'
 import { RoofControls } from './RoofControls'
 import { RoofSizeModal } from './RoofSizeModal'
@@ -41,6 +48,7 @@ import {
   Ruler,
   X,
   Download,
+  Save,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -49,8 +57,6 @@ interface RoofTabProps {
   onUpdateInvoice: (field: keyof Invoice, value: any) => void
   onSwitchTab: (tabId: string) => void
 }
-
-const STORAGE_KEY = 'mg_invoice_roof_layout_v2'
 
 const DEFAULT_PANEL_DIMS: PanelDimensions = {
   lengthMm: 2278,
@@ -185,119 +191,177 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     }
   }, [invoice.lineItems])
 
-  // Roof state
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(DEFAULT_AERIAL_IMAGE)
-  // Strict Opacity Clamping: 20% (0.2) to 80% (0.8), default 60% (0.6)
-  const [imageOpacity, setImageOpacity] = useState<number>(0.6)
-  const [polygon, setPolygon] = useState<RoofPolygon>({ points: DEFAULT_ROOF_POINTS, isClosed: true })
-  const [placedPanels, setPlacedPanels] = useState<PlacedPanel[]>([])
-  const [scale, setScale] = useState<ScaleCalibration>(DEFAULT_SCALE)
-  const [activeTool, setActiveTool] = useState<RoofTool>('select')
-  const [orientation, setOrientation] = useState<PanelOrientation>('landscape')
-  const [interPanelGapMm, setInterPanelGapMm] = useState<number>(20) // 20mm standard clamp gap
-  const [enableSnapping, setEnableSnapping] = useState<boolean>(true)
-  const [isRoofLocked, setIsRoofLocked] = useState<boolean>(true)
-  const [viewport, setViewport] = useState<RoofViewport>(INITIAL_VIEWPORT)
+  // Synchronous cache resolution for immediate zero-latency mount/render
+  const initialWorkspace = useMemo(() => {
+    if (invoice.roofLayout) return invoice.roofLayout
+    return loadRoofWorkspaceSync(invoice.invoiceNumber)
+  }, [invoice.invoiceNumber, invoice.roofLayout])
+
+  // Roof state initialized lazily to preserve current working layout without race conditions
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(
+    () => initialWorkspace?.backgroundImageUrl ?? DEFAULT_AERIAL_IMAGE
+  )
+  const [imageOpacity, setImageOpacity] = useState<number>(
+    () => (typeof initialWorkspace?.imageOpacity === 'number' ? initialWorkspace.imageOpacity : 0.6)
+  )
+  const [polygon, setPolygon] = useState<RoofPolygon>(() => {
+    if (
+      initialWorkspace?.polygon &&
+      Array.isArray(initialWorkspace.polygon.points) &&
+      initialWorkspace.polygon.points.length >= 3 &&
+      initialWorkspace.polygon.isClosed
+    ) {
+      return initialWorkspace.polygon
+    }
+    return { points: DEFAULT_ROOF_POINTS, isClosed: true }
+  })
+  const [placedPanels, setPlacedPanels] = useState<PlacedPanel[]>(
+    () => (Array.isArray(initialWorkspace?.placedPanels) ? initialWorkspace!.placedPanels : [])
+  )
+  const [scale, setScale] = useState<ScaleCalibration>(
+    () => (initialWorkspace?.scale && initialWorkspace.scale.isCalibrated ? initialWorkspace.scale : DEFAULT_SCALE)
+  )
+  const [activeTool, setActiveTool] = useState<RoofTool>(
+    () => initialWorkspace?.activeTool ?? 'select'
+  )
+  const [orientation, setOrientation] = useState<PanelOrientation>(
+    () => initialWorkspace?.defaultOrientation ?? 'landscape'
+  )
+  const [interPanelGapMm, setInterPanelGapMm] = useState<number>(
+    () => (typeof initialWorkspace?.interPanelGapMm === 'number' ? initialWorkspace.interPanelGapMm : 20)
+  )
+  const [enableSnapping, setEnableSnapping] = useState<boolean>(
+    () => (typeof initialWorkspace?.enableSnapping === 'boolean' ? initialWorkspace.enableSnapping : true)
+  )
+  const [isRoofLocked, setIsRoofLocked] = useState<boolean>(
+    () => (typeof initialWorkspace?.isRoofLocked === 'boolean' ? initialWorkspace.isRoofLocked : true)
+  )
+  const [viewport, setViewport] = useState<RoofViewport>(
+    () => initialWorkspace?.viewport ?? INITIAL_VIEWPORT
+  )
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
   const [centerFitTrigger, setCenterFitTrigger] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [lastSavedTime, setLastSavedTime] = useState<string>('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Target BoQ capacity
   const targetBoqKwp = (activePanelInfo.quantity * activePanelInfo.dimensions.wattage) / 1000
 
-  // Load persisted roof state from localStorage or auto-seed BoQ panels
+  // Asynchronously hydrate large imagery from IndexedDB (handles megabyte images without localStorage quota limits)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      let loadedImage = DEFAULT_AERIAL_IMAGE
-      let loadedOpacity = 0.6
-      let loadedPoly: RoofPolygon = { points: DEFAULT_ROOF_POINTS, isClosed: true }
-      let loadedPanels: PlacedPanel[] = []
-      let loadedScale: ScaleCalibration = DEFAULT_SCALE
-      let loadedOrientation: PanelOrientation = 'landscape'
-      let loadedSnapping = true
-      let loadedRoofLocked = true
-
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.backgroundImageUrl) loadedImage = parsed.backgroundImageUrl
-        if (typeof parsed.imageOpacity === 'number') {
-          loadedOpacity = Math.min(0.8, Math.max(0.2, parsed.imageOpacity))
-        }
-        if (
-          parsed.polygon &&
-          Array.isArray(parsed.polygon.points) &&
-          parsed.polygon.points.length >= 3 &&
-          parsed.polygon.isClosed
-        ) {
-          loadedPoly = parsed.polygon
-        }
-        if (Array.isArray(parsed.placedPanels) && parsed.placedPanels.length > 0) {
-          loadedPanels = parsed.placedPanels
-        }
-        if (parsed.scale && parsed.scale.pixelsPerMeter && parsed.scale.isCalibrated) {
-          loadedScale = parsed.scale
-        }
-        if (parsed.orientation) {
-          loadedOrientation = parsed.orientation
-        }
-        if (typeof parsed.enableSnapping === 'boolean') {
-          loadedSnapping = parsed.enableSnapping
-        }
-        if (typeof parsed.isRoofLocked === 'boolean') {
-          loadedRoofLocked = parsed.isRoofLocked
-        }
+    loadRoofWorkspaceAsync(invoice.invoiceNumber).then((asyncState) => {
+      if (asyncState && asyncState.backgroundImageUrl && !backgroundImageUrl) {
+        setBackgroundImageUrl(asyncState.backgroundImageUrl)
       }
+    })
+  }, [invoice.invoiceNumber])
 
-      // If no panels loaded yet (or empty in storage), auto-seed the BoQ modules (e.g. 6 panels for 4kW)
+  // Auto-seed BoQ panels ONLY on a completely fresh/empty workspace
+  const hasCheckedSeedingRef = useRef(placedPanels.length > 0)
+  useEffect(() => {
+    if (!hasCheckedSeedingRef.current && placedPanels.length === 0) {
+      hasCheckedSeedingRef.current = true
       const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
-      if (loadedPanels.length === 0) {
-        loadedPanels = generateTargetBoqPanels(
-          loadedPoly.points,
-          activePanelInfo.dimensions,
-          targetCount,
-          loadedOrientation,
-          loadedScale.pixelsPerMeter,
-          20,
-          DEFAULT_ROOF_CENTER
-        )
-      }
-
-      setBackgroundImageUrl(loadedImage)
-      setImageOpacity(loadedOpacity)
-      setPolygon(loadedPoly)
-      setPlacedPanels(loadedPanels)
-      setScale(loadedScale)
-      setOrientation(loadedOrientation)
-      setEnableSnapping(loadedSnapping)
-      setIsRoofLocked(loadedRoofLocked)
-      setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 100)
-    } catch (e) {
-      console.error('Failed to load roof layout state', e)
+      const seeded = generateTargetBoqPanels(
+        polygon.points,
+        activePanelInfo.dimensions,
+        targetCount,
+        orientation,
+        scale.pixelsPerMeter,
+        interPanelGapMm,
+        DEFAULT_ROOF_CENTER
+      )
+      setPlacedPanels(seeded)
     }
   }, [activePanelInfo.quantity, activePanelInfo.dimensions])
 
-  // Persist roof state on change
+  // Persist current working state to multi-tier cache (Memory, LocalStorage, IndexedDB) & Invoice
   useEffect(() => {
-    try {
-      const stateToSave = {
+    const currentState: RoofState = {
+      backgroundImageUrl,
+      imageOpacity,
+      polygon,
+      placedPanels,
+      scale,
+      panelDimensions: activePanelInfo.dimensions,
+      activeTool,
+      interPanelGapMm,
+      defaultOrientation: orientation,
+      viewport,
+      enableSnapping,
+      isRoofLocked,
+    }
+
+    setIsSaving(true)
+    const timer = setTimeout(() => {
+      saveRoofWorkspace(currentState, invoice.invoiceNumber).then(() => {
+        setIsSaving(false)
+        const d = new Date()
+        setLastSavedTime(
+          `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+        )
+      })
+      // Sync into invoice record
+      onUpdateInvoice('roofLayout', currentState)
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [
+    backgroundImageUrl,
+    imageOpacity,
+    polygon,
+    placedPanels,
+    scale,
+    activePanelInfo.dimensions,
+    activeTool,
+    interPanelGapMm,
+    orientation,
+    viewport,
+    enableSnapping,
+    isRoofLocked,
+    invoice.invoiceNumber,
+  ])
+
+  // Flush save synchronously before page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const currentState: RoofState = {
         backgroundImageUrl,
         imageOpacity,
         polygon,
         placedPanels,
         scale,
-        orientation,
+        panelDimensions: activePanelInfo.dimensions,
+        activeTool,
+        interPanelGapMm,
+        defaultOrientation: orientation,
+        viewport,
         enableSnapping,
         isRoofLocked,
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
-    } catch (e) {
-      console.warn('Could not persist roof layout state', e)
+      saveRoofWorkspace(currentState, invoice.invoiceNumber)
     }
-  }, [backgroundImageUrl, imageOpacity, polygon, placedPanels, scale, orientation, enableSnapping, isRoofLocked])
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [
+    backgroundImageUrl,
+    imageOpacity,
+    polygon,
+    placedPanels,
+    scale,
+    activePanelInfo.dimensions,
+    activeTool,
+    interPanelGapMm,
+    orientation,
+    viewport,
+    enableSnapping,
+    isRoofLocked,
+    invoice.invoiceNumber,
+  ])
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -506,6 +570,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       setPlacedPanels([])
       setScale(INITIAL_SCALE)
       setViewport(INITIAL_VIEWPORT)
+      clearRoofWorkspace(invoice.invoiceNumber)
     }
   }
 
@@ -655,6 +720,16 @@ export const RoofTab: React.FC<RoofTabProps> = ({
                 {targetBoqKwp.toFixed(2)} kWp Target
               </span>
             )}
+
+            {/* Live Multi-Tier Cache Status Indicator */}
+            <div
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/60 border border-border/70 text-[11px] font-mono text-muted-foreground shrink-0 select-none"
+              title="Continuous multi-tier persistence (Memory, LocalStorage, IndexedDB, Invoice)"
+            >
+              <span className={cn('size-2 rounded-full transition-colors', isSaving ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')} />
+              <span className="hidden sm:inline">{isSaving ? 'Saving...' : lastSavedTime ? `Cached ${lastSavedTime}` : 'Live Cached'}</span>
+              <span className="sm:hidden">{isSaving ? '...' : 'Saved'}</span>
+            </div>
           </div>
 
           {/* Right: Upload Photo & Sync to BoQ CTA */}

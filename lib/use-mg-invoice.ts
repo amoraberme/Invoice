@@ -169,6 +169,11 @@ export function useMGInvoice() {
           }
         }
         
+        // Preserve attached roofLayout if present in saved invoice
+        if (savedObj.roofLayout && typeof savedObj.roofLayout === 'object') {
+          sanitized.roofLayout = savedObj.roofLayout as Invoice['roofLayout']
+        }
+        
         // Ensure showSystemLifespan and systemLifespan are active for returning users whose localStorage was corrupted to false
         const hasMigratedLifespan = typeof window !== 'undefined' && localStorage.getItem('mg_lifespan_migrated_v2')
         if (!hasMigratedLifespan) {

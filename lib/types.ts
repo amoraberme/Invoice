@@ -1,3 +1,5 @@
+import type { RoofState } from '@/types/roof'
+
 export interface LineItem {
   id: string
   description: string
@@ -142,6 +144,7 @@ export interface Invoice {
   ceoPosition?: string
   showSystemLifespan?: boolean
   systemLifespan?: SystemLifespanConfig
+  roofLayout?: RoofState
 }
 
 export interface InvoiceHistoryItem {

@@ -6559,15 +6559,18 @@ export default function Home() {
               </section>
             )}
 
-            {activeTab === 'roof' && (
-              <section className="h-full flex-1 flex flex-col min-h-0 animate-in fade-in duration-200">
-                <RoofTab
-                  invoice={invoice}
-                  onUpdateInvoice={update}
-                  onSwitchTab={handleTabSwitch}
-                />
-              </section>
-            )}
+            <section
+              className={cn(
+                "h-full flex-1 flex flex-col min-h-0",
+                activeTab === 'roof' ? "animate-in fade-in duration-200" : "hidden"
+              )}
+            >
+              <RoofTab
+                invoice={invoice}
+                onUpdateInvoice={update}
+                onSwitchTab={handleTabSwitch}
+              />
+            </section>
 
             {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
