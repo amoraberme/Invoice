@@ -24,7 +24,7 @@ export async function downloadRoofLayoutPng({
   scale,
   panelDimensions,
   metrics,
-  projectName = 'Solar PV Roof Layout Plan',
+  projectName: _projectName = 'Solar PV Roof Layout Plan',
   fileName,
 }: ExportLayoutOptions): Promise<void> {
   const canvas = document.createElement('canvas')
@@ -91,19 +91,19 @@ export async function downloadRoofLayoutPng({
   // Add margin around bounding box
   const contentWidth = Math.max(200, maxX - minX)
   const contentHeight = Math.max(200, maxY - minY)
-  const margin = 140
+  const margin = 100
 
-  // Allow room on the right for Title Block (approx 480px width)
-  const availableW = exportWidth - margin * 2 - 380
+  // Full available canvas dimensions centered
+  const availableW = exportWidth - margin * 2
   const availableH = exportHeight - margin * 2
 
-  const scaleRatio = Math.min(2.0, Math.max(0.6, Math.min(availableW / contentWidth, availableH / contentHeight)))
+  const scaleRatio = Math.min(2.5, Math.max(0.6, Math.min(availableW / contentWidth, availableH / contentHeight)))
 
   const contentCenterX = (minX + maxX) / 2
   const contentCenterY = (minY + maxY) / 2
 
-  const targetCenterX = margin + availableW / 2
-  const targetCenterY = margin + availableH / 2
+  const targetCenterX = exportWidth / 2
+  const targetCenterY = exportHeight / 2
 
   ctx.save()
   // Transform canvas coordinate space
@@ -313,72 +313,7 @@ export async function downloadRoofLayoutPng({
   ctx.fillText('N', 0, -20)
   ctx.restore()
 
-  // 7. Draw Architectural Title Block (Bottom Right)
-  const blockW = 460
-  const blockH = 240
-  const blockX = exportWidth - blockW - 40
-  const blockY = exportHeight - blockH - 40
-
-  ctx.save()
-  // Card background with blur aesthetic
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.94)'
-  ctx.strokeStyle = '#334155'
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  ctx.roundRect(blockX, blockY, blockW, blockH, 12)
-  ctx.fill()
-  ctx.stroke()
-
-  // Header Title
-  ctx.fillStyle = '#38bdf8'
-  ctx.font = 'bold 15px sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('SOLAR ROOF LAYOUT & PV ARRAY PLAN', blockX + 20, blockY + 30)
-
-  ctx.fillStyle = '#94a3b8'
-  ctx.font = '500 12px sans-serif'
-  const modelClean = panelDimensions.modelName.replace(/\(.*?\)/g, '').trim() || 'Solar PV Module'
-  ctx.fillText(`${projectName} • ${modelClean}`, blockX + 20, blockY + 50)
-
-  // Divider Line
-  ctx.strokeStyle = '#1e293b'
-  ctx.beginPath()
-  ctx.moveTo(blockX + 20, blockY + 62)
-  ctx.lineTo(blockX + blockW - 20, blockY + 62)
-  ctx.stroke()
-
-  // Engineering Data Table
-  const labelX = blockX + 20
-  const valX = blockX + 180
-  let curY = blockY + 84
-
-  const renderRow = (label: string, value: string, highlight?: string) => {
-    ctx.fillStyle = '#64748b'
-    ctx.font = '500 11px sans-serif'
-    ctx.fillText(label, labelX, curY)
-
-    ctx.fillStyle = highlight || '#f1f5f9'
-    ctx.font = 'bold 12px monospace'
-    ctx.fillText(value, valX, curY)
-    curY += 21
-  }
-
-  const dominantTilt = placedPanels.find((p) => p.tiltAngle && p.tiltAngle > 0)?.tiltAngle || 0
-  const dominantRotation = placedPanels.find((p) => p.rotation && p.rotation !== 0)?.rotation || 0
-
-  renderRow('Total Placed Panels:', `${metrics.validPanelsCount} Modules (${panelDimensions.wattage}W each)`, '#38bdf8')
-  renderRow('DC System Capacity:', `${metrics.totalCapacityKwp.toFixed(2)} kWp`, '#60a5fa')
-  renderRow('Racking / Tilt Pitch:', dominantTilt > 0 ? `${dominantTilt}° (Tilted Rack Mount)` : '0° (Flush Roof Mount)', '#c084fc')
-  if (dominantRotation !== 0) {
-    renderRow('Azimuth / Angle:', `${dominantRotation}°`, '#38bdf8')
-  }
-  renderRow('Roof Coverage Area:', `${metrics.panelsTotalAreaM2.toFixed(1)} m² (${metrics.utilizationRatePercent.toFixed(0)}% Utilization)`)
-  renderRow('Date / Scale:', `${new Date().toLocaleDateString()} • Scale: ${(scale.pixelsPerMeter || 35).toFixed(1)} px/m`)
-  renderRow('Prepared By:', 'MG Solar Engineering System', '#10b981')
-
-  ctx.restore()
-
-  // 8. Convert to Blob & Trigger Download
+  // 7. Convert to Blob & Trigger Download
   return new Promise<void>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
