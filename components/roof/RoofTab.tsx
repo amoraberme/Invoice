@@ -20,6 +20,9 @@ import {
   createRectangularRoofPolygon,
   generateTargetBoqPanels,
   sqmToSqft,
+  rotatePanelsAsArray,
+  setPanelsArrayRotation,
+  alignPanelsCollinear,
 } from '@/utils/geometry'
 import { downloadRoofLayoutPng } from '@/utils/roofExport'
 import {
@@ -392,21 +395,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     invoice.invoiceNumber,
   ])
 
-  // Rotate selected panel by delta (e.g. +/- 1° or +/- 15°)
+  // Rotate selected panel by delta (e.g. +/- 1° or +/- 15°), or rotate entire array around centroid if none selected
   const handleRotateSelected = useCallback(
     (delta: number) => {
       if (!selectedPanelId) {
         setDefaultRotation((prevRot) => Math.round(((((prevRot + delta) % 360) + 360) % 360) * 10) / 10)
-        setPlacedPanels((prev) =>
-          prev.map((panel) => {
-            const newRotation = Math.round(((((panel.rotation || 0) + delta) % 360 + 360) % 360) * 10) / 10
-            const updated = { ...panel, rotation: newRotation }
-            return {
-              ...updated,
-              isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-            }
-          })
-        )
+        setPlacedPanels((prev) => rotatePanelsAsArray(prev, delta, polygon.isClosed ? polygon.points : undefined))
         return
       }
       setPlacedPanels((prev) =>
@@ -430,15 +424,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
       if (!selectedPanelId) {
         setDefaultRotation(normalized)
-        setPlacedPanels((prev) =>
-          prev.map((panel) => {
-            const updated = { ...panel, rotation: normalized }
-            return {
-              ...updated,
-              isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-            }
-          })
-        )
+        setPlacedPanels((prev) => setPanelsArrayRotation(prev, normalized, polygon.isClosed ? polygon.points : undefined))
         return
       }
       setPlacedPanels((prev) =>
@@ -455,20 +441,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     [selectedPanelId, polygon]
   )
 
-  // Apply rotation to all panels in the array
+  // Apply rotation to all panels in the array (rotates entire array around centroid + aligns collinear)
   const handleApplyRotationToAll = useCallback(
     (angle: number) => {
       const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
       setDefaultRotation(normalized)
-      setPlacedPanels((prev) =>
-        prev.map((panel) => {
-          const updated = { ...panel, rotation: normalized }
-          return {
-            ...updated,
-            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-          }
-        })
-      )
+      setPlacedPanels((prev) => setPanelsArrayRotation(prev, normalized, polygon.isClosed ? polygon.points : undefined))
     },
     [polygon]
   )
@@ -525,23 +503,19 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     []
   )
 
-  // Rotate all panels in the array by delta
+  // Rotate all panels in the array by delta around the array centroid
   const handleRotateAllPanels = useCallback(
     (delta: number) => {
-      setDefaultRotation((prevRot) => (((prevRot + delta) % 360) + 360) % 360)
-      setPlacedPanels((prev) =>
-        prev.map((panel) => {
-          const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
-          const updated = { ...panel, rotation: newRotation }
-          return {
-            ...updated,
-            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-          }
-        })
-      )
+      setDefaultRotation((prevRot) => Math.round(((((prevRot + delta) % 360) + 360) % 360) * 10) / 10)
+      setPlacedPanels((prev) => rotatePanelsAsArray(prev, delta, polygon.isClosed ? polygon.points : undefined))
     },
     [polygon]
   )
+
+  // Straighten / Collinear Align All Panels in Rows
+  const handleAlignCollinear = useCallback(() => {
+    setPlacedPanels((prev) => alignPanelsCollinear(prev, polygon.isClosed ? polygon.points : undefined))
+  }, [polygon])
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -1134,6 +1108,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         onRotateAllPanels={handleRotateAllPanels}
         onApplyTiltToAll={handleApplyTiltToAll}
         onApplyRotationToAll={handleApplyRotationToAll}
+        onAlignCollinear={handleAlignCollinear}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}

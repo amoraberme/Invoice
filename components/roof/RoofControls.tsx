@@ -75,6 +75,7 @@ interface RoofControlsProps {
   onRotateAllPanels?: (delta: number) => void
   onApplyTiltToAll?: (tiltAngle: number) => void
   onApplyRotationToAll?: (angle: number) => void
+  onAlignCollinear?: () => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -122,6 +123,7 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onRotateAllPanels,
   onApplyTiltToAll,
   onApplyRotationToAll,
+  onAlignCollinear,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -478,6 +480,18 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
                 title={`Apply ${currentRotation}° custom angle to all panels in array`}
               >
                 All
+              </button>
+            )}
+
+            {/* Straighten / Align Collinear */}
+            {onAlignCollinear && (
+              <button
+                type="button"
+                onClick={onAlignCollinear}
+                className="px-1.5 h-6 rounded text-[10px] font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 cursor-pointer transition-colors"
+                title="Straighten panels into a collinear row along angle (removes jagged staircases)"
+              >
+                Straighten
               </button>
             )}
           </div>

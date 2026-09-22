@@ -416,6 +416,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
 
       let targetX = rawX
       let targetY = rawY
+      let targetRot = currentPanel.rotation || 0
 
       if (effectiveSnap) {
         const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
@@ -426,14 +427,18 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             y: rawY,
             width: currentPanel.width,
             height: currentPanel.height,
+            rotation: currentPanel.rotation,
           },
           placedPanels,
-          12 / viewport.zoom, // 10-12px threshold in screen coordinates
+          14 / viewport.zoom, // threshold in screen coordinates
           gapPx
         )
         if (snapResult.snapped) {
           targetX = snapResult.x
           targetY = snapResult.y
+          if (snapResult.matchedRotation !== undefined) {
+            targetRot = snapResult.matchedRotation
+          }
         }
       }
 
@@ -441,6 +446,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         ...currentPanel,
         x: targetX,
         y: targetY,
+        rotation: targetRot,
       }
 
       const isValid = polygon.isClosed
@@ -450,7 +456,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       onUpdatePanels(
         placedPanels.map((p) =>
           p.id === draggingPanelId
-            ? { ...p, x: targetX, y: targetY, isValid }
+            ? { ...p, x: targetX, y: targetY, rotation: targetRot, isValid }
             : p
         )
       )

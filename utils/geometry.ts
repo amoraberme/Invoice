@@ -212,114 +212,135 @@ export function isPanelInsidePolygon(
 
 /**
  * Calculates adjacent panel snap position when dragging a panel.
- * If the dragged panel is within snapThreshold (default 10px) of another panel's edge,
- * it snaps flush (accounting for optional inter-panel gap).
+ * Supports arbitrary panel rotation angles (0° to 360°).
+ * Projects positions into the reference panel's local rotated coordinate frame,
+ * ensuring panels snap flush with collinear top/bottom edges without jagged staircases.
  */
 export function getAdjacentSnapPosition(
-  dragged: { id: string; x: number; y: number; width: number; height: number },
+  dragged: { id: string; x: number; y: number; width: number; height: number; rotation?: number },
   otherPanels: PlacedPanel[],
-  snapThreshold: number = 10,
+  snapThreshold: number = 12,
   gapPx: number = 0
-): { x: number; y: number; snapped: boolean; snapType?: 'x' | 'y' | 'both' } {
+): { x: number; y: number; snapped: boolean; snapType?: 'x' | 'y' | 'both'; matchedRotation?: number } {
   let targetX = dragged.x
   let targetY = dragged.y
-  let snappedX = false
-  let snappedY = false
-  let minDiffX = snapThreshold + 1
-  let minDiffY = snapThreshold + 1
+  let snapped = false
+  let snapType: 'x' | 'y' | 'both' | undefined = undefined
+  let matchedRotation: number | undefined = undefined
 
-  const overlapMargin = 5 // Minimum overlap to consider an adjacent snap
+  const cxDrag = dragged.x + dragged.width / 2
+  const cyDrag = dragged.y + dragged.height / 2
+
+  let bestDist = snapThreshold + 1
 
   for (const other of otherPanels) {
     if (other.id === dragged.id) continue
 
-    // Vertical overlap check for horizontal snap
-    const hasVerticalOverlap =
-      dragged.y + dragged.height > other.y - overlapMargin &&
-      dragged.y < other.y + other.height + overlapMargin
+    const otherRot = other.rotation || 0
+    const cxOther = other.x + other.width / 2
+    const cyOther = other.y + other.height / 2
 
-    if (hasVerticalOverlap) {
-      // 1. Flush right of other panel: dragged.x snaps to other.x + other.width + gapPx
-      const distRight = Math.abs(dragged.x - (other.x + other.width + gapPx))
-      if (distRight <= snapThreshold && distRight < minDiffX) {
-        minDiffX = distRight
-        targetX = other.x + other.width + gapPx
-        snappedX = true
+    // Vector from other panel center to dragged panel center
+    const dx = cxDrag - cxOther
+    const dy = cyDrag - cyOther
+
+    // Project into other panel's local rotated coordinate frame
+    const rad = (otherRot * Math.PI) / 180
+    const cosA = Math.cos(rad)
+    const sinA = Math.sin(rad)
+
+    // du is along width (row vector), dv is along height (column vector)
+    const du = dx * cosA + dy * sinA
+    const dv = -dx * sinA + dy * cosA
+
+    const stepU = (other.width + dragged.width) / 2 + gapPx
+    const stepV = (other.height + dragged.height) / 2 + gapPx
+
+    const marginU = (other.width + dragged.width) / 2 + 16
+    const marginV = (other.height + dragged.height) / 2 + 16
+
+    let candTargetU = du
+    let candTargetV = dv
+    let didSnapU = false
+    let didSnapV = false
+    let distU = snapThreshold + 1
+    let distV = snapThreshold + 1
+
+    // 1. Horizontal Adjacent Snap (Placing side-by-side along row vector u)
+    if (Math.abs(dv) < marginV) {
+      // Flush Right of other panel
+      const dRight = Math.abs(du - stepU)
+      if (dRight <= snapThreshold && dRight < distU) {
+        candTargetU = stepU
+        distU = dRight
+        didSnapU = true
       }
-
-      // 2. Flush left of other panel: dragged.x + dragged.width snaps to other.x - gapPx
-      const distLeft = Math.abs(dragged.x + dragged.width - (other.x - gapPx))
-      if (distLeft <= snapThreshold && distLeft < minDiffX) {
-        minDiffX = distLeft
-        targetX = other.x - dragged.width - gapPx
-        snappedX = true
+      // Flush Left of other panel
+      const dLeft = Math.abs(du - (-stepU))
+      if (dLeft <= snapThreshold && dLeft < distU) {
+        candTargetU = -stepU
+        distU = dLeft
+        didSnapU = true
       }
-
-      // 3. Align left edges
-      const distAlignLeft = Math.abs(dragged.x - other.x)
-      if (distAlignLeft <= snapThreshold && distAlignLeft < minDiffX) {
-        minDiffX = distAlignLeft
-        targetX = other.x
-        snappedX = true
-      }
-
-      // 4. Align right edges
-      const distAlignRight = Math.abs(dragged.x + dragged.width - (other.x + other.width))
-      if (distAlignRight <= snapThreshold && distAlignRight < minDiffX) {
-        minDiffX = distAlignRight
-        targetX = other.x + other.width - dragged.width
-        snappedX = true
+      // Collinear row edge alignment (locks top/bottom edges into a straight continuous line)
+      const dAlignRow = Math.abs(dv - 0)
+      if (dAlignRow <= snapThreshold) {
+        candTargetV = 0
+        distV = dAlignRow
+        didSnapV = true
       }
     }
 
-    // Horizontal overlap check for vertical snap
-    const hasHorizontalOverlap =
-      dragged.x + dragged.width > other.x - overlapMargin &&
-      dragged.x < other.x + other.width + overlapMargin
-
-    if (hasHorizontalOverlap) {
-      // 1. Flush below other panel: dragged.y snaps to other.y + other.height + gapPx
-      const distBottom = Math.abs(dragged.y - (other.y + other.height + gapPx))
-      if (distBottom <= snapThreshold && distBottom < minDiffY) {
-        minDiffY = distBottom
-        targetY = other.y + other.height + gapPx
-        snappedY = true
+    // 2. Vertical Adjacent Snap (Placing stacked above/below along column vector v)
+    if (Math.abs(du) < marginU) {
+      // Flush Below other panel
+      const dBelow = Math.abs(dv - stepV)
+      if (dBelow <= snapThreshold && dBelow < distV) {
+        candTargetV = stepV
+        distV = dBelow
+        didSnapV = true
       }
-
-      // 2. Flush above other panel: dragged.y + dragged.height snaps to other.y - gapPx
-      const distTop = Math.abs(dragged.y + dragged.height - (other.y - gapPx))
-      if (distTop <= snapThreshold && distTop < minDiffY) {
-        minDiffY = distTop
-        targetY = other.y - dragged.height - gapPx
-        snappedY = true
+      // Flush Above other panel
+      const dAbove = Math.abs(dv - (-stepV))
+      if (dAbove <= snapThreshold && dAbove < distV) {
+        candTargetV = -stepV
+        distV = dAbove
+        didSnapV = true
       }
-
-      // 3. Align top edges
-      const distAlignTop = Math.abs(dragged.y - other.y)
-      if (distAlignTop <= snapThreshold && distAlignTop < minDiffY) {
-        minDiffY = distAlignTop
-        targetY = other.y
-        snappedY = true
+      // Collinear column edge alignment (locks left/right edges into a straight vertical column)
+      const dAlignCol = Math.abs(du - 0)
+      if (dAlignCol <= snapThreshold) {
+        candTargetU = 0
+        distU = dAlignCol
+        didSnapU = true
       }
+    }
 
-      // 4. Align bottom edges
-      const distAlignBottom = Math.abs(dragged.y + dragged.height - (other.y + other.height))
-      if (distAlignBottom <= snapThreshold && distAlignBottom < minDiffY) {
-        minDiffY = distAlignBottom
-        targetY = other.y + other.height - dragged.height
-        snappedY = true
+    if (didSnapU || didSnapV) {
+      const combinedDist = Math.min(distU, distV)
+      if (combinedDist < bestDist) {
+        bestDist = combinedDist
+        snapped = true
+        matchedRotation = otherRot
+
+        // Transform back from local (candTargetU, candTargetV) to world canvas coordinates
+        const snappedCx = cxOther + candTargetU * cosA - candTargetV * sinA
+        const snappedCy = cyOther + candTargetU * sinA + candTargetV * cosA
+
+        targetX = snappedCx - dragged.width / 2
+        targetY = snappedCy - dragged.height / 2
+
+        snapType = didSnapU && didSnapV ? 'both' : didSnapU ? 'x' : 'y'
       }
     }
   }
-
-  const snapped = snappedX || snappedY
-  const snapType = snappedX && snappedY ? 'both' : snappedX ? 'x' : snappedY ? 'y' : undefined
 
   return {
     x: targetX,
     y: targetY,
     snapped,
     snapType,
+    matchedRotation,
   }
 }
 
@@ -347,43 +368,56 @@ export function generateAutoGrid(
   const panelHeightPx = heightM * pixelsPerMeter
   const gapPx = (gapMm / 1000) * pixelsPerMeter
 
-  // Determine bounding box of the polygon
-  let minX = Infinity
-  let maxX = -Infinity
-  let minY = Infinity
-  let maxY = -Infinity
+  // Polygon centroid for rotated coordinate frame
+  const center = getPolygonCentroid(polygon)
+  const rad = (rotation * Math.PI) / 180
+  const cosA = Math.cos(rad)
+  const sinA = Math.sin(rad)
+
+  // Project polygon vertices into rotated coordinate frame
+  let minU = Infinity
+  let maxU = -Infinity
+  let minV = Infinity
+  let maxV = -Infinity
 
   for (const pt of polygon) {
-    if (pt.x < minX) minX = pt.x
-    if (pt.x > maxX) maxX = pt.x
-    if (pt.y < minY) minY = pt.y
-    if (pt.y > maxY) maxY = pt.y
+    const dx = pt.x - center.x
+    const dy = pt.y - center.y
+    const u = dx * cosA + dy * sinA
+    const v = -dx * sinA + dy * cosA
+    if (u < minU) minU = u
+    if (u > maxU) maxU = u
+    if (v < minV) minV = v
+    if (v > maxV) maxV = v
   }
 
-  const stepX = panelWidthPx + gapPx
-  const stepY = panelHeightPx + gapPx
+  const stepU = panelWidthPx + gapPx
+  const stepV = panelHeightPx + gapPx
 
   let bestGrid: PlacedPanel[] = []
   let maxCount = -1
 
   // Multi-phase search offsets (test 4 horizontal and 4 vertical offsets to maximize yield)
   const numPhases = 4
-  const offsetXSteps = [0, 0.25, 0.5, 0.75]
-  const offsetYSteps = [0, 0.25, 0.5, 0.75]
+  const offsetUSteps = [0, 0.25, 0.5, 0.75]
+  const offsetVSteps = [0, 0.25, 0.5, 0.75]
 
   for (let ox = 0; ox < numPhases; ox++) {
     for (let oy = 0; oy < numPhases; oy++) {
-      const startX = minX + offsetXSteps[ox] * stepX
-      const startY = minY + offsetYSteps[oy] * stepY
+      const startU = minU + offsetUSteps[ox] * stepU
+      const startV = minV + offsetVSteps[oy] * stepV
 
       const currentCandidate: PlacedPanel[] = []
       let panelIndex = 1
 
-      for (let y = startY; y + panelHeightPx <= maxY; y += stepY) {
-        for (let x = startX; x + panelWidthPx <= maxX; x += stepX) {
+      for (let v = startV; v + panelHeightPx <= maxV; v += stepV) {
+        for (let u = startU; u + panelWidthPx <= maxU; u += stepU) {
+          const cx = center.x + (u + panelWidthPx / 2) * cosA - (v + panelHeightPx / 2) * sinA
+          const cy = center.y + (u + panelWidthPx / 2) * sinA + (v + panelHeightPx / 2) * cosA
+
           const candidate = {
-            x,
-            y,
+            x: cx - panelWidthPx / 2,
+            y: cy - panelHeightPx / 2,
             width: panelWidthPx,
             height: panelHeightPx,
             rotation,
@@ -392,8 +426,8 @@ export function generateAutoGrid(
           if (isPanelInsidePolygon(candidate, polygon)) {
             currentCandidate.push({
               id: `panel-auto-${ox}-${oy}-${panelIndex++}`,
-              x,
-              y,
+              x: candidate.x,
+              y: candidate.y,
               width: panelWidthPx,
               height: panelHeightPx,
               orientation,
@@ -526,11 +560,9 @@ export function generateTargetBoqPanels(
   // If polygon is provided and closed, center inside polygon
   const center = polygon.length >= 3 ? getPolygonCentroid(polygon) : centerFallback
 
-  const totalGridWidth = cols * panelWidthPx + (cols - 1) * gapPx
-  const totalGridHeight = rows * panelHeightPx + (rows - 1) * gapPx
-
-  const startX = center.x - totalGridWidth / 2
-  const startY = center.y - totalGridHeight / 2
+  const rad = (rotation * Math.PI) / 180
+  const cosA = Math.cos(rad)
+  const sinA = Math.sin(rad)
 
   const panels: PlacedPanel[] = []
   let placed = 0
@@ -539,8 +571,19 @@ export function generateTargetBoqPanels(
     for (let c = 0; c < cols; c++) {
       if (placed >= targetCount) break
 
-      const x = startX + c * (panelWidthPx + gapPx)
-      const y = startY + r * (panelHeightPx + gapPx)
+      // Grid offsets relative to grid centroid
+      const relU = (c - (cols - 1) / 2) * (panelWidthPx + gapPx)
+      const relV = (r - (rows - 1) / 2) * (panelHeightPx + gapPx)
+
+      // Rotate around centroid by rotation angle
+      const rotU = relU * cosA - relV * sinA
+      const rotV = relU * sinA + relV * cosA
+
+      const cx = center.x + rotU
+      const cy = center.y + rotV
+
+      const x = cx - panelWidthPx / 2
+      const y = cy - panelHeightPx / 2
 
       const candidate = {
         x,
@@ -569,4 +612,186 @@ export function generateTargetBoqPanels(
   }
 
   return panels
+}
+
+/**
+ * Aligns panels into perfectly collinear rows along their rotation angle.
+ * Completely eliminates any jagged "staircase" steps caused by uncoordinated rotation.
+ */
+export function alignPanelsCollinear(
+  panels: PlacedPanel[],
+  polygonPoints?: Point[]
+): PlacedPanel[] {
+  if (panels.length <= 1) return panels
+
+  // Reference angle from first panel or dominant rotation
+  const refAngle = panels[0].rotation || 0
+  const rad = (refAngle * Math.PI) / 180
+  const cosA = Math.cos(rad)
+  const sinA = Math.sin(rad)
+
+  // Array collective centroid
+  let sumCx = 0
+  let sumCy = 0
+  for (const p of panels) {
+    sumCx += p.x + p.width / 2
+    sumCy += p.y + p.height / 2
+  }
+  const C = { x: sumCx / panels.length, y: sumCy / panels.length }
+
+  // Project all panels into local (u, v) coordinates relative to centroid
+  const localPanels = panels.map((p) => {
+    const cx = p.x + p.width / 2
+    const cy = p.y + p.height / 2
+    const dx = cx - C.x
+    const dy = cy - C.y
+    const u = dx * cosA + dy * sinA
+    const v = -dx * sinA + dy * cosA
+    return { panel: p, u, v }
+  })
+
+  // Group panels into rows based on v coordinate proximity
+  const sortedByV = [...localPanels].sort((a, b) => a.v - b.v)
+  const rows: (typeof localPanels)[] = []
+  let currentRow: typeof localPanels = []
+  const vThreshold = (panels[0].height || 40) * 0.6
+
+  for (const item of sortedByV) {
+    if (currentRow.length === 0) {
+      currentRow.push(item)
+    } else {
+      const rowAvgV = currentRow.reduce((sum, i) => sum + i.v, 0) / currentRow.length
+      if (Math.abs(item.v - rowAvgV) <= vThreshold) {
+        currentRow.push(item)
+      } else {
+        rows.push(currentRow)
+        currentRow = [item]
+      }
+    }
+  }
+  if (currentRow.length > 0) {
+    rows.push(currentRow)
+  }
+
+  // For each row, equalize v to row average and keep panels collinearly straight
+  const aligned: PlacedPanel[] = []
+  for (const row of rows) {
+    const rowAvgV = row.reduce((sum, i) => sum + i.v, 0) / row.length
+
+    for (const item of row) {
+      const p = item.panel
+      const finalU = item.u
+      const finalV = rowAvgV
+
+      // Transform back to world canvas coordinates
+      const cx = C.x + finalU * cosA - finalV * sinA
+      const cy = C.y + finalU * sinA + finalV * cosA
+
+      const updated: PlacedPanel = {
+        ...p,
+        x: cx - p.width / 2,
+        y: cy - p.height / 2,
+        rotation: refAngle,
+      }
+
+      const isValid = polygonPoints && polygonPoints.length >= 3
+        ? isPanelInsidePolygon(updated, polygonPoints)
+        : p.isValid
+
+      aligned.push({ ...updated, isValid })
+    }
+  }
+
+  return aligned
+}
+
+/**
+ * Rotates an array of panels around the collective centroid of the array by delta degrees.
+ * Keeps all panels collinear, aligned, and preserves grid structure without staircase effects.
+ */
+export function rotatePanelsAsArray(
+  panels: PlacedPanel[],
+  deltaAngle: number,
+  polygonPoints?: Point[]
+): PlacedPanel[] {
+  if (panels.length === 0) return []
+  if (Math.abs(deltaAngle) < 0.0001) return panels
+
+  // Collective centroid
+  let sumCx = 0
+  let sumCy = 0
+  for (const p of panels) {
+    sumCx += p.x + p.width / 2
+    sumCy += p.y + p.height / 2
+  }
+  const centroidX = sumCx / panels.length
+  const centroidY = sumCy / panels.length
+
+  const rad = (deltaAngle * Math.PI) / 180
+  const cosA = Math.cos(rad)
+  const sinA = Math.sin(rad)
+
+  const rotated = panels.map((panel) => {
+    const curCx = panel.x + panel.width / 2
+    const curCy = panel.y + panel.height / 2
+
+    const relX = curCx - centroidX
+    const relY = curCy - centroidY
+
+    const rotRelX = relX * cosA - relY * sinA
+    const rotRelY = relX * sinA + relY * cosA
+
+    const newCx = centroidX + rotRelX
+    const newCy = centroidY + rotRelY
+
+    const newRotation = Math.round(((((panel.rotation || 0) + deltaAngle) % 360) + 360) % 360 * 10) / 10
+
+    const updated: PlacedPanel = {
+      ...panel,
+      x: newCx - panel.width / 2,
+      y: newCy - panel.height / 2,
+      rotation: newRotation,
+    }
+
+    const isValid = polygonPoints && polygonPoints.length >= 3
+      ? isPanelInsidePolygon(updated, polygonPoints)
+      : panel.isValid
+
+    return {
+      ...updated,
+      isValid,
+    }
+  })
+
+  // Align collinear to ensure zero jagged staircase steps
+  return alignPanelsCollinear(rotated, polygonPoints)
+}
+
+/**
+ * Sets the absolute rotation angle of the panel array to targetAngle.
+ * Rotates all panel positions around the collective centroid and aligns
+ * all panels collinearly along that angle, preventing any jagged staircase steps.
+ */
+export function setPanelsArrayRotation(
+  panels: PlacedPanel[],
+  targetAngle: number,
+  polygonPoints?: Point[]
+): PlacedPanel[] {
+  if (panels.length === 0) return []
+  const normTarget = Math.round((((targetAngle % 360) + 360) % 360) * 10) / 10
+
+  const refAngle = panels[0].rotation || 0
+  let delta = normTarget - refAngle
+  while (delta > 180) delta -= 360
+  while (delta < -180) delta += 360
+
+  if (Math.abs(delta) > 0.0001) {
+    return rotatePanelsAsArray(panels, delta, polygonPoints)
+  }
+
+  // If delta is 0 but panels may have jagged vertical misalignment, re-align them collinearly
+  return alignPanelsCollinear(
+    panels.map((p) => ({ ...p, rotation: normTarget })),
+    polygonPoints
+  )
 }
