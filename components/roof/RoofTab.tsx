@@ -175,6 +175,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [activeTool, setActiveTool] = useState<RoofTool>('select')
   const [orientation, setOrientation] = useState<PanelOrientation>('landscape')
   const [interPanelGapMm, setInterPanelGapMm] = useState<number>(20) // 20mm standard clamp gap
+  const [enableSnapping, setEnableSnapping] = useState<boolean>(true)
   const [viewport, setViewport] = useState<RoofViewport>(INITIAL_VIEWPORT)
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
@@ -196,6 +197,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       let loadedPanels: PlacedPanel[] = []
       let loadedScale: ScaleCalibration = DEFAULT_SCALE
       let loadedOrientation: PanelOrientation = 'landscape'
+      let loadedSnapping = true
 
       if (saved) {
         const parsed = JSON.parse(saved)
@@ -220,6 +222,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         if (parsed.orientation) {
           loadedOrientation = parsed.orientation
         }
+        if (typeof parsed.enableSnapping === 'boolean') {
+          loadedSnapping = parsed.enableSnapping
+        }
       }
 
       // If no panels loaded yet (or empty in storage), auto-seed the BoQ modules (e.g. 6 panels for 4kW)
@@ -242,6 +247,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       setPlacedPanels(loadedPanels)
       setScale(loadedScale)
       setOrientation(loadedOrientation)
+      setEnableSnapping(loadedSnapping)
       setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 100)
     } catch (e) {
       console.error('Failed to load roof layout state', e)
@@ -258,12 +264,13 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         placedPanels,
         scale,
         orientation,
+        enableSnapping,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave))
     } catch (e) {
       console.warn('Could not persist roof layout state', e)
     }
-  }, [backgroundImageUrl, imageOpacity, polygon, placedPanels, scale, orientation])
+  }, [backgroundImageUrl, imageOpacity, polygon, placedPanels, scale, orientation, enableSnapping])
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -792,6 +799,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         }}
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+        enableSnapping={enableSnapping}
+        onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
@@ -836,6 +845,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           onUpdateViewport={setViewport}
           onUploadImageClick={triggerImageUpload}
           centerFitTrigger={centerFitTrigger}
+          enableSnapping={enableSnapping}
+          onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
         />
       </div>
 
@@ -853,6 +864,10 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">V</kbd>
             Select & Drag
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Alt</kbd>
+            Hold to Invert Snap
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">S</kbd>

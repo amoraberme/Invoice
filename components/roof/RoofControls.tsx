@@ -20,6 +20,7 @@ import {
   Sliders,
   Maximize,
   Grid,
+  Magnet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RoofTool, PanelOrientation } from '@/types/roof'
@@ -56,6 +57,8 @@ interface RoofControlsProps {
   onClosePolygon?: () => void
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
+  enableSnapping?: boolean
+  onToggleSnapping?: () => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -89,6 +92,8 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onClosePolygon,
   isFullscreen,
   onToggleFullscreen,
+  enableSnapping = true,
+  onToggleSnapping,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -204,6 +209,28 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
           <Ruler className="size-3.5" />
           <span>Roof Size (m / ft / m²)</span>
         </Button>
+
+        {/* Magnet Snapping vs Manual Freeform Placement Toggle */}
+        {onToggleSnapping && (
+          <button
+            type="button"
+            onClick={onToggleSnapping}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1.5 h-8 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 border',
+              enableSnapping
+                ? 'bg-blue-600/10 border-blue-500/40 text-blue-600 dark:text-blue-400 font-semibold shadow-2xs hover:bg-blue-600/20'
+                : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+            title={
+              enableSnapping
+                ? 'Snapping is ON (20mm clamp gap & module grid alignment). Click for Manual Freeform mode (or hold Alt while dragging)'
+                : 'Snapping is OFF (Manual Freeform placement). Click to enable Magnet Snapping (or hold Alt while dragging to snap)'
+            }
+          >
+            <Magnet className={cn('size-3.5 transition-transform', enableSnapping ? 'text-blue-600 dark:text-blue-400 rotate-45' : 'text-muted-foreground opacity-50')} />
+            <span>{enableSnapping ? 'Snap: ON' : 'Snap: OFF (Manual)'}</span>
+          </button>
+        )}
       </div>
 
       {/* Group 2: Array Placement & Auto Actions */}

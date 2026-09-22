@@ -41,6 +41,8 @@ interface RoofCanvasProps {
   onUpdateViewport: (viewport: RoofViewport) => void
   onUploadImageClick: () => void
   centerFitTrigger?: number
+  enableSnapping?: boolean
+  onToggleSnapping?: () => void
 }
 
 export const RoofCanvas: React.FC<RoofCanvasProps> = ({
@@ -61,6 +63,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   onUpdateViewport,
   onUploadImageClick,
   centerFitTrigger,
+  enableSnapping = true,
+  onToggleSnapping,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -322,7 +326,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
-    // Handle panel dragging with real-time snap-to-adjacent logic
+    // Handle panel dragging with real-time snap-to-adjacent logic or manual freeform
     if (draggingPanelId !== null) {
       const rawX = canvasPt.x - dragOffset.x
       const rawY = canvasPt.y - dragOffset.y
@@ -330,22 +334,31 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       const currentPanel = placedPanels.find((p) => p.id === draggingPanelId)
       if (!currentPanel) return
 
-      const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
-      const snapResult = getAdjacentSnapPosition(
-        {
-          id: currentPanel.id,
-          x: rawX,
-          y: rawY,
-          width: currentPanel.width,
-          height: currentPanel.height,
-        },
-        placedPanels,
-        12 / viewport.zoom, // 10-12px threshold in screen coordinates
-        gapPx
-      )
+      // Snapping condition: can be globally enabled/disabled, and holding Alt inverts it temporarily
+      const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
 
-      const targetX = snapResult.snapped ? snapResult.x : rawX
-      const targetY = snapResult.snapped ? snapResult.y : rawY
+      let targetX = rawX
+      let targetY = rawY
+
+      if (effectiveSnap) {
+        const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
+        const snapResult = getAdjacentSnapPosition(
+          {
+            id: currentPanel.id,
+            x: rawX,
+            y: rawY,
+            width: currentPanel.width,
+            height: currentPanel.height,
+          },
+          placedPanels,
+          12 / viewport.zoom, // 10-12px threshold in screen coordinates
+          gapPx
+        )
+        if (snapResult.snapped) {
+          targetX = snapResult.x
+          targetY = snapResult.y
+        }
+      }
 
       const candidatePanel = {
         ...currentPanel,
@@ -1005,7 +1018,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       )}
 
       {/* Viewport status HUD badge (Bottom-left) */}
-      <div className="absolute bottom-3 left-3 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-3 pointer-events-none">
+      <div className="absolute bottom-3 left-3 bg-zinc-900/85 backdrop-blur-sm border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-3 shadow-lg">
         <div>
           Tool:{' '}
           <span className="text-zinc-100 font-semibold uppercase">
@@ -1019,6 +1032,27 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             {scale.isCalibrated ? `${scale.pixelsPerMeter.toFixed(1)} px/m` : 'Default (50 px/m)'}
           </span>
         </div>
+        <div className="w-px h-3 bg-zinc-700" />
+        {onToggleSnapping ? (
+          <button
+            type="button"
+            onClick={onToggleSnapping}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+            title="Click to toggle Magnet Snapping (or hold Alt while dragging)"
+          >
+            <span>Snap:</span>
+            <span className={cn('font-semibold', enableSnapping ? 'text-blue-400' : 'text-amber-300')}>
+              {enableSnapping ? 'ON (20mm)' : 'OFF (Manual)'}
+            </span>
+          </button>
+        ) : (
+          <div>
+            Snap:{' '}
+            <span className={cn('font-semibold', enableSnapping ? 'text-blue-400' : 'text-amber-300')}>
+              {enableSnapping ? 'ON' : 'OFF'}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

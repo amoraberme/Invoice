@@ -55,6 +55,7 @@ export interface RoofState {
   interPanelGapMm: number // Default 20mm inter-panel clamp gap
   defaultOrientation: PanelOrientation
   viewport: RoofViewport
+  enableSnapping?: boolean
 }
 
 export interface RoofMetrics {
