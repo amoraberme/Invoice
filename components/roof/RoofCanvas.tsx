@@ -37,6 +37,7 @@ interface RoofCanvasProps {
   viewport: RoofViewport
   onUpdateViewport: (viewport: RoofViewport) => void
   onUploadImageClick: () => void
+  centerFitTrigger?: number
 }
 
 export const RoofCanvas: React.FC<RoofCanvasProps> = ({
@@ -55,12 +56,16 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   viewport,
   onUpdateViewport,
   onUploadImageClick,
+  centerFitTrigger,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
   // Clamp opacity strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
+
+  // Natural image dimensions for auto-centering
+  const [imageDims, setImageDims] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
 
   // Interaction states
   const [hoveredPointIdx, setHoveredPointIdx] = useState<number | null>(null)
@@ -72,6 +77,78 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 })
   const isSpacePressedRef = useRef(false)
+
+  // Track image load
+  useEffect(() => {
+    if (!backgroundImageUrl) return
+    const img = new Image()
+    img.src = backgroundImageUrl
+    img.onload = () => {
+      setImageDims({ width: img.naturalWidth || 1200, height: img.naturalHeight || 800 })
+    }
+  }, [backgroundImageUrl])
+
+  // Center and fit view helper
+  const centerAndFit = useCallback(() => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const cw = rect.width || 1200
+    const ch = rect.height || 700
+
+    // Priority 1: Fit polygon if closed
+    if (polygon.points.length >= 3) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      for (const pt of polygon.points) {
+        if (pt.x < minX) minX = pt.x
+        if (pt.x > maxX) maxX = pt.x
+        if (pt.y < minY) minY = pt.y
+        if (pt.y > maxY) maxY = pt.y
+      }
+      const polyW = Math.max(120, maxX - minX)
+      const polyH = Math.max(120, maxY - minY)
+      const padding = 140
+      const scaleX = (cw - padding) / polyW
+      const scaleY = (ch - padding) / polyH
+      const fitZoom = Math.min(2.5, Math.max(0.35, Math.min(scaleX, scaleY)))
+      const polyCenterX = (minX + maxX) / 2
+      const polyCenterY = (minY + maxY) / 2
+
+      onUpdateViewport({
+        zoom: fitZoom,
+        panX: cw / 2 - polyCenterX * fitZoom,
+        panY: ch / 2 - polyCenterY * fitZoom,
+      })
+      return
+    }
+
+    // Priority 2: Fit background image if present
+    if (imageDims.width > 0 && imageDims.height > 0) {
+      const padding = 100
+      const scaleX = (cw - padding) / imageDims.width
+      const scaleY = (ch - padding) / imageDims.height
+      const fitZoom = Math.min(1.5, Math.max(0.3, Math.min(scaleX, scaleY)))
+      onUpdateViewport({
+        zoom: fitZoom,
+        panX: (cw - imageDims.width * fitZoom) / 2,
+        panY: (ch - imageDims.height * fitZoom) / 2,
+      })
+      return
+    }
+
+    // Fallback: Center canvas
+    onUpdateViewport({
+      zoom: 1.0,
+      panX: cw / 2 - 400,
+      panY: ch / 2 - 300,
+    })
+  }, [polygon, imageDims, onUpdateViewport])
+
+  // Respond to centerFitTrigger from parent
+  useEffect(() => {
+    if (centerFitTrigger !== undefined && centerFitTrigger > 0) {
+      centerAndFit()
+    }
+  }, [centerFitTrigger, centerAndFit])
 
   // Scale calibration interaction state
   const [scaleTempStart, setScaleTempStart] = useState<Point | null>(null)
@@ -377,7 +454,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      className="relative w-full h-[640px] lg:h-[720px] bg-zinc-950 overflow-hidden select-none cursor-crosshair"
+      className="relative w-full h-full min-h-[480px] flex-1 bg-zinc-950 overflow-hidden select-none cursor-crosshair"
       style={{
         cursor:
           activeTool === 'pan' || isPanning

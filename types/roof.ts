@@ -65,4 +65,16 @@ export interface RoofMetrics {
   roofPolygonAreaM2: number
   panelsTotalAreaM2: number
   utilizationRatePercent: number
+  targetBoqCount?: number
+  targetBoqKwp?: number
+}
+
+export type DimensionUnit = 'meters' | 'feet'
+export type AreaUnit = 'sqm' | 'sqft'
+
+export interface RoofSizePreset {
+  name: string
+  widthM: number
+  lengthM: number
+  description?: string
 }

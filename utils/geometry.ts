@@ -433,3 +433,133 @@ export function getPolygonCentroid(polygon: Point[]): Point {
     y: sumY / polygon.length,
   }
 }
+
+/**
+ * Unit conversion helpers: meters, feet, square meters, square feet
+ */
+export function feetToMeters(feet: number): number {
+  return feet * 0.3048
+}
+
+export function metersToFeet(meters: number): number {
+  return meters / 0.3048
+}
+
+export function sqmToSqft(sqm: number): number {
+  return sqm * 10.7639
+}
+
+export function sqftToSqm(sqft: number): number {
+  return sqft / 10.7639
+}
+
+/**
+ * Creates a rectangular roof plane polygon in canvas pixels centered around center point.
+ */
+export function createRectangularRoofPolygon(
+  widthM: number,
+  lengthM: number,
+  center: Point,
+  pixelsPerMeter: number
+): Point[] {
+  const halfW = (widthM * pixelsPerMeter) / 2
+  const halfH = (lengthM * pixelsPerMeter) / 2
+
+  return [
+    { x: Math.round(center.x - halfW), y: Math.round(center.y - halfH) }, // Top-Left
+    { x: Math.round(center.x + halfW), y: Math.round(center.y - halfH) }, // Top-Right
+    { x: Math.round(center.x + halfW), y: Math.round(center.y + halfH) }, // Bottom-Right
+    { x: Math.round(center.x - halfW), y: Math.round(center.y + halfH) }, // Bottom-Left
+  ]
+}
+
+/**
+ * Generates an array of exactly targetCount panels (e.g. 6 panels for 4kW setup).
+ * If a polygon exists, centers and places the targetCount panels neatly inside it.
+ */
+export function generateTargetBoqPanels(
+  polygon: Point[],
+  panelDims: { lengthMm: number; widthMm: number },
+  targetCount: number,
+  orientation: PanelOrientation,
+  pixelsPerMeter: number,
+  gapMm: number = 20,
+  centerFallback: Point = { x: 700, y: 500 }
+): PlacedPanel[] {
+  if (targetCount <= 0 || pixelsPerMeter <= 0) return []
+
+  const widthM = (orientation === 'portrait' ? panelDims.widthMm : panelDims.lengthMm) / 1000
+  const heightM = (orientation === 'portrait' ? panelDims.lengthMm : panelDims.widthMm) / 1000
+
+  const panelWidthPx = widthM * pixelsPerMeter
+  const panelHeightPx = heightM * pixelsPerMeter
+  const gapPx = (gapMm / 1000) * pixelsPerMeter
+
+  // Determine grid layout columns & rows for targetCount (e.g. 6 -> 3 cols x 2 rows)
+  let cols = 3
+  let rows = 2
+
+  if (targetCount === 6) {
+    cols = 3
+    rows = 2
+  } else if (targetCount <= 4) {
+    cols = targetCount
+    rows = 1
+  } else if (targetCount <= 8) {
+    cols = 4
+    rows = 2
+  } else if (targetCount <= 12) {
+    cols = 4
+    rows = 3
+  } else if (targetCount <= 16) {
+    cols = 4
+    rows = 4
+  } else {
+    cols = Math.ceil(Math.sqrt(targetCount))
+    rows = Math.ceil(targetCount / cols)
+  }
+
+  // If polygon is provided and closed, center inside polygon
+  const center = polygon.length >= 3 ? getPolygonCentroid(polygon) : centerFallback
+
+  const totalGridWidth = cols * panelWidthPx + (cols - 1) * gapPx
+  const totalGridHeight = rows * panelHeightPx + (rows - 1) * gapPx
+
+  const startX = center.x - totalGridWidth / 2
+  const startY = center.y - totalGridHeight / 2
+
+  const panels: PlacedPanel[] = []
+  let placed = 0
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (placed >= targetCount) break
+
+      const x = startX + c * (panelWidthPx + gapPx)
+      const y = startY + r * (panelHeightPx + gapPx)
+
+      const candidate = {
+        x,
+        y,
+        width: panelWidthPx,
+        height: panelHeightPx,
+      }
+
+      const isValid = polygon.length >= 3 ? isPanelInsidePolygon(candidate, polygon) : true
+
+      panels.push({
+        id: `panel-boq-${placed + 1}`,
+        x,
+        y,
+        width: panelWidthPx,
+        height: panelHeightPx,
+        orientation,
+        isValid,
+      })
+
+      placed++
+    }
+  }
+
+  return panels
+}
