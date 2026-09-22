@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info, Sun } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
@@ -24,6 +24,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { MGInvoicePreview } from '@/components/mg-invoice-preview'
 import { MGChecklistPreview } from '@/components/mg-checklist-preview'
 import { MGCapitalPreview } from '@/components/mg-capital-preview'
+import { RoofTab } from '@/components/roof/RoofTab'
 import {
   Dialog,
   DialogContent,
@@ -4145,13 +4146,14 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row print:!block print:!h-auto print:!overflow-visible">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", activeTab === 'changelog' ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", (activeTab === 'changelog' || activeTab === 'roof') ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
+              { id: 'roof', label: 'Roof', icon: Sun, title: 'Roof Layout & Solar Array Planning' },
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
               { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
@@ -4208,7 +4210,7 @@ export default function Home() {
 
 
           {/* Scrollable active tab form content */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-7 min-h-0">
+          <div ref={scrollContainerRef} className={cn("flex-1 overflow-y-auto min-h-0", activeTab === 'roof' ? 'p-0 flex flex-col' : 'px-6 py-6 space-y-7')}>
             {activeTab === 'sender' && (
               <>
                 {/* FROM */}
@@ -6557,6 +6559,16 @@ export default function Home() {
               </section>
             )}
 
+            {activeTab === 'roof' && (
+              <section className="h-full flex-1 flex flex-col min-h-0 animate-in fade-in duration-200">
+                <RoofTab
+                  invoice={invoice}
+                  onUpdateInvoice={update}
+                  onSwitchTab={handleTabSwitch}
+                />
+              </section>
+            )}
+
             {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
                 <div>
@@ -7595,7 +7607,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
 
           {/* Download button */}
-          {activeTab !== 'changelog' && (
+          {activeTab !== 'changelog' && activeTab !== 'roof' && (
             <>
               {/* Desktop Download button */}
               <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
@@ -7640,7 +7652,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", activeTab === 'changelog' ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", (activeTab === 'changelog' || activeTab === 'roof') ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
         {/* Floating background themed characters (screen only, hidden on print) */}
 
 
@@ -7724,7 +7736,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         )}
 
         {/* Mobile Floating Action Bar in Preview Mode */}
-        {activeTab !== 'changelog' && (
+        {activeTab !== 'changelog' && activeTab !== 'roof' && (
           <div className="lg:hidden sticky bottom-4 z-30 print:hidden flex items-center gap-2 w-full max-w-sm px-4 py-2 mt-4">
             <Button
               type="button"
