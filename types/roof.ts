@@ -25,7 +25,8 @@ export interface PlacedPanel {
   height: number // Rendered height in canvas pixels
   orientation: PanelOrientation
   isValid: boolean // True if fully inside polygon; false if extending/intersecting outside
-  rotation?: number // Optional angle in degrees
+  rotation?: number // Planar azimuth/rotation angle in degrees (e.g. -45°, 0°, 15°, 90°)
+  tiltAngle?: number // Mounting pitch tilt angle in degrees (e.g. 0° flush, 10°, 15°, 20°, 25°, 30°)
 }
 
 export interface ScaleCalibration {
@@ -57,6 +58,8 @@ export interface RoofState {
   viewport: RoofViewport
   enableSnapping?: boolean
   isRoofLocked?: boolean
+  defaultTiltAngle?: number // Default mounting pitch angle (0° flush, 10°, 15°, 20°, 25°, 30°)
+  defaultRotation?: number // Default planar rotation angle in degrees
 }
 
 export interface RoofMetrics {

@@ -24,6 +24,7 @@ import {
   Lock,
   Unlock,
   Download,
+  Compass,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RoofTool, PanelOrientation } from '@/types/roof'
@@ -65,6 +66,14 @@ interface RoofControlsProps {
   isRoofLocked?: boolean
   onToggleRoofLock?: () => void
   onDownloadLayout?: () => void
+  selectedPanelId?: string | null
+  currentTiltAngle?: number
+  currentRotation?: number
+  onCycleTilt?: () => void
+  onRotateSelected?: (delta: number) => void
+  onSetSelectedRotation?: (angle: number) => void
+  onRotateAllPanels?: (delta: number) => void
+  onApplyTiltToAll?: (tiltAngle: number) => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -103,6 +112,14 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   isRoofLocked = true,
   onToggleRoofLock,
   onDownloadLayout,
+  selectedPanelId,
+  currentTiltAngle = 0,
+  currentRotation = 0,
+  onCycleTilt,
+  onRotateSelected,
+  onSetSelectedRotation,
+  onRotateAllPanels,
+  onApplyTiltToAll,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -323,6 +340,75 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
             <RotateCw className="size-3.5 text-muted-foreground" />
             <span className="capitalize">{orientation}</span>
           </Button>
+
+          {/* Rack Tilt Pitch Button & Cycler */}
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/80 shrink-0 shadow-2xs">
+            <button
+              type="button"
+              onClick={onCycleTilt}
+              className="flex items-center gap-1 px-2 h-6 rounded text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 cursor-pointer transition-colors"
+              title={`Mounting Rack Pitch Tilt: ${currentTiltAngle}°. Click to cycle 0° (Flush), 10°, 15°, 20°, 25°, 30°. (T)${selectedPanelId ? ' • Selected Panel' : ' • Array Default'}`}
+            >
+              <span className="font-mono text-[11px] font-bold">∠</span>
+              <span>{selectedPanelId ? `Tilt: ${currentTiltAngle}°` : `Rack: ${currentTiltAngle}°`}</span>
+            </button>
+            {selectedPanelId && onApplyTiltToAll && (
+              <button
+                type="button"
+                onClick={() => onApplyTiltToAll(currentTiltAngle)}
+                className="px-1.5 h-6 text-[10px] font-medium text-muted-foreground hover:text-purple-500 hover:bg-background rounded cursor-pointer transition-colors ml-0.5 border-l border-border/60"
+                title={`Apply ${currentTiltAngle}° tilt to all panels in the array`}
+              >
+                All
+              </button>
+            )}
+          </div>
+
+          {/* Azimuth / Rotation Stepper */}
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/80 shrink-0 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPanelId && onRotateSelected) {
+                  onRotateSelected(-15)
+                } else if (onRotateAllPanels) {
+                  onRotateAllPanels(-15)
+                }
+              }}
+              className="px-1.5 h-6 rounded text-xs font-mono font-medium hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title="Rotate -15° (Tilt Left / [)"
+            >
+              -15°
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPanelId && onSetSelectedRotation) {
+                  onSetSelectedRotation(0)
+                } else if (onRotateAllPanels) {
+                  onSetSelectedRotation?.(0)
+                }
+              }}
+              className="px-1.5 h-6 text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400 hover:bg-background rounded cursor-pointer transition-colors"
+              title="Planar rotation angle. Click to reset to 0°"
+            >
+              {currentRotation}°
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPanelId && onRotateSelected) {
+                  onRotateSelected(15)
+                } else if (onRotateAllPanels) {
+                  onRotateAllPanels(15)
+                }
+              }}
+              className="px-1.5 h-6 rounded text-xs font-mono font-medium hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title="Rotate +15° (Tilt Right / ])"
+            >
+              +15°
+            </button>
+          </div>
 
           {/* Download Layout Plan */}
           {onDownloadLayout && (

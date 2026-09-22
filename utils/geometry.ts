@@ -334,19 +334,18 @@ export function generateAutoGrid(
   panelDims: { lengthMm: number; widthMm: number },
   orientation: PanelOrientation,
   pixelsPerMeter: number,
-  gapMm: number = 20
+  gapMm: number = 20,
+  rotation: number = 0,
+  tiltAngle: number = 0
 ): PlacedPanel[] {
   if (polygon.length < 3 || pixelsPerMeter <= 0) return []
 
-  // Physical dimension to pixel conversion
   const widthM = (orientation === 'portrait' ? panelDims.widthMm : panelDims.lengthMm) / 1000
   const heightM = (orientation === 'portrait' ? panelDims.lengthMm : panelDims.widthMm) / 1000
 
   const panelWidthPx = widthM * pixelsPerMeter
   const panelHeightPx = heightM * pixelsPerMeter
   const gapPx = (gapMm / 1000) * pixelsPerMeter
-
-  if (panelWidthPx <= 0 || panelHeightPx <= 0) return []
 
   // Determine bounding box of the polygon
   let minX = Infinity
@@ -387,6 +386,7 @@ export function generateAutoGrid(
             y,
             width: panelWidthPx,
             height: panelHeightPx,
+            rotation,
           }
 
           if (isPanelInsidePolygon(candidate, polygon)) {
@@ -398,6 +398,8 @@ export function generateAutoGrid(
               height: panelHeightPx,
               orientation,
               isValid: true,
+              rotation,
+              tiltAngle,
             })
           }
         }
@@ -484,7 +486,9 @@ export function generateTargetBoqPanels(
   orientation: PanelOrientation,
   pixelsPerMeter: number,
   gapMm: number = 20,
-  centerFallback: Point = { x: 700, y: 500 }
+  centerFallback: Point = { x: 700, y: 500 },
+  rotation: number = 0,
+  tiltAngle: number = 0
 ): PlacedPanel[] {
   if (targetCount <= 0 || pixelsPerMeter <= 0) return []
 
@@ -543,6 +547,7 @@ export function generateTargetBoqPanels(
         y,
         width: panelWidthPx,
         height: panelHeightPx,
+        rotation,
       }
 
       const isValid = polygon.length >= 3 ? isPanelInsidePolygon(candidate, polygon) : true
@@ -555,6 +560,8 @@ export function generateTargetBoqPanels(
         height: panelHeightPx,
         orientation,
         isValid,
+        rotation,
+        tiltAngle,
       })
 
       placed++

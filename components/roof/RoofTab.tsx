@@ -240,6 +240,13 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [viewport, setViewport] = useState<RoofViewport>(
     () => initialWorkspace?.viewport ?? INITIAL_VIEWPORT
   )
+  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null)
+  const [defaultTiltAngle, setDefaultTiltAngle] = useState<number>(
+    () => (typeof initialWorkspace?.defaultTiltAngle === 'number' ? initialWorkspace.defaultTiltAngle : 0)
+  )
+  const [defaultRotation, setDefaultRotation] = useState<number>(
+    () => (typeof initialWorkspace?.defaultRotation === 'number' ? initialWorkspace.defaultRotation : 0)
+  )
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
   const [centerFitTrigger, setCenterFitTrigger] = useState(0)
@@ -247,6 +254,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string>('')
   const [isMounted, setIsMounted] = useState(false)
+
+  const selectedPanel = useMemo(
+    () => placedPanels.find((p) => p.id === selectedPanelId) || null,
+    [placedPanels, selectedPanelId]
+  )
+
+  const currentTiltAngle = selectedPanel ? selectedPanel.tiltAngle || 0 : defaultTiltAngle
+  const currentRotation = selectedPanel ? selectedPanel.rotation || 0 : defaultRotation
 
   useEffect(() => {
     setIsMounted(true)
@@ -300,6 +315,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       viewport,
       enableSnapping,
       isRoofLocked,
+      defaultTiltAngle,
+      defaultRotation,
     }
 
     setIsSaving(true)
@@ -329,6 +346,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     viewport,
     enableSnapping,
     isRoofLocked,
+    defaultTiltAngle,
+    defaultRotation,
     invoice.invoiceNumber,
   ])
 
@@ -348,6 +367,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         viewport,
         enableSnapping,
         isRoofLocked,
+        defaultTiltAngle,
+        defaultRotation,
       }
       saveRoofWorkspace(currentState, invoice.invoiceNumber)
     }
@@ -366,8 +387,118 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     viewport,
     enableSnapping,
     isRoofLocked,
+    defaultTiltAngle,
+    defaultRotation,
     invoice.invoiceNumber,
   ])
+
+  // Rotate selected panel by delta (e.g. +/- 15°)
+  const handleRotateSelected = useCallback(
+    (delta: number) => {
+      if (!selectedPanelId) return
+      setPlacedPanels((prev) =>
+        prev.map((panel) => {
+          if (panel.id !== selectedPanelId) return panel
+          const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
+          const updated = { ...panel, rotation: newRotation }
+          return {
+            ...updated,
+            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+          }
+        })
+      )
+    },
+    [selectedPanelId, polygon]
+  )
+
+  // Set selected panel rotation directly
+  const handleSetSelectedRotation = useCallback(
+    (angle: number) => {
+      if (!selectedPanelId) return
+      setPlacedPanels((prev) =>
+        prev.map((panel) => {
+          if (panel.id !== selectedPanelId) return panel
+          const normalized = ((angle % 360) + 360) % 360
+          const updated = { ...panel, rotation: normalized }
+          return {
+            ...updated,
+            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+          }
+        })
+      )
+    },
+    [selectedPanelId, polygon]
+  )
+
+  // Set selected panel tilt directly
+  const handleSetSelectedTilt = useCallback(
+    (tiltAngle: number) => {
+      if (!selectedPanelId) return
+      setPlacedPanels((prev) =>
+        prev.map((panel) => {
+          if (panel.id !== selectedPanelId) return panel
+          return {
+            ...panel,
+            tiltAngle,
+          }
+        })
+      )
+    },
+    [selectedPanelId]
+  )
+
+  // Cycle tilt
+  const TILT_ANGLES = [0, 10, 15, 20, 25, 30]
+  const handleCycleTilt = useCallback(() => {
+    if (selectedPanelId) {
+      const curTilt = selectedPanel?.tiltAngle || 0
+      const nextIdx = (TILT_ANGLES.indexOf(curTilt) + 1) % TILT_ANGLES.length
+      const nextTilt = TILT_ANGLES[nextIdx]
+      handleSetSelectedTilt(nextTilt)
+    } else {
+      const nextIdx = (TILT_ANGLES.indexOf(defaultTiltAngle) + 1) % TILT_ANGLES.length
+      const nextTilt = TILT_ANGLES[nextIdx]
+      setDefaultTiltAngle(nextTilt)
+      setPlacedPanels((prev) =>
+        prev.map((p) => ({
+          ...p,
+          tiltAngle: nextTilt,
+        }))
+      )
+    }
+  }, [selectedPanelId, selectedPanel, defaultTiltAngle, handleSetSelectedTilt])
+
+  // Apply tilt to all panels in the array
+  const handleApplyTiltToAll = useCallback(
+    (tiltAngle: number) => {
+      setDefaultTiltAngle(tiltAngle)
+      setPlacedPanels((prev) =>
+        prev.map((panel) => ({
+          ...panel,
+          tiltAngle,
+        }))
+      )
+    },
+    []
+  )
+
+  // Rotate all panels in the array by delta
+  const handleRotateAllPanels = useCallback(
+    (delta: number) => {
+      setDefaultRotation((prevRot) => (((prevRot + delta) % 360) + 360) % 360)
+      setPlacedPanels((prev) =>
+        prev.map((panel) => {
+          const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
+          const updated = { ...panel, rotation: newRotation }
+          return {
+            ...updated,
+            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+          }
+        })
+      )
+    },
+    [polygon]
+  )
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -533,6 +664,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       y: posY,
       width: pW,
       height: pH,
+      rotation: defaultRotation,
     }
 
     const isValid = polygon.isClosed
@@ -547,6 +679,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       height: pH,
       orientation,
       isValid,
+      rotation: defaultRotation,
+      tiltAngle: defaultTiltAngle,
     }
 
     setPlacedPanels((prev) => [...prev, newPanel])
@@ -845,6 +979,11 @@ export const RoofTab: React.FC<RoofTabProps> = ({
                 {metrics.totalCapacityKwp.toFixed(2)}
               </span>
               <span className="text-[11px] text-muted-foreground font-medium">kWp</span>
+              {currentTiltAngle > 0 && (
+                <span className="hidden sm:inline-flex items-center text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/15 px-1 py-0.2 rounded ml-1 font-mono">
+                  ∠{currentTiltAngle}°
+                </span>
+              )}
             </div>
           </div>
 
@@ -933,6 +1072,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         isRoofLocked={isRoofLocked}
         onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
         onDownloadLayout={handleDownloadPlan}
+        selectedPanelId={selectedPanelId}
+        currentTiltAngle={currentTiltAngle}
+        currentRotation={currentRotation}
+        onCycleTilt={handleCycleTilt}
+        onRotateSelected={handleRotateSelected}
+        onSetSelectedRotation={handleSetSelectedRotation}
+        onRotateAllPanels={handleRotateAllPanels}
+        onApplyTiltToAll={handleApplyTiltToAll}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
@@ -981,6 +1128,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
           isRoofLocked={isRoofLocked}
           onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+          selectedPanelId={selectedPanelId}
+          onSelectPanel={setSelectedPanelId}
         />
       </div>
 
@@ -1000,12 +1149,20 @@ export const RoofTab: React.FC<RoofTabProps> = ({
             Select & Drag
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Alt</kbd>
-            Hold to Invert Snap
+            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">[ / ]</kbd>
+            Tilt Angle (±15°)
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">T</kbd>
+            Rack Tilt
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">S</kbd>
             Calibrate Scale
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Alt</kbd>
+            Hold to Invert Snap
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Space</kbd>

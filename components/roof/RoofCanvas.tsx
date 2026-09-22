@@ -45,6 +45,8 @@ interface RoofCanvasProps {
   onToggleSnapping?: () => void
   isRoofLocked?: boolean
   onToggleRoofLock?: () => void
+  selectedPanelId?: string | null
+  onSelectPanel?: (panelId: string | null) => void
 }
 
 export const RoofCanvas: React.FC<RoofCanvasProps> = ({
@@ -69,6 +71,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   onToggleSnapping,
   isRoofLocked = true,
   onToggleRoofLock,
+  selectedPanelId: propSelectedPanelId,
+  onSelectPanel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -83,8 +87,15 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [hoveredPointIdx, setHoveredPointIdx] = useState<number | null>(null)
   const [draggingVertexIdx, setDraggingVertexIdx] = useState<number | null>(null)
   const [cursorPos, setCursorPos] = useState<Point | null>(null)
-  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null)
+  const [internalSelectedPanelId, setInternalSelectedPanelId] = useState<string | null>(null)
+  const selectedPanelId = propSelectedPanelId !== undefined ? propSelectedPanelId : internalSelectedPanelId
+  const setSelectedPanelId = useCallback((id: string | null) => {
+    setInternalSelectedPanelId(id)
+    if (onSelectPanel) onSelectPanel(id)
+  }, [onSelectPanel])
+
   const [draggingPanelId, setDraggingPanelId] = useState<string | null>(null)
+  const [draggingRotationPanelId, setDraggingRotationPanelId] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 })
@@ -343,6 +354,42 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
+    // Handle panel rotation dragging
+    if (draggingRotationPanelId !== null) {
+      const currentPanel = placedPanels.find((p) => p.id === draggingRotationPanelId)
+      if (!currentPanel) return
+
+      const cx = currentPanel.x + currentPanel.width / 2
+      const cy = currentPanel.y + currentPanel.height / 2
+      const rad = Math.atan2(canvasPt.y - cy, canvasPt.x - cx)
+      const deg = (rad * 180) / Math.PI + 90
+      let normalized = Math.round(((deg % 360) + 360) % 360)
+
+      // Snap to 15-degree steps if snapping enabled (inverts with Alt)
+      const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
+      if (effectiveSnap) {
+        normalized = (Math.round(normalized / 15) * 15) % 360
+      }
+
+      const candidatePanel = {
+        ...currentPanel,
+        rotation: normalized,
+      }
+
+      const isValid = polygon.isClosed
+        ? isPanelInsidePolygon(candidatePanel, polygon.points)
+        : false
+
+      onUpdatePanels(
+        placedPanels.map((p) =>
+          p.id === draggingRotationPanelId
+            ? { ...p, rotation: normalized, isValid }
+            : p
+        )
+      )
+      return
+    }
+
     // Handle panel dragging with real-time snap-to-adjacent logic or manual freeform
     if (draggingPanelId !== null) {
       const rawX = canvasPt.x - dragOffset.x
@@ -397,7 +444,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     }
   }
 
-  // Pointer Up (Release vertex, panel, or pan)
+  // Pointer Up (Release vertex, panel, rotation, or pan)
   const handlePointerUp = (e?: React.PointerEvent) => {
     if (e) {
       try {
@@ -407,6 +454,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setIsPanning(false)
     setDraggingVertexIdx(null)
     setDraggingPanelId(null)
+    setDraggingRotationPanelId(null)
     setIsDraggingPolygon(false)
 
     // Complete Rect tool drag
@@ -467,6 +515,42 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         return {
           ...updated,
           isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+        }
+      })
+    )
+  }
+
+  // Incremental angle rotation (e.g. +/- 15 degrees)
+  const handleRotatePanelBy = (panelId: string, delta: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    onUpdatePanels(
+      placedPanels.map((panel) => {
+        if (panel.id !== panelId) return panel
+        const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
+        const updated = { ...panel, rotation: newRotation }
+        return {
+          ...updated,
+          isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+        }
+      })
+    )
+  }
+
+  // Common rack pitch tilt angles
+  const TILT_ANGLES = [0, 10, 15, 20, 25, 30]
+
+  // Cycle mounting rack pitch tilt angle (0° -> 10° -> 15° -> 20° -> 25° -> 30° -> 0°)
+  const handleCyclePanelTilt = (panelId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    onUpdatePanels(
+      placedPanels.map((panel) => {
+        if (panel.id !== panelId) return panel
+        const currentTilt = panel.tiltAngle || 0
+        const nextIdx = (TILT_ANGLES.indexOf(currentTilt) + 1) % TILT_ANGLES.length
+        const newTilt = TILT_ANGLES[nextIdx]
+        return {
+          ...panel,
+          tiltAngle: newTilt,
         }
       })
     )
@@ -571,6 +655,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         onUpdatePanels(recheckAllPanelsValidity(closedPoly, placedPanels))
         if (onSelectTool) onSelectTool('select')
       }
+      if ((e.key === '[' || e.key === '<') && selectedPanelId) {
+        handleRotatePanelBy(selectedPanelId, -15)
+      } else if ((e.key === ']' || e.key === '>') && selectedPanelId) {
+        handleRotatePanelBy(selectedPanelId, 15)
+      } else if ((e.key === 't' || e.key === 'T') && selectedPanelId) {
+        handleCyclePanelTilt(selectedPanelId)
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPanelId) {
         onUpdatePanels(placedPanels.filter((p) => p.id !== selectedPanelId))
         setSelectedPanelId(null)
@@ -592,7 +683,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedPanelId, placedPanels, onUpdatePanels, polygon, recheckAllPanelsValidity, onUpdatePolygon, onSelectTool])
+  }, [selectedPanelId, placedPanels, onUpdatePanels, polygon, recheckAllPanelsValidity, onUpdatePolygon, onSelectTool, handleRotatePanelBy, handleCyclePanelTilt])
 
   return (
     <div
@@ -676,6 +767,17 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             <pattern id="invalid-stripe" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="4" height="8" fill="rgba(239, 68, 68, 0.35)" />
             </pattern>
+            {/* 3D Tilted Solar Panel Rack Elevation Gradient */}
+            <linearGradient id="tilted-panel-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.98" />
+              <stop offset="30%" stopColor="#1e40af" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.90" />
+            </linearGradient>
+            {/* Standard Flat/Flush Panel Gradient */}
+            <linearGradient id="standard-panel-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="#172554" stopOpacity="0.88" />
+            </linearGradient>
           </defs>
 
           {/* Active Rect Tool Drag Preview */}
@@ -915,11 +1017,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             {placedPanels.map((panel) => {
               const isSelected = selectedPanelId === panel.id
               const isValid = panel.isValid
+              const rot = panel.rotation || 0
+              const tilt = panel.tiltAngle || 0
 
               return (
                 <g
                   key={panel.id}
-                  transform={`translate(${panel.x}, ${panel.y})`}
+                  transform={`translate(${panel.x}, ${panel.y}) rotate(${rot}, ${panel.width / 2}, ${panel.height / 2})`}
                   onPointerDown={(e) => handlePanelPointerDown(panel, e)}
                   onPointerUp={(e) => {
                     try {
@@ -933,13 +1037,53 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                   }}
                   className="cursor-move group"
                 >
+                  {/* 3D Elevated Racking Standoff Legs when tilt > 0 */}
+                  {tilt > 0 && isValid && (
+                    <g className="rack-standoff-elevation pointer-events-none">
+                      {/* Top mounting rail / bracket line */}
+                      <rect
+                        x="2"
+                        y="-4"
+                        width={Math.max(0, panel.width - 4)}
+                        height="4"
+                        rx="1"
+                        fill="#475569"
+                        stroke="#64748b"
+                        strokeWidth="0.75"
+                      />
+                      {/* Left & Right Elevated Standoff Bracket Feet */}
+                      <rect x="4" y="-7" width="5" height="7" rx="1" fill="#334155" stroke="#64748b" strokeWidth="0.5" />
+                      <rect x={Math.max(10, panel.width - 9)} y="-7" width="5" height="7" rx="1" fill="#334155" stroke="#64748b" strokeWidth="0.5" />
+                      {/* Shadow underneath elevated side */}
+                      <rect
+                        x="0"
+                        y="0"
+                        width={panel.width}
+                        height="3"
+                        fill="rgba(0,0,0,0.4)"
+                      />
+                    </g>
+                  )}
+
                   {/* Panel Background Rectangle */}
                   <rect
                     width={panel.width}
                     height={panel.height}
                     rx="2"
-                    fill={isValid ? 'rgba(23, 37, 84, 0.88)' : 'rgba(239, 68, 68, 0.50)'}
-                    stroke={isValid ? (isSelected ? '#38bdf8' : '#60a5fa') : '#ef4444'}
+                    fill={
+                      isValid
+                        ? tilt > 0
+                          ? 'url(#tilted-panel-grad)'
+                          : 'url(#standard-panel-grad)'
+                        : 'rgba(239, 68, 68, 0.50)'
+                    }
+                    stroke={
+                      isValid
+                        ? isSelected
+                          ? '#38bdf8'
+                          : '#60a5fa'
+                        : '#ef4444'
+                    }
                     strokeWidth={isSelected ? '2.5' : isValid ? '1.5' : '2.5'}
                     className="transition-colors duration-100"
                   />
@@ -974,7 +1118,17 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                     </>
                   )}
 
-                  {/* Wattage / ID Label */}
+                  {/* Tilt Angle Badge (Top Right Corner) */}
+                  {tilt > 0 && isValid && panel.width >= 36 && (
+                    <g transform={`translate(${panel.width - 34}, 3)`} pointerEvents="none">
+                      <rect width="31" height="13" rx="3" fill="rgba(2, 132, 199, 0.92)" stroke="#38bdf8" strokeWidth="0.6" />
+                      <text x="15.5" y="9.5" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                        ∠{tilt}°
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Wattage / ID & Rotation Label */}
                   {panel.width > 24 && panel.height > 20 && (
                     <text
                       x="4"
@@ -985,37 +1139,162 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                       fontFamily="monospace"
                       pointerEvents="none"
                     >
-                      {panelDimensions.wattage}W
+                      {panelDimensions.wattage}W{rot !== 0 ? ` • ${rot}°` : ''}
                     </text>
                   )}
 
                   {/* Selection Ring & Floating Quick Actions */}
                   {isSelected && (
                     <g className="panel-actions-overlay">
-                      {/* Floating toolbar buttons for Rotate & Delete */}
+                      {/* Interactive CAD Rotation Stem & Handle */}
+                      <line
+                        x1={panel.width / 2}
+                        y1={0}
+                        x2={panel.width / 2}
+                        y2={-20}
+                        stroke="#38bdf8"
+                        strokeWidth="1.5"
+                        strokeDasharray="2,2"
+                        pointerEvents="none"
+                      />
                       <g
-                        transform={`translate(${panel.width / 2 - 24}, -26)`}
-                        className="cursor-pointer"
+                        transform={`translate(${panel.width / 2}, -22)`}
+                        className="cursor-crosshair group/handle"
+                        onPointerDown={(e) => {
+                          e.stopPropagation()
+                          try {
+                            (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
+                          } catch (_) {}
+                          setDraggingRotationPanelId(panel.id)
+                        }}
+                        onPointerUp={(e) => {
+                          try {
+                            (e.currentTarget as Element)?.releasePointerCapture(e.pointerId)
+                          } catch (_) {}
+                          setDraggingRotationPanelId(null)
+                        }}
+                      >
+                        <circle
+                          r="7"
+                          fill="#0284c7"
+                          stroke="#ffffff"
+                          strokeWidth="2"
+                          className="hover:scale-125 transition-transform"
+                        />
+                        <path
+                          d="M -2 -1 A 3 3 0 1 1 -2 2"
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeWidth="1"
+                          pointerEvents="none"
+                        />
+                        {/* Rotation Angle Readout Bubble */}
+                        {(draggingRotationPanelId === panel.id || rot !== 0) && (
+                          <g transform="translate(12, -1)" pointerEvents="none">
+                            <rect x="-2" y="-8" width="34" height="15" rx="3" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
+                            <text x="15" y="3" fill="#38bdf8" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                              {rot}°
+                            </text>
+                          </g>
+                        )}
+                      </g>
+
+                      {/* Floating Quick Action Toolbar: Rotate -15°, +15°, 90°, Rack Tilt, Delete */}
+                      <g
+                        transform={`translate(${panel.width / 2 - 80}, -52)`}
+                        className="cursor-pointer select-none"
                         onPointerDown={(e) => e.stopPropagation()}
                       >
-                        <rect x="0" y="0" width="48" height="22" rx="4" fill="#18181b" stroke="#3f3f46" strokeWidth="1" />
-                        {/* Rotate button */}
-                        <g onClick={(e) => handleRotatePanel(panel.id, e)} className="hover:opacity-80" role="button" aria-label="Rotate panel 90 degrees">
+                        <rect
+                          x="0"
+                          y="0"
+                          width="160"
+                          height="24"
+                          rx="6"
+                          fill="#18181b"
+                          stroke="#3f3f46"
+                          strokeWidth="1"
+                          className="filter drop-shadow-lg"
+                        />
+
+                        {/* Rotate -15° */}
+                        <g
+                          onClick={(e) => handleRotatePanelBy(panel.id, -15, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Rotate -15 degrees"
+                        >
+                          <title>Rotate -15° (Tilt Left / [)</title>
+                          <rect x="2" y="2" width="28" height="20" rx="3" fill="transparent" />
+                          <text x="16" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                            -15°
+                          </text>
+                        </g>
+
+                        <line x1="32" y1="4" x2="32" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                        {/* Rotate +15° */}
+                        <g
+                          onClick={(e) => handleRotatePanelBy(panel.id, 15, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Rotate +15 degrees"
+                        >
+                          <title>Rotate +15° (Tilt Right / ])</title>
+                          <rect x="34" y="2" width="28" height="20" rx="3" fill="transparent" />
+                          <text x="48" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                            +15°
+                          </text>
+                        </g>
+
+                        <line x1="64" y1="4" x2="64" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                        {/* Rotate 90° Orientation */}
+                        <g
+                          onClick={(e) => handleRotatePanel(panel.id, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Rotate 90 degrees"
+                        >
                           <title>Rotate 90°</title>
-                          <rect x="2" y="2" width="20" height="18" rx="3" fill="transparent" />
+                          <rect x="66" y="2" width="24" height="20" rx="3" fill="transparent" />
                           <path
-                            d="M 12 7 A 4 4 0 1 1 8 11 M 8 8 L 8 11 L 11 11"
+                            d="M 78 8 A 4 4 0 1 1 74 12 M 74 9 L 74 12 L 77 12"
                             fill="none"
                             stroke="#38bdf8"
                             strokeWidth="1.5"
                           />
                         </g>
-                        {/* Delete button */}
-                        <g onClick={(e) => handleDeletePanel(panel.id, e)} className="hover:opacity-80" role="button" aria-label="Delete panel">
+
+                        <line x1="92" y1="4" x2="92" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                        {/* Rack Tilt Cycler */}
+                        <g
+                          onClick={(e) => handleCyclePanelTilt(panel.id, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Cycle mounting rack tilt"
+                        >
+                          <title>Cycle Rack Tilt Pitch (0°, 10°, 15°, 20°, 25°, 30° / T)</title>
+                          <rect x="94" y="2" width="40" height="20" rx="3" fill="transparent" />
+                          <text x="114" y="15" fill="#a855f7" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                            ∠{tilt}°
+                          </text>
+                        </g>
+
+                        <line x1="136" y1="4" x2="136" y2="20" stroke="#27272a" strokeWidth="1" />
+
+                        {/* Delete */}
+                        <g
+                          onClick={(e) => handleDeletePanel(panel.id, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Delete panel"
+                        >
                           <title>Delete panel (Del)</title>
-                          <rect x="26" y="2" width="20" height="18" rx="3" fill="transparent" />
+                          <rect x="138" y="2" width="20" height="20" rx="3" fill="transparent" />
                           <path
-                            d="M 32 7 L 40 15 M 40 7 L 32 15"
+                            d="M 143 7 L 153 17 M 153 7 L 143 17"
                             fill="none"
                             stroke="#f87171"
                             strokeWidth="1.5"

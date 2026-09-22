@@ -191,10 +191,29 @@ export async function downloadRoofLayoutPng({
   // 5. Render Placed Solar Panels
   for (const panel of placedPanels) {
     ctx.save()
-    ctx.translate(panel.x, panel.y)
+    const cx = panel.width / 2
+    const cy = panel.height / 2
+    ctx.translate(panel.x + cx, panel.y + cy)
+    if (panel.rotation) {
+      ctx.rotate((panel.rotation * Math.PI) / 180)
+    }
+    ctx.translate(-cx, -cy)
+
+    // Standoff mounting rack bracket if tiltAngle > 0
+    if (panel.tiltAngle && panel.tiltAngle > 0 && panel.isValid) {
+      ctx.fillStyle = '#475569'
+      ctx.fillRect(2 / scaleRatio, -4 / scaleRatio, (panel.width - 4) / scaleRatio, 4 / scaleRatio)
+      ctx.fillStyle = '#334155'
+      ctx.fillRect(4 / scaleRatio, -7 / scaleRatio, 5 / scaleRatio, 7 / scaleRatio)
+      ctx.fillRect((panel.width - 9) / scaleRatio, -7 / scaleRatio, 5 / scaleRatio, 7 / scaleRatio)
+    }
 
     // Panel Fill
-    ctx.fillStyle = panel.isValid ? 'rgba(23, 37, 84, 0.95)' : 'rgba(239, 68, 68, 0.65)'
+    ctx.fillStyle = panel.isValid
+      ? panel.tiltAngle && panel.tiltAngle > 0
+        ? 'rgba(30, 58, 138, 0.95)'
+        : 'rgba(23, 37, 84, 0.95)'
+      : 'rgba(239, 68, 68, 0.65)'
     ctx.beginPath()
     ctx.roundRect(0, 0, panel.width, panel.height, 2 / scaleRatio)
     ctx.fill()
@@ -227,13 +246,29 @@ export async function downloadRoofLayoutPng({
       }
     }
 
-    // Wattage Label
+    // Tilt Badge on Top Right
+    if (panel.tiltAngle && panel.tiltAngle > 0 && panel.isValid && panel.width > 34) {
+      const badgeW = 28 / scaleRatio
+      const badgeH = 12 / scaleRatio
+      ctx.fillStyle = 'rgba(2, 132, 199, 0.92)'
+      ctx.beginPath()
+      ctx.roundRect(panel.width - badgeW - 3 / scaleRatio, 3 / scaleRatio, badgeW, badgeH, 3 / scaleRatio)
+      ctx.fill()
+      ctx.font = `bold ${Math.max(7, 8 / scaleRatio)}px sans-serif`
+      ctx.fillStyle = '#ffffff'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(`∠${panel.tiltAngle}°`, panel.width - badgeW / 2 - 3 / scaleRatio, 3 / scaleRatio + badgeH / 2)
+    }
+
+    // Wattage & Rotation Label
     if (panel.width > 24 && panel.height > 18) {
       ctx.fillStyle = panel.isValid ? '#93c5fd' : '#fee2e2'
       ctx.font = `600 ${Math.max(8, 9 / scaleRatio)}px monospace`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'bottom'
-      ctx.fillText(`${panelDimensions.wattage}W`, 3 / scaleRatio, panel.height - 3 / scaleRatio)
+      const label = `${panelDimensions.wattage}W${panel.rotation ? ` • ${panel.rotation}°` : ''}`
+      ctx.fillText(label, 3 / scaleRatio, panel.height - 3 / scaleRatio)
     }
 
     ctx.restore()
@@ -280,7 +315,7 @@ export async function downloadRoofLayoutPng({
 
   // 7. Draw Architectural Title Block (Bottom Right)
   const blockW = 460
-  const blockH = 210
+  const blockH = 240
   const blockX = exportWidth - blockW - 40
   const blockY = exportHeight - blockH - 40
 
@@ -325,11 +360,18 @@ export async function downloadRoofLayoutPng({
     ctx.fillStyle = highlight || '#f1f5f9'
     ctx.font = 'bold 12px monospace'
     ctx.fillText(value, valX, curY)
-    curY += 22
+    curY += 21
   }
+
+  const dominantTilt = placedPanels.find((p) => p.tiltAngle && p.tiltAngle > 0)?.tiltAngle || 0
+  const dominantRotation = placedPanels.find((p) => p.rotation && p.rotation !== 0)?.rotation || 0
 
   renderRow('Total Placed Panels:', `${metrics.validPanelsCount} Modules (${panelDimensions.wattage}W each)`, '#38bdf8')
   renderRow('DC System Capacity:', `${metrics.totalCapacityKwp.toFixed(2)} kWp`, '#60a5fa')
+  renderRow('Racking / Tilt Pitch:', dominantTilt > 0 ? `${dominantTilt}° (Tilted Rack Mount)` : '0° (Flush Roof Mount)', '#c084fc')
+  if (dominantRotation !== 0) {
+    renderRow('Azimuth / Angle:', `${dominantRotation}°`, '#38bdf8')
+  }
   renderRow('Roof Coverage Area:', `${metrics.panelsTotalAreaM2.toFixed(1)} m² (${metrics.utilizationRatePercent.toFixed(0)}% Utilization)`)
   renderRow('Date / Scale:', `${new Date().toLocaleDateString()} • Scale: ${(scale.pixelsPerMeter || 35).toFixed(1)} px/m`)
   renderRow('Prepared By:', 'MG Solar Engineering System', '#10b981')
