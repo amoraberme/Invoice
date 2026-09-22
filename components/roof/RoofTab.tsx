@@ -147,10 +147,28 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     const wattMatch = desc.match(/(\d{3,4})\s*w/i)
     const wattage = wattMatch ? parseInt(wattMatch[1], 10) : 625
 
-    // Standard physical panel dimensions
+    // Standard physical panel dimensions with smart extraction from description if available
     const isLargeFormat = wattage >= 720
-    const lengthMm = isLargeFormat ? 2384 : 2278
-    const widthMm = isLargeFormat ? 1303 : 1134
+    let lengthMm = isLargeFormat ? 2384 : 2278
+    let widthMm = isLargeFormat ? 1303 : 1134
+
+    // Check if description has explicit dimensions in ft (e.g. 7.82ft x 3.72ft)
+    const ftMatch = desc.match(/(\d+(?:\.\d+)?)\s*ft\s*[x×*]\s*(\d+(?:\.\d+)?)\s*ft/i)
+    if (ftMatch) {
+      const ft1 = parseFloat(ftMatch[1])
+      const ft2 = parseFloat(ftMatch[2])
+      lengthMm = Math.round(Math.max(ft1, ft2) * 304.8)
+      widthMm = Math.round(Math.min(ft1, ft2) * 304.8)
+    } else {
+      // Check if description has explicit dimensions in mm (e.g. 2278 x 1134 mm or 2278x1134)
+      const mmMatch = desc.match(/(\d{3,4})\s*(?:mm)?\s*[x×*]\s*(\d{3,4})\s*(?:mm)?/i)
+      if (mmMatch) {
+        const mm1 = parseInt(mmMatch[1], 10)
+        const mm2 = parseInt(mmMatch[2], 10)
+        lengthMm = Math.max(mm1, mm2)
+        widthMm = Math.min(mm1, mm2)
+      }
+    }
 
     return {
       found: panelItems.length > 0 || totalQty > 0,
@@ -313,6 +331,11 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       scale.pixelsPerMeter,
       interPanelGapMm
     )
+
+    if (newGrid.length === 0) {
+      alert('No panels could fit within the current roof boundary and scale. Try expanding the roof boundary, calibrating scale, or toggling orientation.')
+      return
+    }
 
     setPlacedPanels(newGrid)
     setActiveTool('select')
@@ -514,7 +537,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
   // Synchronize placed valid panels count back to the Items Tab
   const handleSyncToInvoice = () => {
-    if (activePanelInfo.panelItem && metrics.validPanelsCount > 0) {
+    if (metrics.validPanelsCount <= 0) return
+
+    if (activePanelInfo.panelItem) {
       const updatedLineItems = invoice.lineItems.map((item) => {
         if (item.id === activePanelInfo.panelItem?.id) {
           return { ...item, quantity: metrics.validPanelsCount }
@@ -522,6 +547,17 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         return item
       })
       onUpdateInvoice('lineItems', updatedLineItems)
+      setSyncSuccess(true)
+      setTimeout(() => setSyncSuccess(false), 2500)
+    } else {
+      const newLineItem: LineItem = {
+        id: `item-${Date.now()}`,
+        description: `${activePanelInfo.dimensions.modelName} (${activePanelInfo.dimensions.wattage}W Solar PV Module)`,
+        quantity: metrics.validPanelsCount,
+        rate: 7500,
+        unit: 'pcs',
+      }
+      onUpdateInvoice('lineItems', [...(invoice.lineItems || []), newLineItem])
       setSyncSuccess(true)
       setTimeout(() => setSyncSuccess(false), 2500)
     }
@@ -706,7 +742,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
           </div>
 
           {/* Sync Button */}
-          {activePanelInfo.found && metrics.validPanelsCount > 0 && (
+          {metrics.validPanelsCount > 0 && (
             <div className="flex items-center justify-end sm:justify-start gap-2">
               <Button
                 type="button"

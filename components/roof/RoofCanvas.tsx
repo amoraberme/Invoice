@@ -284,6 +284,11 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       onUpdatePolygon({ ...polygon, points: newPoints })
       return
     }
+
+    // Default Select Mode: Clicking empty canvas deselects panel
+    if (activeTool === 'select') {
+      setSelectedPanelId(null)
+    }
   }
 
   // Pointer Move (Live tracking, rubberbanding, vertex dragging, panel dragging, canvas panning)
@@ -525,6 +530,21 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       } else if (e.key === 'h' || e.key === 'H') {
         if (onSelectTool) onSelectTool('pan')
       }
+      if (e.key === 'Escape') {
+        if (selectedPanelId) {
+          setSelectedPanelId(null)
+        } else if (scaleModalOpen) {
+          setScaleModalOpen(false)
+          setPendingScalePoints(null)
+        } else if (scaleTempStart) {
+          setScaleTempStart(null)
+        } else if (rectStart) {
+          setRectStart(null)
+        } else if (activeTool === 'pen' && !polygon.isClosed) {
+          onUpdatePolygon({ points: [], isClosed: false })
+          if (onSelectTool) onSelectTool('select')
+        }
+      }
       if (e.key === 'Enter' && !polygon.isClosed && polygon.points.length >= 3) {
         const closedPoly = { ...polygon, isClosed: true }
         onUpdatePolygon(closedPoly)
@@ -534,6 +554,11 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPanelId) {
         onUpdatePanels(placedPanels.filter((p) => p.id !== selectedPanelId))
         setSelectedPanelId(null)
+      } else if (e.key === 'Backspace' && activeTool === 'pen' && !polygon.isClosed && polygon.points.length > 0) {
+        onUpdatePolygon({
+          ...polygon,
+          points: polygon.points.slice(0, -1),
+        })
       }
     }
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -934,7 +959,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                       >
                         <rect x="0" y="0" width="48" height="22" rx="4" fill="#18181b" stroke="#3f3f46" strokeWidth="1" />
                         {/* Rotate button */}
-                        <g onClick={(e) => handleRotatePanel(panel.id, e)} className="hover:opacity-80">
+                        <g onClick={(e) => handleRotatePanel(panel.id, e)} className="hover:opacity-80" role="button" aria-label="Rotate panel 90 degrees">
+                          <title>Rotate 90°</title>
                           <rect x="2" y="2" width="20" height="18" rx="3" fill="transparent" />
                           <path
                             d="M 12 7 A 4 4 0 1 1 8 11 M 8 8 L 8 11 L 11 11"
@@ -944,7 +970,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           />
                         </g>
                         {/* Delete button */}
-                        <g onClick={(e) => handleDeletePanel(panel.id, e)} className="hover:opacity-80">
+                        <g onClick={(e) => handleDeletePanel(panel.id, e)} className="hover:opacity-80" role="button" aria-label="Delete panel">
+                          <title>Delete panel (Del)</title>
                           <rect x="26" y="2" width="20" height="18" rx="3" fill="transparent" />
                           <path
                             d="M 32 7 L 40 15 M 40 7 L 32 15"
