@@ -354,7 +354,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
-    // Handle panel rotation dragging
+    // Handle panel rotation dragging (fluid custom rotation)
     if (draggingRotationPanelId !== null) {
       const currentPanel = placedPanels.find((p) => p.id === draggingRotationPanelId)
       if (!currentPanel) return
@@ -363,17 +363,30 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       const cy = currentPanel.y + currentPanel.height / 2
       const rad = Math.atan2(canvasPt.y - cy, canvasPt.x - cx)
       const deg = (rad * 180) / Math.PI + 90
-      let normalized = Math.round(((deg % 360) + 360) % 360)
+      
+      // Calculate continuous custom angle (1 degree precision)
+      let customAngle = Math.round(((deg % 360) + 360) % 360)
+      if (customAngle === 360) customAngle = 0
 
-      // Snap to 15-degree steps if snapping enabled (inverts with Alt)
-      const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
-      if (effectiveSnap) {
-        normalized = (Math.round(normalized / 15) * 15) % 360
+      // If user holds Shift, snap to 15-degree steps (standard CAD convention)
+      if (e.shiftKey) {
+        customAngle = (Math.round(customAngle / 15) * 15) % 360
+      } else if (enableSnapping && !e.altKey) {
+        // Soft magnetic snap within 2 degrees of major cardinal axes only (0°, 90°, 180°, 270°)
+        if (Math.abs(customAngle - 0) <= 2 || Math.abs(customAngle - 360) <= 2) {
+          customAngle = 0
+        } else if (Math.abs(customAngle - 90) <= 2) {
+          customAngle = 90
+        } else if (Math.abs(customAngle - 180) <= 2) {
+          customAngle = 180
+        } else if (Math.abs(customAngle - 270) <= 2) {
+          customAngle = 270
+        }
       }
 
       const candidatePanel = {
         ...currentPanel,
-        rotation: normalized,
+        rotation: customAngle,
       }
 
       const isValid = polygon.isClosed
@@ -383,7 +396,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       onUpdatePanels(
         placedPanels.map((p) =>
           p.id === draggingRotationPanelId
-            ? { ...p, rotation: normalized, isValid }
+            ? { ...p, rotation: customAngle, isValid }
             : p
         )
       )
@@ -520,13 +533,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     )
   }
 
-  // Incremental angle rotation (e.g. +/- 15 degrees)
+  // Incremental angle rotation (e.g. +/- 1° or +/- 15°)
   const handleRotatePanelBy = (panelId: string, delta: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     onUpdatePanels(
       placedPanels.map((panel) => {
         if (panel.id !== panelId) return panel
-        const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
+        const newRotation = Math.round((((panel.rotation || 0) + delta) % 360 + 360) % 360)
         const updated = { ...panel, rotation: newRotation }
         return {
           ...updated,
@@ -534,6 +547,34 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         }
       })
     )
+  }
+
+  // Set exact custom angle on a panel
+  const handleSetPanelRotation = (panelId: string, angle: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
+    onUpdatePanels(
+      placedPanels.map((panel) => {
+        if (panel.id !== panelId) return panel
+        const updated = { ...panel, rotation: normalized }
+        return {
+          ...updated,
+          isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+        }
+      })
+    )
+  }
+
+  // Prompt user for custom angle entry
+  const handlePromptCustomRotation = (panelId: string, currentAngle: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    const input = prompt('Enter custom rotation angle in degrees (0° to 359°):', String(currentAngle || 0))
+    if (input !== null) {
+      const parsed = parseFloat(input)
+      if (!isNaN(parsed)) {
+        handleSetPanelRotation(panelId, parsed)
+      }
+    }
   }
 
   // Common rack pitch tilt angles
@@ -656,9 +697,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         if (onSelectTool) onSelectTool('select')
       }
       if ((e.key === '[' || e.key === '<') && selectedPanelId) {
-        handleRotatePanelBy(selectedPanelId, -15)
+        handleRotatePanelBy(selectedPanelId, e.shiftKey ? -1 : -15)
       } else if ((e.key === ']' || e.key === '>') && selectedPanelId) {
-        handleRotatePanelBy(selectedPanelId, 15)
+        handleRotatePanelBy(selectedPanelId, e.shiftKey ? 1 : 15)
+      } else if ((e.key === ',' || e.key === '{') && selectedPanelId) {
+        handleRotatePanelBy(selectedPanelId, -1)
+      } else if ((e.key === '.' || e.key === '}') && selectedPanelId) {
+        handleRotatePanelBy(selectedPanelId, 1)
       } else if ((e.key === 't' || e.key === 'T') && selectedPanelId) {
         handleCyclePanelTilt(selectedPanelId)
       }
@@ -1188,27 +1233,34 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           strokeWidth="1"
                           pointerEvents="none"
                         />
-                        {/* Rotation Angle Readout Bubble */}
+                        {/* Rotation Angle Readout Bubble - Clickable for custom degree entry */}
                         {(draggingRotationPanelId === panel.id || rot !== 0) && (
-                          <g transform="translate(12, -1)" pointerEvents="none">
-                            <rect x="-2" y="-8" width="34" height="15" rx="3" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
-                            <text x="15" y="3" fill="#38bdf8" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                          <g
+                            transform="translate(12, -1)"
+                            className="cursor-pointer hover:opacity-90"
+                            onClick={(e) => handlePromptCustomRotation(panel.id, rot, e)}
+                            role="button"
+                            aria-label={`Current rotation: ${rot} degrees. Click to enter custom angle.`}
+                          >
+                            <title>Current rotation: {rot}°. Click to enter custom degree angle.</title>
+                            <rect x="-2" y="-8" width="36" height="15" rx="3" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
+                            <text x="16" y="3" fill="#38bdf8" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                               {rot}°
                             </text>
                           </g>
                         )}
                       </g>
 
-                      {/* Floating Quick Action Toolbar: Rotate -15°, +15°, 90°, Rack Tilt, Delete */}
+                      {/* Floating Quick Action Toolbar: Fine -1°, Custom Degree, Fine +1°, 90°, Rack Tilt, Delete */}
                       <g
-                        transform={`translate(${panel.width / 2 - 80}, -52)`}
+                        transform={`translate(${panel.width / 2 - 105}, -52)`}
                         className="cursor-pointer select-none"
                         onPointerDown={(e) => e.stopPropagation()}
                       >
                         <rect
                           x="0"
                           y="0"
-                          width="160"
+                          width="210"
                           height="24"
                           rx="6"
                           fill="#18181b"
@@ -1217,37 +1269,49 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           className="filter drop-shadow-lg"
                         />
 
-                        {/* Rotate -15° */}
+                        {/* Fine Rotate -1° */}
                         <g
-                          onClick={(e) => handleRotatePanelBy(panel.id, -15, e)}
+                          onClick={(e) => handleRotatePanelBy(panel.id, -1, e)}
                           className="hover:opacity-80"
                           role="button"
-                          aria-label="Rotate -15 degrees"
+                          aria-label="Rotate -1 degree"
                         >
-                          <title>Rotate -15° (Tilt Left / [)</title>
-                          <rect x="2" y="2" width="28" height="20" rx="3" fill="transparent" />
-                          <text x="16" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                            -15°
+                          <title>Fine Rotate -1° (Shift+[ or ,)</title>
+                          <rect x="2" y="2" width="22" height="20" rx="3" fill="transparent" />
+                          <text x="13" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                            -1°
                           </text>
                         </g>
 
-                        <line x1="32" y1="4" x2="32" y2="20" stroke="#27272a" strokeWidth="1" />
-
-                        {/* Rotate +15° */}
+                        {/* Custom Degree Readout Button (Click to Enter Any Angle) */}
                         <g
-                          onClick={(e) => handleRotatePanelBy(panel.id, 15, e)}
+                          onClick={(e) => handlePromptCustomRotation(panel.id, rot, e)}
                           className="hover:opacity-80"
                           role="button"
-                          aria-label="Rotate +15 degrees"
+                          aria-label="Set custom rotation angle"
                         >
-                          <title>Rotate +15° (Tilt Right / ])</title>
-                          <rect x="34" y="2" width="28" height="20" rx="3" fill="transparent" />
-                          <text x="48" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                            +15°
+                          <title>Current rotation: {rot}°. Click to type any custom angle!</title>
+                          <rect x="26" y="2" width="38" height="20" rx="3" fill="#0369a1" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="0.75" />
+                          <text x="45" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                            {rot}°
                           </text>
                         </g>
 
-                        <line x1="64" y1="4" x2="64" y2="20" stroke="#27272a" strokeWidth="1" />
+                        {/* Fine Rotate +1° */}
+                        <g
+                          onClick={(e) => handleRotatePanelBy(panel.id, 1, e)}
+                          className="hover:opacity-80"
+                          role="button"
+                          aria-label="Rotate +1 degree"
+                        >
+                          <title>Fine Rotate +1° (Shift+] or .)</title>
+                          <rect x="66" y="2" width="22" height="20" rx="3" fill="transparent" />
+                          <text x="77" y="15" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                            +1°
+                          </text>
+                        </g>
+
+                        <line x1="90" y1="4" x2="90" y2="20" stroke="#27272a" strokeWidth="1" />
 
                         {/* Rotate 90° Orientation */}
                         <g
@@ -1256,17 +1320,17 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           role="button"
                           aria-label="Rotate 90 degrees"
                         >
-                          <title>Rotate 90°</title>
-                          <rect x="66" y="2" width="24" height="20" rx="3" fill="transparent" />
+                          <title>Rotate 90° Orientation</title>
+                          <rect x="92" y="2" width="24" height="20" rx="3" fill="transparent" />
                           <path
-                            d="M 78 8 A 4 4 0 1 1 74 12 M 74 9 L 74 12 L 77 12"
+                            d="M 104 8 A 4 4 0 1 1 100 12 M 100 9 L 100 12 L 103 12"
                             fill="none"
                             stroke="#38bdf8"
                             strokeWidth="1.5"
                           />
                         </g>
 
-                        <line x1="92" y1="4" x2="92" y2="20" stroke="#27272a" strokeWidth="1" />
+                        <line x1="118" y1="4" x2="118" y2="20" stroke="#27272a" strokeWidth="1" />
 
                         {/* Rack Tilt Cycler */}
                         <g
@@ -1276,13 +1340,13 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           aria-label="Cycle mounting rack tilt"
                         >
                           <title>Cycle Rack Tilt Pitch (0°, 10°, 15°, 20°, 25°, 30° / T)</title>
-                          <rect x="94" y="2" width="40" height="20" rx="3" fill="transparent" />
-                          <text x="114" y="15" fill="#a855f7" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                          <rect x="120" y="2" width="42" height="20" rx="3" fill="transparent" />
+                          <text x="141" y="15" fill="#a855f7" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
                             ∠{tilt}°
                           </text>
                         </g>
 
-                        <line x1="136" y1="4" x2="136" y2="20" stroke="#27272a" strokeWidth="1" />
+                        <line x1="164" y1="4" x2="164" y2="20" stroke="#27272a" strokeWidth="1" />
 
                         {/* Delete */}
                         <g
@@ -1292,9 +1356,9 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           aria-label="Delete panel"
                         >
                           <title>Delete panel (Del)</title>
-                          <rect x="138" y="2" width="20" height="20" rx="3" fill="transparent" />
+                          <rect x="166" y="2" width="40" height="20" rx="3" fill="transparent" />
                           <path
-                            d="M 143 7 L 153 17 M 153 7 L 143 17"
+                            d="M 181 7 L 191 17 M 191 7 L 181 17"
                             fill="none"
                             stroke="#f87171"
                             strokeWidth="1.5"

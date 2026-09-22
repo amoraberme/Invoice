@@ -392,14 +392,27 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     invoice.invoiceNumber,
   ])
 
-  // Rotate selected panel by delta (e.g. +/- 15°)
+  // Rotate selected panel by delta (e.g. +/- 1° or +/- 15°)
   const handleRotateSelected = useCallback(
     (delta: number) => {
-      if (!selectedPanelId) return
+      if (!selectedPanelId) {
+        setDefaultRotation((prevRot) => Math.round(((((prevRot + delta) % 360) + 360) % 360) * 10) / 10)
+        setPlacedPanels((prev) =>
+          prev.map((panel) => {
+            const newRotation = Math.round(((((panel.rotation || 0) + delta) % 360 + 360) % 360) * 10) / 10
+            const updated = { ...panel, rotation: newRotation }
+            return {
+              ...updated,
+              isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+            }
+          })
+        )
+        return
+      }
       setPlacedPanels((prev) =>
         prev.map((panel) => {
           if (panel.id !== selectedPanelId) return panel
-          const newRotation = (((panel.rotation || 0) + delta) % 360 + 360) % 360
+          const newRotation = Math.round(((((panel.rotation || 0) + delta) % 360 + 360) % 360) * 10) / 10
           const updated = { ...panel, rotation: newRotation }
           return {
             ...updated,
@@ -411,14 +424,26 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     [selectedPanelId, polygon]
   )
 
-  // Set selected panel rotation directly
+  // Set rotation directly (for selected panel, or all panels if none selected)
   const handleSetSelectedRotation = useCallback(
     (angle: number) => {
-      if (!selectedPanelId) return
+      const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
+      if (!selectedPanelId) {
+        setDefaultRotation(normalized)
+        setPlacedPanels((prev) =>
+          prev.map((panel) => {
+            const updated = { ...panel, rotation: normalized }
+            return {
+              ...updated,
+              isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+            }
+          })
+        )
+        return
+      }
       setPlacedPanels((prev) =>
         prev.map((panel) => {
           if (panel.id !== selectedPanelId) return panel
-          const normalized = ((angle % 360) + 360) % 360
           const updated = { ...panel, rotation: normalized }
           return {
             ...updated,
@@ -428,6 +453,24 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       )
     },
     [selectedPanelId, polygon]
+  )
+
+  // Apply rotation to all panels in the array
+  const handleApplyRotationToAll = useCallback(
+    (angle: number) => {
+      const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
+      setDefaultRotation(normalized)
+      setPlacedPanels((prev) =>
+        prev.map((panel) => {
+          const updated = { ...panel, rotation: normalized }
+          return {
+            ...updated,
+            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+          }
+        })
+      )
+    },
+    [polygon]
   )
 
   // Set selected panel tilt directly
@@ -539,7 +582,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       activePanelInfo.dimensions,
       orientation,
       scale.pixelsPerMeter,
-      interPanelGapMm
+      interPanelGapMm,
+      defaultRotation,
+      defaultTiltAngle
     )
 
     if (newGrid.length === 0) {
@@ -566,7 +611,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         orientation,
         pxPerMeter,
         interPanelGapMm,
-        centerPt
+        centerPt,
+        defaultRotation,
+        defaultTiltAngle
       )
       setPlacedPanels(panels)
       setActiveTool('select')
@@ -586,7 +633,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       orientation,
       pxPerMeter,
       interPanelGapMm,
-      centerPt
+      centerPt,
+      defaultRotation,
+      defaultTiltAngle
     )
     setPlacedPanels(panels)
     setActiveTool('select')
@@ -599,6 +648,8 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     orientation,
     interPanelGapMm,
     backgroundImageUrl,
+    defaultRotation,
+    defaultTiltAngle,
   ])
 
   // Apply user-defined Roof Dimensions from RoofSizeModal (meters, feet, or sqm)
@@ -618,7 +669,9 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         orientation,
         pxPerMeter,
         interPanelGapMm,
-        centerPt
+        centerPt,
+        defaultRotation,
+        defaultTiltAngle
       )
       setPlacedPanels(panels)
     } else {
@@ -1080,6 +1133,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         onSetSelectedRotation={handleSetSelectedRotation}
         onRotateAllPanels={handleRotateAllPanels}
         onApplyTiltToAll={handleApplyTiltToAll}
+        onApplyRotationToAll={handleApplyRotationToAll}
       />
 
       {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}

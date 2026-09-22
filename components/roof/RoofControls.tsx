@@ -74,6 +74,7 @@ interface RoofControlsProps {
   onSetSelectedRotation?: (angle: number) => void
   onRotateAllPanels?: (delta: number) => void
   onApplyTiltToAll?: (tiltAngle: number) => void
+  onApplyRotationToAll?: (angle: number) => void
 }
 
 export const RoofControls: React.FC<RoofControlsProps> = ({
@@ -109,7 +110,7 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onToggleFullscreen,
   enableSnapping = true,
   onToggleSnapping,
-  isRoofLocked = true,
+  isRoofLocked = false,
   onToggleRoofLock,
   onDownloadLayout,
   selectedPanelId,
@@ -120,6 +121,7 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
   onSetSelectedRotation,
   onRotateAllPanels,
   onApplyTiltToAll,
+  onApplyRotationToAll,
 }) => {
   // Clamp strictly between 0.20 and 0.80
   const clampedOpacity = Math.min(0.8, Math.max(0.2, imageOpacity))
@@ -364,8 +366,29 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
             )}
           </div>
 
-          {/* Azimuth / Rotation Stepper */}
-          <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/80 shrink-0 shadow-2xs">
+          {/* Azimuth / Custom Rotation Controls */}
+          <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/80 shrink-0 shadow-2xs gap-0.5">
+            <div className="flex items-center pl-1 pr-0.5 text-muted-foreground" title="Planar Azimuth Rotation Angle">
+              <Compass className="size-3.5 text-blue-500 shrink-0" />
+            </div>
+
+            {/* Fine -1° */}
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPanelId && onRotateSelected) {
+                  onRotateSelected(-1)
+                } else if (onRotateAllPanels) {
+                  onRotateAllPanels(-1)
+                }
+              }}
+              className="px-1 h-6 rounded text-[11px] font-mono font-semibold hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title="Fine rotate -1° (Shift+[ or ,)"
+            >
+              -1°
+            </button>
+
+            {/* Coarse -15° */}
             <button
               type="button"
               onClick={() => {
@@ -375,25 +398,40 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
                   onRotateAllPanels(-15)
                 }
               }}
-              className="px-1.5 h-6 rounded text-xs font-mono font-medium hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              title="Rotate -15° (Tilt Left / [)"
+              className="px-1 h-6 rounded text-[10px] font-mono text-muted-foreground/80 hover:bg-background hover:text-foreground cursor-pointer transition-colors"
+              title="Rotate -15° ([)"
             >
               -15°
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedPanelId && onSetSelectedRotation) {
-                  onSetSelectedRotation(0)
-                } else if (onRotateAllPanels) {
-                  onSetSelectedRotation?.(0)
-                }
-              }}
-              className="px-1.5 h-6 text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400 hover:bg-background rounded cursor-pointer transition-colors"
-              title="Planar rotation angle. Click to reset to 0°"
-            >
-              {currentRotation}°
-            </button>
+
+            {/* Direct Custom Degree Number Input */}
+            <div className="relative flex items-center">
+              <input
+                type="number"
+                min={0}
+                max={359}
+                step="any"
+                value={currentRotation}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value)
+                  if (!isNaN(val)) {
+                    const norm = Math.round((((val % 360) + 360) % 360) * 10) / 10
+                    if (selectedPanelId && onSetSelectedRotation) {
+                      onSetSelectedRotation(norm)
+                    } else if (onApplyRotationToAll) {
+                      onApplyRotationToAll(norm)
+                    } else if (onSetSelectedRotation) {
+                      onSetSelectedRotation(norm)
+                    }
+                  }
+                }}
+                className="w-11 h-6 px-0.5 text-center text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-background rounded border border-input focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                title="Custom rotation angle in degrees (0° - 359°). Type any exact angle!"
+              />
+              <span className="text-[10px] font-mono text-muted-foreground ml-0.5 mr-0.5 select-none font-bold">°</span>
+            </div>
+
+            {/* Coarse +15° */}
             <button
               type="button"
               onClick={() => {
@@ -403,11 +441,45 @@ export const RoofControls: React.FC<RoofControlsProps> = ({
                   onRotateAllPanels(15)
                 }
               }}
-              className="px-1.5 h-6 rounded text-xs font-mono font-medium hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              title="Rotate +15° (Tilt Right / ])"
+              className="px-1 h-6 rounded text-[10px] font-mono text-muted-foreground/80 hover:bg-background hover:text-foreground cursor-pointer transition-colors"
+              title="Rotate +15° (])"
             >
               +15°
             </button>
+
+            {/* Fine +1° */}
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedPanelId && onRotateSelected) {
+                  onRotateSelected(1)
+                } else if (onRotateAllPanels) {
+                  onRotateAllPanels(1)
+                }
+              }}
+              className="px-1 h-6 rounded text-[11px] font-mono font-semibold hover:bg-background text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title="Fine rotate +1° (Shift+] or .)"
+            >
+              +1°
+            </button>
+
+            {/* Apply rotation to all */}
+            {selectedPanelId && (onApplyRotationToAll || onRotateAllPanels) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onApplyRotationToAll) {
+                    onApplyRotationToAll(currentRotation)
+                  } else if (onSetSelectedRotation) {
+                    onSetSelectedRotation(currentRotation)
+                  }
+                }}
+                className="px-1.5 h-6 rounded text-[10px] font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 cursor-pointer transition-colors"
+                title={`Apply ${currentRotation}° custom angle to all panels in array`}
+              >
+                All
+              </button>
+            )}
           </div>
 
           {/* Download Layout Plan */}
