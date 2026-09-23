@@ -4277,6 +4277,38 @@ export default function Home() {
           </button>
           <span className="font-bold text-sm text-foreground tracking-tight shrink-0">MG Invoice</span>
 
+          {/* Localhost Only: Solar / GOV Toggle */}
+          {isLocalhost && (
+            <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border text-[10px] font-semibold shrink-0">
+              <button
+                type="button"
+                onClick={() => update('terms', TERMS_PRESETS.standard)}
+                className={cn(
+                  "px-2 py-0.5 rounded cursor-pointer transition-all",
+                  !isGovernmentTerms(invoice.terms)
+                    ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground"
+                )}
+                title="Switch to Solar Quotation (Standard Terms)"
+              >
+                Solar
+              </button>
+              <button
+                type="button"
+                onClick={() => update('terms', TERMS_PRESETS.government)}
+                className={cn(
+                  "px-2 py-0.5 rounded cursor-pointer transition-all",
+                  isGovernmentTerms(invoice.terms)
+                    ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground"
+                )}
+                title="Switch to Government P.O. Mode (Government Terms)"
+              >
+                GOV
+              </button>
+            </div>
+          )}
+
           <button
             onClick={cycleTheme}
             className="h-7 w-7 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
@@ -4364,6 +4396,39 @@ export default function Home() {
                 <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
               </div>
 
+              {/* Localhost Only: Solar / GOV Toggle */}
+              {isLocalhost && (
+                <div className="flex items-center p-0.5 bg-secondary/80 rounded-lg border border-border text-[11px] font-semibold select-none shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => update('terms', TERMS_PRESETS.standard)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1.5",
+                      !isGovernmentTerms(invoice.terms)
+                        ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Switch to Solar Quotation (Standard Terms)"
+                  >
+                    <Sun size={12} className={!isGovernmentTerms(invoice.terms) ? "text-primary-foreground" : "text-amber-500"} />
+                    <span>Solar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update('terms', TERMS_PRESETS.government)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1.5",
+                      isGovernmentTerms(invoice.terms)
+                        ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Switch to Government P.O. Mode (Government Terms & Single-Page Layout)"
+                  >
+                    <Building size={12} className={isGovernmentTerms(invoice.terms) ? "text-primary-foreground" : "text-blue-500"} />
+                    <span>GOV</span>
+                  </button>
+                </div>
+              )}
 
               {/* Countdown for Goodwe Pricelist update on the 25th */}
               <GoodweCountdownBadge onClick={() => setGoodweModalOpen(true)} />
@@ -8097,6 +8162,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               setActiveSigneeTab(signee)
               setSignatureModalOpen(true)
             }}
+            isLocalhost={isLocalhost}
           />
         ) : (
           <MGInvoicePreview
@@ -8117,6 +8183,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               setActiveSigneeTab(signee)
               setSignatureModalOpen(true)
             }}
+            isLocalhost={isLocalhost}
           />
         )}
 

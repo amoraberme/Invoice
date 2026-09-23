@@ -21,7 +21,7 @@ import {
   generateDefaultScopesFromInvoice,
   generateDefaultWarrantiesFromInvoice
 } from '@/lib/utils'
-import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag, Upload } from 'lucide-react'
+import { Sparkles, Eye, FileText, Check, ShieldCheck, Tag, Upload, Sun, Building } from 'lucide-react'
 
 export interface MGInvoicePreviewProps {
   invoice: Invoice
@@ -41,6 +41,7 @@ export interface MGInvoicePreviewProps {
   onToggleTermsPreset?: (terms: string) => void
   onAdjustFooterOffset?: (val: number) => void
   onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
+  isLocalhost?: boolean
 }
 
 interface PageData {
@@ -92,6 +93,7 @@ export function MGInvoicePreview({
   onToggleTermsPreset,
   onAdjustFooterOffset,
   onSignatureClick,
+  isLocalhost,
 }: MGInvoicePreviewProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -491,6 +493,43 @@ export function MGInvoicePreview({
             >
               {invoice.withBrandName !== false ? "[With Brand]" : "[Without Brand]"}
             </button>
+          </>
+        )}
+
+        {/* Localhost Only: Solar / GOV Mode Toggle */}
+        {isLocalhost && (
+          <>
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <div className="flex items-center p-0.5 bg-secondary/80 rounded-full border border-border text-[10px] font-bold">
+              <button
+                type="button"
+                onClick={() => onToggleTermsPreset?.(TERMS_PRESETS.standard)}
+                className={cn(
+                  "px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 border",
+                  !isGovMode
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+                    : "bg-transparent text-muted-foreground hover:text-foreground border-transparent"
+                )}
+                title="Switch to Solar Quotation (Standard Terms)"
+              >
+                <Sun size={11} className={!isGovMode ? "text-primary-foreground" : "text-amber-500"} />
+                <span>Solar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleTermsPreset?.(TERMS_PRESETS.government)}
+                className={cn(
+                  "px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 border",
+                  isGovMode
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+                    : "bg-transparent text-muted-foreground hover:text-foreground border-transparent"
+                )}
+                title="Switch to Government P.O. Mode (Government Terms & Single-Page Layout)"
+              >
+                <Building size={11} className={isGovMode ? "text-primary-foreground" : "text-blue-500"} />
+                <span>GOV</span>
+              </button>
+            </div>
           </>
         )}
 
