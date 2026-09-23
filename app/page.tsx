@@ -4302,9 +4302,9 @@ export default function Home() {
                     ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                     : "text-muted-foreground"
                 )}
-                title="Switch to Government P.O. Mode (Government Terms)"
+                title="Switch to Government P.O. Mode (gov-po-preview-updates)"
               >
-                GOV
+                With GOV
               </button>
             </div>
           )}
@@ -4422,10 +4422,10 @@ export default function Home() {
                         ? "bg-primary text-primary-foreground shadow-xs font-bold"
                         : "text-muted-foreground hover:text-foreground"
                     )}
-                    title="Switch to Government P.O. Mode (Government Terms & Single-Page Layout)"
+                    title="Switch to Government P.O. Mode (gov-po-preview-updates: Single Page, Gov Terms, E-Signatures)"
                   >
                     <Building size={12} className={isGovernmentTerms(invoice.terms) ? "text-primary-foreground" : "text-blue-500"} />
-                    <span>GOV</span>
+                    <span>With GOV</span>
                   </button>
                 </div>
               )}
@@ -4923,11 +4923,24 @@ export default function Home() {
                   {/* Toggle Card for Acknowledgment & Conforme */}
                   <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
                     <div className="space-y-0.5 pr-2">
-                      <span className="text-[11.5px] font-semibold text-foreground flex items-center gap-1.5">
-                        Acknowledgment & Conforme
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11.5px] font-semibold text-foreground flex items-center gap-1.5">
+                          Acknowledgment & Conforme
+                        </span>
+                        {isGovernmentTerms(invoice.terms) ? (
+                          <span className="text-[9.5px] px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold rounded-md border border-blue-500/20">
+                            With GOV Mode Active
+                          </span>
+                        ) : (
+                          <span className="text-[9.5px] px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded-md border border-primary/20">
+                            Solar Standard (3 Lines)
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10.5px] text-muted-foreground">
-                        Includes 3 signature lines (Sales Rep, Client, CEO) at the bottom of the quotation
+                        {isGovernmentTerms(invoice.terms)
+                          ? "Single-page Government P.O. layout with customizable signees and e-signatures."
+                          : "Standard commercial quotation with 3 printed signature lines (Sales Rep, Client, CEO)."}
                       </p>
                     </div>
                     <Button

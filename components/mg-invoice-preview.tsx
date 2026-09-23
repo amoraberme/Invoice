@@ -527,7 +527,7 @@ export function MGInvoicePreview({
                 title="Switch to Government P.O. Mode (Government Terms & Single-Page Layout)"
               >
                 <Building size={11} className={isGovMode ? "text-primary-foreground" : "text-blue-500"} />
-                <span>GOV</span>
+                <span>With GOV</span>
               </button>
             </div>
           </>
@@ -1254,8 +1254,8 @@ export function MGInvoicePreview({
                         marginTop: invoice.footerOffsetY ? `${invoice.footerOffsetY}px` : undefined,
                       }}
                     >
-                      {/* Floating Position Adjuster for Terms, Closing, & Signatures */}
-                      {onAdjustFooterOffset && (
+                      {/* Floating Position Adjuster for Terms, Closing, & Signatures (Gov PO Mode Only) */}
+                      {isGovMode && onAdjustFooterOffset && (
                         <div className="no-print print:hidden opacity-0 group-hover/footer-block:opacity-100 transition-opacity absolute -top-6 left-0 flex items-center gap-1.5 bg-background/95 backdrop-blur-xs border border-border shadow-xs rounded-md px-2 py-0.5 z-30 select-none text-[9.5px]">
                           <span className="text-[9px] font-semibold text-muted-foreground">Adjust Position:</span>
                           <button
@@ -1515,14 +1515,15 @@ export function MGInvoicePreview({
                           </div>
 
                           {(() => {
-                            const showSales = invoice.showSalesSignee === true
-                            const showClient = invoice.showClientSignee === true
-                            const showCeo = invoice.showCeoSignee !== false
-
-                            const visibleSignees: ('sales' | 'client' | 'ceo')[] = []
-                            if (showSales) visibleSignees.push('sales')
-                            if (showClient) visibleSignees.push('client')
-                            if (showCeo) visibleSignees.push('ceo')
+                            const visibleSignees: ('sales' | 'client' | 'ceo')[] = !isGovMode
+                              ? ['sales', 'client', 'ceo']
+                              : (() => {
+                                  const list: ('sales' | 'client' | 'ceo')[] = []
+                                  if (invoice.showSalesSignee === true) list.push('sales')
+                                  if (invoice.showClientSignee === true) list.push('client')
+                                  if (invoice.showCeoSignee !== false) list.push('ceo')
+                                  return list
+                                })()
 
                             if (visibleSignees.length === 0) {
                               return (
@@ -1561,6 +1562,48 @@ export function MGInvoicePreview({
                                 ? (invoice.clientSigneePosition || 'Client')
                                 : (invoice.ceoPosition || 'Chief Executive Officer')
 
+                              // Standard Solar Mode: Clean 3-line printed signature without interactive badges
+                              if (!isGovMode) {
+                                return (
+                                  <div key={signeeKey} className="flex flex-col text-center items-center">
+                                    <div className="w-full flex flex-col items-center">
+                                      <div className="border-b border-[#333333] w-full h-16 mb-3 flex items-end justify-center">
+                                        {sig && (
+                                          <div className="relative w-full flex items-center justify-center">
+                                            {sigType === 'text' ? (
+                                              <span
+                                                className="text-[#111111] select-none italic font-normal tracking-wide leading-none text-center whitespace-nowrap px-1 text-[22px]"
+                                                style={{
+                                                  fontFamily: '"Caveat", "Dancing Script", "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive, serif',
+                                                }}
+                                              >
+                                                {sig}
+                                              </span>
+                                            ) : (
+                                              <img
+                                                src={sig}
+                                                alt={`${signeeKey} Signature`}
+                                                data-role="signature"
+                                                className="object-contain w-auto h-12 max-w-full select-none pointer-events-none mix-blend-multiply"
+                                              />
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                        {name}
+                                      </p>
+                                    </div>
+                                    <div className="min-h-[24px] flex items-center justify-center px-1">
+                                      <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                        {position}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )
+                              }
+
+                              // Government PO Mode: Interactive E-Sign with direct overlap overlay & click-to-edit
                               return (
                                 <div key={signeeKey} className="flex flex-col text-center items-center">
                                   <div
