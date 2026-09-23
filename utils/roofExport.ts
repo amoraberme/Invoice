@@ -81,13 +81,6 @@ export async function downloadRoofLayoutPng({
     }
   }
 
-  if (scale.pointA && scale.pointB) {
-    minX = Math.min(minX, scale.pointA.x, scale.pointB.x)
-    maxX = Math.max(maxX, scale.pointA.x, scale.pointB.x)
-    minY = Math.min(minY, scale.pointA.y, scale.pointB.y)
-    maxY = Math.max(maxY, scale.pointA.y, scale.pointB.y)
-  }
-
   // 3. Determine Canvas Dimensions and Coordinate Offsets
   // The actual background image should be exported completely without any cropping.
   let exportWidth: number
@@ -418,51 +411,9 @@ export async function downloadRoofLayoutPng({
     ctx.restore()
   }
 
-  // 7. Render Calibrated Scale Reference Ruler if present
-  if (scale.pointA && scale.pointB && scale.isCalibrated && scale.realWorldDistanceMeters > 0) {
-    ctx.save()
-    // Dashed amber reference line
-    ctx.strokeStyle = '#f59e0b'
-    ctx.lineWidth = 2.5
-    ctx.setLineDash([6, 4])
-    ctx.beginPath()
-    ctx.moveTo(scale.pointA.x, scale.pointA.y)
-    ctx.lineTo(scale.pointB.x, scale.pointB.y)
-    ctx.stroke()
-    ctx.setLineDash([])
-
-    // Point A & Point B terminal circles
-    ctx.fillStyle = '#f59e0b'
-    ctx.beginPath()
-    ctx.arc(scale.pointA.x, scale.pointA.y, 4, 0, Math.PI * 2)
-    ctx.arc(scale.pointB.x, scale.pointB.y, 4, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Dimension badge centered along ruler line
-    const midX = (scale.pointA.x + scale.pointB.x) / 2
-    const midY = (scale.pointA.y + scale.pointB.y) / 2 - 14
-    const badgeW = 76
-    const badgeH = 22
-    ctx.fillStyle = '#18181b'
-    ctx.strokeStyle = '#f59e0b'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.roundRect(midX - badgeW / 2, midY - badgeH / 2, badgeW, badgeH, 4)
-    ctx.fill()
-    ctx.stroke()
-
-    ctx.fillStyle = '#fbbf24'
-    ctx.font = 'bold 10px monospace'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(`${scale.realWorldDistanceMeters.toFixed(2)}m`, midX, midY)
-
-    ctx.restore()
-  }
-
   ctx.restore() // End of translated layout
 
-  // 8. Draw North Indicator
+  // 7. Draw North Indicator
   ctx.save()
   const northX = Math.max(50, Math.min(80, exportWidth * 0.05))
   const northY = Math.max(50, Math.min(80, exportHeight * 0.05))
