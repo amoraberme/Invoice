@@ -207,6 +207,31 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const [scaleModalOpen, setScaleModalOpen] = useState(false)
   const [scaleDistanceInput, setScaleDistanceInput] = useState('5.0')
   const [pendingScalePoints, setPendingScalePoints] = useState<{ p1: Point; p2: Point } | null>(null)
+  const [draggingScaleTarget, setDraggingScaleTarget] = useState<'line' | 'pointA' | 'pointB' | null>(null)
+  const [hoveredScalePart, setHoveredScalePart] = useState<'line' | 'pointA' | 'pointB' | null>(null)
+  const scaleDragStartRef = useRef<{
+    startCanvasPt: Point
+    initialPointA: Point
+    initialPointB: Point
+  } | null>(null)
+
+  const handleScalePointerDown = (e: React.PointerEvent, target: 'line' | 'pointA' | 'pointB') => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    if (!scale.pointA || !scale.pointB) return
+
+    const canvasPt = screenToCanvas(e.clientX, e.clientY)
+    setDraggingScaleTarget(target)
+    scaleDragStartRef.current = {
+      startCanvasPt: canvasPt,
+      initialPointA: { ...scale.pointA },
+      initialPointB: { ...scale.pointB },
+    }
+    try {
+      (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
+    } catch (_) {}
+    onSnapshotBeforeChange?.()
+  }
 
   // Selected Panels array
   const selectedPanels = useMemo(
@@ -456,6 +481,46 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       return
     }
 
+    // Handle Scale Reference Line & Endpoints Dragging
+    if (draggingScaleTarget && scaleDragStartRef.current && scale.pointA && scale.pointB) {
+      const { startCanvasPt, initialPointA, initialPointB } = scaleDragStartRef.current
+      const dx = canvasPt.x - startCanvasPt.x
+      const dy = canvasPt.y - startCanvasPt.y
+
+      if (draggingScaleTarget === 'line') {
+        const newA = { x: Math.round(initialPointA.x + dx), y: Math.round(initialPointA.y + dy) }
+        const newB = { x: Math.round(initialPointB.x + dx), y: Math.round(initialPointB.y + dy) }
+        onUpdateScale({
+          ...scale,
+          pointA: newA,
+          pointB: newB,
+        })
+      } else if (draggingScaleTarget === 'pointA') {
+        const newA = { x: Math.round(canvasPt.x), y: Math.round(canvasPt.y) }
+        const distPx = getDistance(newA, scale.pointB)
+        if (distPx >= 5) {
+          const pxPerM = scale.realWorldDistanceMeters > 0 ? distPx / scale.realWorldDistanceMeters : scale.pixelsPerMeter
+          onUpdateScale({
+            ...scale,
+            pointA: newA,
+            pixelsPerMeter: pxPerM,
+          })
+        }
+      } else if (draggingScaleTarget === 'pointB') {
+        const newB = { x: Math.round(canvasPt.x), y: Math.round(canvasPt.y) }
+        const distPx = getDistance(scale.pointA, newB)
+        if (distPx >= 5) {
+          const pxPerM = scale.realWorldDistanceMeters > 0 ? distPx / scale.realWorldDistanceMeters : scale.pixelsPerMeter
+          onUpdateScale({
+            ...scale,
+            pointB: newB,
+            pixelsPerMeter: pxPerM,
+          })
+        }
+      }
+      return
+    }
+
     // Handle whole polygon dragging
     if (isDraggingPolygon && polygon.points.length > 0) {
       const dx = canvasPt.x - polyDragStart.x
@@ -670,6 +735,34 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setIsDraggingRotation(false)
     setLiveRotationAngle(null)
     rotationDragInitialRef.current = null
+
+    // Complete Scale reference drag
+    if (draggingScaleTarget !== null) {
+      if (draggingScaleTarget === 'pointA' || draggingScaleTarget === 'pointB') {
+        if (scale.pointA && scale.pointB && scale.isCalibrated && scale.realWorldDistanceMeters > 0) {
+          const distPx = getDistance(scale.pointA, scale.pointB)
+          const pxPerMeter = distPx / scale.realWorldDistanceMeters
+          const widthM = (orientation === 'portrait' ? panelDimensions.widthMm : panelDimensions.lengthMm) / 1000
+          const heightM = (orientation === 'portrait' ? panelDimensions.lengthMm : panelDimensions.widthMm) / 1000
+          const newPanelW = widthM * pxPerMeter
+          const newPanelH = heightM * pxPerMeter
+
+          onUpdatePanels(
+            placedPanels.map((panel) => {
+              const pW = panel.orientation === 'portrait' ? newPanelW : newPanelH
+              const pH = panel.orientation === 'portrait' ? newPanelH : newPanelW
+              const updated = { ...panel, width: pW, height: pH }
+              return {
+                ...updated,
+                isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
+              }
+            })
+          )
+        }
+      }
+      setDraggingScaleTarget(null)
+      scaleDragStartRef.current = null
+    }
 
     // Complete Multi-panel drag
     if (isDraggingPanels) {
@@ -1109,7 +1202,11 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       className="relative w-full h-full min-h-[480px] flex-1 bg-zinc-950 overflow-hidden select-none cursor-crosshair"
       style={{
         cursor:
-          activeTool === 'pan' || isPanning
+          draggingScaleTarget === 'line'
+            ? 'grabbing'
+            : draggingScaleTarget === 'pointA' || draggingScaleTarget === 'pointB'
+            ? 'crosshair'
+            : activeTool === 'pan' || isPanning
             ? 'grab'
             : activeTool === 'pen' || activeTool === 'rect' || activeTool === 'scale'
             ? 'crosshair'
@@ -1359,32 +1456,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
             </g>
           )}
 
-          {/* Scale Calibration Reference Line */}
-          {scale.pointA && scale.pointB && (
-            <g className="scale-reference-layer pointer-events-none">
-              <line
-                x1={scale.pointA.x}
-                y1={scale.pointA.y}
-                x2={scale.pointB.x}
-                y2={scale.pointB.y}
-                stroke="#f59e0b"
-                strokeWidth="2.5"
-                strokeDasharray="6,4"
-              />
-              <circle cx={scale.pointA.x} cy={scale.pointA.y} r="5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.5" />
-              <circle cx={scale.pointB.x} cy={scale.pointB.y} r="5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.5" />
-              <g
-                transform={`translate(${(scale.pointA.x + scale.pointB.x) / 2}, ${
-                  (scale.pointA.y + scale.pointB.y) / 2 - 14
-                })`}
-              >
-                <rect x="-30" y="-10" width="60" height="18" rx="4" fill="#78350f" stroke="#f59e0b" strokeWidth="1" />
-                <text x="0" y="3" fill="#fef3c7" fontSize="10" fontWeight="bold" textAnchor="middle">
-                  {scale.realWorldDistanceMeters.toFixed(1)}m Ref
-                </text>
-              </g>
-            </g>
-          )}
+
 
           {/* Active Scale Drawing Rubberband Line */}
           {activeTool === 'scale' && scaleTempStart && cursorPos && (
@@ -2095,6 +2167,137 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
               })()}
             </g>
           )}
+
+          {/* Scale Calibration Reference Line & Interactive Handles */}
+          {scale.pointA && scale.pointB && (
+            <g className="scale-reference-layer select-none">
+                  {/* Line hover and drag target (wide invisible stroke for easy grabbing) */}
+                  <line
+                    x1={scale.pointA.x}
+                    y1={scale.pointA.y}
+                    x2={scale.pointB.x}
+                    y2={scale.pointB.y}
+                    stroke="transparent"
+                    strokeWidth="18"
+                    className="cursor-grab active:cursor-grabbing"
+                    onPointerDown={(e) => handleScalePointerDown(e, 'line')}
+                    onPointerEnter={() => setHoveredScalePart('line')}
+                    onPointerLeave={() => setHoveredScalePart(null)}
+                  >
+                    <title>Drag to move ruler reference line</title>
+                  </line>
+
+                  {/* Visible dashed scale reference line */}
+                  <line
+                    x1={scale.pointA.x}
+                    y1={scale.pointA.y}
+                    x2={scale.pointB.x}
+                    y2={scale.pointB.y}
+                    stroke={hoveredScalePart === 'line' || draggingScaleTarget === 'line' ? '#fbbf24' : '#f59e0b'}
+                    strokeWidth={hoveredScalePart === 'line' || draggingScaleTarget === 'line' ? '3.5' : '2.5'}
+                    strokeDasharray="6,4"
+                    className="pointer-events-none transition-all"
+                  />
+
+                  {/* Point A Draggable Handle */}
+                  <g
+                    transform={`translate(${scale.pointA.x}, ${scale.pointA.y})`}
+                    className="cursor-crosshair select-none"
+                    onPointerDown={(e) => handleScalePointerDown(e, 'pointA')}
+                    onPointerEnter={() => setHoveredScalePart('pointA')}
+                    onPointerLeave={() => setHoveredScalePart(null)}
+                  >
+                    <title>Drag to adjust Point A reference position</title>
+                    {/* Touch / click target */}
+                    <circle r="14" fill="transparent" />
+                    {/* Outer halo ring */}
+                    <circle
+                      r={hoveredScalePart === 'pointA' || draggingScaleTarget === 'pointA' ? 12 : 9}
+                      fill="rgba(245, 158, 11, 0.25)"
+                      stroke="#f59e0b"
+                      strokeWidth={hoveredScalePart === 'pointA' || draggingScaleTarget === 'pointA' ? 2 : 1}
+                      strokeDasharray={draggingScaleTarget === 'pointA' ? 'none' : '3,2'}
+                      className="transition-all"
+                    />
+                    {/* Solid knob */}
+                    <circle r="5.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
+                    <circle r="1.5" fill="#ffffff" pointerEvents="none" />
+                    {/* Label badge */}
+                    <g transform="translate(-10, -10)" pointerEvents="none">
+                      <rect x="-6" y="-6" width="12" height="12" rx="3" fill="#78350f" stroke="#f59e0b" strokeWidth="0.8" />
+                      <text x="0" y="0" fill="#fef3c7" fontSize="8" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
+                        A
+                      </text>
+                    </g>
+                  </g>
+
+                  {/* Point B Draggable Handle */}
+                  <g
+                    transform={`translate(${scale.pointB.x}, ${scale.pointB.y})`}
+                    className="cursor-crosshair select-none"
+                    onPointerDown={(e) => handleScalePointerDown(e, 'pointB')}
+                    onPointerEnter={() => setHoveredScalePart('pointB')}
+                    onPointerLeave={() => setHoveredScalePart(null)}
+                  >
+                    <title>Drag to adjust Point B reference position</title>
+                    {/* Touch / click target */}
+                    <circle r="14" fill="transparent" />
+                    {/* Outer halo ring */}
+                    <circle
+                      r={hoveredScalePart === 'pointB' || draggingScaleTarget === 'pointB' ? 12 : 9}
+                      fill="rgba(245, 158, 11, 0.25)"
+                      stroke="#f59e0b"
+                      strokeWidth={hoveredScalePart === 'pointB' || draggingScaleTarget === 'pointB' ? 2 : 1}
+                      strokeDasharray={draggingScaleTarget === 'pointB' ? 'none' : '3,2'}
+                      className="transition-all"
+                    />
+                    {/* Solid knob */}
+                    <circle r="5.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
+                    <circle r="1.5" fill="#ffffff" pointerEvents="none" />
+                    {/* Label badge */}
+                    <g transform="translate(10, -10)" pointerEvents="none">
+                      <rect x="-6" y="-6" width="12" height="12" rx="3" fill="#78350f" stroke="#f59e0b" strokeWidth="0.8" />
+                      <text x="0" y="0" fill="#fef3c7" fontSize="8" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
+                        B
+                      </text>
+                    </g>
+                  </g>
+
+                  {/* Center Measurement Badge (Draggable to translate whole scale, double-click to recalibrate) */}
+                  <g
+                    transform={`translate(${(scale.pointA.x + scale.pointB.x) / 2}, ${
+                      (scale.pointA.y + scale.pointB.y) / 2 - 14
+                    })`}
+                    className="cursor-grab active:cursor-grabbing select-none"
+                    onPointerDown={(e) => handleScalePointerDown(e, 'line')}
+                    onPointerEnter={() => setHoveredScalePart('line')}
+                    onPointerLeave={() => setHoveredScalePart(null)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      if (!scale.pointA || !scale.pointB) return
+                      setPendingScalePoints({ p1: scale.pointA, p2: scale.pointB })
+                      setScaleDistanceInput(scale.realWorldDistanceMeters.toString())
+                      setScaleModalOpen(true)
+                    }}
+                  >
+                    <title>Drag to move ruler reference | Double-click to edit length</title>
+                    <rect
+                      x="-35"
+                      y="-10"
+                      width="70"
+                      height="20"
+                      rx="5"
+                      fill={hoveredScalePart === 'line' || draggingScaleTarget === 'line' ? '#92400e' : '#78350f'}
+                      stroke="#f59e0b"
+                      strokeWidth={hoveredScalePart === 'line' || draggingScaleTarget === 'line' ? '1.5' : '1'}
+                      className="transition-all filter drop-shadow-md"
+                    />
+                    <text x="0" y="1" fill="#fef3c7" fontSize="10" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
+                      {scale.realWorldDistanceMeters.toFixed(1)}m Ref
+                    </text>
+                  </g>
+                </g>
+              )}
         </svg>
       </div>
 
