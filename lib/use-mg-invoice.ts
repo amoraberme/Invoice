@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { type Invoice, type LineItem, type ExpenseItem, type SystemLifespanConfig, newLineItem, newExpenseItem, defaultInvoice, defaultWarranties, getDefaultSystemLifespan } from './types'
 import { loadInvoice, saveInvoice } from './store'
 import { generateDocumentId, addDays } from './utils'
@@ -16,6 +16,17 @@ function getTodayStr(): string {
 export function useMGInvoice() {
   const [invoice, setInvoice] = useState<Invoice>(defaultInvoice)
   const [loaded, setLoaded] = useState(false)
+  const invoiceRef = useRef<Invoice>(defaultInvoice)
+  const undoStackRef = useRef<Invoice[]>([])
+  const redoStackRef = useRef<Invoice[]>([])
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+  const lastBurstKeyRef = useRef<string | null>(null)
+  const lastBurstTimeRef = useRef<number>(0)
+
+  useEffect(() => {
+    invoiceRef.current = invoice
+  }, [invoice])
 
   useEffect(() => {
     loadInvoice().then((saved) => {
@@ -280,8 +291,80 @@ export function useMGInvoice() {
     return () => clearTimeout(timer)
   }, [invoice, loaded])
 
+function hasMeaningfulChange(a: Invoice, b: Invoice): boolean {
+  if (a === b) return false
+  // Exclude roofLayout from triggering invoice-level undo (Roof CAD manages its own undo history)
+  const { roofLayout: _r1, ...rest1 } = a
+  const { roofLayout: _r2, ...rest2 } = b
+  return JSON.stringify(rest1) !== JSON.stringify(rest2)
+}
+
+  const pushSnapshot = useCallback((burstKey: string | null = null) => {
+    if (!loaded) return
+    const now = Date.now()
+    if (burstKey && lastBurstKeyRef.current === burstKey && (now - lastBurstTimeRef.current < 600)) {
+      lastBurstTimeRef.current = now
+      return
+    }
+
+    lastBurstKeyRef.current = burstKey
+    lastBurstTimeRef.current = now
+
+    const current = invoiceRef.current
+    const last = undoStackRef.current[undoStackRef.current.length - 1]
+    if (last && !hasMeaningfulChange(last, current)) {
+      return
+    }
+
+    const snapshot: Invoice = JSON.parse(JSON.stringify(current))
+    undoStackRef.current.push(snapshot)
+    if (undoStackRef.current.length > 50) {
+      undoStackRef.current.shift()
+    }
+    redoStackRef.current = []
+    setCanUndo(true)
+    setCanRedo(false)
+  }, [loaded])
+
+  const undo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return
+    const current = invoiceRef.current
+    const prev = undoStackRef.current.pop()!
+    redoStackRef.current.push(JSON.parse(JSON.stringify(current)))
+    if (redoStackRef.current.length > 50) {
+      redoStackRef.current.shift()
+    }
+
+    lastBurstKeyRef.current = null
+    invoiceRef.current = prev
+    setInvoice(prev)
+    setCanUndo(undoStackRef.current.length > 0)
+    setCanRedo(true)
+  }, [])
+
+  const redo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return
+    const current = invoiceRef.current
+    const next = redoStackRef.current.pop()!
+    undoStackRef.current.push(JSON.parse(JSON.stringify(current)))
+    if (undoStackRef.current.length > 50) {
+      undoStackRef.current.shift()
+    }
+
+    lastBurstKeyRef.current = null
+    invoiceRef.current = next
+    setInvoice(next)
+    setCanUndo(true)
+    setCanRedo(redoStackRef.current.length > 0)
+  }, [])
+
   const update = useCallback(<K extends keyof Invoice>(field: K, value: Invoice[K]) => {
+    // Only capture undo snapshot for non-roofLayout fields (Roof CAD has its own dedicated undo system)
+    if (field !== 'roofLayout') {
+      pushSnapshot(`field-${String(field)}`)
+    }
     setInvoice((prev) => {
+      if (prev[field] === value) return prev
       const next = { ...prev, [field]: value }
       if (field === 'salesEmail') {
         next.fromEmail = value as string
@@ -298,63 +381,94 @@ export function useMGInvoice() {
       } else if (!next.dueDate) {
         next.dueDate = addDays(next.issueDate || getTodayStr(), 15)
       }
+      invoiceRef.current = next
       return next
     })
-  }, [])
+  }, [pushSnapshot])
 
   const updateItem = useCallback(
     (id: string, field: keyof LineItem, value: string | number) => {
-      setInvoice((prev) => ({
-        ...prev,
-        lineItems: prev.lineItems.map((item) =>
-          item.id === id ? { ...item, [field]: value } : item,
-        ),
-      }))
+      pushSnapshot(`item-${id}-${String(field)}`)
+      setInvoice((prev) => {
+        const next = {
+          ...prev,
+          lineItems: prev.lineItems.map((item) =>
+            item.id === id ? { ...item, [field]: value } : item,
+          ),
+        }
+        invoiceRef.current = next
+        return next
+      })
     },
-    [],
+    [pushSnapshot],
   )
 
   const addItem = useCallback(() => {
-    setInvoice((prev) => ({ ...prev, lineItems: [...prev.lineItems, newLineItem()] }))
-  }, [])
+    pushSnapshot(null)
+    setInvoice((prev) => {
+      const next = { ...prev, lineItems: [...prev.lineItems, newLineItem()] }
+      invoiceRef.current = next
+      return next
+    })
+  }, [pushSnapshot])
 
   const removeItem = useCallback((id: string) => {
-    setInvoice((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems.filter((item) => item.id !== id),
-    }))
-  }, [])
+    pushSnapshot(null)
+    setInvoice((prev) => {
+      const next = {
+        ...prev,
+        lineItems: prev.lineItems.filter((item) => item.id !== id),
+      }
+      invoiceRef.current = next
+      return next
+    })
+  }, [pushSnapshot])
 
   const addExpenseItem = useCallback((desc = '', amount = 0, category: ExpenseItem['category'] = 'additional') => {
+    pushSnapshot(null)
     setInvoice((prev) => {
       const current = prev.additionalExpenses || []
       if (current.length >= 7) return prev
-      return {
+      const next = {
         ...prev,
         additionalExpenses: [...current, newExpenseItem(desc, amount, category)],
       }
+      invoiceRef.current = next
+      return next
     })
-  }, [])
+  }, [pushSnapshot])
 
   const updateExpenseItem = useCallback((id: string, field: keyof ExpenseItem, value: any) => {
-    setInvoice((prev) => ({
-      ...prev,
-      additionalExpenses: (prev.additionalExpenses || []).map((exp) =>
-        exp.id === id ? { ...exp, [field]: value } : exp,
-      ),
-    }))
-  }, [])
+    pushSnapshot(`expense-${id}-${String(field)}`)
+    setInvoice((prev) => {
+      const next = {
+        ...prev,
+        additionalExpenses: (prev.additionalExpenses || []).map((exp) =>
+          exp.id === id ? { ...exp, [field]: value } : exp,
+        ),
+      }
+      invoiceRef.current = next
+      return next
+    })
+  }, [pushSnapshot])
 
   const removeExpenseItem = useCallback((id: string) => {
-    setInvoice((prev) => ({
-      ...prev,
-      additionalExpenses: (prev.additionalExpenses || []).filter((exp) => exp.id !== id),
-    }))
-  }, [])
+    pushSnapshot(null)
+    setInvoice((prev) => {
+      const next = {
+        ...prev,
+        additionalExpenses: (prev.additionalExpenses || []).filter((exp) => exp.id !== id),
+      }
+      invoiceRef.current = next
+      return next
+    })
+  }, [pushSnapshot])
 
   const setInvoiceWrapped = useCallback((val: Invoice | ((prev: Invoice) => Invoice)) => {
     setInvoice((prev) => {
       const next = typeof val === 'function' ? val(prev) : val
+      if (next === prev) return prev
+
       const nextSync = { ...next }
       nextSync.fromEmail = nextSync.salesEmail
       nextSync.fromPhone = nextSync.salesContact
@@ -362,18 +476,39 @@ export function useMGInvoice() {
       if (!nextSync.dueDate || nextSync.issueDate !== prev.issueDate) {
         nextSync.dueDate = addDays(nextSync.issueDate || getTodayStr(), 15)
       }
+
+      if (loaded && hasMeaningfulChange(prev, nextSync)) {
+        const last = undoStackRef.current[undoStackRef.current.length - 1]
+        if (!last || hasMeaningfulChange(last, prev)) {
+          const snapshot: Invoice = JSON.parse(JSON.stringify(prev))
+          undoStackRef.current.push(snapshot)
+          if (undoStackRef.current.length > 50) {
+            undoStackRef.current.shift()
+          }
+          redoStackRef.current = []
+          setCanUndo(true)
+          setCanRedo(false)
+        }
+      }
+
+      invoiceRef.current = nextSync
       return nextSync
     })
-  }, [])
+  }, [loaded])
 
   const updateItemFields = useCallback((id: string, fields: Partial<LineItem>) => {
-    setInvoice((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems.map((item) =>
-        item.id === id ? { ...item, ...fields } : item,
-      ),
-    }))
-  }, [])
+    pushSnapshot(`item-fields-${id}`)
+    setInvoice((prev) => {
+      const next = {
+        ...prev,
+        lineItems: prev.lineItems.map((item) =>
+          item.id === id ? { ...item, ...fields } : item,
+        ),
+      }
+      invoiceRef.current = next
+      return next
+    })
+  }, [pushSnapshot])
 
   return {
     invoice,
@@ -387,5 +522,9 @@ export function useMGInvoice() {
     updateExpenseItem,
     removeExpenseItem,
     setInvoice: setInvoiceWrapped,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   }
 }

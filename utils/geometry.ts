@@ -687,15 +687,31 @@ export function alignPanelsCollinear(
       const cx = C.x + finalU * cosA - finalV * sinA
       const cy = C.y + finalU * sinA + finalV * cosA
 
+      const newX = Math.round(cx - p.width / 2)
+      const newY = Math.round(cy - p.height / 2)
+      const shiftX = newX - p.x
+      const shiftY = newY - p.y
+
+      let newCustomQuad = p.customQuad
+      if (p.customQuad) {
+        newCustomQuad = p.customQuad.map((pt) => ({
+          x: Math.round(pt.x + shiftX),
+          y: Math.round(pt.y + shiftY),
+        })) as [Point, Point, Point, Point]
+      }
+
       const updated: PlacedPanel = {
         ...p,
-        x: cx - p.width / 2,
-        y: cy - p.height / 2,
+        x: newX,
+        y: newY,
         rotation: refAngle,
+        customQuad: newCustomQuad,
       }
 
       const isValid = polygonPoints && polygonPoints.length >= 3
-        ? isPanelInsidePolygon(updated, polygonPoints)
+        ? newCustomQuad
+          ? newCustomQuad.every((pt) => isPointInPolygon(pt, polygonPoints))
+          : isPanelInsidePolygon(updated, polygonPoints)
         : p.isValid
 
       aligned.push({ ...updated, isValid })
@@ -706,76 +722,125 @@ export function alignPanelsCollinear(
 }
 
 /**
- * Rotates an array of panels around the collective centroid of the array by delta degrees.
- * Keeps all panels collinear, aligned, and preserves grid structure without staircase effects.
+ * Rotates a single panel around a given center point (or its own center) by deltaAngle degrees.
+ * Seamlessly rotates both 2D standard orientation and any 3D perspective customQuad vertices.
  */
-export function rotatePanelsAsArray(
-  panels: PlacedPanel[],
+export function rotateSinglePanel(
+  panel: PlacedPanel,
   deltaAngle: number,
+  center?: Point,
   polygonPoints?: Point[]
-): PlacedPanel[] {
-  if (panels.length === 0) return []
-  if (Math.abs(deltaAngle) < 0.0001) return panels
-
-  // Collective centroid
-  let sumCx = 0
-  let sumCy = 0
-  for (const p of panels) {
-    sumCx += p.x + p.width / 2
-    sumCy += p.y + p.height / 2
-  }
-  const centroidX = sumCx / panels.length
-  const centroidY = sumCy / panels.length
+): PlacedPanel {
+  if (Math.abs(deltaAngle) < 0.0001) return panel
 
   const rad = (deltaAngle * Math.PI) / 180
   const cosA = Math.cos(rad)
   const sinA = Math.sin(rad)
 
-  const rotated = panels.map((panel) => {
-    const curCx = panel.x + panel.width / 2
-    const curCy = panel.y + panel.height / 2
+  // Compute panel center
+  let panelCx: number
+  let panelCy: number
+  if (panel.customQuad) {
+    const [q0, q1, q2, q3] = panel.customQuad
+    panelCx = (q0.x + q1.x + q2.x + q3.x) / 4
+    panelCy = (q0.y + q1.y + q2.y + q3.y) / 4
+  } else {
+    panelCx = panel.x + panel.width / 2
+    panelCy = panel.y + panel.height / 2
+  }
 
-    const relX = curCx - centroidX
-    const relY = curCy - centroidY
+  const rotCx = center ? center.x : panelCx
+  const rotCy = center ? center.y : panelCy
 
-    const rotRelX = relX * cosA - relY * sinA
-    const rotRelY = relX * sinA + relY * cosA
+  // Rotate panel origin (x, y) around rotC
+  const relX = panelCx - rotCx
+  const relY = panelCy - rotCy
+  const newCx = rotCx + relX * cosA - relY * sinA
+  const newCy = rotCy + relX * sinA + relY * cosA
 
-    const newCx = centroidX + rotRelX
-    const newCy = centroidY + rotRelY
+  const newRotation = Math.round(((((panel.rotation || 0) + deltaAngle) % 360) + 360) % 360 * 10) / 10
 
-    const newRotation = Math.round(((((panel.rotation || 0) + deltaAngle) % 360) + 360) % 360 * 10) / 10
+  let newCustomQuad: [Point, Point, Point, Point] | undefined = undefined
+  if (panel.customQuad) {
+    newCustomQuad = panel.customQuad.map((pt) => {
+      const dx = pt.x - rotCx
+      const dy = pt.y - rotCy
+      return {
+        x: Math.round(rotCx + dx * cosA - dy * sinA),
+        y: Math.round(rotCy + dx * sinA + dy * cosA),
+      }
+    }) as [Point, Point, Point, Point]
+  }
 
-    const updated: PlacedPanel = {
-      ...panel,
-      x: newCx - panel.width / 2,
-      y: newCy - panel.height / 2,
-      rotation: newRotation,
+  const updated: PlacedPanel = {
+    ...panel,
+    x: Math.round(newCx - panel.width / 2),
+    y: Math.round(newCy - panel.height / 2),
+    rotation: newRotation,
+    customQuad: newCustomQuad,
+  }
+
+  const isValid = polygonPoints && polygonPoints.length >= 3
+    ? newCustomQuad
+      ? newCustomQuad.every((pt) => isPointInPolygon(pt, polygonPoints))
+      : isPanelInsidePolygon(updated, polygonPoints)
+    : panel.isValid
+
+  return {
+    ...updated,
+    isValid,
+  }
+}
+
+/**
+ * Rotates an array of panels around the collective centroid of the array by delta degrees.
+ * Rigid-body rotation preserves all inter-panel distances, relative orientations, and 3D quads.
+ */
+export function rotatePanelsAsArray(
+  panels: PlacedPanel[],
+  deltaAngle: number,
+  polygonPoints?: Point[],
+  customCentroid?: Point
+): PlacedPanel[] {
+  if (panels.length === 0) return []
+  if (Math.abs(deltaAngle) < 0.0001) return panels
+
+  // Compute collective centroid
+  let centroidX = 0
+  let centroidY = 0
+  if (customCentroid) {
+    centroidX = customCentroid.x
+    centroidY = customCentroid.y
+  } else {
+    let sumCx = 0
+    let sumCy = 0
+    for (const p of panels) {
+      if (p.customQuad) {
+        const [q0, q1, q2, q3] = p.customQuad
+        sumCx += (q0.x + q1.x + q2.x + q3.x) / 4
+        sumCy += (q0.y + q1.y + q2.y + q3.y) / 4
+      } else {
+        sumCx += p.x + p.width / 2
+        sumCy += p.y + p.height / 2
+      }
     }
+    centroidX = sumCx / panels.length
+    centroidY = sumCy / panels.length
+  }
 
-    const isValid = polygonPoints && polygonPoints.length >= 3
-      ? isPanelInsidePolygon(updated, polygonPoints)
-      : panel.isValid
-
-    return {
-      ...updated,
-      isValid,
-    }
-  })
-
-  // Align collinear to ensure zero jagged staircase steps
-  return alignPanelsCollinear(rotated, polygonPoints)
+  const center: Point = { x: centroidX, y: centroidY }
+  return panels.map((p) => rotateSinglePanel(p, deltaAngle, center, polygonPoints))
 }
 
 /**
  * Sets the absolute rotation angle of the panel array to targetAngle.
- * Rotates all panel positions around the collective centroid and aligns
- * all panels collinearly along that angle, preventing any jagged staircase steps.
+ * Rotates all panel positions around the collective centroid to match targetAngle.
  */
 export function setPanelsArrayRotation(
   panels: PlacedPanel[],
   targetAngle: number,
-  polygonPoints?: Point[]
+  polygonPoints?: Point[],
+  customCentroid?: Point
 ): PlacedPanel[] {
   if (panels.length === 0) return []
   const normTarget = Math.round((((targetAngle % 360) + 360) % 360) * 10) / 10
@@ -785,13 +850,5 @@ export function setPanelsArrayRotation(
   while (delta > 180) delta -= 360
   while (delta < -180) delta += 360
 
-  if (Math.abs(delta) > 0.0001) {
-    return rotatePanelsAsArray(panels, delta, polygonPoints)
-  }
-
-  // If delta is 0 but panels may have jagged vertical misalignment, re-align them collinearly
-  return alignPanelsCollinear(
-    panels.map((p) => ({ ...p, rotation: normTarget })),
-    polygonPoints
-  )
+  return rotatePanelsAsArray(panels, delta, polygonPoints, customCentroid)
 }

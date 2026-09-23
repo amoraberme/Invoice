@@ -21,7 +21,8 @@ function getStorageKey(invoiceNumber?: string): string {
 export function toLightweightRoofState(state: RoofState): RoofState {
   const isDataUrl = typeof state.backgroundImageUrl === 'string' && state.backgroundImageUrl.startsWith('data:')
   const isTooLong = typeof state.backgroundImageUrl === 'string' && state.backgroundImageUrl.length > 512
-  if (isDataUrl || isTooLong) {
+  const isPlaceholder = state.backgroundImageUrl === '/roof-aerial-default.webp'
+  if (isDataUrl || isTooLong || isPlaceholder) {
     return {
       ...state,
       backgroundImageUrl: null, // Full image is safely preserved in IndexedDB & Memory
@@ -119,6 +120,9 @@ export function loadRoofWorkspaceSync(invoiceNumber?: string): RoofState | null 
     if (raw) {
       const parsed = JSON.parse(raw) as RoofState
       if (parsed && typeof parsed === 'object') {
+        if (parsed.backgroundImageUrl === '/roof-aerial-default.webp') {
+          parsed.backgroundImageUrl = null
+        }
         memoryRoofCache[key] = parsed
         return parsed
       }
@@ -160,6 +164,9 @@ export async function loadRoofWorkspaceAsync(invoiceNumber?: string): Promise<Ro
     })
 
     if (idbState) {
+      if (idbState.backgroundImageUrl === '/roof-aerial-default.webp') {
+        idbState.backgroundImageUrl = null
+      }
       // If syncState exists but lacked backgroundImageUrl, augment it with the full IndexedDB image
       if (syncState && !syncState.backgroundImageUrl && idbState.backgroundImageUrl) {
         syncState.backgroundImageUrl = idbState.backgroundImageUrl

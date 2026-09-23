@@ -409,6 +409,7 @@ function MGCapitalBoqWorksheet({
                   height: `${PAPER_H}px`,
                   transform: `scale(${scale})`,
                   transformOrigin: 'top left',
+                  fontFamily: "'Lilex', monospace",
                 }}
               >
               <div>

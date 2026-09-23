@@ -48,7 +48,7 @@ interface PageData {
 
 function getScopeBadgeDataUrl(letter: string): string {
   const safeLetter = (letter || 'A').slice(0, 2)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="6" fill="%23111111"/><text x="18" y="20" fill="%23ffffff" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif">${safeLetter}</text></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="6" fill="%23111111"/><text x="18" y="20" fill="%23ffffff" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="central" font-family="'Lilex', monospace">${safeLetter}</text></svg>`
   return `data:image/svg+xml;utf8,${svg}`
 }
 
@@ -264,8 +264,8 @@ export function MGInvoicePreview({
       : [...inv.lineItems].filter(item => !(inv.excludeBattery && isBatteryItem(item.description)))
 
     // Dedicated 2-page executive proposal for condensed mode:
-    // Page 1: Header -> Bill To -> Scope of Works (A-F) -> Warranty Table -> Final Total Price
-    // Page 2: Bank / Payment Details -> Note -> Terms & Conditions -> Signatures
+    // Page 1: Header -> Bill To -> Scope of Works (A-F) -> Warranty Table -> System Lifespan -> Final Total Price
+    // Page 2: Note -> Sales Contact -> Terms & Conditions -> Signatures
     if (inv.isCondensed) {
       return [
         {
@@ -275,7 +275,7 @@ export function MGInvoicePreview({
           showBottom: false,
           showCondensedScope: true,
           showCondensedWarranty: true,
-          showCondensedLifespan: false,
+          showCondensedLifespan: true,
         },
         {
           items: [],
@@ -284,7 +284,7 @@ export function MGInvoicePreview({
           showBottom: true,
           showCondensedScope: false,
           showCondensedWarranty: false,
-          showCondensedLifespan: true,
+          showCondensedLifespan: false,
         }
       ]
     }
@@ -497,7 +497,7 @@ export function MGInvoicePreview({
                   height: PAPER_H,
                   transform: `scale(${scale})`,
                   transformOrigin: 'top left',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                  fontFamily: "'Lilex', monospace",
                 }}
                 className={cn("relative bg-white rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10),0_1px_4px_rgba(0,0,0,0.06)] print-page print:!transform-none flex flex-col justify-between", invoice.isCondensed ? "px-12 py-7" : "px-13 py-10")}
               >
@@ -712,7 +712,7 @@ export function MGInvoicePreview({
                       </div>
                     )}
 
-                    {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Featured on Page 2 in Condensed Mode */}
+                    {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Placed after Warranty Coverage on Page 1 */}
                     {page.showCondensedLifespan && (invoice.showSystemLifespan !== false) && (() => {
                       const lifespanConfig = invoice.systemLifespan || getDefaultSystemLifespan()
                       if (lifespanConfig.enabled === false) return null
@@ -762,7 +762,7 @@ export function MGInvoicePreview({
                         : rawDets
 
                       return (
-                        <div className="mb-4 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
                           {/* Header Bar - Exactly matching Warranty Coverage */}
                           <div className="bg-[#111111] px-3 py-1.5 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
                             <span className="text-[9.5px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
@@ -1017,7 +1017,7 @@ export function MGInvoicePreview({
                         </div>
                       </div>
                     ) : invoice.isCondensed ? (
-                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 mt-4 mb-2">
+                      <div className="flex flex-col items-end print:break-inside-avoid pr-1 mt-2.5 mb-1.5">
                         <div className="w-80 space-y-1.5">
                           <div className="flex justify-between items-center text-[11.5px]">
                             <span className="text-[#888888]">Standard Price</span>

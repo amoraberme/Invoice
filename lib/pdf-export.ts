@@ -358,12 +358,9 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
       word-spacing: normal !important;
       text-rendering: geometricPrecision !important;
     }
-    body, .print-page, .print-page *:not(.font-mono):not([class*="font-mono"]) {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    }
-    .print-page .font-mono,
-    .print-page [class*="font-mono"] {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    body, .print-page, .print-page * {
+      font-family: 'Lilex', monospace !important;
+      font-feature-settings: "calt" 1, "liga" 1;
     }
     .text-emerald-600, [class*="text-emerald-600"], [class*="text-[#059669]"] {
       color: #059669 !important;

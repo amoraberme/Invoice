@@ -1,6 +1,5 @@
-import { Point, RoofPolygon, PlacedPanel, ScaleCalibration, PanelDimensions, RoofMetrics, Quad } from '@/types/roof'
+import { Point, RoofPolygon, PlacedPanel, ScaleCalibration, PanelDimensions, RoofMetrics } from '@/types/roof'
 import { getDistance, getPanelCorners } from './geometry'
-import { getHomographyMatrix, projectPoint, projectPanelQuad, isConvexQuad } from './homography'
 
 interface ExportLayoutOptions {
   backgroundImageUrl: string | null
@@ -12,8 +11,6 @@ interface ExportLayoutOptions {
   metrics: RoofMetrics
   projectName?: string
   fileName?: string
-  isPerspectiveEnabled?: boolean
-  perspectiveQuad?: Quad
 }
 
 /**
@@ -29,8 +26,6 @@ export async function downloadRoofLayoutPng({
   metrics,
   projectName: _projectName = 'Solar PV Roof Layout Plan',
   fileName,
-  isPerspectiveEnabled = false,
-  perspectiveQuad,
 }: ExportLayoutOptions): Promise<void> {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
@@ -63,28 +58,6 @@ export async function downloadRoofLayoutPng({
     ctx.stroke()
   }
 
-  // Precompute perspective projection if enabled
-  const perspectiveData = (() => {
-    if (!isPerspectiveEnabled || !perspectiveQuad || !isConvexQuad(perspectiveQuad)) {
-      return null
-    }
-    const [tl, tr, br, bl] = perspectiveQuad
-    const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
-    const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
-    const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
-    const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
-    const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
-    const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
-    const srcQuad: Quad = [
-      { x: 0, y: 0 },
-      { x: flatWidth, y: 0 },
-      { x: flatWidth, y: flatHeight },
-      { x: 0, y: flatHeight },
-    ]
-    const H = getHomographyMatrix(srcQuad, perspectiveQuad)
-    return { H, flatWidth, flatHeight }
-  })()
-
   // 2. Compute bounding box of content to automatically center and scale nicely onto 1920x1080
   let minX = Infinity
   let maxX = -Infinity
@@ -100,25 +73,15 @@ export async function downloadRoofLayoutPng({
     }
   }
 
-  if (perspectiveData && perspectiveQuad) {
-    for (const pt of perspectiveQuad) {
-      if (pt.x < minX) minX = pt.x
-      if (pt.x > maxX) maxX = pt.x
-      if (pt.y < minY) minY = pt.y
-      if (pt.y > maxY) maxY = pt.y
-    }
-    for (const panel of placedPanels) {
-      const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
-      const quad = projectPanelQuad(perspectiveData.H, corners)
-      for (const pt of quad) {
+  for (const panel of placedPanels) {
+    if (panel.customQuad) {
+      for (const pt of panel.customQuad) {
         if (pt.x < minX) minX = pt.x
         if (pt.x > maxX) maxX = pt.x
         if (pt.y < minY) minY = pt.y
         if (pt.y > maxY) maxY = pt.y
       }
-    }
-  } else {
-    for (const panel of placedPanels) {
+    } else {
       if (panel.x < minX) minX = panel.x
       if (panel.x + panel.width > maxX) maxX = panel.x + panel.width
       if (panel.y < minY) minY = panel.y
@@ -234,29 +197,10 @@ export async function downloadRoofLayoutPng({
     ctx.restore()
   }
 
-  // If perspective plane is enabled, render the pitch perspective quad guide
-  if (perspectiveData && perspectiveQuad) {
-    ctx.save()
-    ctx.beginPath()
-    ctx.moveTo(perspectiveQuad[0].x, perspectiveQuad[0].y)
-    ctx.lineTo(perspectiveQuad[1].x, perspectiveQuad[1].y)
-    ctx.lineTo(perspectiveQuad[2].x, perspectiveQuad[2].y)
-    ctx.lineTo(perspectiveQuad[3].x, perspectiveQuad[3].y)
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(6, 182, 212, 0.04)'
-    ctx.fill()
-    ctx.strokeStyle = '#06b6d4'
-    ctx.lineWidth = 1.5 / scaleRatio
-    ctx.setLineDash([6 / scaleRatio, 4 / scaleRatio])
-    ctx.stroke()
-    ctx.restore()
-  }
-
   // 5. Render Placed Solar Panels
   for (const panel of placedPanels) {
-    if (perspectiveData) {
-      const flatCorners = getPanelCorners(panel) as [Point, Point, Point, Point]
-      const quad = projectPanelQuad(perspectiveData.H, flatCorners)
+    if (panel.customQuad) {
+      const quad = panel.customQuad
 
       ctx.save()
       ctx.beginPath()
@@ -278,39 +222,49 @@ export async function downloadRoofLayoutPng({
       ctx.lineJoin = 'round'
       ctx.stroke()
 
-      // Internal silicon wafer sub-cells in perspective
+      // 3D Extruded frame bevel edge in perspective
+      if (panel.isValid) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(quad[3].x, quad[3].y)
+        ctx.lineTo(quad[2].x, quad[2].y)
+        ctx.lineTo(quad[2].x, quad[2].y + 2.5)
+        ctx.lineTo(quad[3].x, quad[3].y + 2.5)
+        ctx.closePath()
+        ctx.fillStyle = '#0f172a'
+        ctx.strokeStyle = '#334155'
+        ctx.lineWidth = 0.5 / scaleRatio
+        ctx.fill()
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      // Internal silicon wafer sub-cells in 3D perspective
       if (panel.isValid && panel.width > 20 && panel.height > 20) {
         ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)'
         ctx.lineWidth = 0.75 / scaleRatio
-        const rot = panel.rotation || 0
-        const rad = (rot * Math.PI) / 180
-        const cos = Math.cos(rad)
-        const sin = Math.sin(rad)
-        const fcx = panel.x + panel.width / 2
-        const fcy = panel.y + panel.height / 2
-        const rotatePt = (px: number, py: number) => ({
-          x: fcx + (px - fcx) * cos - (py - fcy) * sin,
-          y: fcy + (px - fcx) * sin + (py - fcy) * cos,
-        })
 
         for (let r = 1; r < 6; r++) {
-          const flatA = rotatePt(panel.x, panel.y + (r * panel.height) / 6)
-          const flatB = rotatePt(panel.x + panel.width, panel.y + (r * panel.height) / 6)
-          const pA = projectPoint(perspectiveData.H, flatA)
-          const pB = projectPoint(perspectiveData.H, flatB)
+          const t = r / 6
+          const pLeft = {
+            x: quad[0].x + (quad[3].x - quad[0].x) * t,
+            y: quad[0].y + (quad[3].y - quad[0].y) * t,
+          }
+          const pRight = {
+            x: quad[1].x + (quad[2].x - quad[1].x) * t,
+            y: quad[1].y + (quad[2].y - quad[1].y) * t,
+          }
           ctx.beginPath()
-          ctx.moveTo(pA.x, pA.y)
-          ctx.lineTo(pB.x, pB.y)
+          ctx.moveTo(pLeft.x, pLeft.y)
+          ctx.lineTo(pRight.x, pRight.y)
           ctx.stroke()
         }
 
-        const midFlatA = rotatePt(panel.x + panel.width / 2, panel.y)
-        const midFlatB = rotatePt(panel.x + panel.width / 2, panel.y + panel.height)
-        const pMidA = projectPoint(perspectiveData.H, midFlatA)
-        const pMidB = projectPoint(perspectiveData.H, midFlatB)
+        const midTop = { x: (quad[0].x + quad[1].x) / 2, y: (quad[0].y + quad[1].y) / 2 }
+        const midBot = { x: (quad[3].x + quad[2].x) / 2, y: (quad[3].y + quad[2].y) / 2 }
         ctx.beginPath()
-        ctx.moveTo(pMidA.x, pMidA.y)
-        ctx.lineTo(pMidB.x, pMidB.y)
+        ctx.moveTo(midTop.x, midTop.y)
+        ctx.lineTo(midBot.x, midBot.y)
         ctx.stroke()
       }
 

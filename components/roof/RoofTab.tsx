@@ -23,18 +23,13 @@ import {
   sqmToSqft,
   rotatePanelsAsArray,
   setPanelsArrayRotation,
+  rotateSinglePanel,
   alignPanelsCollinear,
   getPanelCorners,
 } from '@/utils/geometry'
 import {
-  getHomographyMatrix,
-  invertHomography,
-  projectPoint,
-  projectPanelQuad,
-  isConvexQuad,
   isQuadInsidePolygon,
-  orderQuadClockwise,
-  getQuadFromPolygon,
+  applyPresetPerspectiveToPanels,
 } from '@/utils/homography'
 import { downloadRoofLayoutPng } from '@/utils/roofExport'
 import {
@@ -45,12 +40,20 @@ import {
   toLightweightRoofState,
 } from '@/utils/roofStorage'
 import { RoofCanvas } from './RoofCanvas'
-import { RoofControls } from './RoofControls'
+import {
+  RoofControls,
+  RoofToolPalette,
+  RoofOptionsBar,
+  RoofStudioDock,
+  RoofStatusBar,
+  RoofShortcutsCheatSheet,
+} from './RoofControls'
 import { RoofSizeModal } from './RoofSizeModal'
 import { LineItem, Invoice } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import {
   Sun,
+  Monitor,
   AlertTriangle,
   ArrowRight,
   Sparkles,
@@ -58,13 +61,14 @@ import {
   Upload,
   Info,
   CheckCircle2,
-  Maximize,
   HelpCircle,
   Grid,
   Ruler,
   X,
   Download,
   Save,
+  Undo2,
+  Redo2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -82,6 +86,11 @@ const DEFAULT_PANEL_DIMS: PanelDimensions = {
 }
 
 export const DEFAULT_AERIAL_IMAGE = '/roof-aerial-default.webp'
+
+export const isPlaceholderAerialImage = (url: string | null | undefined): boolean => {
+  if (!url) return false
+  return url === DEFAULT_AERIAL_IMAGE || url === '/roof-aerial-default.webp'
+}
 
 // Calibrated to the ~4.8m SUV in the driveway of roof-aerial-default.webp (1024x576)
 export const DEFAULT_SCALE: ScaleCalibration = {
@@ -214,9 +223,13 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   }, [invoice.invoiceNumber, invoice.roofLayout])
 
   // Roof state initialized lazily to preserve current working layout without race conditions
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(
-    () => initialWorkspace?.backgroundImageUrl ?? DEFAULT_AERIAL_IMAGE
-  )
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(() => {
+    const cached = initialWorkspace?.backgroundImageUrl
+    if (isPlaceholderAerialImage(cached)) {
+      return null
+    }
+    return cached ?? null
+  })
   const [imageOpacity, setImageOpacity] = useState<number>(
     () => (typeof initialWorkspace?.imageOpacity === 'number' ? initialWorkspace.imageOpacity : 0.6)
   )
@@ -255,54 +268,258 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   const [viewport, setViewport] = useState<RoofViewport>(
     () => initialWorkspace?.viewport ?? INITIAL_VIEWPORT
   )
-  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null)
+  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([])
+  const selectedPanelId = selectedPanelIds[0] || null
   const [defaultTiltAngle, setDefaultTiltAngle] = useState<number>(
     () => (typeof initialWorkspace?.defaultTiltAngle === 'number' ? initialWorkspace.defaultTiltAngle : 0)
   )
   const [defaultRotation, setDefaultRotation] = useState<number>(
     () => (typeof initialWorkspace?.defaultRotation === 'number' ? initialWorkspace.defaultRotation : 0)
   )
-  const [isPerspectiveEnabled, setIsPerspectiveEnabled] = useState<boolean>(true)
-  const [perspectiveQuad, setPerspectiveQuad] = useState<Quad | null>(() => {
-    if (initialWorkspace?.perspectiveQuad && initialWorkspace.perspectiveQuad.length === 4) {
-      return initialWorkspace.perspectiveQuad
-    }
-    if (
-      initialWorkspace?.polygon &&
-      initialWorkspace.polygon.points.length >= 3 &&
-      initialWorkspace.polygon.isClosed
-    ) {
-      return getQuadFromPolygon(initialWorkspace.polygon.points)
-    }
-    return null
-  })
 
-  // Perspective Quad bound to the roof polygon
-  const effectivePerspectiveQuad: Quad | null = useMemo(() => {
-    if (perspectiveQuad && isConvexQuad(perspectiveQuad)) {
-      return perspectiveQuad
-    }
-    if (polygon.points.length >= 3) {
-      return getQuadFromPolygon(polygon.points)
-    }
-    return null
-  }, [perspectiveQuad, polygon.points])
-
-  // Automatically sync perspective plane whenever roof polygon updates
-  useEffect(() => {
-    if (polygon.points.length >= 3 && polygon.isClosed) {
-      const q = getQuadFromPolygon(polygon.points)
-      if (q) setPerspectiveQuad(q)
-    }
-  }, [polygon])
+  // Helper to accurately verify panel validity in polygon (checks customQuad if warped, else rectangular corners)
+  const checkPanelValidity = useCallback(
+    (panel: PlacedPanel, poly: RoofPolygon): boolean => {
+      if (!poly.isClosed || poly.points.length < 3) return false
+      if (panel.customQuad) {
+        return isQuadInsidePolygon(panel.customQuad, poly.points)
+      }
+      return isPanelInsidePolygon(panel, poly.points)
+    },
+    []
+  )
 
   const [syncSuccess, setSyncSuccess] = useState(false)
   const [roofSizeModalOpen, setRoofSizeModalOpen] = useState(false)
   const [centerFitTrigger, setCenterFitTrigger] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string>('')
   const [isMounted, setIsMounted] = useState(false)
+  const [activeDockTab, setActiveDockTab] = useState<'properties' | 'layers' | 'shortcuts'>('properties')
+  const [isDockCollapsed, setIsDockCollapsed] = useState<boolean>(false)
+
+  // Undo / Redo History Stack Management
+  const [undoStack, setUndoStack] = useState<{
+    polygon: RoofPolygon
+    placedPanels: PlacedPanel[]
+    scale: ScaleCalibration
+    orientation: PanelOrientation
+    defaultRotation: number
+    defaultTiltAngle: number
+  }[]>([])
+  const [redoStack, setRedoStack] = useState<{
+    polygon: RoofPolygon
+    placedPanels: PlacedPanel[]
+    scale: ScaleCalibration
+    orientation: PanelOrientation
+    defaultRotation: number
+    defaultTiltAngle: number
+  }[]>([])
+
+  const historyStateRef = useRef({
+    polygon,
+    placedPanels,
+    scale,
+    orientation,
+    defaultRotation,
+    defaultTiltAngle,
+  })
+
+  const lastSavedStateJsonRef = useRef<string>('')
+  const lastSyncedInvoiceJsonRef = useRef<string>('')
+
+  useEffect(() => {
+    historyStateRef.current = {
+      polygon,
+      placedPanels,
+      scale,
+      orientation,
+      defaultRotation,
+      defaultTiltAngle,
+    }
+  }, [
+    polygon,
+    placedPanels,
+    scale,
+    orientation,
+    defaultRotation,
+    defaultTiltAngle,
+  ])
+
+  const takeSnapshot = useCallback(() => {
+    const s = historyStateRef.current
+    return {
+      polygon: JSON.parse(JSON.stringify(s.polygon)),
+      placedPanels: JSON.parse(JSON.stringify(s.placedPanels)),
+      scale: JSON.parse(JSON.stringify(s.scale)),
+      orientation: s.orientation,
+      defaultRotation: s.defaultRotation,
+      defaultTiltAngle: s.defaultTiltAngle,
+    }
+  }, [])
+
+  const pushHistorySnapshot = useCallback(() => {
+    const current = takeSnapshot()
+    setUndoStack((prev) => {
+      const last = prev[prev.length - 1]
+      if (
+        last &&
+        JSON.stringify(last.polygon) === JSON.stringify(current.polygon) &&
+        JSON.stringify(last.placedPanels) === JSON.stringify(current.placedPanels) &&
+        JSON.stringify(last.scale) === JSON.stringify(current.scale) &&
+        last.orientation === current.orientation &&
+        last.defaultRotation === current.defaultRotation &&
+        last.defaultTiltAngle === current.defaultTiltAngle
+      ) {
+        return prev
+      }
+      const next = [...prev, current]
+      if (next.length > 50) return next.slice(next.length - 50)
+      return next
+    })
+    setRedoStack([])
+  }, [takeSnapshot])
+
+  const handleUndo = useCallback(() => {
+    setUndoStack((prevUndo) => {
+      if (prevUndo.length === 0) return prevUndo
+      const previousSnapshot = prevUndo[prevUndo.length - 1]
+      const nextUndo = prevUndo.slice(0, prevUndo.length - 1)
+
+      const currentSnapshot = takeSnapshot()
+      setRedoStack((prevRedo) => [...prevRedo, currentSnapshot])
+
+      setPolygon(previousSnapshot.polygon)
+      setPlacedPanels(previousSnapshot.placedPanels)
+      setScale(previousSnapshot.scale)
+      setOrientation(previousSnapshot.orientation)
+      setDefaultRotation(previousSnapshot.defaultRotation)
+      setDefaultTiltAngle(previousSnapshot.defaultTiltAngle)
+
+      return nextUndo
+    })
+  }, [takeSnapshot])
+
+  const handleRedo = useCallback(() => {
+    setRedoStack((prevRedo) => {
+      if (prevRedo.length === 0) return prevRedo
+      const nextSnapshot = prevRedo[prevRedo.length - 1]
+      const nextRedo = prevRedo.slice(0, prevRedo.length - 1)
+
+      const currentSnapshot = takeSnapshot()
+      setUndoStack((prevUndo) => [...prevUndo, currentSnapshot])
+
+      setPolygon(nextSnapshot.polygon)
+      setPlacedPanels(nextSnapshot.placedPanels)
+      setScale(nextSnapshot.scale)
+      setOrientation(nextSnapshot.orientation)
+      setDefaultRotation(nextSnapshot.defaultRotation)
+      setDefaultTiltAngle(nextSnapshot.defaultTiltAngle)
+
+      return nextRedo
+    })
+  }, [takeSnapshot])
+
+  // Select all placed panels
+  const handleSelectAll = useCallback(() => {
+    setSelectedPanelIds(placedPanels.map((p) => p.id))
+  }, [placedPanels])
+
+  // Group / Ungroup / Duplicate / 3D Perspective Preset Handlers
+  const handleGroupSelected = useCallback(() => {
+    if (selectedPanelIds.length < 2) return
+    pushHistorySnapshot()
+    const newGroupId = `group-${Date.now()}`
+    setPlacedPanels((prev) =>
+      prev.map((p) =>
+        selectedPanelIds.includes(p.id)
+          ? { ...p, groupId: newGroupId }
+          : p
+      )
+    )
+  }, [selectedPanelIds, pushHistorySnapshot])
+
+  const handleUngroupSelected = useCallback(() => {
+    if (selectedPanelIds.length === 0) return
+    pushHistorySnapshot()
+    setPlacedPanels((prev) =>
+      prev.map((p) => {
+        if (selectedPanelIds.includes(p.id)) {
+          const { groupId, ...rest } = p
+          return rest
+        }
+        return p
+      })
+    )
+  }, [selectedPanelIds, pushHistorySnapshot])
+
+  const handleDuplicateSelected = useCallback(() => {
+    if (selectedPanelIds.length === 0) return
+    pushHistorySnapshot()
+
+    const toDuplicate = placedPanels.filter((p) => selectedPanelIds.includes(p.id))
+    if (toDuplicate.length === 0) return
+
+    const oldGroupId = toDuplicate[0]?.groupId
+    const allSameGroup = oldGroupId && toDuplicate.every((p) => p.groupId === oldGroupId)
+    const newGroupId = allSameGroup ? `group-${Date.now()}` : undefined
+
+    const clonedIds: string[] = []
+    const clonedPanels: PlacedPanel[] = toDuplicate.map((p, idx) => {
+      const newId = `panel-cloned-${Date.now()}-${idx}`
+      clonedIds.push(newId)
+
+      let newCustomQuad: [Point, Point, Point, Point] | undefined
+      if (p.customQuad) {
+        newCustomQuad = [
+          { x: p.customQuad[0].x + 25, y: p.customQuad[0].y + 25 },
+          { x: p.customQuad[1].x + 25, y: p.customQuad[1].y + 25 },
+          { x: p.customQuad[2].x + 25, y: p.customQuad[2].y + 25 },
+          { x: p.customQuad[3].x + 25, y: p.customQuad[3].y + 25 },
+        ]
+      }
+
+      const candidate: PlacedPanel = {
+        ...p,
+        id: newId,
+        x: p.x + 25,
+        y: p.y + 25,
+        groupId: p.groupId ? (newGroupId ?? `group-${Date.now()}-${idx}`) : undefined,
+        customQuad: newCustomQuad,
+        isValid: false,
+      }
+      candidate.isValid = checkPanelValidity(candidate, polygon)
+      return candidate
+    })
+
+    setPlacedPanels((prev) => [...prev, ...clonedPanels])
+    setSelectedPanelIds(clonedIds)
+  }, [selectedPanelIds, placedPanels, polygon, checkPanelValidity, pushHistorySnapshot])
+
+  const handleApplyPerspectivePreset = useCallback(
+    (preset: 'pitch-up' | 'pitch-down' | 'pitch-left' | 'pitch-right' | 'reset') => {
+      if (selectedPanelIds.length === 0) return
+      pushHistorySnapshot()
+
+      const selectedPanels = placedPanels.filter((p) => selectedPanelIds.includes(p.id))
+      const warpedSelected = applyPresetPerspectiveToPanels(selectedPanels, preset)
+
+      const updatedMap = new Map<string, PlacedPanel>()
+      warpedSelected.forEach((p) => {
+        updatedMap.set(p.id, {
+          ...p,
+          isValid: checkPanelValidity(p, polygon),
+        })
+      })
+
+      setPlacedPanels((prev) =>
+        prev.map((p) => (updatedMap.has(p.id) ? updatedMap.get(p.id)! : p))
+      )
+    },
+    [selectedPanelIds, placedPanels, polygon, checkPanelValidity, pushHistorySnapshot]
+  )
+
+
 
   const selectedPanel = useMemo(
     () => placedPanels.find((p) => p.id === selectedPanelId) || null,
@@ -324,7 +541,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   // Asynchronously hydrate large imagery from IndexedDB (handles megabyte images without localStorage quota limits)
   useEffect(() => {
     loadRoofWorkspaceAsync(invoice.invoiceNumber).then((asyncState) => {
-      if (asyncState && asyncState.backgroundImageUrl && !backgroundImageUrl) {
+      if (asyncState?.backgroundImageUrl && !isPlaceholderAerialImage(asyncState.backgroundImageUrl)) {
         setBackgroundImageUrl(asyncState.backgroundImageUrl)
       }
     })
@@ -366,22 +583,34 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       isRoofLocked,
       defaultTiltAngle,
       defaultRotation,
-      isPerspectiveEnabled,
-      perspectiveQuad: perspectiveQuad || undefined,
     }
 
-    setIsSaving(true)
     const timer = setTimeout(() => {
-      saveRoofWorkspace(currentState, invoice.invoiceNumber).then(() => {
-        setIsSaving(false)
-        const d = new Date()
-        setLastSavedTime(
-          `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
-        )
-      })
-      // Sync lightweight version into invoice record (keeps invoice localStorage < 20KB)
-      onUpdateInvoice('roofLayout', toLightweightRoofState(currentState))
-    }, 350)
+      const lightweight = toLightweightRoofState(currentState)
+      const lightweightJson = JSON.stringify(lightweight)
+
+      // Exclude viewport from save trigger so simple canvas panning doesn't trigger multi-tier storage
+      const stateToCompare = { ...currentState, viewport: null }
+      const stateJson = JSON.stringify(stateToCompare)
+
+      if (stateJson !== lastSavedStateJsonRef.current) {
+        lastSavedStateJsonRef.current = stateJson
+        setIsSaving(true)
+        saveRoofWorkspace(currentState, invoice.invoiceNumber).then(() => {
+          setIsSaving(false)
+          const d = new Date()
+          setLastSavedTime(
+            `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+          )
+        })
+      }
+
+      // Sync lightweight version into invoice record only when meaningful changes occurred
+      if (lightweightJson !== lastSyncedInvoiceJsonRef.current) {
+        lastSyncedInvoiceJsonRef.current = lightweightJson
+        onUpdateInvoice('roofLayout', lightweight)
+      }
+    }, 400)
 
     return () => clearTimeout(timer)
   }, [
@@ -399,8 +628,6 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     isRoofLocked,
     defaultTiltAngle,
     defaultRotation,
-    isPerspectiveEnabled,
-    perspectiveQuad,
     invoice.invoiceNumber,
   ])
 
@@ -422,8 +649,6 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         isRoofLocked,
         defaultTiltAngle,
         defaultRotation,
-        isPerspectiveEnabled,
-        perspectiveQuad: perspectiveQuad || undefined,
       }
       saveRoofWorkspace(currentState, invoice.invoiceNumber)
     }
@@ -444,74 +669,110 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     isRoofLocked,
     defaultTiltAngle,
     defaultRotation,
-    isPerspectiveEnabled,
-    perspectiveQuad,
     invoice.invoiceNumber,
   ])
 
-  // Rotate selected panel by delta (e.g. +/- 1° or +/- 15°), or rotate entire array around centroid if none selected
+  // Rotate selected panels by delta (e.g. +/- 1° or +/- 15°), or rotate entire array around centroid if none selected
   const handleRotateSelected = useCallback(
     (delta: number) => {
-      if (!selectedPanelId) {
+      pushHistorySnapshot()
+      const polyPts = polygon.isClosed ? polygon.points : undefined
+
+      // If no panels selected, rotate ALL panels around array centroid
+      if (selectedPanelIds.length === 0) {
         setDefaultRotation((prevRot) => Math.round(((((prevRot + delta) % 360) + 360) % 360) * 10) / 10)
-        setPlacedPanels((prev) => rotatePanelsAsArray(prev, delta, polygon.isClosed ? polygon.points : undefined))
+        setPlacedPanels((prev) => rotatePanelsAsArray(prev, delta, polyPts))
         return
       }
+
+      // If only 1 panel selected, rotate it around its own center
+      if (selectedPanelIds.length === 1) {
+        const targetId = selectedPanelIds[0]
+        setPlacedPanels((prev) =>
+          prev.map((panel) => {
+            if (panel.id !== targetId) return panel
+            return rotateSinglePanel(panel, delta, undefined, polyPts)
+          })
+        )
+        return
+      }
+
+      // If multiple panels selected, rotate the selected panels together around their collective centroid!
+      const selectedPanels = placedPanels.filter((p) => selectedPanelIds.includes(p.id))
+      const rotatedSelected = rotatePanelsAsArray(selectedPanels, delta, polyPts)
+      const rotatedMap = new Map(rotatedSelected.map((p) => [p.id, p]))
+
       setPlacedPanels((prev) =>
-        prev.map((panel) => {
-          if (panel.id !== selectedPanelId) return panel
-          const newRotation = Math.round(((((panel.rotation || 0) + delta) % 360 + 360) % 360) * 10) / 10
-          const updated = { ...panel, rotation: newRotation }
-          return {
-            ...updated,
-            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-          }
-        })
+        prev.map((panel) => (rotatedMap.has(panel.id) ? rotatedMap.get(panel.id)! : panel))
       )
     },
-    [selectedPanelId, polygon]
+    [selectedPanelIds, placedPanels, polygon, pushHistorySnapshot]
   )
 
-  // Set rotation directly (for selected panel, or all panels if none selected)
+  // Set rotation directly (for selected panels, or all panels if none selected)
   const handleSetSelectedRotation = useCallback(
     (angle: number) => {
+      pushHistorySnapshot()
       const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
-      if (!selectedPanelId) {
+      const polyPts = polygon.isClosed ? polygon.points : undefined
+
+      if (selectedPanelIds.length === 0) {
         setDefaultRotation(normalized)
-        setPlacedPanels((prev) => setPanelsArrayRotation(prev, normalized, polygon.isClosed ? polygon.points : undefined))
+        setPlacedPanels((prev) => setPanelsArrayRotation(prev, normalized, polyPts))
         return
       }
+
+      if (selectedPanelIds.length === 1) {
+        const targetId = selectedPanelIds[0]
+        setPlacedPanels((prev) =>
+          prev.map((panel) => {
+            if (panel.id !== targetId) return panel
+            const currentRot = panel.rotation || 0
+            let delta = normalized - currentRot
+            while (delta > 180) delta -= 360
+            while (delta < -180) delta += 360
+            return rotateSinglePanel(panel, delta, undefined, polyPts)
+          })
+        )
+        return
+      }
+
+      // Multiple panels selected: rotate them so the lead panel matches normalized
+      const selectedPanels = placedPanels.filter((p) => selectedPanelIds.includes(p.id))
+      const refAngle = selectedPanels[0]?.rotation || 0
+      let delta = normalized - refAngle
+      while (delta > 180) delta -= 360
+      while (delta < -180) delta += 360
+
+      const rotatedSelected = rotatePanelsAsArray(selectedPanels, delta, polyPts)
+      const rotatedMap = new Map(rotatedSelected.map((p) => [p.id, p]))
+
       setPlacedPanels((prev) =>
-        prev.map((panel) => {
-          if (panel.id !== selectedPanelId) return panel
-          const updated = { ...panel, rotation: normalized }
-          return {
-            ...updated,
-            isValid: polygon.isClosed ? isPanelInsidePolygon(updated, polygon.points) : false,
-          }
-        })
+        prev.map((panel) => (rotatedMap.has(panel.id) ? rotatedMap.get(panel.id)! : panel))
       )
     },
-    [selectedPanelId, polygon]
+    [selectedPanelIds, placedPanels, polygon, pushHistorySnapshot]
   )
 
   // Apply rotation to all panels in the array (rotates entire array around centroid + aligns collinear)
   const handleApplyRotationToAll = useCallback(
     (angle: number) => {
+      pushHistorySnapshot()
       const normalized = Math.round((((angle % 360) + 360) % 360) * 10) / 10
       setDefaultRotation(normalized)
       setPlacedPanels((prev) => setPanelsArrayRotation(prev, normalized, polygon.isClosed ? polygon.points : undefined))
     },
-    [polygon]
+    [polygon, pushHistorySnapshot]
   )
 
-  // Set selected panel tilt directly
+  // Set selected panels tilt directly
   const handleSetSelectedTilt = useCallback(
     (tiltAngle: number) => {
-      if (!selectedPanelId) return
+      if (selectedPanelIds.length === 0) return
+      pushHistorySnapshot()
       setPlacedPanels((prev) =>
         prev.map((panel) => {
-          if (panel.id !== selectedPanelId) return panel
+          if (!selectedPanelIds.includes(panel.id)) return panel
           return {
             ...panel,
             tiltAngle,
@@ -519,13 +780,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         })
       )
     },
-    [selectedPanelId]
+    [selectedPanelIds, pushHistorySnapshot]
   )
 
   // Cycle tilt
   const TILT_ANGLES = [0, 10, 15, 20, 25, 30]
   const handleCycleTilt = useCallback(() => {
-    if (selectedPanelId) {
+    pushHistorySnapshot()
+    if (selectedPanelIds.length > 0) {
       const curTilt = selectedPanel?.tiltAngle || 0
       const nextIdx = (TILT_ANGLES.indexOf(curTilt) + 1) % TILT_ANGLES.length
       const nextTilt = TILT_ANGLES[nextIdx]
@@ -541,11 +803,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         }))
       )
     }
-  }, [selectedPanelId, selectedPanel, defaultTiltAngle, handleSetSelectedTilt])
+  }, [selectedPanelIds, selectedPanel, defaultTiltAngle, handleSetSelectedTilt, pushHistorySnapshot])
 
   // Apply tilt to all panels in the array
   const handleApplyTiltToAll = useCallback(
     (tiltAngle: number) => {
+      pushHistorySnapshot()
       setDefaultTiltAngle(tiltAngle)
       setPlacedPanels((prev) =>
         prev.map((panel) => ({
@@ -554,22 +817,79 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         }))
       )
     },
-    []
+    [pushHistorySnapshot]
   )
 
   // Rotate all panels in the array by delta around the array centroid
   const handleRotateAllPanels = useCallback(
     (delta: number) => {
+      pushHistorySnapshot()
       setDefaultRotation((prevRot) => Math.round(((((prevRot + delta) % 360) + 360) % 360) * 10) / 10)
       setPlacedPanels((prev) => rotatePanelsAsArray(prev, delta, polygon.isClosed ? polygon.points : undefined))
     },
-    [polygon]
+    [polygon, pushHistorySnapshot]
   )
 
   // Straighten / Collinear Align All Panels in Rows
   const handleAlignCollinear = useCallback(() => {
+    pushHistorySnapshot()
     setPlacedPanels((prev) => alignPanelsCollinear(prev, polygon.isClosed ? polygon.points : undefined))
-  }, [polygon])
+  }, [polygon, pushHistorySnapshot])
+
+  // Window keydown listener for global shortcuts: Undo, Redo, Select All, Group, Ungroup, Duplicate, Rotate ([ / ])
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault()
+        if (e.shiftKey) {
+          handleRedo()
+        } else {
+          handleUndo()
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault()
+        handleRedo()
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault()
+        handleSelectAll()
+      } else if (e.key === 'Escape') {
+        setSelectedPanelIds([])
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault()
+        handleGroupSelected()
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'g' || e.key === 'G')) ||
+        ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U'))
+      ) {
+        e.preventDefault()
+        handleUngroupSelected()
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault()
+        handleDuplicateSelected()
+      } else if (e.key === '[' || e.key === '{') {
+        e.preventDefault()
+        handleRotateSelected(e.shiftKey ? -1 : -15)
+      } else if (e.key === ']' || e.key === '}') {
+        e.preventDefault()
+        handleRotateSelected(e.shiftKey ? 1 : 15)
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [
+    handleUndo,
+    handleRedo,
+    handleSelectAll,
+    handleGroupSelected,
+    handleUngroupSelected,
+    handleDuplicateSelected,
+    handleRotateSelected,
+  ])
 
   // Opacity change with strict clamping [0.2, 0.8]
   const handleOpacityChange = (val: number) => {
@@ -604,55 +924,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   // Auto-Fill Roof Action: Programmatically fills maximum fitting panels inside polygon
   const handleAutoFill = () => {
     if (!polygon.isClosed || polygon.points.length < 3) return
-
-    const activeQuad = effectivePerspectiveQuad
-    if (activeQuad && isConvexQuad(activeQuad)) {
-      const [tl, tr, br, bl] = activeQuad
-      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
-      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
-      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
-      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
-      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
-      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
-      const srcQuad: Quad = [
-        { x: 0, y: 0 },
-        { x: flatWidth, y: 0 },
-        { x: flatWidth, y: flatHeight },
-        { x: 0, y: flatHeight },
-      ]
-      const H = getHomographyMatrix(srcQuad, activeQuad)
-      const H_inv = invertHomography(H)
-
-      const flatPolygon = polygon.points.map((pt) => projectPoint(H_inv, pt))
-
-      const flatGrid = generateAutoGrid(
-        flatPolygon,
-        activePanelInfo.dimensions,
-        orientation,
-        scale.pixelsPerMeter,
-        interPanelGapMm,
-        defaultRotation,
-        defaultTiltAngle
-      )
-
-      if (flatGrid.length === 0) {
-        alert('No panels could fit within the perspective roof plane. Try calibrating scale or expanding boundary.')
-        return
-      }
-
-      const validatedGrid = flatGrid.map((panel) => {
-        const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
-        const projQuad = projectPanelQuad(H, corners)
-        return {
-          ...panel,
-          isValid: isQuadInsidePolygon(projQuad, polygon.points),
-        }
-      })
-
-      setPlacedPanels(validatedGrid)
-      setActiveTool('select')
-      return
-    }
+    pushHistorySnapshot()
 
     const newGrid = generateAutoGrid(
       polygon.points,
@@ -670,63 +942,16 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     }
 
     setPlacedPanels(newGrid)
+    setSelectedPanelIds(newGrid.map((p) => p.id))
     setActiveTool('select')
   }
 
   // Place BoQ Target Panels (e.g. exactly 6 panels for 4kW setup)
   const handlePlaceBoqPanels = useCallback(() => {
+    pushHistorySnapshot()
     const targetCount = activePanelInfo.quantity > 0 ? activePanelInfo.quantity : 6
     const pxPerMeter = scale.pixelsPerMeter || 35
     const centerPt = backgroundImageUrl ? DEFAULT_ROOF_CENTER : { x: 700, y: 500 }
-
-    // Perspective Mode: Place inside flat bounding space and project
-    const activeQuad = effectivePerspectiveQuad
-    if (activeQuad && isConvexQuad(activeQuad)) {
-      const [tl, tr, br, bl] = activeQuad
-      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
-      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
-      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
-      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
-      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
-      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
-      const srcQuad: Quad = [
-        { x: 0, y: 0 },
-        { x: flatWidth, y: 0 },
-        { x: flatWidth, y: flatHeight },
-        { x: 0, y: flatHeight },
-      ]
-      const H = getHomographyMatrix(srcQuad, activeQuad)
-      const H_inv = invertHomography(H)
-
-      const flatPolygon = polygon.points.length >= 3 ? polygon.points.map((pt) => projectPoint(H_inv, pt)) : srcQuad
-      const flatCenter = { x: flatWidth / 2, y: flatHeight / 2 }
-
-      const flatPanels = generateTargetBoqPanels(
-        flatPolygon,
-        activePanelInfo.dimensions,
-        targetCount,
-        orientation,
-        pxPerMeter,
-        interPanelGapMm,
-        flatCenter,
-        defaultRotation,
-        defaultTiltAngle
-      )
-
-      const validated = flatPanels.map((panel) => {
-        const corners = getPanelCorners(panel) as [Point, Point, Point, Point]
-        const projQuad = projectPanelQuad(H, corners)
-        return {
-          ...panel,
-          isValid: polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false,
-        }
-      })
-
-      setPlacedPanels(validated)
-      setActiveTool('select')
-      setCenterFitTrigger((prev) => prev + 1)
-      return
-    }
 
     // Case 1: Polygon already exists
     if (polygon.isClosed && polygon.points.length >= 3) {
@@ -742,6 +967,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         defaultTiltAngle
       )
       setPlacedPanels(panels)
+      setSelectedPanelIds(panels.map((p) => p.id))
       setActiveTool('select')
       setCenterFitTrigger((prev) => prev + 1)
       return
@@ -764,6 +990,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
       defaultTiltAngle
     )
     setPlacedPanels(panels)
+    setSelectedPanelIds(panels.map((p) => p.id))
     setActiveTool('select')
     setTimeout(() => setCenterFitTrigger((prev) => prev + 1), 100)
   }, [
@@ -776,12 +1003,12 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     backgroundImageUrl,
     defaultRotation,
     defaultTiltAngle,
-    isPerspectiveEnabled,
-    perspectiveQuad,
+    pushHistorySnapshot,
   ])
 
   // Apply user-defined Roof Dimensions from RoofSizeModal (meters, feet, or sqm)
   const handleApplyRoofSize = (widthM: number, lengthM: number, autoPlaceBoq: boolean) => {
+    pushHistorySnapshot()
     const pxPerMeter = scale.pixelsPerMeter || 35
     const centerPt = backgroundImageUrl ? DEFAULT_ROOF_CENTER : { x: 700, y: 500 }
     const points = createRectangularRoofPolygon(widthM, lengthM, centerPt, pxPerMeter)
@@ -802,6 +1029,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         defaultTiltAngle
       )
       setPlacedPanels(panels)
+      setSelectedPanelIds(panels.map((p) => p.id))
     } else {
       // Recheck validity of any existing panels
       setPlacedPanels((prev) =>
@@ -818,6 +1046,7 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
   // Add Single Panel manually at centroid of roof polygon
   const handleAddSinglePanel = () => {
+    pushHistorySnapshot()
     const widthM =
       (orientation === 'portrait'
         ? activePanelInfo.dimensions.widthMm
@@ -829,55 +1058,6 @@ export const RoofTab: React.FC<RoofTabProps> = ({
 
     const pW = widthM * scale.pixelsPerMeter
     const pH = heightM * scale.pixelsPerMeter
-
-    const activeQuad = effectivePerspectiveQuad
-    if (activeQuad && isConvexQuad(activeQuad)) {
-      const [tl, tr, br, bl] = activeQuad
-      const topW = Math.hypot(tr.x - tl.x, tr.y - tl.y)
-      const botW = Math.hypot(br.x - bl.x, br.y - bl.y)
-      const leftH = Math.hypot(bl.x - tl.x, bl.y - tl.y)
-      const rightH = Math.hypot(br.x - tr.x, br.y - tr.y)
-      const flatWidth = Math.max(50, Math.round((topW + botW) / 2))
-      const flatHeight = Math.max(50, Math.round((leftH + rightH) / 2))
-      const srcQuad: Quad = [
-        { x: 0, y: 0 },
-        { x: flatWidth, y: 0 },
-        { x: flatWidth, y: flatHeight },
-        { x: 0, y: flatHeight },
-      ]
-      const H = getHomographyMatrix(srcQuad, activeQuad)
-
-      const posX = flatWidth / 2 - pW / 2
-      const posY = flatHeight / 2 - pH / 2
-
-      const candidate = {
-        x: posX,
-        y: posY,
-        width: pW,
-        height: pH,
-        rotation: defaultRotation,
-      }
-
-      const corners = getPanelCorners(candidate) as [Point, Point, Point, Point]
-      const projQuad = projectPanelQuad(H, corners)
-      const isValid = polygon.isClosed ? isQuadInsidePolygon(projQuad, polygon.points) : false
-
-      const newPanel: PlacedPanel = {
-        id: `panel-manual-${Date.now()}`,
-        x: posX,
-        y: posY,
-        width: pW,
-        height: pH,
-        orientation,
-        isValid,
-        rotation: defaultRotation,
-        tiltAngle: defaultTiltAngle,
-      }
-
-      setPlacedPanels((prev) => [...prev, newPanel])
-      setActiveTool('select')
-      return
-    }
 
     let posX = 600
     let posY = 400
@@ -914,12 +1094,14 @@ export const RoofTab: React.FC<RoofTabProps> = ({
     }
 
     setPlacedPanels((prev) => [...prev, newPanel])
+    setSelectedPanelIds([newPanel.id])
     setActiveTool('select')
   }
 
   // Clear Boundary
   const handleClearBoundary = () => {
     if (confirm('Clear the traced roof boundary?')) {
+      pushHistorySnapshot()
       const emptyPoly: RoofPolygon = { points: [], isClosed: false }
       setPolygon(emptyPoly)
       setPlacedPanels((prev) => prev.map((p) => ({ ...p, isValid: false })))
@@ -929,15 +1111,19 @@ export const RoofTab: React.FC<RoofTabProps> = ({
   // Clear Panels
   const handleClearPanels = () => {
     if (confirm('Remove all placed solar panels from the canvas?')) {
+      pushHistorySnapshot()
       setPlacedPanels([])
+      setSelectedPanelIds([])
     }
   }
 
   // Reset All
   const handleResetAll = () => {
     if (confirm('Reset roof layout workspace? (Boundary and panels will be cleared)')) {
+      pushHistorySnapshot()
       setPolygon({ points: [], isClosed: false })
       setPlacedPanels([])
+      setSelectedPanelIds([])
       setScale(INITIAL_SCALE)
       setViewport(INITIAL_VIEWPORT)
       clearRoofWorkspace(invoice.invoiceNumber)
@@ -991,8 +1177,6 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         imageOpacity,
         metrics,
         projectName: invoice.invoiceNumber ? `Quotation #${invoice.invoiceNumber}` : 'Solar PV Array Layout',
-        isPerspectiveEnabled: true,
-        perspectiveQuad: effectivePerspectiveQuad || undefined,
       })
     } catch (err) {
       console.error('Failed to export layout image', err)
@@ -1059,7 +1243,46 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         targetBoqWattage={activePanelInfo.dimensions.wattage}
       />
 
-      {/* Selected Panel State Linkage Banner / Fallback */}
+      {/* Non-PC / Mobile / Tablet Fallback Screen */}
+      <div className="lg:hidden flex flex-col items-center justify-center p-8 text-center min-h-[480px] bg-[#18181b] text-zinc-300 gap-4 flex-1 select-none">
+        <div className="size-16 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-lg">
+          <Monitor className="size-8" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h3 className="text-lg font-bold text-zinc-100 font-mono">
+            PC View Required
+          </h3>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            The Solar Roof Studio & CAD Planner is designed specifically for desktop and PC displays (minimum 1,024px width). Precision mouse drafting, homography perspective alignment, and keyboard shortcuts require a larger display.
+          </p>
+        </div>
+        <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-3.5 max-w-xs w-full text-left text-[11px] text-zinc-400 space-y-2 font-mono">
+          <div className="flex items-center gap-2 text-zinc-300 font-semibold">
+            <span className="size-1.5 rounded-full bg-sky-400" />
+            <span>4-Point Homography Perspective</span>
+          </div>
+          <div className="flex items-center gap-2 text-zinc-300 font-semibold">
+            <span className="size-1.5 rounded-full bg-sky-400" />
+            <span>Photoshop Hotkeys (V, P, R, S, T)</span>
+          </div>
+          <div className="flex items-center gap-2 text-zinc-300 font-semibold">
+            <span className="size-1.5 rounded-full bg-sky-400" />
+            <span>High-Res Aerial Solar CAD</span>
+          </div>
+        </div>
+        <Button
+          type="button"
+          onClick={() => onSwitchTab('items')}
+          className="mt-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs gap-1.5 cursor-pointer shadow-md"
+        >
+          <span>Return to Items Tab</span>
+          <ArrowRight className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* PC View Workspace (Strictly visible on lg: and above) */}
+      <div className="hidden lg:flex flex-col flex-1 min-h-0 w-full">
+        {/* Selected Panel State Linkage Banner / Fallback */}
       {!activePanelInfo.found && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-3 sm:px-4 py-1.5 flex flex-wrap items-center justify-between gap-2 text-amber-900 dark:text-amber-200 text-xs shrink-0">
           <div className="flex items-center gap-2">
@@ -1082,344 +1305,360 @@ export const RoofTab: React.FC<RoofTabProps> = ({
         </div>
       )}
 
-      {/* Executive Solar Summary & Metrics Bar */}
-      <div className="w-full bg-card border-b border-border px-3 sm:px-4 py-2 shadow-2xs shrink-0 flex flex-col gap-2">
-        {/* Upper Row: Active Module Info, Target Capacity, Upload & Sync Actions */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          {/* Left: Active Module Chip */}
-          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border/80 text-xs font-medium text-foreground">
-              <Sun className="size-3.5 text-amber-500 shrink-0" />
-              <span className="font-semibold truncate max-w-[170px] sm:max-w-xs">
-                {activePanelInfo.dimensions.modelName.replace(/\(.*?\)/g, '').trim() || 'Solar PV Module'}
-              </span>
-              <span className="text-muted-foreground font-mono text-[11px] shrink-0">
-                {activePanelInfo.dimensions.wattage}W • {activePanelInfo.quantity} pcs
-              </span>
-            </div>
-
-            {targetBoqKwp > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-mono shrink-0">
-                {targetBoqKwp.toFixed(2)} kWp Target
-              </span>
-            )}
-
-            {/* Live Multi-Tier Cache Status Indicator */}
-            <div
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/60 border border-border/70 text-[11px] font-mono text-muted-foreground shrink-0 select-none"
-              title="Continuous multi-tier persistence (Memory, LocalStorage, IndexedDB, Invoice)"
-            >
-              <span className={cn('size-2 rounded-full transition-colors', isSaving ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')} />
-              <span className="hidden sm:inline">{isSaving ? 'Saving...' : lastSavedTime ? `Cached ${lastSavedTime}` : 'Live Cached'}</span>
-              <span className="sm:hidden">{isSaving ? '...' : 'Saved'}</span>
-            </div>
+      {/* 1. Photoshop Application & Document Header */}
+      <div className="w-full bg-[#18181b] border-b border-zinc-800 px-3 py-1.5 flex items-center justify-between text-zinc-300 gap-2 shrink-0 select-none shadow-xs">
+        {/* Left: Document Tab & Spec Readout */}
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          {/* Photoshop Document Tab */}
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#252528] border-t-2 border-t-sky-500 border-x border-b-0 border-zinc-700/80 rounded-t text-xs font-semibold text-zinc-100 shadow-xs">
+            <Sun className="size-3.5 text-amber-400" />
+            <span className="font-mono">
+              PV Plan — #{invoice.invoiceNumber || 'Workspace'}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-mono">
+              ({Math.round(viewport.zoom * 100)}%)
+            </span>
           </div>
 
-          {/* Right: Upload Photo & Sync to BoQ CTA */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={triggerImageUpload}
-              className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md border border-border/80 flex items-center gap-1.5 cursor-pointer transition-colors"
-              title="Upload aerial roof imagery or satellite photo"
-            >
-              <Upload className="size-3 text-muted-foreground" />
-              <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Photo' : 'Upload Photo'}</span>
-              <span className="sm:hidden">Photo</span>
-            </button>
+          {/* Module Specs Tag */}
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300">
+            <span className="text-zinc-200 font-medium truncate max-w-[150px]">
+              {activePanelInfo.dimensions.modelName.replace(/\(.*?\)/g, '').trim()}
+            </span>
+            <span className="text-zinc-400 font-mono">
+              {activePanelInfo.dimensions.wattage}W • {activePanelInfo.quantity} pcs
+            </span>
+          </div>
 
-            {/* Download Plan CTA */}
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={handleDownloadPlan}
-              className="h-7 px-2.5 text-xs border-border/80 hover:bg-muted text-foreground flex items-center gap-1.5 cursor-pointer shadow-2xs font-medium"
-              title="Download high-resolution architectural solar plan (PNG)"
-            >
-              <Download className="size-3 text-blue-500" />
-              <span className="hidden sm:inline">Download Plan</span>
-              <span className="sm:hidden">Download</span>
-            </Button>
+          {targetBoqKwp > 0 && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/30 font-mono">
+              {targetBoqKwp.toFixed(2)} kWp Target
+            </span>
+          )}
 
-            {metrics.validPanelsCount > 0 && (
-              <Button
-                type="button"
-                variant="default"
-                size="xs"
-                onClick={handleSyncToInvoice}
-                className={cn(
-                  'text-xs gap-1.5 transition-all cursor-pointer h-7 font-semibold shadow-xs',
-                  syncSuccess
-                    ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                )}
-                title="Update the quotation line item quantity in Items tab to match placed valid panels"
-              >
-                {syncSuccess ? (
-                  <>
-                    <CheckCircle2 className="size-3.5 animate-bounce" />
-                    <span>Updated BoQ!</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="size-3.5" />
-                    <span>Sync to BoQ ({metrics.validPanelsCount} pcs)</span>
-                  </>
-                )}
-              </Button>
-            )}
+          {/* Live Multi-Tier Cache Status */}
+          <div
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900/80 border border-zinc-800 text-[10px] font-mono text-zinc-400 select-none"
+            title="Continuous auto-save (Memory, LocalStorage, IndexedDB, Invoice)"
+          >
+            <span className={cn('size-1.5 rounded-full transition-colors', isSaving ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')} />
+            <span className="hidden md:inline">{isSaving ? 'Saving...' : lastSavedTime ? `Cached ${lastSavedTime}` : 'Live Cached'}</span>
           </div>
         </div>
 
-        {/* Lower Row: 3-Column Engineering Metrics Widget */}
-        <div className="grid grid-cols-3 gap-2 bg-muted/40 p-2 rounded-lg border border-border/60 items-center">
-          {/* Metric 1: Panels Placed */}
-          <div className="flex flex-col pl-1 sm:pl-2">
-            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              Panels Placed
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-lg font-bold font-mono text-foreground">
-                {metrics.validPanelsCount}
-              </span>
-              {activePanelInfo.quantity > 0 && (
-                <span className="text-xs text-muted-foreground font-mono">
-                  / {activePanelInfo.quantity}
-                </span>
-              )}
-              {activePanelInfo.quantity > 0 && metrics.validPanelsCount === activePanelInfo.quantity && (
-                <span className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.2 rounded ml-1">
-                  ✓ Matched
-                </span>
-              )}
-              {metrics.invalidPanelsCount > 0 && (
-                <span className="text-[10px] text-rose-500 font-medium ml-0.5" title="Panels outside roof boundary">
-                  (+{metrics.invalidPanelsCount})
-                </span>
-              )}
-            </div>
-          </div>
+        {/* Right: Quick Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            className="h-7 px-2 text-xs text-zinc-300 hover:text-white bg-zinc-900/90 hover:bg-zinc-800 rounded border border-zinc-700/80 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/90"
+            title="Undo last change (Ctrl+Z)"
+          >
+            <Undo2 className="size-3 text-amber-400" />
+            <span className="hidden sm:inline">Undo</span>
+          </button>
 
-          {/* Metric 2: Array Output kWp */}
-          <div className="flex flex-col border-x border-border/60 px-2 sm:px-4">
-            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              Array Output
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
-                {metrics.totalCapacityKwp.toFixed(2)}
-              </span>
-              <span className="text-[11px] text-muted-foreground font-medium">kWp</span>
-              {currentTiltAngle > 0 && (
-                <span className="hidden sm:inline-flex items-center text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/15 px-1 py-0.2 rounded ml-1 font-mono">
-                  ∠{currentTiltAngle}°
-                </span>
-              )}
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            className="h-7 px-2 text-xs text-zinc-300 hover:text-white bg-zinc-900/90 hover:bg-zinc-800 rounded border border-zinc-700/80 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/90"
+            title="Redo change (Ctrl+Y)"
+          >
+            <Redo2 className="size-3 text-amber-400" />
+            <span className="hidden sm:inline">Redo</span>
+          </button>
 
-          {/* Metric 3: Roof Area & Coverage */}
-          <div className="flex flex-col pr-1 sm:pr-2">
-            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              Roof Coverage
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-sm sm:text-base font-bold font-mono text-foreground">
-                {metrics.panelsTotalAreaM2.toFixed(1)}m²
-              </span>
-              {metrics.roofPolygonAreaM2 > 0 && (
-                <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  ({metrics.utilizationRatePercent.toFixed(0)}%)
-                </span>
+          <button
+            type="button"
+            onClick={triggerImageUpload}
+            className="h-7 px-2.5 text-xs text-zinc-300 hover:text-white bg-zinc-900/90 hover:bg-zinc-800 rounded border border-zinc-700/80 flex items-center gap-1.5 cursor-pointer transition-colors"
+            title="Upload aerial roof imagery or satellite photo"
+          >
+            <Upload className="size-3 text-zinc-400" />
+            <span className="hidden sm:inline">{backgroundImageUrl ? 'Change Photo' : 'Upload Photo'}</span>
+            <span className="sm:hidden">Photo</span>
+          </button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={handleDownloadPlan}
+            className="h-7 px-2.5 text-xs border-zinc-700/80 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 cursor-pointer shadow-2xs font-medium"
+            title="Download architectural solar plan (PNG)"
+          >
+            <Download className="size-3 text-sky-400" />
+            <span className="hidden sm:inline">Download Plan</span>
+            <span className="sm:hidden">Plan</span>
+          </Button>
+
+          {metrics.validPanelsCount > 0 && (
+            <Button
+              type="button"
+              variant="default"
+              size="xs"
+              onClick={handleSyncToInvoice}
+              className={cn(
+                'text-xs gap-1.5 transition-all cursor-pointer h-7 font-semibold shadow-xs',
+                syncSuccess
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-sky-600 hover:bg-sky-500 text-white'
               )}
-            </div>
-          </div>
+              title="Sync valid placed panels count to invoice items"
+            >
+              {syncSuccess ? (
+                <>
+                  <CheckCircle2 className="size-3.5 animate-bounce" />
+                  <span>Updated BoQ!</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-3.5" />
+                  <span>Sync to BoQ ({metrics.validPanelsCount} pcs)</span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Toolbar Controls */}
-      <RoofControls
+      {/* 2. Photoshop Dynamic Contextual Options Bar */}
+      <RoofOptionsBar
         activeTool={activeTool}
         onSelectTool={setActiveTool}
-        imageOpacity={imageOpacity}
-        onChangeOpacity={handleOpacityChange}
+        selectedPanelId={selectedPanelId}
+        selectedPanelIds={selectedPanelIds}
+        onSelectPanels={setSelectedPanelIds}
+        placedPanels={placedPanels}
+        onSelectAll={handleSelectAll}
+        onGroupSelected={handleGroupSelected}
+        onUngroupSelected={handleUngroupSelected}
+        onDuplicateSelected={handleDuplicateSelected}
+        onApplyPerspectivePreset={handleApplyPerspectivePreset}
+        currentRotation={currentRotation}
+        currentTiltAngle={currentTiltAngle}
         orientation={orientation}
-        onToggleOrientation={() =>
+        onToggleOrientation={() => {
+          pushHistorySnapshot()
           setOrientation((prev) => (prev === 'portrait' ? 'landscape' : 'portrait'))
-        }
-        onAutoFill={handleAutoFill}
-        canAutoFill={polygon.isClosed && polygon.points.length >= 3}
-        onAddSinglePanel={handleAddSinglePanel}
-        canAddPanel={true}
-        onClearBoundary={handleClearBoundary}
-        hasBoundary={polygon.points.length > 0}
-        onClearPanels={handleClearPanels}
-        hasPanels={placedPanels.length > 0}
-        onResetAll={handleResetAll}
-        zoom={viewport.zoom}
-        onZoomIn={() =>
-          setViewport((prev) => ({
-            ...prev,
-            zoom: Math.min(4.0, prev.zoom * 1.2),
-          }))
-        }
-        onZoomOut={() =>
-          setViewport((prev) => ({
-            ...prev,
-            zoom: Math.max(0.3, prev.zoom * 0.83),
-          }))
-        }
-        onResetZoom={() =>
-          setViewport((prev) => ({
-            ...prev,
-            zoom: 1.0,
-          }))
-        }
-        onCenterFitView={() => setCenterFitTrigger((prev) => prev + 1)}
-        isCalibrated={scale.isCalibrated}
-        pixelsPerMeter={scale.pixelsPerMeter}
-        onOpenScaleModal={() => setActiveTool('scale')}
-        onOpenRoofSizeModal={() => setRoofSizeModalOpen(true)}
-        onPlaceBoqPanels={handlePlaceBoqPanels}
-        targetBoqCount={activePanelInfo.quantity}
+        }}
+        onCycleTilt={handleCycleTilt}
+        onApplyTiltToAll={handleApplyTiltToAll}
+        onRotateSelected={handleRotateSelected}
+        onSetSelectedRotation={handleSetSelectedRotation}
+        onRotateAllPanels={handleRotateAllPanels}
+        onApplyRotationToAll={handleApplyRotationToAll}
+        onAlignCollinear={handleAlignCollinear}
         isDrawingPolygon={!polygon.isClosed && polygon.points.length >= 3}
         onClosePolygon={() => {
           if (!polygon.isClosed && polygon.points.length >= 3) {
+            pushHistorySnapshot()
             const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
             setPolygon(closedPoly)
             setPlacedPanels((prev) =>
               prev.map((p) => ({
                 ...p,
-                isValid: isPanelInsidePolygon(p, closedPoly.points),
+                isValid: checkPanelValidity(p, closedPoly),
               }))
             )
             setActiveTool('select')
           }
         }}
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+        onOpenRoofSizeModal={() => setRoofSizeModalOpen(true)}
+        isCalibrated={scale.isCalibrated}
+        pixelsPerMeter={scale.pixelsPerMeter}
         enableSnapping={enableSnapping}
         onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
         isRoofLocked={isRoofLocked}
         onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
-        onDownloadLayout={handleDownloadPlan}
-        selectedPanelId={selectedPanelId}
-        currentTiltAngle={currentTiltAngle}
-        currentRotation={currentRotation}
-        onCycleTilt={handleCycleTilt}
-        onRotateSelected={handleRotateSelected}
-        onSetSelectedRotation={handleSetSelectedRotation}
-        onRotateAllPanels={handleRotateAllPanels}
-        onApplyTiltToAll={handleApplyTiltToAll}
-        onApplyRotationToAll={handleApplyRotationToAll}
-        onAlignCollinear={handleAlignCollinear}
+        hasBoundary={polygon.points.length > 0}
+        polygon={polygon}
+        canAutoFill={polygon.isClosed && polygon.points.length >= 3}
+        onAutoFill={handleAutoFill}
+        targetBoqCount={activePanelInfo.quantity}
+        onPlaceBoqPanels={handlePlaceBoqPanels}
+        canAddPanel={true}
+        onAddSinglePanel={handleAddSinglePanel}
+        canUndo={undoStack.length > 0}
+        onUndo={handleUndo}
+        canRedo={redoStack.length > 0}
+        onRedo={handleRedo}
       />
 
-      {/* Main Canvas Viewport (Responsive height on mobile, full flex on desktop, fullscreen modal support) */}
-      <div
-        className={cn(
-          "w-full transition-all duration-200 shrink-0",
-          isFullscreen
-            ? "fixed inset-0 z-50 bg-zinc-950 flex flex-col h-screen w-screen"
-            : "relative h-[520px] sm:h-[600px] lg:h-full min-h-[460px] sm:min-h-[520px] flex-1 overflow-hidden"
-        )}
-      >
-        {isFullscreen && (
-          <div className="absolute top-3 right-3 z-50 flex items-center gap-2 bg-zinc-900/95 backdrop-blur-md border border-zinc-700 px-3 py-1.5 rounded-lg shadow-2xl">
-            <span className="text-xs text-zinc-300 font-medium font-mono">
-              {metrics.validPanelsCount}/{activePanelInfo.quantity} Modules ({metrics.totalCapacityKwp.toFixed(2)} kWp)
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsFullscreen(false)}
-              className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer text-xs flex items-center gap-1 font-semibold ml-2"
-            >
-              <span>Exit Fullscreen</span>
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
-        <RoofCanvas
-          backgroundImageUrl={backgroundImageUrl}
-          imageOpacity={imageOpacity}
-          polygon={polygon}
-          onUpdatePolygon={setPolygon}
-          placedPanels={placedPanels}
-          onUpdatePanels={setPlacedPanels}
-          scale={scale}
-          onUpdateScale={setScale}
+      {/* 3. Photoshop Studio Workspace (Left Palette + Center Canvas + Right Studio Dock) */}
+      <div className="w-full flex flex-1 relative overflow-hidden bg-[#18181b] min-h-[580px]">
+        {/* Left: Photoshop Vertical Tool Palette */}
+        <RoofToolPalette
           activeTool={activeTool}
           onSelectTool={setActiveTool}
-          panelDimensions={activePanelInfo.dimensions}
-          orientation={orientation}
-          interPanelGapMm={interPanelGapMm}
-          viewport={viewport}
-          onUpdateViewport={setViewport}
-          onUploadImageClick={triggerImageUpload}
-          centerFitTrigger={centerFitTrigger}
+          isDrawingPolygon={!polygon.isClosed && polygon.points.length >= 3}
+          onClosePolygon={() => {
+            if (!polygon.isClosed && polygon.points.length >= 3) {
+              pushHistorySnapshot()
+              const closedPoly: RoofPolygon = { ...polygon, isClosed: true }
+              setPolygon(closedPoly)
+              setPlacedPanels((prev) =>
+                prev.map((p) => ({
+                  ...p,
+                  isValid: checkPanelValidity(p, closedPoly),
+                }))
+              )
+              setActiveTool('select')
+            }
+          }}
+          isCalibrated={scale.isCalibrated}
+          pixelsPerMeter={scale.pixelsPerMeter}
+          canAddPanel={true}
+          onAddSinglePanel={handleAddSinglePanel}
+          canAutoFill={polygon.isClosed && polygon.points.length >= 3}
+          onAutoFill={handleAutoFill}
+          targetBoqCount={activePanelInfo.quantity}
+          onPlaceBoqPanels={handlePlaceBoqPanels}
           enableSnapping={enableSnapping}
           onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+          hasBoundary={polygon.points.length > 0}
           isRoofLocked={isRoofLocked}
           onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+          canUndo={undoStack.length > 0}
+          onUndo={handleUndo}
+          canRedo={redoStack.length > 0}
+          onRedo={handleRedo}
+        />
+
+        {/* Center: Canvas Viewport & Bottom Status Bar */}
+        <div className="flex-1 relative overflow-hidden flex flex-col min-w-0">
+          <div className="relative flex-1 w-full h-full overflow-hidden">
+            <RoofCanvas
+              backgroundImageUrl={backgroundImageUrl}
+              imageOpacity={imageOpacity}
+              polygon={polygon}
+              onUpdatePolygon={setPolygon}
+              placedPanels={placedPanels}
+              onUpdatePanels={setPlacedPanels}
+              scale={scale}
+              onUpdateScale={setScale}
+              activeTool={activeTool}
+              onSelectTool={setActiveTool}
+              panelDimensions={activePanelInfo.dimensions}
+              orientation={orientation}
+              interPanelGapMm={interPanelGapMm}
+              viewport={viewport}
+              onUpdateViewport={setViewport}
+              onUploadImageClick={triggerImageUpload}
+              centerFitTrigger={centerFitTrigger}
+              enableSnapping={enableSnapping}
+              onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+              isRoofLocked={isRoofLocked}
+              onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+              selectedPanelId={selectedPanelId}
+              selectedPanelIds={selectedPanelIds}
+              onSelectPanels={setSelectedPanelIds}
+              onGroupSelected={handleGroupSelected}
+              onUngroupSelected={handleUngroupSelected}
+              onDuplicateSelected={handleDuplicateSelected}
+              onApplyPerspectivePreset={handleApplyPerspectivePreset}
+              onRotateSelected={handleRotateSelected}
+              onRotateAllPanels={handleRotateAllPanels}
+              onSetSelectedRotation={handleSetSelectedRotation}
+              hideStatusHud={true}
+              onSnapshotBeforeChange={pushHistorySnapshot}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+            />
+          </div>
+
+          {/* Bottom Photoshop Document Status Bar */}
+          <RoofStatusBar
+            activeTool={activeTool}
+            scalePixelsPerMeter={scale.pixelsPerMeter}
+            isCalibrated={scale.isCalibrated}
+            enableSnapping={enableSnapping}
+            onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+            isRoofLocked={isRoofLocked}
+            onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+            selectedCount={selectedPanelIds.length}
+            zoom={viewport.zoom}
+            onZoomIn={() =>
+              setViewport((prev) => ({
+                ...prev,
+                zoom: Math.min(4.0, prev.zoom * 1.2),
+              }))
+            }
+            onZoomOut={() =>
+              setViewport((prev) => ({
+                ...prev,
+                zoom: Math.max(0.3, prev.zoom * 0.83),
+              }))
+            }
+            onResetZoom={() =>
+              setViewport((prev) => ({
+                ...prev,
+                zoom: 1.0,
+              }))
+            }
+            onCenterFitView={() => setCenterFitTrigger((prev) => prev + 1)}
+            onOpenShortcutsGuide={() => {
+              setActiveDockTab('shortcuts')
+              setIsDockCollapsed(false)
+            }}
+          />
+        </div>
+
+        {/* Right: Photoshop Studio Dock (Properties, Layers, Shortcuts) */}
+        <RoofStudioDock
+          activeTab={activeDockTab}
+          onSelectTab={setActiveDockTab}
+          isCollapsed={isDockCollapsed}
+          onToggleCollapsed={() => setIsDockCollapsed((prev) => !prev)}
+          metrics={metrics}
+          activePanelInfo={activePanelInfo}
+          polygon={polygon}
+          placedPanels={placedPanels}
           selectedPanelId={selectedPanelId}
-          onSelectPanel={setSelectedPanelId}
-          isPerspectiveEnabled={true}
-          perspectiveQuad={effectivePerspectiveQuad || undefined}
-          onUpdatePerspectiveQuad={setPerspectiveQuad}
+          selectedPanelIds={selectedPanelIds}
+          onSelectPanels={setSelectedPanelIds}
+          onSelectAll={handleSelectAll}
+          onGroupSelected={handleGroupSelected}
+          onUngroupSelected={handleUngroupSelected}
+          onDuplicateSelected={handleDuplicateSelected}
+          onApplyPerspectivePreset={handleApplyPerspectivePreset}
+          currentRotation={currentRotation}
+          currentTiltAngle={currentTiltAngle}
+          orientation={orientation}
+          onToggleOrientation={() =>
+            setOrientation((prev) => (prev === 'portrait' ? 'landscape' : 'portrait'))
+          }
+          onCycleTilt={handleCycleTilt}
+          onApplyTiltToAll={handleApplyTiltToAll}
+          onRotateSelected={handleRotateSelected}
+          onSetSelectedRotation={handleSetSelectedRotation}
+          onRotateAllPanels={handleRotateAllPanels}
+          onApplyRotationToAll={handleApplyRotationToAll}
+          onAlignCollinear={handleAlignCollinear}
+          hasBoundary={polygon.points.length > 0}
+          isRoofLocked={isRoofLocked}
+          onToggleRoofLock={() => setIsRoofLocked((prev) => !prev)}
+          onClearBoundary={handleClearBoundary}
+          hasPanels={placedPanels.length > 0}
+          onClearPanels={handleClearPanels}
+          onResetAll={handleResetAll}
+          onOpenRoofSizeModal={() => setRoofSizeModalOpen(true)}
+          imageOpacity={imageOpacity}
+          onChangeOpacity={handleOpacityChange}
+          onUploadImageClick={triggerImageUpload}
+          onSelectTool={setActiveTool}
         />
       </div>
 
-      {/* Helpful Keyboard & Interaction Guide Footer */}
-      <div className="border-t border-border px-4 py-1.5 bg-muted/30 hidden sm:flex flex-wrap items-center justify-between text-[11px] text-muted-foreground gap-2 shrink-0">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">R</kbd>
-            Draw Roof Box
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">P</kbd>
-            Trace Boundary
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">V</kbd>
-            Select & Drag
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">[ / ]</kbd>
-            Tilt Angle (±15°)
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">T</kbd>
-            Rack Tilt
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">S</kbd>
-            Calibrate Scale
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Alt</kbd>
-            Hold to Invert Snap
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Space</kbd>
-            Pan Canvas
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">Del</kbd>
-            Delete Panel
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-blue-500" />
-            Valid Active Module
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-rose-500" />
-            Out of Boundary (Excluded from kWp)
-          </span>
-        </div>
+      {/* 4. Persistent Shortcuts Guide Footer */}
+      <RoofShortcutsCheatSheet
+        onOpenFullGuide={() => {
+          setActiveDockTab('shortcuts')
+          setIsDockCollapsed(false)
+        }}
+      />
       </div>
     </div>
   )

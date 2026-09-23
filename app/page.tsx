@@ -2006,9 +2006,25 @@ export default function Home() {
     updateExpenseItem,
     removeExpenseItem,
     setInvoice,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useMGInvoice()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [selectedPanelBrands, setSelectedPanelBrands] = useState<Record<string, string>>({})
+
+  // Localhost Only Restriction for in-development features (Roof CAD)
+  const [isLocalhost, setIsLocalhost] = useState(false)
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ) {
+      setIsLocalhost(true)
+    }
+  }, [])
 
   // Philippine Location & Delivery Fee State (42,029 Barangays & 1,634 LGUs with Driving Distances)
   const [locationSearchQuery, setLocationSearchQuery] = useState('')
@@ -2190,6 +2206,46 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<string>('items')
   const [previousTab, setPreviousTab] = useState<string>('sender')
+
+  // Global Undo / Redo keyboard shortcuts when outside of Roof CAD planner
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // If we are currently in the roof tab, Roof CAD handles its own undo/redo stack
+      if (activeTab === 'roof') return
+
+      const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+      const isCmdOrCtrl = isMac ? e.metaKey : e.ctrlKey
+
+      if (!isCmdOrCtrl) return
+
+      const target = e.target as HTMLElement | null
+      const isInput = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.tagName === 'SELECT'
+      )
+
+      // When focused in an input/textarea, let native browser undo handle local character edits
+      if (isInput) return
+
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        if (canUndo) {
+          undo()
+        }
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault()
+        if (canRedo) {
+          redo()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [activeTab, canUndo, canRedo, undo, redo])
 
   const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({})
   const [checklistCopied, setChecklistCopied] = useState(false)
@@ -2412,6 +2468,12 @@ export default function Home() {
   }
 
   const handleTabSwitch = (newTab: string) => {
+    if (
+      newTab === 'roof' &&
+      (!isLocalhost || (typeof window !== 'undefined' && window.innerWidth < 1024))
+    ) {
+      return
+    }
     if (activeTab === newTab) return
 
     if (activeTab !== 'checklist') {
@@ -2423,6 +2485,21 @@ export default function Home() {
 
     setActiveTab(newTab)
   }
+
+  // Guard: Roof CAD Studio only operates in PC view (>= 1024px) and Localhost environment
+  useEffect(() => {
+    const handleCheckRoofAccess = () => {
+      if (
+        activeTab === 'roof' &&
+        (!isLocalhost || (typeof window !== 'undefined' && window.innerWidth < 1024))
+      ) {
+        setActiveTab('items')
+      }
+    }
+    handleCheckRoofAccess()
+    window.addEventListener('resize', handleCheckRoofAccess)
+    return () => window.removeEventListener('resize', handleCheckRoofAccess)
+  }, [activeTab, isLocalhost])
 
   const getSupplyCategory = (description: string): { key: 'equipment' | 'mounting' | 'electrical' | 'grounding' | 'labor'; label: string; badgeColor: string } => {
     const d = (description || '').toLowerCase().trim()
@@ -3825,26 +3902,6 @@ export default function Home() {
     }))
   }
 
-  // Auto-update timestamped Invoice / Quotation # every second in real-time
-  useEffect(() => {
-    if (!loaded) return
-    const interval = setInterval(() => {
-      setInvoice((prev) => {
-        const current = prev.invoiceNumber?.trim() || ''
-        const isDynamicPattern = !current || /^MG-(QT|INV)(-\d{6,14})?$/i.test(current)
-        if (!isDynamicPattern) return prev
-        const prefix = current.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'
-        const nextId = generateDocumentId(prefix)
-        if (nextId === current) return prev
-        return {
-          ...prev,
-          invoiceNumber: nextId,
-        }
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [loaded])
-
   // Keep document title synced at all times with the client name and quotation number
   useEffect(() => {
     if (!loaded) return
@@ -4155,6 +4212,7 @@ export default function Home() {
       <div className="flex lg:hidden items-center justify-between px-3 py-2.5 bg-card border-b border-border shrink-0 print:hidden min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-bold text-sm text-foreground tracking-tight shrink-0">MG Invoice</span>
+
           <button
             onClick={cycleTheme}
             className="h-7 w-7 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-xs transition-transform active:scale-90 cursor-pointer select-none shrink-0"
@@ -4175,14 +4233,16 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row print:!block print:!h-auto print:!overflow-visible">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", (activeTab === 'changelog' || activeTab === 'roof') ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", (activeTab === 'changelog' || (isLocalhost && activeTab === 'roof')) ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
-              { id: 'roof', label: 'Roof', icon: Sun, title: 'Roof Layout & Solar Array Planning' },
+              ...(isLocalhost
+                ? [{ id: 'roof', label: 'Roof', icon: Sun, title: 'Roof Layout & Solar Array Planning (PC View Only)', pcOnly: true }]
+                : []),
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
               { id: 'capital', label: 'Capital', icon: Coins, title: 'Capital & Expenses Breakdown' },
               { id: 'history', label: 'History', icon: History, title: 'Exported PDF History Cache' },
@@ -4196,6 +4256,7 @@ export default function Home() {
                   onClick={() => handleTabSwitch(tab.id)}
                   className={cn(
                     "relative w-12 h-12 lg:w-14 lg:h-14 rounded-[12px] flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer select-none shrink-0",
+                    tab.pcOnly ? "hidden lg:flex" : "flex",
                     active
                       ? "bg-card text-foreground shadow-[0_4px_12px_rgba(0,0,0,0.06)] border border-border font-semibold"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
@@ -4239,7 +4300,7 @@ export default function Home() {
 
 
           {/* Scrollable active tab form content */}
-          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", activeTab === 'roof' ? 'p-0 flex flex-col h-full overflow-y-auto' : 'overflow-y-auto px-6 py-6 space-y-7')}>
+          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", (isLocalhost && activeTab === 'roof') ? 'p-0 flex flex-col h-full overflow-y-auto' : 'overflow-y-auto px-6 py-6 space-y-7')}>
             {activeTab === 'sender' && (
               <>
                 {/* FROM */}
@@ -6588,18 +6649,20 @@ export default function Home() {
               </section>
             )}
 
-            <section
-              className={cn(
-                "h-full flex-1 flex flex-col min-h-0",
-                activeTab === 'roof' ? "animate-in fade-in duration-200" : "hidden"
-              )}
-            >
-              <RoofTab
-                invoice={invoice}
-                onUpdateInvoice={update}
-                onSwitchTab={handleTabSwitch}
-              />
-            </section>
+            {isLocalhost && (
+              <section
+                className={cn(
+                  "h-full flex-1 flex flex-col min-h-0",
+                  activeTab === 'roof' ? "animate-in fade-in duration-200" : "hidden"
+                )}
+              >
+                <RoofTab
+                  invoice={invoice}
+                  onUpdateInvoice={update}
+                  onSwitchTab={handleTabSwitch}
+                />
+              </section>
+            )}
 
             {activeTab === 'capital' && (
               <section className="space-y-5 animate-in fade-in duration-200">
@@ -7639,7 +7702,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
 
           {/* Download button */}
-          {activeTab !== 'changelog' && activeTab !== 'roof' && (
+          {activeTab !== 'changelog' && (!isLocalhost || activeTab !== 'roof') && (
             <>
               {/* Desktop Download button */}
               <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
@@ -7684,7 +7747,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", (activeTab === 'changelog' || activeTab === 'roof') ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", (activeTab === 'changelog' || (isLocalhost && activeTab === 'roof')) ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
         {/* Floating background themed characters (screen only, hidden on print) */}
 
 
@@ -7768,7 +7831,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         )}
 
         {/* Mobile Floating Action Bar in Preview Mode */}
-        {activeTab !== 'changelog' && activeTab !== 'roof' && (
+        {activeTab !== 'changelog' && (!isLocalhost || activeTab !== 'roof') && (
           <div className="lg:hidden sticky bottom-4 z-30 print:hidden flex items-center gap-2 w-full max-w-sm px-4 py-2 mt-4">
             <Button
               type="button"

@@ -1,7 +1,17 @@
+@import '@fontsource/lilex/100.css';
+@import '@fontsource/lilex/200.css';
+@import '@fontsource/lilex/300.css';
 @import '@fontsource/lilex/400.css';
 @import '@fontsource/lilex/500.css';
 @import '@fontsource/lilex/600.css';
 @import '@fontsource/lilex/700.css';
+@import '@fontsource/lilex/100-italic.css';
+@import '@fontsource/lilex/200-italic.css';
+@import '@fontsource/lilex/300-italic.css';
+@import '@fontsource/lilex/400-italic.css';
+@import '@fontsource/lilex/500-italic.css';
+@import '@fontsource/lilex/600-italic.css';
+@import '@fontsource/lilex/700-italic.css';
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -180,10 +190,14 @@
     box-sizing: border-box;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-feature-settings: "calt" 1, "liga" 1;
+  }
+  html, body, input, button, select, textarea {
+    font-family: 'Lilex', monospace;
+    font-feature-settings: "calt" 1, "liga" 1;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Lilex', monospace;
   }
 }
 

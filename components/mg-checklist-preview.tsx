@@ -326,7 +326,7 @@ export function MGChecklistPreview({
           >
             {/* Fixed A4 Paper Canvas */}
             <div
-              style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+              style={{ width: PAPER_W, height: PAPER_H, transform: `scale(${scale})`, transformOrigin: 'top left', fontFamily: "'Lilex', monospace" }}
               className="relative bg-white text-[#111111] rounded-sm shadow-[0_4px_32px_rgba(0,0,0,0.10)] px-8 py-6 print-page print:!transform-none flex flex-col justify-between font-mono select-none overflow-hidden"
             >
               {/* TOP & CONTENT CONTAINER */}
