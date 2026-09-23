@@ -2502,7 +2502,7 @@ export default function Home() {
   const handleTabSwitch = (newTab: string) => {
     if (
       newTab === 'roof' &&
-      (!isLocalhost || (typeof window !== 'undefined' && window.innerWidth < 1024))
+      (!isLocalhost || !isGovProposalMode(invoice) || (typeof window !== 'undefined' && window.innerWidth < 1024))
     ) {
       return
     }
@@ -2518,12 +2518,12 @@ export default function Home() {
     setActiveTab(newTab)
   }
 
-  // Guard: Roof CAD Studio only operates in PC view (>= 1024px) and Localhost environment
+  // Guard: Roof CAD Studio only operates in PC view (>= 1024px) and Localhost environment in Gov mode
   useEffect(() => {
     const handleCheckRoofAccess = () => {
       if (
         activeTab === 'roof' &&
-        (!isLocalhost || (typeof window !== 'undefined' && window.innerWidth < 1024))
+        (!isLocalhost || !isGovProposalMode(invoice) || (typeof window !== 'undefined' && window.innerWidth < 1024))
       ) {
         setActiveTab('items')
       }
@@ -2531,7 +2531,7 @@ export default function Home() {
     handleCheckRoofAccess()
     window.addEventListener('resize', handleCheckRoofAccess)
     return () => window.removeEventListener('resize', handleCheckRoofAccess)
-  }, [activeTab, isLocalhost])
+  }, [activeTab, isLocalhost, invoice.proposalMode])
 
   const logoFileInputRef = useRef<HTMLInputElement>(null)
   const [activeSigneeTab, setActiveSigneeTab] = useState<SigneeKey>('ceo')
@@ -4259,22 +4259,24 @@ export default function Home() {
       {/* Mobile Header */}
       <div className="flex lg:hidden items-center justify-between px-3 py-2.5 bg-card border-b border-border shrink-0 print:hidden min-w-0">
         <div className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
-            onClick={openLogoPicker}
-            className="flex items-center justify-center h-7 px-1.5 py-0.5 rounded-md border border-border/70 bg-secondary/50 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
-            title="Click to upload / change company logo"
-          >
-            {invoice.logo !== '' ? (
-              <img
-                src={invoice.logo || '/mg.png'}
-                alt="Logo"
-                className="h-5 w-auto max-w-[55px] object-contain shrink-0"
-              />
-            ) : (
-              <span className="text-[9px] font-bold text-muted-foreground">+ Logo</span>
-            )}
-          </button>
+          {isGovProposalMode(invoice) && (
+            <button
+              type="button"
+              onClick={openLogoPicker}
+              className="flex items-center justify-center h-7 px-1.5 py-0.5 rounded-md border border-border/70 bg-secondary/50 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
+              title="Click to upload / change company logo"
+            >
+              {invoice.logo !== '' ? (
+                <img
+                  src={invoice.logo || '/mg.png'}
+                  alt="Logo"
+                  className="h-5 w-auto max-w-[55px] object-contain shrink-0"
+                />
+              ) : (
+                <span className="text-[9px] font-bold text-muted-foreground">+ Logo</span>
+              )}
+            </button>
+          )}
           <span className="font-bold text-sm text-foreground tracking-tight shrink-0">MG Invoice</span>
 
           {/* Localhost Only: Solar / GOV Toggle */}
@@ -4285,6 +4287,7 @@ export default function Home() {
                 onClick={() => {
                   update('proposalMode', 'solar')
                   update('terms', TERMS_PRESETS.standard)
+                  if (activeTab === 'roof') setActiveTab('items')
                 }}
                 className={cn(
                   "px-2 py-0.5 rounded cursor-pointer transition-all",
@@ -4335,14 +4338,14 @@ export default function Home() {
       {/* Main Workspace Container */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row print:!block print:!h-auto print:!overflow-visible">
         {/* ── SIDEBAR ── */}
-        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", (activeTab === 'changelog' || (isLocalhost && activeTab === 'roof')) ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
+        <aside className={cn("w-full flex-1 lg:h-full min-h-0 bg-card text-card-foreground border-b lg:border-b-0 lg:border-r border-border flex flex-col lg:flex-row shrink-0 print:!hidden", (activeTab === 'changelog' || (isLocalhost && isGovProposalMode(invoice) && activeTab === 'roof')) ? 'lg:w-full' : 'lg:w-[450px]', activeView === 'edit' ? 'flex' : 'hidden lg:flex')}>
           {/* Tab strip (Horizontal on mobile/tablet, Vertical on desktop) */}
           <div className="w-full lg:w-[76px] h-auto lg:h-full bg-background border-b lg:border-b-0 lg:border-r border-border flex flex-row lg:flex-col items-center justify-between lg:justify-start px-4 py-3 lg:px-0 lg:py-6 gap-2 lg:gap-5 overflow-x-auto lg:overflow-x-visible shrink-0 scrollbar-none">
             {[
               { id: 'sender', label: 'Sender', icon: Building, title: 'Sender & Sales Contact' },
               { id: 'invoice', label: 'Details', icon: FileText, title: 'Client, Invoice Details & Terms' },
               { id: 'items', label: 'Items', icon: List, title: 'Line Items & Supply Filter' },
-              ...(isLocalhost
+              ...(isLocalhost && isGovProposalMode(invoice)
                 ? [{ id: 'roof', label: 'Roof', icon: Sun, title: 'Roof Layout & Solar Array Planning (PC View Only)', pcOnly: true }]
                 : []),
               { id: 'checklist', label: 'Checklist', icon: ClipboardCheck, title: 'Itemized Packing & Dispatch Checklist' },
@@ -4380,25 +4383,27 @@ export default function Home() {
             {/* Logo & Theme Picker (Desktop only) */}
             <div className="hidden lg:flex items-center justify-between px-6 py-4 border-b border-border shrink-0 gap-3">
               <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={openLogoPicker}
-                  className="relative group flex items-center justify-center h-8 px-1.5 py-0.5 rounded-lg border border-border/80 bg-secondary/40 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
-                  title="Click to upload / change company logo"
-                >
-                  {invoice.logo !== '' ? (
-                    <img
-                      src={invoice.logo || '/mg.png'}
-                      alt="Logo"
-                      className="h-6 w-auto max-w-[80px] object-contain transition-transform group-hover:scale-105"
-                    />
-                  ) : (
-                    <span className="text-[10px] font-bold px-1 text-muted-foreground">+ Logo</span>
-                  )}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-[8px] font-bold text-white uppercase tracking-wider">
-                    Edit
-                  </div>
-                </button>
+                {isGovProposalMode(invoice) && (
+                  <button
+                    type="button"
+                    onClick={openLogoPicker}
+                    className="relative group flex items-center justify-center h-8 px-1.5 py-0.5 rounded-lg border border-border/80 bg-secondary/40 hover:bg-secondary transition-all cursor-pointer select-none shrink-0"
+                    title="Click to upload / change company logo"
+                  >
+                    {invoice.logo !== '' ? (
+                      <img
+                        src={invoice.logo || '/mg.png'}
+                        alt="Logo"
+                        className="h-6 w-auto max-w-[80px] object-contain transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="text-[10px] font-bold px-1 text-muted-foreground">+ Logo</span>
+                    )}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-[8px] font-bold text-white uppercase tracking-wider">
+                      Edit
+                    </div>
+                  </button>
+                )}
                 <span className="font-bold text-[17px] text-foreground tracking-tight">MG Invoice</span>
               </div>
 
@@ -4410,6 +4415,7 @@ export default function Home() {
                     onClick={() => {
                       update('proposalMode', 'solar')
                       update('terms', TERMS_PRESETS.standard)
+                      if (activeTab === 'roof') setActiveTab('items')
                     }}
                     className={cn(
                       "px-2.5 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1.5",
@@ -4460,18 +4466,20 @@ export default function Home() {
 
 
           {/* Scrollable active tab form content */}
-          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", (isLocalhost && activeTab === 'roof') ? 'p-0 flex flex-col h-full overflow-y-auto' : 'overflow-y-auto px-6 py-6 space-y-7')}>
+          <div ref={scrollContainerRef} className={cn("flex-1 min-h-0", (isLocalhost && isGovProposalMode(invoice) && activeTab === 'roof') ? 'p-0 flex flex-col h-full overflow-y-auto' : 'overflow-y-auto px-6 py-6 space-y-7')}>
             {activeTab === 'sender' && (
               <>
-                {/* COMPANY LOGO */}
-                <LogoSection
-                  logo={invoice.logo}
-                  fromName={invoice.fromName}
-                  onChange={(newLogo) => update('logo', newLogo)}
-                  onMouseEnter={() => setHoveredField('logo')}
-                  onMouseLeave={() => setHoveredField(null)}
-                  inputRef={logoFileInputRef}
-                />
+                {/* COMPANY LOGO (With GOV Mode only) */}
+                {isGovProposalMode(invoice) && (
+                  <LogoSection
+                    logo={invoice.logo}
+                    fromName={invoice.fromName}
+                    onChange={(newLogo) => update('logo', newLogo)}
+                    onMouseEnter={() => setHoveredField('logo')}
+                    onMouseLeave={() => setHoveredField(null)}
+                    inputRef={logoFileInputRef}
+                  />
+                )}
 
                 {/* FROM */}
                 <section className="space-y-3">
@@ -5554,17 +5562,19 @@ export default function Home() {
 
                 <div className="pt-1 flex items-center justify-between flex-wrap gap-2">
                   <SectionHeader>Line Items</SectionHeader>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleFillPcItems}
-                    className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:border-amber-500/50 font-bold px-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title="Fill 12 PC Package items with 220 QTY & PCS unit"
-                  >
-                    <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
-                    <span>Fill 12 PC Package Items (220 PCS)</span>
-                  </Button>
+                  {isGovProposalMode(invoice) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleFillPcItems}
+                      className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:border-amber-500/50 font-bold px-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Fill 12 PC Package items with 220 QTY & PCS unit"
+                    >
+                      <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
+                      <span>Fill 12 PC Package Items (220 PCS)</span>
+                    </Button>
+                  )}
                 </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -6719,26 +6729,37 @@ export default function Home() {
                   })()}
 
                   {/* Add item & Temporary Fill Button */}
-                  <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                  {isGovProposalMode(invoice) ? (
+                    <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                      <Button
+                        variant="outline"
+                        onClick={handleAddItem}
+                        className="flex-1 h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Add item
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleFillPcItems}
+                        className="h-[34px] border-dashed border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20 text-[11.5px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 cursor-pointer px-3 flex items-center justify-center gap-1.5 shadow-2xs"
+                        title="Fill 12 PC Package items with 220 QTY & PCS"
+                      >
+                        <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
+                        <span>Fill 12 PC Items (220 Qty)</span>
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
                       variant="outline"
                       onClick={handleAddItem}
-                      className="flex-1 h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent cursor-pointer"
+                      className="w-full h-[34px] border-dashed border-[#CCCCCC] text-[12px] font-medium text-[#888888] hover:border-[#888888] hover:text-[#555555] hover:bg-transparent mt-1 cursor-pointer"
                     >
                       <Plus size={13} />
                       Add item
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleFillPcItems}
-                      className="h-[34px] border-dashed border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20 text-[11.5px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 cursor-pointer px-3 flex items-center justify-center gap-1.5 shadow-2xs"
-                      title="Fill 12 PC Package items with 220 QTY & PCS"
-                    >
-                      <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
-                      <span>Fill 12 PC Items (220 Qty)</span>
-                    </Button>
-                  </div>
+                  )}
 
                   <datalist id="solar-item-catalog">
                     {SOLAR_PRICELIST_2026.map((catItem) => (
@@ -7039,7 +7060,7 @@ export default function Home() {
               </section>
             )}
 
-            {isLocalhost && (
+            {isLocalhost && isGovProposalMode(invoice) && (
               <section
                 className={cn(
                   "h-full flex-1 flex flex-col min-h-0",
@@ -8092,7 +8113,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
 
           {/* Download button */}
-          {activeTab !== 'changelog' && (!isLocalhost || activeTab !== 'roof') && (
+          {activeTab !== 'changelog' && (!isLocalhost || !isGovProposalMode(invoice) || activeTab !== 'roof') && (
             <>
               {/* Desktop Download button */}
               <div className="hidden lg:block px-6 pb-6 pt-4 border-t border-border shrink-0">
@@ -8137,7 +8158,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         </div>
       </aside>
 
-      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", (activeTab === 'changelog' || (isLocalhost && activeTab === 'roof')) ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
+      <div className={cn("flex-1 bg-[#EBEBEB] dark:bg-zinc-900 min-h-0 relative overflow-y-auto scrollbar-none flex flex-col justify-start items-center print:!block print:!h-auto print:!overflow-visible print:!bg-white", (activeTab === 'changelog' || (isLocalhost && isGovProposalMode(invoice) && activeTab === 'roof')) ? 'hidden' : (activeView === 'preview' ? 'flex' : 'hidden lg:flex lg:flex-col'))}>
         {/* Floating background themed characters (screen only, hidden on print) */}
 
 
@@ -8264,7 +8285,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
         })()}
 
         {/* Mobile Floating Action Bar in Preview Mode */}
-        {activeTab !== 'changelog' && (!isLocalhost || activeTab !== 'roof') && (
+        {activeTab !== 'changelog' && (!isLocalhost || !isGovProposalMode(invoice) || activeTab !== 'roof') && (
           <div className="lg:hidden sticky bottom-4 z-30 print:hidden flex items-center gap-2 w-full max-w-sm px-4 py-2 mt-4">
             <Button
               type="button"

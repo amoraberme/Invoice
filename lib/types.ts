@@ -229,9 +229,7 @@ export function isGovernmentTerms(terms?: string): boolean {
 
 export function isGovProposalMode(invoice?: Partial<Invoice> | null): boolean {
   if (!invoice) return false
-  if (invoice.proposalMode === 'gov') return true
-  if (invoice.proposalMode === 'solar') return false
-  return isGovernmentTerms(invoice.terms)
+  return invoice.proposalMode === 'gov'
 }
 
 const defaultToday = new Date()

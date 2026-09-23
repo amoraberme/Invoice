@@ -1247,7 +1247,7 @@ export function MGInvoicePreview({
 
                 {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
                 {page.showBottom && (() => {
-                  const isGovMode = isGovernmentTerms(invoice.terms)
+                  const isGovMode = isGovProposalMode(invoice)
                   let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed) || (page.showCondensedLifespan && invoice.showSystemLifespan !== false)
                   
                   const getSectionBorderClass = () => {
