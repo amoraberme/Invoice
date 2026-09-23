@@ -31,6 +31,7 @@ export interface MGCapitalPreviewProps {
   onToggleAcknowledgmentTitle?: (val: boolean) => void
   onToggleTermsTitle?: (val: boolean) => void
   onToggleTermsPreset?: (terms: string) => void
+  onToggleProposalMode?: (mode: 'solar' | 'gov') => void
   onAdjustFooterOffset?: (val: number) => void
   onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
   isLocalhost?: boolean
@@ -221,6 +222,7 @@ export function MGCapitalPreview({
   onToggleAcknowledgmentTitle,
   onToggleTermsTitle,
   onToggleTermsPreset,
+  onToggleProposalMode,
   onAdjustFooterOffset,
   onSignatureClick,
   isLocalhost,
@@ -250,6 +252,7 @@ export function MGCapitalPreview({
         onToggleAcknowledgmentTitle={onToggleAcknowledgmentTitle}
         onToggleTermsTitle={onToggleTermsTitle}
         onToggleTermsPreset={onToggleTermsPreset}
+        onToggleProposalMode={onToggleProposalMode}
         onAdjustFooterOffset={onAdjustFooterOffset}
         onSignatureClick={onSignatureClick}
         isLocalhost={isLocalhost}

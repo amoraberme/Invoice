@@ -114,6 +114,7 @@ export interface Invoice {
   excludeBattery: boolean
   isCondensed: boolean
   withBrandName: boolean
+  proposalMode?: 'solar' | 'gov'
   showAcknowledgment?: boolean
   discountAmount?: number
   theme: 'light' | 'dark' | 'barbie' | 'spiderman' | 'minion' | 'violet'
@@ -226,11 +227,19 @@ export function isGovernmentTerms(terms?: string): boolean {
   return lower.includes('government terms') || lower.includes('lead time upon p.o') || lower.includes('lead time upon po')
 }
 
+export function isGovProposalMode(invoice?: Partial<Invoice> | null): boolean {
+  if (!invoice) return false
+  if (invoice.proposalMode === 'gov') return true
+  if (invoice.proposalMode === 'solar') return false
+  return isGovernmentTerms(invoice.terms)
+}
+
 const defaultToday = new Date()
 const defaultDue = new Date()
 defaultDue.setDate(defaultDue.getDate() + 15)
 
 export const defaultInvoice: Invoice = {
+  proposalMode: 'solar',
   logo: '/mg.png',
   fromName: 'MG SOLAR',
   fromEmail: 'charlotte.mgtrading@gmail.com',

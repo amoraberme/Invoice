@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useMemo } from 'react'
-import { type Invoice, type LineItem, getDefaultSystemLifespan, TERMS_PRESETS, isGovernmentTerms } from '@/lib/types'
+import { type Invoice, type LineItem, getDefaultSystemLifespan, TERMS_PRESETS, isGovernmentTerms, isGovProposalMode } from '@/lib/types'
 import { PAPER_W, PAPER_H } from '@/lib/constants'
 import { 
   formatCurrency, 
@@ -39,6 +39,7 @@ export interface MGInvoicePreviewProps {
   onToggleAcknowledgmentTitle?: (val: boolean) => void
   onToggleTermsTitle?: (val: boolean) => void
   onToggleTermsPreset?: (terms: string) => void
+  onToggleProposalMode?: (mode: 'solar' | 'gov') => void
   onAdjustFooterOffset?: (val: number) => void
   onSignatureClick?: (signee: 'sales' | 'client' | 'ceo') => void
   isLocalhost?: boolean
@@ -91,6 +92,7 @@ export function MGInvoicePreview({
   onToggleAcknowledgmentTitle,
   onToggleTermsTitle,
   onToggleTermsPreset,
+  onToggleProposalMode,
   onAdjustFooterOffset,
   onSignatureClick,
   isLocalhost,
@@ -135,7 +137,7 @@ export function MGInvoicePreview({
     }
   }, [])
 
-  const isGovMode = isGovernmentTerms(invoice.terms)
+  const isGovMode = isGovProposalMode(invoice)
   const rateMarkup = invoice.rateMarkup || 0
   const displayItems = useMemo(() => {
     return invoice.isCondensed
@@ -246,7 +248,7 @@ export function MGInvoicePreview({
 
   // Dynamic Pagination Algorithm
   const paginateInvoice = (inv: Invoice, isCapitalMode = false): PageData[] => {
-    const isGovMode = isGovernmentTerms(inv.terms)
+    const isGovMode = isGovProposalMode(inv)
 
     // 1. Measure fixed heights (Header + Bill To + Meta)
     const hasHeaderDetails = Boolean(inv.fromEmail || inv.fromPhone || inv.fromAddress)
@@ -503,28 +505,34 @@ export function MGInvoicePreview({
             <div className="flex items-center p-0.5 bg-secondary/80 rounded-full border border-border text-[10px] font-bold">
               <button
                 type="button"
-                onClick={() => onToggleTermsPreset?.(TERMS_PRESETS.standard)}
+                onClick={() => {
+                  onToggleTermsPreset?.(TERMS_PRESETS.standard)
+                  onToggleProposalMode?.('solar')
+                }}
                 className={cn(
                   "px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 border",
                   !isGovMode
                     ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
                     : "bg-transparent text-muted-foreground hover:text-foreground border-transparent"
                 )}
-                title="Switch to Solar Quotation (Standard Terms)"
+                title="Switch to Solar Quotation (Standard Commercial Proposal)"
               >
                 <Sun size={11} className={!isGovMode ? "text-primary-foreground" : "text-amber-500"} />
                 <span>Solar</span>
               </button>
               <button
                 type="button"
-                onClick={() => onToggleTermsPreset?.(TERMS_PRESETS.government)}
+                onClick={() => {
+                  onToggleTermsPreset?.(TERMS_PRESETS.government)
+                  onToggleProposalMode?.('gov')
+                }}
                 className={cn(
                   "px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 border",
                   isGovMode
                     ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
                     : "bg-transparent text-muted-foreground hover:text-foreground border-transparent"
                 )}
-                title="Switch to Government P.O. Mode (Government Terms & Single-Page Layout)"
+                title="Switch to Government P.O. Mode (gov-po-preview-updates: Single Page, Gov Terms, E-Signatures)"
               >
                 <Building size={11} className={isGovMode ? "text-primary-foreground" : "text-blue-500"} />
                 <span>With GOV</span>
@@ -604,43 +612,50 @@ export function MGInvoicePreview({
                       </div>
                     </div>
                     <div className={cn("text-right flex flex-col items-end p-0.5", getHighlightClass('invoiceNumber'))}>
-                      {invoice.logo !== '' && (
-                        <div
-                          className={cn(
-                            "relative group rounded transition-all",
-                            getHighlightClass('logo'),
-                            onLogoClick && "cursor-pointer hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"
-                          )}
-                          onClick={onLogoClick}
-                          title={onLogoClick ? "Click to change logo" : undefined}
-                        >
-                          <img
-                            src={invoice.logo || "/mg.png"}
-                            alt={invoice.fromName || "Company Logo"}
-                            data-role="invoice-logo"
-                            height={68}
-                            style={{ height: '68px', width: 'auto', maxHeight: '68px', maxWidth: '240px' }}
-                            className="w-auto object-contain h-[68px] mb-0.5"
-                          />
-                          {onLogoClick && (
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white text-[9.5px] font-bold tracking-wide print:hidden gap-1 px-1.5 shadow-sm select-none">
-                              <Upload size={11} />
-                              <span>Change</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {invoice.logo === '' && onLogoClick && (
-                        <button
-                          type="button"
-                          onClick={onLogoClick}
-                          className="print:hidden text-[10px] text-muted-foreground border border-dashed border-[#CCCCCC] rounded px-2 py-1 mb-1 hover:border-primary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer select-none"
-                          title="Click to upload logo"
-                        >
-                          <Upload size={10} />
-                          <span>+ Add Logo</span>
-                        </button>
-                      )}
+                      {(() => {
+                        const allowLogoClick = isGovMode && Boolean(onLogoClick)
+                        return (
+                          <>
+                            {invoice.logo !== '' && (
+                              <div
+                                className={cn(
+                                  "relative group rounded transition-all",
+                                  getHighlightClass('logo'),
+                                  allowLogoClick && "cursor-pointer hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"
+                                )}
+                                onClick={allowLogoClick ? onLogoClick : undefined}
+                                title={allowLogoClick ? "Click to change logo" : undefined}
+                              >
+                                <img
+                                  src={invoice.logo || "/mg.png"}
+                                  alt={invoice.fromName || "Company Logo"}
+                                  data-role="invoice-logo"
+                                  height={68}
+                                  style={{ height: '68px', width: 'auto', maxHeight: '68px', maxWidth: '240px' }}
+                                  className="w-auto object-contain h-[68px] mb-0.5"
+                                />
+                                {allowLogoClick && (
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center text-white text-[9.5px] font-bold tracking-wide print:hidden gap-1 px-1.5 shadow-sm select-none">
+                                    <Upload size={11} />
+                                    <span>Change</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {invoice.logo === '' && allowLogoClick && (
+                              <button
+                                type="button"
+                                onClick={onLogoClick}
+                                className="print:hidden text-[10px] text-muted-foreground border border-dashed border-[#CCCCCC] rounded px-2 py-1 mb-1 hover:border-primary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer select-none"
+                                title="Click to upload logo"
+                              >
+                                <Upload size={10} />
+                                <span>+ Add Logo</span>
+                              </button>
+                            )}
+                          </>
+                        )
+                      })()}
                       <p className="font-medium tracking-tight text-[#888888] text-[11px] mt-0.5">
                         {invoice.invoiceNumber || '—'}
                       </p>
@@ -1333,82 +1348,41 @@ export function MGInvoicePreview({
 
                       {/* Terms & Conditions */}
                       {invoice.terms && (
-                        <div className={cn(
-                          getSectionBorderClass(),
-                          getHighlightClass('terms'),
-                          "relative group/terms"
-                        )}>
-                          {invoice.showTermsTitle !== false ? (
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2 group/termstitle">
-                                <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
-                                  Terms & Conditions
-                                </p>
-                                {onToggleTermsTitle && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleTermsTitle(false)}
-                                    className="no-print print:hidden opacity-0 group-hover/termstitle:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
-                                    title="Hide 'Terms & Conditions' text heading"
-                                  >
-                                    ✕ Hide Title
-                                  </button>
-                                )}
-                              </div>
-
-                              {onToggleTermsPreset && (
-                                <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px]">
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
-                                      !isGovernmentTerms(invoice.terms)
-                                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
-                                        : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                    title="Switch to Standard Policy"
-                                  >
-                                    Standard
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
-                                      isGovernmentTerms(invoice.terms)
-                                        ? "bg-primary text-primary-foreground font-bold shadow-2xs"
-                                        : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                    title="Switch to Government / 10–15 Days Lead Time Terms"
-                                  >
-                                    Gov / P.O.
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            /* When title is hidden, floating hover tools only appear outside on mouse hover, never taking space in the document */
-                            (onToggleTermsTitle || onToggleTermsPreset) && (
-                              <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity absolute -top-3 right-0 flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px] shadow-xs z-10 select-none">
-                                {onToggleTermsTitle && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleTermsTitle(true)}
-                                    className="px-1.5 py-0.5 rounded cursor-pointer transition-colors text-muted-foreground hover:text-foreground font-medium hover:bg-secondary/50"
-                                    title="Show 'Terms & Conditions' heading"
-                                  >
-                                    + Show Title
-                                  </button>
-                                )}
-                                {onToggleTermsPreset && (
-                                  <>
+                        isGovMode ? (
+                          <div className={cn(
+                            getSectionBorderClass(),
+                            getHighlightClass('terms'),
+                            "relative group/terms"
+                          )}>
+                            {invoice.showTermsTitle !== false ? (
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2 group/termstitle">
+                                  <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
+                                    Terms & Conditions
+                                  </p>
+                                  {onToggleTermsTitle && (
                                     <button
                                       type="button"
-                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.standard)}
+                                      onClick={() => onToggleTermsTitle(false)}
+                                      className="no-print print:hidden opacity-0 group-hover/termstitle:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
+                                      title="Hide 'Terms & Conditions' text heading"
+                                    >
+                                      ✕ Hide Title
+                                    </button>
+                                  )}
+                                </div>
+
+                                {onToggleTermsPreset && (
+                                  <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onToggleTermsPreset(TERMS_PRESETS.standard)
+                                        onToggleProposalMode?.('solar')
+                                      }}
                                       className={cn(
                                         "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
-                                        !isGovernmentTerms(invoice.terms)
+                                        !isGovMode
                                           ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                                           : "text-muted-foreground hover:text-foreground"
                                       )}
@@ -1418,10 +1392,13 @@ export function MGInvoicePreview({
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => onToggleTermsPreset(TERMS_PRESETS.government)}
+                                      onClick={() => {
+                                        onToggleTermsPreset(TERMS_PRESETS.government)
+                                        onToggleProposalMode?.('gov')
+                                      }}
                                       className={cn(
                                         "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
-                                        isGovernmentTerms(invoice.terms)
+                                        isGovMode
                                           ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                                           : "text-muted-foreground hover:text-foreground"
                                       )}
@@ -1429,310 +1406,367 @@ export function MGInvoicePreview({
                                     >
                                       Gov / P.O.
                                     </button>
-                                  </>
-                                )}
-                              </div>
-                            )
-                          )}
-                          <p className={cn(
-                            "text-[12px] text-[#555555] whitespace-pre-wrap",
-                            isGovMode ? "leading-snug" : "leading-relaxed"
-                          )}>
-                            {renderFormattedTerms(invoice.terms)}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Closing & Acknowledgment Section */}
-                      {invoice.closing && (
-                        <div className={cn(
-                          isGovMode
-                            ? "mt-1.5 pt-0 print:break-inside-avoid p-0.5"
-                            : "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
-                          getHighlightClass('closing')
-                        )}>
-                          <p className="text-[12px] text-[#555555] italic text-center font-medium">
-                            {invoice.closing}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Acknowledgment & Conforme */}
-                      {invoice.closing && invoice.showAcknowledgment !== false && (
-                        <div className={cn(
-                          isGovMode
-                            ? "mt-1.5 pt-0 print:break-inside-avoid relative group"
-                            : "mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid relative group"
-                        )}>
-                          <div className={cn(
-                            "flex items-center justify-between",
-                            invoice.showAcknowledgmentTitle !== false 
-                              ? (isGovMode ? "mb-1.5" : "mb-6") 
-                              : "mb-1"
-                          )}>
-                            {invoice.showAcknowledgmentTitle !== false ? (
-                              <div className="flex items-center gap-2 group/title">
-                                <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
-                                  Acknowledgment & Conforme
-                                </p>
-                                {onToggleAcknowledgmentTitle && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onToggleAcknowledgmentTitle(false)}
-                                    className="no-print print:hidden opacity-0 group-hover/title:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
-                                    title="Hide 'Acknowledgment & Conforme' text heading"
-                                  >
-                                    ✕ Hide Title
-                                  </button>
+                                  </div>
                                 )}
                               </div>
                             ) : (
-                              <div />
-                            )}
-
-                            <div className="no-print print:hidden opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
-                              {invoice.showAcknowledgmentTitle === false && onToggleAcknowledgmentTitle && (
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleAcknowledgmentTitle(true)}
-                                  className="text-[9px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border px-2 py-0.5 rounded hover:border-primary cursor-pointer select-none bg-secondary/40"
-                                  title="Show 'Acknowledgment & Conforme' text heading"
-                                >
-                                  + Show Title
-                                </button>
-                              )}
-                              {onToggleAcknowledgment && (
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleAcknowledgment(false)}
-                                  className="text-[9.5px] font-medium text-destructive hover:bg-destructive/10 px-2 py-0.5 rounded cursor-pointer select-none flex items-center gap-1 border border-destructive/20"
-                                  title="Remove Acknowledgment & Conforme section from quotation"
-                                >
-                                  ✕ Remove Section
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {(() => {
-                            const visibleSignees: ('sales' | 'client' | 'ceo')[] = !isGovMode
-                              ? ['sales', 'client', 'ceo']
-                              : (() => {
-                                  const list: ('sales' | 'client' | 'ceo')[] = []
-                                  if (invoice.showSalesSignee === true) list.push('sales')
-                                  if (invoice.showClientSignee === true) list.push('client')
-                                  if (invoice.showCeoSignee !== false) list.push('ceo')
-                                  return list
-                                })()
-
-                            if (visibleSignees.length === 0) {
-                              return (
-                                <div className="py-4 text-center print:hidden">
-                                  <p className="text-[11px] text-muted-foreground italic">
-                                    No signees selected. Click to configure signees in the sidebar.
-                                  </p>
+                              /* When title is hidden, floating hover tools only appear outside on mouse hover, never taking space in the document */
+                              (onToggleTermsTitle || onToggleTermsPreset) && (
+                                <div className="no-print print:hidden opacity-0 group-hover/terms:opacity-100 transition-opacity absolute -top-3 right-0 flex items-center gap-1 bg-background/95 p-0.5 rounded border border-border/80 text-[8.5px] shadow-xs z-10 select-none">
+                                  {onToggleTermsTitle && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleTermsTitle(true)}
+                                      className="px-1.5 py-0.5 rounded cursor-pointer transition-colors text-muted-foreground hover:text-foreground font-medium hover:bg-secondary/50"
+                                      title="Show 'Terms & Conditions' heading"
+                                    >
+                                      + Show Title
+                                    </button>
+                                  )}
+                                  {onToggleTermsPreset && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onToggleTermsPreset(TERMS_PRESETS.standard)
+                                          onToggleProposalMode?.('solar')
+                                        }}
+                                        className={cn(
+                                          "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                          !isGovMode
+                                            ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                            : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                        title="Switch to Standard Policy"
+                                      >
+                                        Standard
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onToggleTermsPreset(TERMS_PRESETS.government)
+                                          onToggleProposalMode?.('gov')
+                                        }}
+                                        className={cn(
+                                          "px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium",
+                                          isGovMode
+                                            ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                                            : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                        title="Switch to Government / 10–15 Days Lead Time Terms"
+                                      >
+                                        Gov / P.O.
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               )
-                            }
+                            )}
+                            <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-snug">
+                              {renderFormattedTerms(invoice.terms)}
+                            </p>
+                          </div>
+                        ) : (
+                          /* Standard Solar Mode: Clean plain-text terms with no hover controls or bolding */
+                          <div className={cn(
+                            getSectionBorderClass(),
+                            getHighlightClass('terms')
+                          )}>
+                            <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-2">
+                              Terms & Conditions
+                            </p>
+                            <p className="text-[12px] text-[#555555] whitespace-pre-wrap leading-relaxed">
+                              {invoice.terms}
+                            </p>
+                          </div>
+                        )
+                      )}
 
-                            const renderSlot = (signeeKey: 'sales' | 'client' | 'ceo') => {
-                              const isSales = signeeKey === 'sales'
-                              const isClient = signeeKey === 'client'
-                              const sig = isSales
-                                ? invoice.salesSignature
-                                : isClient
-                                ? invoice.clientSignature
-                                : invoice.ceoSignature
+                      {/* Closing & Acknowledgment Section */}
+                      {/* Standard Solar Mode: Pristine 3-line printed signature layout, no e-signs, no hover tools */}
+                      {!isGovMode && (
+                        <>
+                          {invoice.closing && (
+                            <div className={cn(
+                              "mt-6 pt-4 border-t border-[#E5E5E5]/50 print:break-inside-avoid p-1",
+                              getHighlightClass('closing')
+                            )}>
+                              <p className="text-[12px] text-[#555555] italic text-center font-medium">
+                                {invoice.closing}
+                              </p>
+                            </div>
+                          )}
 
-                              const sigType = isSales
-                                ? invoice.salesSignatureType
-                                : isClient
-                                ? invoice.clientSignatureType
-                                : invoice.ceoSignatureType
+                          {invoice.closing && (
+                            <div className="mt-8 pt-4 border-t border-[#E5E5E5] print:break-inside-avoid">
+                              <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase mb-8">
+                                Acknowledgment & Conforme
+                              </p>
 
-                              const name = isSales
-                                ? (invoice.salesName || 'Sales Representative')
-                                : isClient
-                                ? (invoice.clientSigneeName || invoice.toName || 'Client Representative')
-                                : (invoice.ceoName || 'Mary Grace E. Santos')
-
-                              const position = isSales
-                                ? (invoice.salesPosition || 'Sales')
-                                : isClient
-                                ? (invoice.clientSigneePosition || 'Client')
-                                : (invoice.ceoPosition || 'Chief Executive Officer')
-
-                              // Standard Solar Mode: Clean 3-line printed signature without interactive badges
-                              if (!isGovMode) {
-                                return (
-                                  <div key={signeeKey} className="flex flex-col text-center items-center">
-                                    <div className="w-full flex flex-col items-center">
-                                      <div className="border-b border-[#333333] w-full h-16 mb-3 flex items-end justify-center">
-                                        {sig && (
-                                          <div className="relative w-full flex items-center justify-center">
-                                            {sigType === 'text' ? (
-                                              <span
-                                                className="text-[#111111] select-none italic font-normal tracking-wide leading-none text-center whitespace-nowrap px-1 text-[22px]"
-                                                style={{
-                                                  fontFamily: '"Caveat", "Dancing Script", "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive, serif',
-                                                }}
-                                              >
-                                                {sig}
-                                              </span>
-                                            ) : (
-                                              <img
-                                                src={sig}
-                                                alt={`${signeeKey} Signature`}
-                                                data-role="signature"
-                                                className="object-contain w-auto h-12 max-w-full select-none pointer-events-none mix-blend-multiply"
-                                              />
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
-                                        {name}
-                                      </p>
-                                    </div>
-                                    <div className="min-h-[24px] flex items-center justify-center px-1">
-                                      <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
-                                        {position}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )
-                              }
-
-                              // Government PO Mode: Interactive E-Sign with direct overlap overlay & click-to-edit
-                              return (
-                                <div key={signeeKey} className="flex flex-col text-center items-center">
-                                  <div
-                                    onClick={() => onSignatureClick?.(signeeKey)}
-                                    className={cn(
-                                      "w-full flex flex-col items-center justify-end relative",
-                                      onSignatureClick && "cursor-pointer group/sig hover:bg-black/[0.02] transition-colors rounded p-0.5"
-                                    )}
-                                    title={onSignatureClick ? "Click to edit signature or signee text" : undefined}
-                                  >
-                                    {sig ? (
-                                      <div className="relative w-full flex flex-col items-center justify-end">
-                                        {/* Signature Overlay - directly overlaps the name text */}
-                                        <div
-                                          className={cn(
-                                            "absolute left-1/2 -translate-x-1/2 z-10 pointer-events-none select-none flex items-center justify-center",
-                                            isGovMode ? "bottom-[-4px] h-14 max-w-[150px]" : "bottom-[-6px] h-18 max-w-[170px]"
-                                          )}
-                                        >
-                                          {sigType === 'text' ? (
-                                            <span
-                                              className={cn(
-                                                "text-[#111111] select-none italic font-normal tracking-wide leading-none text-center whitespace-nowrap px-1",
-                                                isGovMode ? "text-[20px]" : "text-[24px]"
-                                              )}
-                                              style={{
-                                                fontFamily: '"Caveat", "Dancing Script", "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive, serif',
-                                              }}
-                                            >
-                                              {sig}
-                                            </span>
-                                          ) : (
-                                            <img
-                                              src={sig}
-                                              alt={`${signeeKey} Signature`}
-                                              data-role="signature"
-                                              className="object-contain w-auto h-auto max-h-full max-w-full select-none pointer-events-none mix-blend-multiply"
-                                            />
-                                          )}
-                                        </div>
-
-                                        {/* Hover badge to edit signature */}
-                                        {onSignatureClick && (
-                                          <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9px] font-semibold text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-xs border border-border/80 transition-opacity absolute -top-5 left-1/2 -translate-x-1/2 pointer-events-none select-none z-20 whitespace-nowrap">
-                                            ✎ Change Sign
-                                          </span>
-                                        )}
-
-                                        {/* Spacing above the name for the top part of the signature */}
-                                        <div className={cn("w-full", isGovMode ? "h-8" : "h-11")} />
-
-                                        {/* Name text underneath the signature overlay */}
-                                        <p className={cn("text-[#111111] uppercase tracking-wide relative z-0", isGovMode ? "min-h-[16px] text-[11px] font-bold" : "min-h-[18px] text-[11.5px] font-bold")}>
-                                          {name}
-                                        </p>
-                                      </div>
-                                    ) : (
-                                      <div className="w-full flex flex-col items-center">
-                                        <div
-                                          className={cn(
-                                            "border-b border-[#333333] w-full flex items-end justify-center relative",
-                                            isGovMode ? "h-8 mb-1.5 pb-0.5" : "h-12 mb-2 pb-1"
-                                          )}
-                                        >
-                                          {onSignatureClick && (
-                                            <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9.5px] text-primary/80 font-semibold transition-opacity absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                                              ✎ Add E-Sign
-                                            </span>
-                                          )}
-                                        </div>
-                                        <p className={cn("text-[#111111] uppercase tracking-wide", isGovMode ? "min-h-[16px] text-[11px] font-bold" : "min-h-[18px] text-[11.5px] font-bold")}>
-                                          {name}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className={cn("flex items-center justify-center px-1", isGovMode ? "min-h-[16px] mt-0.5" : "min-h-[20px] mt-0.5")}>
-                                    <p className={cn("text-[#555555] font-medium leading-tight", isGovMode ? "text-[10px]" : "text-[10.5px]")}>
-                                      {position}
+                              <div className="grid grid-cols-3 gap-6 items-start pt-2">
+                                {/* Sales Signature */}
+                                <div className="flex flex-col text-center">
+                                  <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                                  <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                    {invoice.salesName || 'Sales Representative'}
+                                  </p>
+                                  <div className="min-h-[24px] flex items-center justify-center px-1">
+                                    <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                      {invoice.salesPosition || 'Sales'}
                                     </p>
                                   </div>
                                 </div>
-                              )
-                            }
 
-                            if (visibleSignees.length === 1) {
-                              return (
-                                <div className={cn("flex justify-end", isGovMode ? "pt-0" : "pt-2")}>
-                                  <div className="w-64 max-w-full">
-                                    {renderSlot(visibleSignees[0])}
+                                {/* Client Signature */}
+                                <div className="flex flex-col text-center">
+                                  <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                                  <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                    {invoice.toName || 'Client Representative'}
+                                  </p>
+                                  <div className="min-h-[24px] flex items-center justify-center px-1">
+                                    <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                      Client
+                                    </p>
                                   </div>
                                 </div>
-                              )
-                            }
 
-                            if (visibleSignees.length === 2) {
-                              return (
-                                <div className={cn(
-                                  "grid grid-cols-2 gap-10 items-start max-w-xl ml-auto",
-                                  isGovMode ? "pt-0" : "pt-2"
-                                )}>
-                                  {visibleSignees.map(renderSlot)}
+                                {/* Chief Executive Officer Signature */}
+                                <div className="flex flex-col text-center">
+                                  <div className="h-16 border-b border-[#333333] mb-3 w-full" />
+                                  <p className="min-h-[18px] text-[11.5px] font-bold text-[#111111] uppercase tracking-wide">
+                                    {invoice.ceoName || 'Mary Grace E. Santos'}
+                                  </p>
+                                  <div className="min-h-[24px] flex items-center justify-center px-1">
+                                    <p className="text-[10.5px] text-[#555555] font-medium leading-tight">
+                                      {invoice.ceoPosition || 'Chief Executive Officer'}
+                                    </p>
+                                  </div>
                                 </div>
-                              )
-                            }
-
-                            return (
-                              <div className={cn(
-                                "grid grid-cols-3 gap-6 items-start",
-                                isGovMode ? "pt-0" : "pt-2"
-                              )}>
-                                {visibleSignees.map(renderSlot)}
                               </div>
-                            )
-                          })()}
-                        </div>
+                            </div>
+                          )}
+                        </>
                       )}
 
-                      {invoice.closing && invoice.showAcknowledgment === false && onToggleAcknowledgment && (
-                        <div className="mt-5 pt-3 border-t border-dashed border-[#CCCCCC] no-print print:hidden flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => onToggleAcknowledgment(true)}
-                            className="text-[10px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-[#CCCCCC] rounded px-3 py-1 hover:border-primary transition-all flex items-center gap-1.5 cursor-pointer select-none bg-secondary/30"
-                            title="Click to restore Acknowledgment & Conforme signature lines"
-                          >
-                            <span>+ Include Acknowledgment & Conforme (Signatures)</span>
-                          </button>
-                        </div>
+                      {/* Government P.O. Mode: Closing & Acknowledgment with E-Signatures & Hover Tools */}
+                      {isGovMode && (
+                        <>
+                          {invoice.closing && (
+                            <div className={cn(
+                              "mt-1.5 pt-0 print:break-inside-avoid p-0.5",
+                              getHighlightClass('closing')
+                            )}>
+                              <p className="text-[12px] text-[#555555] italic text-center font-medium">
+                                {invoice.closing}
+                              </p>
+                            </div>
+                          )}
+
+                          {invoice.closing && invoice.showAcknowledgment !== false && (
+                            <div className="mt-1.5 pt-0 print:break-inside-avoid relative group">
+                              <div className={cn(
+                                "flex items-center justify-between",
+                                invoice.showAcknowledgmentTitle !== false ? "mb-1.5" : "mb-1"
+                              )}>
+                                {invoice.showAcknowledgmentTitle !== false ? (
+                                  <div className="flex items-center gap-2 group/title">
+                                    <p className="text-[10px] font-semibold text-[#888888] tracking-[0.1em] uppercase">
+                                      Acknowledgment & Conforme
+                                    </p>
+                                    {onToggleAcknowledgmentTitle && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleAcknowledgmentTitle(false)}
+                                        className="no-print print:hidden opacity-0 group-hover/title:opacity-100 transition-opacity text-[8.5px] text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded border border-border/80 hover:border-destructive/30 bg-background cursor-pointer select-none"
+                                        title="Hide 'Acknowledgment & Conforme' text heading"
+                                      >
+                                        ✕ Hide Title
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div />
+                                )}
+
+                                <div className="no-print print:hidden opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                                  {invoice.showAcknowledgmentTitle === false && onToggleAcknowledgmentTitle && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleAcknowledgmentTitle(true)}
+                                      className="text-[9px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border px-2 py-0.5 rounded hover:border-primary cursor-pointer select-none bg-secondary/40"
+                                      title="Show 'Acknowledgment & Conforme' text heading"
+                                    >
+                                      + Show Title
+                                    </button>
+                                  )}
+                                  {onToggleAcknowledgment && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleAcknowledgment(false)}
+                                      className="text-[9.5px] font-medium text-destructive hover:bg-destructive/10 px-2 py-0.5 rounded cursor-pointer select-none flex items-center gap-1 border border-destructive/20"
+                                      title="Remove Acknowledgment & Conforme section from quotation"
+                                    >
+                                      ✕ Remove Section
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {(() => {
+                                const list: ('sales' | 'client' | 'ceo')[] = []
+                                if (invoice.showSalesSignee === true) list.push('sales')
+                                if (invoice.showClientSignee === true) list.push('client')
+                                if (invoice.showCeoSignee !== false) list.push('ceo')
+
+                                if (list.length === 0) {
+                                  return (
+                                    <div className="py-4 text-center print:hidden">
+                                      <p className="text-[11px] text-muted-foreground italic">
+                                        No signees selected. Click to configure signees in the sidebar.
+                                      </p>
+                                    </div>
+                                  )
+                                }
+
+                                const renderSlot = (signeeKey: 'sales' | 'client' | 'ceo') => {
+                                  const isSales = signeeKey === 'sales'
+                                  const isClient = signeeKey === 'client'
+                                  const sig = isSales
+                                    ? invoice.salesSignature
+                                    : isClient
+                                    ? invoice.clientSignature
+                                    : invoice.ceoSignature
+
+                                  const sigType = isSales
+                                    ? invoice.salesSignatureType
+                                    : isClient
+                                    ? invoice.clientSignatureType
+                                    : invoice.ceoSignatureType
+
+                                  const name = isSales
+                                    ? (invoice.salesName || 'Sales Representative')
+                                    : isClient
+                                    ? (invoice.clientSigneeName || invoice.toName || 'Client Representative')
+                                    : (invoice.ceoName || 'Mary Grace E. Santos')
+
+                                  const position = isSales
+                                    ? (invoice.salesPosition || 'Sales')
+                                    : isClient
+                                    ? (invoice.clientSigneePosition || 'Client')
+                                    : (invoice.ceoPosition || 'Chief Executive Officer')
+
+                                  return (
+                                    <div key={signeeKey} className="flex flex-col text-center items-center">
+                                      <div
+                                        onClick={() => onSignatureClick?.(signeeKey)}
+                                        className={cn(
+                                          "w-full flex flex-col items-center justify-end relative",
+                                          onSignatureClick && "cursor-pointer group/sig hover:bg-black/[0.02] transition-colors rounded p-0.5"
+                                        )}
+                                        title={onSignatureClick ? "Click to edit signature or signee text" : undefined}
+                                      >
+                                        {sig ? (
+                                          <div className="relative w-full flex flex-col items-center justify-end">
+                                            <div
+                                              className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-none select-none flex items-center justify-center bottom-[-4px] h-14 max-w-[150px]"
+                                            >
+                                              {sigType === 'text' ? (
+                                                <span
+                                                  className="text-[#111111] select-none italic font-normal tracking-wide leading-none text-center whitespace-nowrap px-1 text-[20px]"
+                                                  style={{
+                                                    fontFamily: '"Caveat", "Dancing Script", "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive, serif',
+                                                  }}
+                                                >
+                                                  {sig}
+                                                </span>
+                                              ) : (
+                                                <img
+                                                  src={sig}
+                                                  alt={`${signeeKey} Signature`}
+                                                  data-role="signature"
+                                                  className="object-contain w-auto h-auto max-h-full max-w-full select-none pointer-events-none mix-blend-multiply"
+                                                />
+                                              )}
+                                            </div>
+
+                                            {onSignatureClick && (
+                                              <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9px] font-semibold text-primary bg-background/95 px-1.5 py-0.5 rounded shadow-xs border border-border/80 transition-opacity absolute -top-5 left-1/2 -translate-x-1/2 pointer-events-none select-none z-20 whitespace-nowrap">
+                                                ✎ Change Sign
+                                              </span>
+                                            )}
+
+                                            <div className="w-full h-8" />
+
+                                            <p className="text-[#111111] uppercase tracking-wide relative z-0 min-h-[16px] text-[11px] font-bold">
+                                              {name}
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <div className="w-full flex flex-col items-center">
+                                            <div
+                                              className="border-b border-[#333333] w-full flex items-end justify-center relative h-8 mb-1.5 pb-0.5"
+                                            >
+                                              {onSignatureClick && (
+                                                <span className="print:hidden opacity-0 group-hover/sig:opacity-100 text-[9.5px] text-primary/80 font-semibold transition-opacity absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                                                  ✎ Add E-Sign
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-[#111111] uppercase tracking-wide min-h-[16px] text-[11px] font-bold">
+                                              {name}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center justify-center px-1 min-h-[16px] mt-0.5">
+                                        <p className="text-[#555555] font-medium leading-tight text-[10px]">
+                                          {position}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )
+                                }
+
+                                if (list.length === 1) {
+                                  return (
+                                    <div className="flex justify-end pt-0">
+                                      <div className="w-64 max-w-full">
+                                        {renderSlot(list[0])}
+                                      </div>
+                                    </div>
+                                  )
+                                }
+
+                                if (list.length === 2) {
+                                  return (
+                                    <div className="grid grid-cols-2 gap-10 items-start max-w-xl ml-auto pt-0">
+                                      {list.map(renderSlot)}
+                                    </div>
+                                  )
+                                }
+
+                                return (
+                                  <div className="grid grid-cols-3 gap-6 items-start pt-0">
+                                    {list.map(renderSlot)}
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                          )}
+
+                          {invoice.closing && invoice.showAcknowledgment === false && onToggleAcknowledgment && (
+                            <div className="mt-5 pt-3 border-t border-dashed border-[#CCCCCC] no-print print:hidden flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => onToggleAcknowledgment(true)}
+                                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground border border-dashed border-[#CCCCCC] rounded px-3 py-1 hover:border-primary transition-all flex items-center gap-1.5 cursor-pointer select-none bg-secondary/30"
+                                title="Click to restore Acknowledgment & Conforme signature lines"
+                              >
+                                <span>+ Include Acknowledgment & Conforme (Signatures)</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )

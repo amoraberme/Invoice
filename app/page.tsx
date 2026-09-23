@@ -6,7 +6,7 @@ import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, is
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
 import JSZip from 'jszip'
-import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, type SystemLifespanConfig, type SystemLifespanItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice, getDefaultSystemLifespan, TERMS_PRESETS, isGovernmentTerms } from '@/lib/types'
+import { type LineItem, type ExpenseItem, type InvoiceHistoryItem, type ChangelogItem, type WarrantyItem, type ScopeOfWorkItem, type SystemLifespanConfig, type SystemLifespanItem, newWarrantyItem, newScopeItem, defaultWarranties, defaultInvoice, getDefaultSystemLifespan, TERMS_PRESETS, isGovernmentTerms, isGovProposalMode } from '@/lib/types'
 import { PHILIPPINE_LGUS, type PhilippineLGU, type PhilippineLocationItem, calculateDeliveryFee, searchPhilippineLocations, formatPhilippineAddress, SERVICEABLE_DISTANCE_KM, isWithinServiceableArea } from '@/lib/philippine-locations'
 import { getInvoiceHistory, saveInvoiceToHistory, deleteHistoryItem, clearInvoiceHistory, getItemPricingInfo, getChangelogHistory, saveChangelogEntry, deleteChangelogItem, clearChangelogHistory, resetChangelogToInitial, SOLAR_PRICELIST_2026 } from '@/lib/store'
 import { Input } from '@/components/ui/input'
@@ -4282,27 +4282,33 @@ export default function Home() {
             <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border text-[10px] font-semibold shrink-0">
               <button
                 type="button"
-                onClick={() => update('terms', TERMS_PRESETS.standard)}
+                onClick={() => {
+                  update('proposalMode', 'solar')
+                  update('terms', TERMS_PRESETS.standard)
+                }}
                 className={cn(
                   "px-2 py-0.5 rounded cursor-pointer transition-all",
-                  !isGovernmentTerms(invoice.terms)
+                  !isGovProposalMode(invoice)
                     ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                     : "text-muted-foreground"
                 )}
-                title="Switch to Solar Quotation (Standard Terms)"
+                title="Switch to Solar Quotation (Standard Commercial Proposal)"
               >
                 Solar
               </button>
               <button
                 type="button"
-                onClick={() => update('terms', TERMS_PRESETS.government)}
+                onClick={() => {
+                  update('proposalMode', 'gov')
+                  update('terms', TERMS_PRESETS.government)
+                }}
                 className={cn(
                   "px-2 py-0.5 rounded cursor-pointer transition-all",
-                  isGovernmentTerms(invoice.terms)
+                  isGovProposalMode(invoice)
                     ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                     : "text-muted-foreground"
                 )}
-                title="Switch to Government P.O. Mode (gov-po-preview-updates)"
+                title="Switch to Government P.O. Mode (gov-po-preview-updates: Single Page, Gov Terms, E-Signatures)"
               >
                 With GOV
               </button>
@@ -4401,30 +4407,36 @@ export default function Home() {
                 <div className="flex items-center p-0.5 bg-secondary/80 rounded-lg border border-border text-[11px] font-semibold select-none shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => update('terms', TERMS_PRESETS.standard)}
+                    onClick={() => {
+                      update('proposalMode', 'solar')
+                      update('terms', TERMS_PRESETS.standard)
+                    }}
                     className={cn(
                       "px-2.5 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1.5",
-                      !isGovernmentTerms(invoice.terms)
+                      !isGovProposalMode(invoice)
                         ? "bg-primary text-primary-foreground shadow-xs font-bold"
                         : "text-muted-foreground hover:text-foreground"
                     )}
-                    title="Switch to Solar Quotation (Standard Terms)"
+                    title="Switch to Solar Quotation (Standard Commercial Proposal)"
                   >
-                    <Sun size={12} className={!isGovernmentTerms(invoice.terms) ? "text-primary-foreground" : "text-amber-500"} />
+                    <Sun size={12} className={!isGovProposalMode(invoice) ? "text-primary-foreground" : "text-amber-500"} />
                     <span>Solar</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => update('terms', TERMS_PRESETS.government)}
+                    onClick={() => {
+                      update('proposalMode', 'gov')
+                      update('terms', TERMS_PRESETS.government)
+                    }}
                     className={cn(
                       "px-2.5 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1.5",
-                      isGovernmentTerms(invoice.terms)
+                      isGovProposalMode(invoice)
                         ? "bg-primary text-primary-foreground shadow-xs font-bold"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                     title="Switch to Government P.O. Mode (gov-po-preview-updates: Single Page, Gov Terms, E-Signatures)"
                   >
-                    <Building size={12} className={isGovernmentTerms(invoice.terms) ? "text-primary-foreground" : "text-blue-500"} />
+                    <Building size={12} className={isGovProposalMode(invoice) ? "text-primary-foreground" : "text-blue-500"} />
                     <span>With GOV</span>
                   </button>
                 </div>
@@ -4778,193 +4790,223 @@ export default function Home() {
                   )}
                 </section>
 
-                {/* TERMS & CONDITIONS */}
-                <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <SectionHeader>Terms & Conditions</SectionHeader>
-                      <button
-                        type="button"
-                        onClick={() => update('showTermsTitle', invoice.showTermsTitle === false)}
-                        className={cn(
-                          "text-[9.5px] px-2 py-0.5 rounded border transition-colors cursor-pointer select-none font-medium",
-                          invoice.showTermsTitle !== false
-                            ? "border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 bg-background"
-                            : "border-primary/40 bg-primary/10 text-primary font-bold"
-                        )}
-                        title={invoice.showTermsTitle !== false ? "Click to hide 'Terms & Conditions' heading in preview" : "Click to show 'Terms & Conditions' heading in preview"}
-                      >
-                        {invoice.showTermsTitle !== false ? '✕ Hide Title' : '+ Show Title'}
-                      </button>
-                    </div>
-                    {/* Toggle between Standard Policy and Government / P.O. Terms */}
-                    <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border/80 text-[10px] font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => update('terms', TERMS_PRESETS.standard)}
-                        className={cn(
-                          "px-2 py-0.5 rounded cursor-pointer transition-all",
-                          !isGovernmentTerms(invoice.terms)
-                            ? "bg-primary text-primary-foreground shadow-2xs font-bold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        title="Standard default terms and conditions policy"
-                      >
-                        Standard
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => update('terms', TERMS_PRESETS.government)}
-                        className={cn(
-                          "px-2 py-0.5 rounded cursor-pointer transition-all",
-                          isGovernmentTerms(invoice.terms)
-                            ? "bg-primary text-primary-foreground shadow-2xs font-bold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        title="Government & P.O. Lead Time Terms (10–15 Days)"
-                      >
-                        Gov / P.O. Terms
-                      </button>
-                    </div>
-                  </div>
-                  <Textarea
-                    value={invoice.terms || ''}
-                    onChange={(e) => update('terms', e.target.value)}
-                    placeholder="Payment terms, contract conditions, warranty details…"
-                    rows={isGovernmentTerms(invoice.terms) ? 3 : 5}
-                  />
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
-                    <span>
-                      Active: <strong className="text-foreground">{isGovernmentTerms(invoice.terms) ? '🏛️ Gov / P.O. Terms' : '📋 Standard Policy'}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => update('terms', isGovernmentTerms(invoice.terms) ? TERMS_PRESETS.standard : TERMS_PRESETS.government)}
-                      className="text-[10px] text-primary hover:underline cursor-pointer font-medium"
-                    >
-                      {isGovernmentTerms(invoice.terms) ? '⇄ Switch to Standard' : '⇄ Switch to Gov / P.O. Terms'}
-                    </button>
-                  </div>
-
-                  {/* Position / Vertical Spacing Adjuster for Footer Block */}
-                  <div className="flex items-center justify-between p-2 rounded-lg border border-border/80 bg-secondary/30 text-xs">
-                    <div className="flex flex-col pr-2">
-                      <span className="font-semibold text-foreground text-[11px]">
-                        Vertical Position & Spacing
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Nudge Terms, Closing &amp; Signatures up or down (+ / −)
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
-                        onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) - 4)}
-                        title="Move Up (-4px)"
-                      >
-                        −
-                      </Button>
-                      <span className="font-mono text-xs min-w-[36px] text-center font-bold">
-                        {(invoice.footerOffsetY || 0) > 0 ? `+${invoice.footerOffsetY}` : (invoice.footerOffsetY || 0)}px
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
-                        onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) + 4)}
-                        title="Move Down (+4px)"
-                      >
-                        +
-                      </Button>
-                      {(invoice.footerOffsetY || 0) !== 0 && (
+                {/* Standard Solar Mode: Clean terms with Reset Default and standard CEO inputs */}
+                {!isGovProposalMode(invoice) && (
+                  <>
+                    {/* TERMS & CONDITIONS (Solar Mode) */}
+                    <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
+                      <div className="flex items-center justify-between">
+                        <SectionHeader>Terms & Conditions</SectionHeader>
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          className="h-7 px-1.5 text-[10px] text-primary hover:underline cursor-pointer"
-                          onClick={() => update('footerOffsetY', 0)}
+                          size="xs"
+                          onClick={() => update('terms', TERMS_PRESETS.standard)}
+                          className="h-5 px-1.5 text-[9px] text-muted-foreground hover:text-foreground cursor-pointer font-mono"
+                          title="Reset terms to standard default policy"
                         >
-                          Reset
+                          Reset Default
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                {/* CLOSING */}
-                <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
-                  <div className="flex items-center justify-between">
-                    <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
-                    <button
-                      type="button"
-                      onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
-                      className={cn(
-                        "text-[9.5px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none",
-                        invoice.showAcknowledgment !== false
-                          ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
-                          : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
-                      )}
-                      title={invoice.showAcknowledgment !== false ? "Click to remove signature section" : "Click to include signature section"}
-                    >
-                      {invoice.showAcknowledgment !== false ? '✓ Conforme Active' : '✕ Conforme Removed'}
-                    </button>
-                  </div>
-                  <Textarea
-                    value={invoice.closing || ''}
-                    onChange={(e) => update('closing', e.target.value)}
-                    placeholder="We are looking forward to building..."
-                    rows={4}
-                  />
-
-                  {/* Toggle Card for Acknowledgment & Conforme */}
-                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
-                    <div className="space-y-0.5 pr-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11.5px] font-semibold text-foreground flex items-center gap-1.5">
-                          Acknowledgment & Conforme
-                        </span>
-                        {isGovernmentTerms(invoice.terms) ? (
-                          <span className="text-[9.5px] px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold rounded-md border border-blue-500/20">
-                            With GOV Mode Active
-                          </span>
-                        ) : (
-                          <span className="text-[9.5px] px-1.5 py-0.5 bg-primary/10 text-primary font-semibold rounded-md border border-primary/20">
-                            Solar Standard (3 Lines)
-                          </span>
-                        )}
                       </div>
-                      <p className="text-[10.5px] text-muted-foreground">
-                        {isGovernmentTerms(invoice.terms)
-                          ? "Single-page Government P.O. layout with customizable signees and e-signatures."
-                          : "Standard commercial quotation with 3 printed signature lines (Sales Rep, Client, CEO)."}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={invoice.showAcknowledgment !== false ? "default" : "outline"}
-                      onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
-                      className="h-7 text-xs font-semibold px-2.5 cursor-pointer shrink-0"
-                    >
-                      {invoice.showAcknowledgment !== false ? 'Included' : 'Removed'}
-                    </Button>
-                  </div>
-
-                  {invoice.showAcknowledgment !== false && (
-                    <div className="pt-2 border-t border-border/50">
-                      <SignatureSection
-                        invoice={invoice}
-                        update={update}
-                        activeSigneeTab={activeSigneeTab}
-                        onSelectSigneeTab={setActiveSigneeTab}
+                      <Textarea
+                        value={invoice.terms || ''}
+                        onChange={(e) => update('terms', e.target.value)}
+                        placeholder="Payment terms, contract conditions, warranty details…"
+                        rows={4}
                       />
-                    </div>
-                  )}
-                </section>
+                    </section>
+
+                    {/* CLOSING & SIGNATURES (Solar Mode) */}
+                    <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
+                      <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
+                      <Textarea
+                        value={invoice.closing || ''}
+                        onChange={(e) => update('closing', e.target.value)}
+                        placeholder="We are looking forward to building..."
+                        rows={4}
+                      />
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                        <Field label="CEO / Executive Signee">
+                          <Input
+                            value={invoice.ceoName ?? 'Mary Grace E. Santos'}
+                            onChange={(e) => update('ceoName', e.target.value)}
+                            placeholder="Mary Grace E. Santos"
+                          />
+                        </Field>
+                        <Field label="Executive Title">
+                          <Input
+                            value={invoice.ceoPosition ?? 'Chief Executive Officer'}
+                            onChange={(e) => update('ceoPosition', e.target.value)}
+                            placeholder="Chief Executive Officer"
+                          />
+                        </Field>
+                      </div>
+                    </section>
+                  </>
+                )}
+
+                {/* Government P.O. Mode: Government terms, footer position adjuster, Acknowledgment toggle & SignatureSection */}
+                {isGovProposalMode(invoice) && (
+                  <>
+                    {/* TERMS & CONDITIONS (Gov P.O. Mode) */}
+                    <section className="space-y-3" onMouseEnter={() => setHoveredField('terms')} onMouseLeave={() => setHoveredField(null)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <SectionHeader>Terms & Conditions</SectionHeader>
+                          <button
+                            type="button"
+                            onClick={() => update('showTermsTitle', invoice.showTermsTitle === false)}
+                            className={cn(
+                              "text-[9.5px] px-2 py-0.5 rounded border transition-colors cursor-pointer select-none font-medium",
+                              invoice.showTermsTitle !== false
+                                ? "border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 bg-background"
+                                : "border-primary/40 bg-primary/10 text-primary font-bold"
+                            )}
+                            title={invoice.showTermsTitle !== false ? "Click to hide 'Terms & Conditions' heading in preview" : "Click to show 'Terms & Conditions' heading in preview"}
+                          >
+                            {invoice.showTermsTitle !== false ? '✕ Hide Title' : '+ Show Title'}
+                          </button>
+                        </div>
+                        <div className="flex items-center p-0.5 bg-secondary/80 rounded-md border border-border/80 text-[10px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              update('proposalMode', 'solar')
+                              update('terms', TERMS_PRESETS.standard)
+                            }}
+                            className="px-2 py-0.5 rounded cursor-pointer transition-all text-muted-foreground hover:text-foreground"
+                            title="Switch to Standard default terms"
+                          >
+                            Standard
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              update('proposalMode', 'gov')
+                              update('terms', TERMS_PRESETS.government)
+                            }}
+                            className="px-2 py-0.5 rounded cursor-pointer transition-all bg-primary text-primary-foreground shadow-2xs font-bold"
+                            title="Government & P.O. Lead Time Terms (10–15 Days)"
+                          >
+                            Gov / P.O. Terms
+                          </button>
+                        </div>
+                      </div>
+                      <Textarea
+                        value={invoice.terms || ''}
+                        onChange={(e) => update('terms', e.target.value)}
+                        placeholder="Payment terms, contract conditions, warranty details…"
+                        rows={3}
+                      />
+
+                      {/* Position / Vertical Spacing Adjuster for Footer Block */}
+                      <div className="flex items-center justify-between p-2 rounded-lg border border-border/80 bg-secondary/30 text-xs">
+                        <div className="flex flex-col pr-2">
+                          <span className="font-semibold text-foreground text-[11px]">
+                            Vertical Position & Spacing
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Nudge Terms, Closing &amp; Signatures up or down (+ / −)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
+                            onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) - 4)}
+                            title="Move Up (-4px)"
+                          >
+                            −
+                          </Button>
+                          <span className="font-mono text-xs min-w-[36px] text-center font-bold">
+                            {(invoice.footerOffsetY || 0) > 0 ? `+${invoice.footerOffsetY}` : (invoice.footerOffsetY || 0)}px
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-7 p-0 font-bold cursor-pointer text-sm"
+                            onClick={() => update('footerOffsetY', (invoice.footerOffsetY || 0) + 4)}
+                            title="Move Down (+4px)"
+                          >
+                            +
+                          </Button>
+                          {(invoice.footerOffsetY || 0) !== 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-1.5 text-[10px] text-primary hover:underline cursor-pointer"
+                              onClick={() => update('footerOffsetY', 0)}
+                            >
+                              Reset
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* CLOSING & SIGNATURES (Gov P.O. Mode) */}
+                    <section className="space-y-3" onMouseEnter={() => setHoveredField('closing')} onMouseLeave={() => setHoveredField(null)}>
+                      <div className="flex items-center justify-between">
+                        <SectionHeader>Closing / Footer & Acknowledgment</SectionHeader>
+                        <button
+                          type="button"
+                          onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
+                          className={cn(
+                            "text-[9.5px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none",
+                            invoice.showAcknowledgment !== false
+                              ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                              : "bg-secondary text-muted-foreground border-border hover:bg-secondary/80"
+                          )}
+                          title={invoice.showAcknowledgment !== false ? "Click to remove signature section" : "Click to include signature section"}
+                        >
+                          {invoice.showAcknowledgment !== false ? '✓ Conforme Active' : '✕ Conforme Removed'}
+                        </button>
+                      </div>
+                      <Textarea
+                        value={invoice.closing || ''}
+                        onChange={(e) => update('closing', e.target.value)}
+                        placeholder="We are looking forward to building..."
+                        rows={4}
+                      />
+
+                      {/* Toggle Card for Acknowledgment & Conforme */}
+                      <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
+                        <div className="space-y-0.5 pr-2">
+                          <span className="text-[11.5px] font-semibold text-foreground flex items-center gap-1.5">
+                            Acknowledgment & Conforme
+                          </span>
+                          <p className="text-[10.5px] text-muted-foreground">
+                            Single-page Government P.O. layout with customizable signees and e-signatures.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={invoice.showAcknowledgment !== false ? "default" : "outline"}
+                          onClick={() => update('showAcknowledgment', invoice.showAcknowledgment === false ? true : false)}
+                          className="h-7 text-xs font-semibold px-2.5 cursor-pointer shrink-0"
+                        >
+                          {invoice.showAcknowledgment !== false ? 'Included' : 'Removed'}
+                        </Button>
+                      </div>
+
+                      {invoice.showAcknowledgment !== false && (
+                        <div className="pt-2 border-t border-border/50">
+                          <SignatureSection
+                            invoice={invoice}
+                            update={update}
+                            activeSigneeTab={activeSigneeTab}
+                            onSelectSigneeTab={setActiveSigneeTab}
+                          />
+                        </div>
+                      )}
+                    </section>
+                  </>
+                )}
               </>
             )}
 
@@ -8146,59 +8188,80 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
           </div>
         )}
 
-        {activeTab === 'checklist' ? (
-          <MGChecklistPreview
-            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
-            hoveredField={hoveredField}
-            checkedItems={checkedChecklistItems}
-            previousTab={previousTab}
-            onToggleCheck={(id) => setCheckedChecklistItems(prev => ({ ...prev, [id]: !prev[id] }))}
-            onPagesChange={setTotalPages}
-          />
-        ) : activeTab === 'capital' ? (
-          <MGCapitalPreview
-            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
-            hoveredField={hoveredField}
-            version={capitalVersion}
-            onVersionChange={setCapitalVersion}
-            onPagesChange={setTotalPages}
-            onToggleCondensed={(val) => update('isCondensed', val)}
-            onToggleWithBrandName={(val) => update('withBrandName', val)}
-            onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
-            onLogoClick={openLogoPicker}
-            onToggleAcknowledgment={(val) => update('showAcknowledgment', val)}
-            onToggleAcknowledgmentTitle={(val) => update('showAcknowledgmentTitle', val)}
-            onToggleTermsTitle={(val) => update('showTermsTitle', val)}
-            onToggleTermsPreset={(terms) => update('terms', terms)}
-            onAdjustFooterOffset={(val) => update('footerOffsetY', val)}
-            onSignatureClick={(signee) => {
-              setActiveSigneeTab(signee)
-              setSignatureModalOpen(true)
-            }}
-            isLocalhost={isLocalhost}
-          />
-        ) : (
-          <MGInvoicePreview
-            invoice={selectedHistoryItem ? selectedHistoryItem.invoice : invoice}
-            hoveredField={hoveredField}
-            onOpenCheatsheet={() => setCheatsheetOpen(true)}
-            onPagesChange={setTotalPages}
-            onToggleCondensed={(val) => update('isCondensed', val)}
-            onToggleWithBrandName={(val) => update('withBrandName', val)}
-            onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
-            onLogoClick={openLogoPicker}
-            onToggleAcknowledgment={(val) => update('showAcknowledgment', val)}
-            onToggleAcknowledgmentTitle={(val) => update('showAcknowledgmentTitle', val)}
-            onToggleTermsTitle={(val) => update('showTermsTitle', val)}
-            onToggleTermsPreset={(terms) => update('terms', terms)}
-            onAdjustFooterOffset={(val) => update('footerOffsetY', val)}
-            onSignatureClick={(signee) => {
-              setActiveSigneeTab(signee)
-              setSignatureModalOpen(true)
-            }}
-            isLocalhost={isLocalhost}
-          />
-        )}
+        {(() => {
+          const previewInv = selectedHistoryItem ? selectedHistoryItem.invoice : invoice
+          const isGovModeActive = isGovProposalMode(previewInv)
+
+          return activeTab === 'checklist' ? (
+            <MGChecklistPreview
+              invoice={previewInv}
+              hoveredField={hoveredField}
+              checkedItems={checkedChecklistItems}
+              previousTab={previousTab}
+              onToggleCheck={(id) => setCheckedChecklistItems(prev => ({ ...prev, [id]: !prev[id] }))}
+              onPagesChange={setTotalPages}
+            />
+          ) : activeTab === 'capital' ? (
+            <MGCapitalPreview
+              invoice={previewInv}
+              hoveredField={hoveredField}
+              version={capitalVersion}
+              onVersionChange={setCapitalVersion}
+              onPagesChange={setTotalPages}
+              onToggleCondensed={(val) => update('isCondensed', val)}
+              onToggleWithBrandName={(val) => update('withBrandName', val)}
+              onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
+              onLogoClick={isGovModeActive ? openLogoPicker : undefined}
+              onToggleAcknowledgment={isGovModeActive ? ((val) => update('showAcknowledgment', val)) : undefined}
+              onToggleAcknowledgmentTitle={isGovModeActive ? ((val) => update('showAcknowledgmentTitle', val)) : undefined}
+              onToggleTermsTitle={isGovModeActive ? ((val) => update('showTermsTitle', val)) : undefined}
+              onToggleTermsPreset={(terms) => {
+                const isGov = isGovernmentTerms(terms)
+                update('proposalMode', isGov ? 'gov' : 'solar')
+                update('terms', terms)
+              }}
+              onToggleProposalMode={(mode) => {
+                update('proposalMode', mode)
+                update('terms', mode === 'gov' ? TERMS_PRESETS.government : TERMS_PRESETS.standard)
+              }}
+              onAdjustFooterOffset={isGovModeActive ? ((val) => update('footerOffsetY', val)) : undefined}
+              onSignatureClick={isGovModeActive ? ((signee) => {
+                setActiveSigneeTab(signee)
+                setSignatureModalOpen(true)
+              }) : undefined}
+              isLocalhost={isLocalhost}
+            />
+          ) : (
+            <MGInvoicePreview
+              invoice={previewInv}
+              hoveredField={hoveredField}
+              onOpenCheatsheet={() => setCheatsheetOpen(true)}
+              onPagesChange={setTotalPages}
+              onToggleCondensed={(val) => update('isCondensed', val)}
+              onToggleWithBrandName={(val) => update('withBrandName', val)}
+              onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
+              onLogoClick={isGovModeActive ? openLogoPicker : undefined}
+              onToggleAcknowledgment={isGovModeActive ? ((val) => update('showAcknowledgment', val)) : undefined}
+              onToggleAcknowledgmentTitle={isGovModeActive ? ((val) => update('showAcknowledgmentTitle', val)) : undefined}
+              onToggleTermsTitle={isGovModeActive ? ((val) => update('showTermsTitle', val)) : undefined}
+              onToggleTermsPreset={(terms) => {
+                const isGov = isGovernmentTerms(terms)
+                update('proposalMode', isGov ? 'gov' : 'solar')
+                update('terms', terms)
+              }}
+              onToggleProposalMode={(mode) => {
+                update('proposalMode', mode)
+                update('terms', mode === 'gov' ? TERMS_PRESETS.government : TERMS_PRESETS.standard)
+              }}
+              onAdjustFooterOffset={isGovModeActive ? ((val) => update('footerOffsetY', val)) : undefined}
+              onSignatureClick={isGovModeActive ? ((signee) => {
+                setActiveSigneeTab(signee)
+                setSignatureModalOpen(true)
+              }) : undefined}
+              isLocalhost={isLocalhost}
+            />
+          )
+        })()}
 
         {/* Mobile Floating Action Bar in Preview Mode */}
         {activeTab !== 'changelog' && (!isLocalhost || activeTab !== 'roof') && (
