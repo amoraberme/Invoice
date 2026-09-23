@@ -246,6 +246,33 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
     console.warn('Failed to inline stylesheets into cloned document:', e)
   }
 
+  // 4b. Copy all inline <style> elements directly from host head (Turbopack / Next.js dynamic CSS)
+  try {
+    const hostStyles = document.querySelectorAll<HTMLStyleElement>('head style')
+    hostStyles.forEach((st) => {
+      if (st.textContent && st.textContent.trim()) {
+        const clonedSt = clonedDoc.createElement('style')
+        clonedSt.textContent = st.textContent
+        clonedDoc.head?.appendChild(clonedSt)
+      }
+    })
+  } catch (e) {
+    console.warn('Failed to copy host style tags to cloned doc:', e)
+  }
+
+  // 4c. Sync all decoded FontFace objects from host document so Lilex and all custom fonts render identically
+  try {
+    if (typeof document !== 'undefined' && document.fonts && (clonedDoc as any).fonts) {
+      document.fonts.forEach((fontFace) => {
+        try {
+          (clonedDoc as any).fonts.add(fontFace)
+        } catch {}
+      })
+    }
+  } catch (e) {
+    console.warn('Failed to sync fonts to cloned document:', e)
+  }
+
   // 5. Remove relative/same-origin <link rel="stylesheet"> elements from clone to prevent iframe network errors
   try {
     const clonedLinks = clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
@@ -267,6 +294,14 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
     if (!node.contains(clonedDoc.querySelector('.print-page'))) {
       try { node.remove() } catch {}
     }
+  })
+
+  // 6b. Strictly remove all interactive UI controls, buttons, and elements meant to be hidden in print/export
+  const printHiddenNodes = clonedDoc.querySelectorAll<HTMLElement>(
+    'button, .no-print, [data-no-print], .print\\:hidden, [class*="print:hidden"], [class*="print\\:hidden"]'
+  )
+  printHiddenNodes.forEach((node) => {
+    try { node.remove() } catch {}
   })
 
   // 7. Reset all scale wrappers in the cloned document so content is rendered at true 794x1123px
@@ -302,15 +337,18 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
   images.forEach((img) => {
     const src = img.getAttribute('src') || ''
     const alt = (img.getAttribute('alt') || '').toLowerCase()
-    if (src.includes('mg.png') || alt.includes('invoice')) {
+    const role = img.getAttribute('data-role') || ''
+    if (role === 'invoice-logo' || src.includes('mg.png') || alt.includes('invoice') || alt === 'company logo') {
       img.style.height = '68px'
       img.style.maxHeight = '68px'
       img.style.width = 'auto'
+      img.style.maxWidth = '240px'
       img.style.objectFit = 'contain'
-    } else if (src.includes('logo.svg') || alt.includes('logo')) {
+    } else if (role === 'checklist-logo' || src.includes('logo.svg') || alt.includes('checklist') || alt.includes('logo')) {
       img.style.height = '40px'
       img.style.maxHeight = '40px'
       img.style.width = 'auto'
+      img.style.maxWidth = '180px'
       img.style.objectFit = 'contain'
     } else if (img.classList.contains('scope-badge-img') || src.startsWith('data:image/svg+xml')) {
       img.style.width = '18px'
@@ -357,10 +395,20 @@ async function prepareClonedDocument(clonedDoc: Document): Promise<void> {
       letter-spacing: normal !important;
       word-spacing: normal !important;
       text-rendering: geometricPrecision !important;
+      -webkit-font-smoothing: antialiased !important;
+      -moz-osx-font-smoothing: grayscale !important;
     }
     body, .print-page, .print-page * {
       font-family: 'Lilex', monospace !important;
       font-feature-settings: "calt" 1, "liga" 1;
+    }
+    button, .no-print, [data-no-print], .print\\:hidden, [class*="print:hidden"], [class*="print\\:hidden"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      height: 0 !important;
+      width: 0 !important;
+      overflow: hidden !important;
     }
     .text-emerald-600, [class*="text-emerald-600"], [class*="text-[#059669]"] {
       color: #059669 !important;

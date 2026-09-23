@@ -345,14 +345,17 @@ export function MGChecklistPreview({
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      <img 
-                        src="/logo.svg" 
-                        alt="MG Solar Logo" 
-                        height={40}
-                        style={{ height: '40px', width: 'auto', maxHeight: '40px' }}
-                        className="h-10 w-auto object-contain mb-1"
-                        onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-                      />
+                      {invoice.logo !== '' && (
+                        <img 
+                          src={invoice.logo || "/mg.png"} 
+                          alt={invoice.fromName || "Company Logo"} 
+                          data-role="checklist-logo"
+                          height={40}
+                          style={{ height: '40px', width: 'auto', maxHeight: '40px', maxWidth: '180px' }}
+                          className="h-10 w-auto max-w-[180px] object-contain mb-1"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                        />
+                      )}
                       <p className="text-[9px] font-mono font-bold text-[#555555]">
                         DOC #: {invoice.invoiceNumber ? (invoice.invoiceNumber.startsWith('MG-') ? invoice.invoiceNumber.replace(/^MG-[A-Z]+-/, 'MG-CL-') : `MG-CL-${invoice.invoiceNumber}`) : 'MG-CL-260715133721'}
                       </p>
