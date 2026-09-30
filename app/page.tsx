@@ -5485,7 +5485,7 @@ export default function Home() {
                       const isInverterGoodWe = item.rate === invBrandPrices.goodwe
                       const isInverterSolis = item.rate === invBrandPrices.solis || (!isInverterAnern && !isInverterGoodWe)
 
-                      let genixPrice = 85000
+                      let genixPrice = 88000
                       if (descLower.includes('200ah')) {
                         genixPrice = 65000
                       } else if (descLower.includes('102.4v') || descLower.includes('100ah')) {
@@ -5902,7 +5902,7 @@ export default function Home() {
                             const getGenixData = (cap: typeof capKey) => {
                               if (cap === '200Ah') return { desc: 'Genix Battery 51.2V 200Ah', rate: 65000 }
                               if (cap === '100Ah') return { desc: 'Genix Battery 51.2V 100Ah', rate: 38000 }
-                              return { desc: 'Genix Battery 51.2V 314Ah', rate: 85000 }
+                              return { desc: 'Genix Battery 51.2V 314Ah', rate: 88000 }
                             }
 
                             const getDynessData = (cap: typeof capKey) => {
@@ -6229,7 +6229,7 @@ export default function Home() {
                                             ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
                                             : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
                                         )}
-                                        title="314Ah - ₱85,000.00"
+                                        title="314Ah - ₱88,000.00"
                                       >
                                         314Ah
                                       </button>
