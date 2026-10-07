@@ -969,7 +969,6 @@ const SALESPEOPLE = [
   { id: 'aya', name: 'Aya Rongavilla', position: 'Sales & Marketing Executive', company: MG_COMPANY, contact: '09933746489', email: 'ayarongavilla021@gmail.com' },
   { id: 'christian', name: 'Christian C. Gonzales', position: 'Graphic Artist', company: MG_COMPANY, contact: '09164258558', email: 'christian_gonzales04@yahoo.com' },
   { id: 'jerico', name: 'Jerico A. Berme', position: 'System & Digital Strategy Lead', company: MG_COMPANY, contact: '09982460386', email: 'jericoberme29@gmail.com' },
-  { id: 'julian', name: 'Julian Cedric L. Aguidan', position: 'Electrician', company: MG_COMPANY, contact: '09453365251', email: 'Jcaguidan01@gmail.com' },
   { id: 'ryan', name: 'Ryan M. Castillo', position: 'Liaison Officer', company: MG_COMPANY, contact: '09352956244', email: 'ry.manalo1111@gmail.com' },
   { id: 'renzel', name: 'Renzel G. Rongavilla', position: 'Liaison Officer', company: MG_COMPANY, contact: '09299606023', email: 'rongavillarenzel.gs@gmail.com' },
   { id: 'noel', name: 'Noel Jayson E. Santos', position: 'Chief Operating Officer', company: MG_COMPANY, contact: '09198718747', email: 'Santosnoel9999@gmail.com' },
