@@ -15,12 +15,14 @@ import {
   isPointInPolygon,
   isPanelInsidePolygon,
   getAdjacentSnapPosition,
+  getPerspectivePinSnapPosition,
   getDistance,
   calculatePolygonAreaM2,
   getPolygonCentroid,
   getPanelCorners,
   rotateSinglePanel,
   rotatePanelsAsArray,
+  getPerspectivePanelVisuals,
 } from '@/utils/geometry'
 import {
   Quad,
@@ -190,6 +192,14 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
   const perspectivePinDragStartRef = useRef<{
     initialQuad: [Point, Point, Point, Point]
     initialPanels: PlacedPanel[]
+  } | null>(null)
+
+  // Active Visual Snapping Guidelines
+  const [activeSnapGuide, setActiveSnapGuide] = useState<{ p1: Point; p2: Point } | null>(null)
+  const [activePerspectiveSnapGuide, setActivePerspectiveSnapGuide] = useState<{
+    point: Point
+    line?: { p1: Point; p2: Point }
+    type?: string
   } | null>(null)
 
   // Panning state
@@ -577,10 +587,36 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
         { ...initialQuad[2] },
         { ...initialQuad[3] },
       ]
-      targetQuad[draggingPerspectivePinIndex] = {
-        x: Math.round(canvasPt.x),
-        y: Math.round(canvasPt.y),
+
+      const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
+      let finalPinPt = { x: Math.round(canvasPt.x), y: Math.round(canvasPt.y) }
+
+      if (effectiveSnap) {
+        const selectedIdSet = new Set(initialPanels.map((p) => p.id))
+        const staticPanels = placedPanels.filter((p) => !selectedIdSet.has(p.id))
+        const snapRes = getPerspectivePinSnapPosition(
+          draggingPerspectivePinIndex,
+          canvasPt,
+          targetQuad,
+          polygon.points,
+          staticPanels,
+          16 / viewport.zoom
+        )
+        if (snapRes.snapped) {
+          finalPinPt = { x: Math.round(snapRes.x), y: Math.round(snapRes.y) }
+          setActivePerspectiveSnapGuide({
+            point: finalPinPt,
+            line: snapRes.snapLine,
+            type: snapRes.snapType,
+          })
+        } else {
+          setActivePerspectiveSnapGuide(null)
+        }
+      } else {
+        setActivePerspectiveSnapGuide(null)
       }
+
+      targetQuad[draggingPerspectivePinIndex] = finalPinPt
 
       const warpedSelected = warpPanelsWithQuad(initialPanels, initialQuad, targetQuad)
       const warpedMap = new Map<string, PlacedPanel>()
@@ -605,11 +641,16 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       const currentPointerAngle = Math.atan2(canvasPt.y - centroid.y, canvasPt.x - centroid.x)
       let deltaDeg = ((currentPointerAngle - startPointerAngle) * 180) / Math.PI
 
-      const effectiveSnap = e.shiftKey || (enableSnapping && !e.altKey)
-      if (effectiveSnap) {
+      // Manual dragging rotation:
+      // Default: 1° manual increments (precise and degree-by-degree, no automatic 15°/45° snap)
+      // Shift key: snap to 15° increments (CAD standard)
+      // Alt key: fine sub-degree precision (0.1°)
+      if (e.shiftKey) {
         deltaDeg = Math.round(deltaDeg / 15) * 15
-      } else {
+      } else if (e.altKey) {
         deltaDeg = Math.round(deltaDeg * 10) / 10
+      } else {
+        deltaDeg = Math.round(deltaDeg)
       }
 
       const selectedIdSet = new Set(selectedIds)
@@ -618,14 +659,21 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       let rotatedSelected: PlacedPanel[]
       if (selectedPanelsInitial.length === 1) {
         const single = selectedPanelsInitial[0]
-        const singleCenter = {
-          x: single.x + single.width / 2,
-          y: single.y + single.height / 2,
-        }
+        const singleCenter = single.customQuad
+          ? {
+              x: (single.customQuad[0].x + single.customQuad[1].x + single.customQuad[2].x + single.customQuad[3].x) / 4,
+              y: (single.customQuad[0].y + single.customQuad[1].y + single.customQuad[2].y + single.customQuad[3].y) / 4,
+            }
+          : {
+              x: single.x + single.width / 2,
+              y: single.y + single.height / 2,
+            }
         rotatedSelected = [
           rotateSinglePanel(single, deltaDeg, singleCenter, polygon.points),
         ]
-        setLiveRotationAngle(Math.round(rotatedSelected[0].rotation ?? 0))
+        const curRot = rotatedSelected[0].rotation ?? 0
+        const dispAngle = Math.round((((curRot % 360) + 360) % 360) * 10) / 10
+        setLiveRotationAngle(e.altKey && !Number.isInteger(dispAngle) ? dispAngle : Math.round(dispAngle))
       } else {
         rotatedSelected = rotatePanelsAsArray(
           selectedPanelsInitial,
@@ -633,8 +681,11 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
           polygon.points,
           centroid
         )
-        const dispAngle = Math.round(((deltaDeg % 360) + 360) % 360)
-        setLiveRotationAngle(dispAngle)
+        const leadRot =
+          rotatedSelected[0]?.rotation ??
+          ((((selectedPanelsInitial[0]?.rotation ?? 0) + deltaDeg) % 360) + 360) % 360
+        const dispAngle = Math.round((((leadRot % 360) + 360) % 360) * 10) / 10
+        setLiveRotationAngle(e.altKey && !Number.isInteger(dispAngle) ? dispAngle : Math.round(dispAngle))
       }
 
       const updatedPanels = panels.map((p) => {
@@ -654,31 +705,71 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
       let finalDx = rawDx
       let finalDy = rawDy
 
-      // If single panel dragged with snapping enabled, snap lead panel
+      // If dragging with snapping enabled, snap lead panel or any dragged panel against static panels
       const effectiveSnap = e.altKey ? !enableSnapping : !!enableSnapping
-      if (effectiveSnap && draggedPanelsInitialRef.current.length === 1) {
-        const leadInit = draggedPanelsInitialRef.current[0]
-        const currentLead = placedPanels.find((p) => p.id === leadInit.id)
-        if (currentLead && !currentLead.customQuad) {
-          const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
+      const draggedIds = new Set(draggedPanelsInitialRef.current.map((item) => item.id))
+      const staticPanels = placedPanels.filter((p) => !draggedIds.has(p.id))
+
+      if (effectiveSnap && staticPanels.length > 0) {
+        const gapPx = (interPanelGapMm / 1000) * scale.pixelsPerMeter
+        const leadClickedId = panelClickCandidateRef.current?.panel?.id
+        const orderedDragged = [...draggedPanelsInitialRef.current].sort((a, b) => {
+          if (a.id === leadClickedId) return -1
+          if (b.id === leadClickedId) return 1
+          return 0
+        })
+
+        let bestSnap: { dx: number; dy: number; line?: { p1: Point; p2: Point } } | null = null
+        let minSnapDist = Infinity
+
+        for (const dragInit of orderedDragged) {
+          const currentPanel = placedPanels.find((p) => p.id === dragInit.id)
+          if (!currentPanel) continue
+
+          const currentQuad: [Point, Point, Point, Point] | undefined = dragInit.customQuad
+            ? [
+                { x: dragInit.customQuad[0].x + rawDx, y: dragInit.customQuad[0].y + rawDy },
+                { x: dragInit.customQuad[1].x + rawDx, y: dragInit.customQuad[1].y + rawDy },
+                { x: dragInit.customQuad[2].x + rawDx, y: dragInit.customQuad[2].y + rawDy },
+                { x: dragInit.customQuad[3].x + rawDx, y: dragInit.customQuad[3].y + rawDy },
+              ]
+            : undefined
+
           const snapResult = getAdjacentSnapPosition(
             {
-              id: currentLead.id,
-              x: leadInit.x + rawDx,
-              y: leadInit.y + rawDy,
-              width: currentLead.width,
-              height: currentLead.height,
-              rotation: currentLead.rotation,
+              id: currentPanel.id,
+              x: dragInit.x + rawDx,
+              y: dragInit.y + rawDy,
+              width: currentPanel.width,
+              height: currentPanel.height,
+              rotation: currentPanel.rotation,
+              customQuad: currentQuad,
             },
-            placedPanels,
-            14 / viewport.zoom,
+            staticPanels,
+            16 / viewport.zoom,
             gapPx
           )
+
           if (snapResult.snapped) {
-            finalDx = snapResult.x - leadInit.x
-            finalDy = snapResult.y - leadInit.y
+            const snapDx = snapResult.x - dragInit.x
+            const snapDy = snapResult.y - dragInit.y
+            const dist = Math.hypot(snapDx - rawDx, snapDy - rawDy)
+            if (dist < minSnapDist) {
+              minSnapDist = dist
+              bestSnap = { dx: snapDx, dy: snapDy, line: snapResult.snapLine }
+            }
           }
         }
+
+        if (bestSnap) {
+          finalDx = bestSnap.dx
+          finalDy = bestSnap.dy
+          setActiveSnapGuide(bestSnap.line || null)
+        } else {
+          setActiveSnapGuide(null)
+        }
+      } else {
+        setActiveSnapGuide(null)
       }
 
       const initialMap = new Map(draggedPanelsInitialRef.current.map((item) => [item.id, item]))
@@ -735,6 +826,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
     setIsDraggingRotation(false)
     setLiveRotationAngle(null)
     rotationDragInitialRef.current = null
+    setActiveSnapGuide(null)
+    setActivePerspectiveSnapGuide(null)
 
     // Complete Scale reference drag
     if (draggingScaleTarget !== null) {
@@ -1487,36 +1580,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
               if (panel.customQuad) {
                 const [p0, p1, p2, p3] = panel.customQuad
                 const quadPoints = `${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`
-                const centerPt = {
-                  x: (p0.x + p1.x + p2.x + p3.x) / 4,
-                  y: (p0.y + p1.y + p2.y + p3.y) / 4,
-                }
-
-                // Internal perspective solar cell grid lines
-                const cellLines: { pA: Point; pB: Point }[] = []
-                for (let r = 1; r < 5; r++) {
-                  const frac = r / 5
-                  cellLines.push({
-                    pA: {
-                      x: p0.x + (p3.x - p0.x) * frac,
-                      y: p0.y + (p3.y - p0.y) * frac,
-                    },
-                    pB: {
-                      x: p1.x + (p2.x - p1.x) * frac,
-                      y: p1.y + (p2.y - p1.y) * frac,
-                    },
-                  })
-                }
-                cellLines.push({
-                  pA: {
-                    x: (p0.x + p1.x) / 2,
-                    y: (p0.y + p1.y) / 2,
-                  },
-                  pB: {
-                    x: (p3.x + p2.x) / 2,
-                    y: (p3.y + p2.y) / 2,
-                  },
-                })
+                const visuals = getPerspectivePanelVisuals(panel.customQuad)
 
                 return (
                   <g
@@ -1547,10 +1611,10 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                       className="transition-colors duration-100"
                     />
 
-                    {/* 3D Extruded Frame Edge / Bevel */}
+                    {/* 3D Extruded Frame Edge / Bevel on True Bottom Edge */}
                     {isValid && (
                       <polygon
-                        points={`${p3.x},${p3.y} ${p2.x},${p2.y} ${p2.x},${p2.y + 3} ${p3.x},${p3.y + 3}`}
+                        points={`${visuals.bevelEdge.pA.x},${visuals.bevelEdge.pA.y} ${visuals.bevelEdge.pB.x},${visuals.bevelEdge.pB.y} ${visuals.bevelEdge.pB.x},${visuals.bevelEdge.pB.y + 3} ${visuals.bevelEdge.pA.x},${visuals.bevelEdge.pA.y + 3}`}
                         fill="#0f172a"
                         stroke="#334155"
                         strokeWidth="0.5"
@@ -1558,24 +1622,34 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                       />
                     )}
 
-                    {/* Perspective Cell Grid Texture */}
-                    {isValid &&
-                      cellLines.map((line, lIdx) => (
+                    {/* Unified Perspective Cell Grid Texture */}
+                    {isValid && (
+                      <g pointerEvents="none">
+                        {visuals.rowLines.map((line, lIdx) => (
+                          <line
+                            key={`p-row-${lIdx}`}
+                            x1={line.pA.x}
+                            y1={line.pA.y}
+                            x2={line.pB.x}
+                            y2={line.pB.y}
+                            stroke="rgba(96, 165, 250, 0.45)"
+                            strokeWidth="0.75"
+                          />
+                        ))}
                         <line
-                          key={lIdx}
-                          x1={line.pA.x}
-                          y1={line.pA.y}
-                          x2={line.pB.x}
-                          y2={line.pB.y}
+                          x1={visuals.centerLine.pA.x}
+                          y1={visuals.centerLine.pA.y}
+                          x2={visuals.centerLine.pB.x}
+                          y2={visuals.centerLine.pB.y}
                           stroke="rgba(96, 165, 250, 0.45)"
                           strokeWidth="0.75"
-                          pointerEvents="none"
                         />
-                      ))}
+                      </g>
+                    )}
 
                     {/* Invalid Stripe / Warning Mark */}
                     {!isValid && (
-                      <g transform={`translate(${centerPt.x}, ${centerPt.y})`} pointerEvents="none">
+                      <g transform={`translate(${visuals.center.x}, ${visuals.center.y})`} pointerEvents="none">
                         <circle r="10" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
                         <text x="0" y="4" fill="#ffffff" fontSize="12" fontWeight="bold" textAnchor="middle">
                           !
@@ -1596,8 +1670,8 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                     {/* Wattage Readout */}
                     {isValid && (
                       <text
-                        x={centerPt.x}
-                        y={centerPt.y + 3}
+                        x={visuals.center.x}
+                        y={visuals.center.y + 3}
                         fill="#93c5fd"
                         fontSize="9"
                         fontWeight="600"
@@ -1663,16 +1737,53 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                     className="transition-colors duration-100"
                   />
 
-                  {/* Internal Solar Cell Grid Texture */}
+                  {/* Unified Internal Solar Cell Grid Texture */}
                   {isValid && (
-                    <rect
-                      x="1.5"
-                      y="1.5"
-                      width={Math.max(0, panel.width - 3)}
-                      height={Math.max(0, panel.height - 3)}
-                      fill="url(#solar-cell-pattern)"
-                      pointerEvents="none"
-                    />
+                    <g pointerEvents="none">
+                      {Array.from({ length: 4 }).map((_, rIdx) => {
+                        const frac = (rIdx + 1) / 5
+                        return panel.width <= panel.height ? (
+                          <line
+                            key={`s-row-${rIdx}`}
+                            x1={1.5}
+                            y1={panel.height * frac}
+                            x2={panel.width - 1.5}
+                            y2={panel.height * frac}
+                            stroke="rgba(96, 165, 250, 0.45)"
+                            strokeWidth="0.75"
+                          />
+                        ) : (
+                          <line
+                            key={`s-col-${rIdx}`}
+                            x1={panel.width * frac}
+                            y1={1.5}
+                            x2={panel.width * frac}
+                            y2={panel.height - 1.5}
+                            stroke="rgba(96, 165, 250, 0.45)"
+                            strokeWidth="0.75"
+                          />
+                        )
+                      })}
+                      {panel.width <= panel.height ? (
+                        <line
+                          x1={panel.width / 2}
+                          y1={1.5}
+                          x2={panel.width / 2}
+                          y2={panel.height - 1.5}
+                          stroke="rgba(96, 165, 250, 0.45)"
+                          strokeWidth="0.75"
+                        />
+                      ) : (
+                        <line
+                          x1={1.5}
+                          y1={panel.height / 2}
+                          x2={panel.width - 1.5}
+                          y2={panel.height / 2}
+                          stroke="rgba(96, 165, 250, 0.45)"
+                          strokeWidth="0.75"
+                        />
+                      )}
+                    </g>
                   )}
 
                   {/* Group Badge */}
@@ -1727,6 +1838,70 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                 stroke="#38bdf8"
                 strokeWidth="1.5"
                 strokeDasharray="4,4"
+              />
+            </g>
+          )}
+
+          {/* Active Magnetic Snap Guide Lines & Visual Feedback */}
+          {activeSnapGuide && (
+            <g className="magnetic-snap-guide-layer pointer-events-none">
+              <line
+                x1={activeSnapGuide.p1.x}
+                y1={activeSnapGuide.p1.y}
+                x2={activeSnapGuide.p2.x}
+                y2={activeSnapGuide.p2.y}
+                stroke="#38bdf8"
+                strokeWidth={2.5 / viewport.zoom}
+                strokeDasharray="4,3"
+                className="filter drop-shadow-[0_0_6px_rgba(56,189,248,0.9)]"
+              />
+              <circle
+                cx={activeSnapGuide.p1.x}
+                cy={activeSnapGuide.p1.y}
+                r={3.5 / viewport.zoom}
+                fill="#38bdf8"
+              />
+              <circle
+                cx={activeSnapGuide.p2.x}
+                cy={activeSnapGuide.p2.y}
+                r={3.5 / viewport.zoom}
+                fill="#38bdf8"
+              />
+            </g>
+          )}
+
+          {/* Active 3D Perspective Corner Pin Snap Guide */}
+          {activePerspectiveSnapGuide && (
+            <g className="perspective-pin-snap-guide-layer pointer-events-none">
+              {activePerspectiveSnapGuide.line && (
+                <line
+                  x1={activePerspectiveSnapGuide.line.p1.x}
+                  y1={activePerspectiveSnapGuide.line.p1.y}
+                  x2={activePerspectiveSnapGuide.line.p2.x}
+                  y2={activePerspectiveSnapGuide.line.p2.y}
+                  stroke="#38bdf8"
+                  strokeWidth={2 / viewport.zoom}
+                  strokeDasharray="4,4"
+                  className="filter drop-shadow-[0_0_6px_rgba(56,189,248,0.8)]"
+                />
+              )}
+              {/* Glowing halo indicator at snapped vertex/edge/guide */}
+              <circle
+                cx={activePerspectiveSnapGuide.point.x}
+                cy={activePerspectiveSnapGuide.point.y}
+                r={10 / viewport.zoom}
+                fill="rgba(56, 189, 248, 0.25)"
+                stroke="#38bdf8"
+                strokeWidth={2 / viewport.zoom}
+                strokeDasharray="3,2"
+              />
+              <circle
+                cx={activePerspectiveSnapGuide.point.x}
+                cy={activePerspectiveSnapGuide.point.y}
+                r={4 / viewport.zoom}
+                fill="#0284c7"
+                stroke="#ffffff"
+                strokeWidth={1.5 / viewport.zoom}
               />
             </g>
           )}
@@ -1820,7 +1995,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
 
                 const angleReadout =
                   liveRotationAngle !== null
-                    ? `${liveRotationAngle}°`
+                    ? `${Number.isInteger(liveRotationAngle) ? liveRotationAngle : liveRotationAngle.toFixed(1)}°`
                     : selectedPanels.length === 1 && typeof selectedPanels[0].rotation === 'number' && selectedPanels[0].rotation !== 0
                     ? `${Math.round(selectedPanels[0].rotation)}°`
                     : null
@@ -1850,13 +2025,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           (e.currentTarget as Element)?.setPointerCapture(e.pointerId)
                         } catch (_) {}
                         setIsDraggingRotation(true)
-                        const rect = svgRef.current?.getBoundingClientRect()
-                        const pointerCanvasPt = rect
-                          ? {
-                              x: (e.clientX - rect.left - viewport.panX) / viewport.zoom,
-                              y: (e.clientY - rect.top - viewport.panY) / viewport.zoom,
-                            }
-                          : { x: rotHandleX, y: rotHandleY }
+                        const pointerCanvasPt = screenToCanvas(e.clientX, e.clientY)
 
                         rotationDragInitialRef.current = {
                           centroid: { x: centroidX, y: centroidY },
@@ -1882,7 +2051,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                         rotationDragInitialRef.current = null
                       }}
                     >
-                      <title>Drag to rotate selection manually (15° snap, Alt for freeform)</title>
+                      <title>Drag to rotate selection manually (1° precision, Shift for 15° snap, Alt for 0.1°)</title>
                       {/* Touch target area */}
                       <circle r="14" fill="transparent" />
                       {/* Outer glow ring */}
@@ -1921,7 +2090,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                           <rect
                             x="0"
                             y="0"
-                            width="40"
+                            width={angleReadout.length > 4 ? 48 : 40}
                             height="18"
                             rx="4"
                             fill="#0f172a"
@@ -1930,7 +2099,7 @@ export const RoofCanvas: React.FC<RoofCanvasProps> = ({
                             className="filter drop-shadow-md"
                           />
                           <text
-                            x="20"
+                            x={angleReadout.length > 4 ? 24 : 20}
                             y="9"
                             fill="#38bdf8"
                             fontSize="10"

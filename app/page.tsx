@@ -1,7 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info, Sun, FileSignature } from 'lucide-react'
+import { Plus, Trash2, Download, Building, Users, FileText, List, CreditCard, StickyNote, Contact, Sparkles, Package, Wrench, Search, ClipboardCheck, CheckSquare, ArrowLeft, ArrowRight, Tag, Check, Copy, Printer, RefreshCw, Coins, DollarSign, Truck, Calculator, TrendingUp, History, Clock, RotateCcw, CheckCircle2, Eye, ShieldCheck, Loader2, Zap, Layers, MapPin, Table as TableIcon, Info, Sun, FileSignature, ChevronDown } from 'lucide-react'
 import { cn, generateDocumentId, formatCurrency, isLaborItem, isDeliveryItem, isBatteryItem, isBatteryUnit, isAtsItem, sortLineItems, calculateTotal, calculateSubtotal, calculateCommissionableBase, calculateSalesCommission, extractPanelInfoFromLineItems, extractBatteryInfoFromLineItems, addDays, getCondensedLineItems, generateDefaultScopesFromInvoice, generateDefaultWarrantiesFromInvoice } from '@/lib/utils'
 import { useMGInvoice } from '@/lib/use-mg-invoice'
 import { exportToPdfDirect, exportToPngDirect, saveBlobWithPicker } from '@/lib/pdf-export'
@@ -1296,6 +1296,31 @@ interface OnGridBrandInfo {
 
 const ON_GRID_BRANDS: OnGridBrandInfo[] = [
   {
+    id: 'goodwe',
+    name: 'GoodWe',
+    logo: '/goodwe.svg',
+    getPrice: (kw: number) => {
+      if (kw === 3) return 18000
+      if (kw === 6) return 24000
+      if (kw === 10) return 37000
+      return null
+    }
+  },
+  {
+    id: 'sungrow',
+    name: 'Sungrow',
+    logo: '/sungrow.svg',
+    getPrice: (kw: number) => {
+      if (kw === 3 || kw === 4) return 34000
+      if (kw === 5) return 44000
+      if (kw === 6) return 45000
+      if (kw === 8) return 62000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 79000
+      if (kw === 12) return 86000
+      return null
+    }
+  },
+  {
     id: 'deye',
     name: 'Deye',
     logo: '/deye.svg',
@@ -1309,17 +1334,6 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
       if (kw === 50) return 150000
       if (kw === 60) return 180000
       if (kw === 100) return 200000
-      return null
-    }
-  },
-  {
-    id: 'goodwe',
-    name: 'GoodWe',
-    logo: '/goodwe.svg',
-    getPrice: (kw: number) => {
-      if (kw === 3) return 18000
-      if (kw === 6) return 24000
-      if (kw === 10) return 37000
       return null
     }
   },
@@ -1378,19 +1392,6 @@ const ON_GRID_BRANDS: OnGridBrandInfo[] = [
       if (kw === 10) return 44500
       return null
     }
-  },
-  {
-    id: 'sungrow',
-    name: 'Sungrow',
-    logo: '/sungrow.svg',
-    getPrice: (kw: number) => {
-      if (kw === 3 || kw === 4) return 34000
-      if (kw === 5) return 44000
-      if (kw === 6) return 46000
-      if (kw === 8) return 48000
-      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 56000
-      return null
-    }
   }
 ]
 
@@ -1402,6 +1403,27 @@ interface HybridBrandInfo {
 }
 
 const HYBRID_BRANDS: HybridBrandInfo[] = [
+  {
+    id: 'goodwe',
+    name: 'GoodWe',
+    logo: '/goodwe.svg',
+    getPrice: (kw: number) => {
+      const prices = getInverterBrandPrices(kw)
+      return prices.goodwe
+    }
+  },
+  {
+    id: 'sungrow',
+    name: 'Sungrow',
+    logo: '/sungrow.svg',
+    getPrice: (kw: number) => {
+      if (kw === 6) return 45000
+      if (kw === 8) return 62000
+      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 79000
+      if (kw === 12) return 86000
+      return null
+    }
+  },
   {
     id: 'deye',
     name: 'Deye',
@@ -1435,26 +1457,6 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
       if (kw === 20) return null
       const prices = getInverterBrandPrices(kw)
       return prices.solis
-    }
-  },
-  {
-    id: 'goodwe',
-    name: 'GoodWe',
-    logo: '/goodwe.svg',
-    getPrice: (kw: number) => {
-      const prices = getInverterBrandPrices(kw)
-      return prices.goodwe
-    }
-  },
-  {
-    id: 'sungrow',
-    name: 'Sungrow',
-    logo: '/sungrow.svg',
-    getPrice: (kw: number) => {
-      if (kw === 6) return 48000
-      if (kw === 8) return 65000
-      if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 82000
-      return null
     }
   }
 ]
@@ -2202,6 +2204,9 @@ export default function Home() {
   const autoPrint = useRef(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === 'true')
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [goodweModalOpen, setGoodweModalOpen] = useState(false)
+  const [showOtherInverters, setShowOtherInverters] = useState(false)
+  const [showOtherPanels, setShowOtherPanels] = useState(false)
+  const [showOtherBatteries, setShowOtherBatteries] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [pdfExportStatus, setPdfExportStatus] = useState('')
 
@@ -2693,7 +2698,7 @@ export default function Home() {
         const unitKw = kwMatch ? parseFloat(kwMatch[1]) : (item.quantity && item.quantity > 1 ? currentKw! / item.quantity : currentKw!)
 
         if (type === 'ongrid') {
-          const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
+          const defaultBrand = ON_GRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(unitKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
           if (defaultBrand) {
             const price = defaultBrand.getPrice(unitKw)!
             return {
@@ -2707,8 +2712,8 @@ export default function Home() {
           const is20KwSingle = unitKw === 20
           return {
             ...item,
-            description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `Solis Inverter ${unitKw}kW Hybrid`,
-            rate: is20KwSingle ? brandPrices.goodwe : brandPrices.solis
+            description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `GoodWe Inverter ${unitKw}kW Hybrid`,
+            rate: brandPrices.goodwe
           }
         }
       }
@@ -2912,8 +2917,18 @@ export default function Home() {
     update('systemLifespan', { ...current, items: updatedItems })
   }
 
+  const handleToggleSystemLifespan = (val: boolean) => {
+    update('showSystemLifespan', val)
+    const current = invoice.systemLifespan || getDefaultSystemLifespan()
+    update('systemLifespan', { ...current, enabled: val })
+    if (val && !invoice.isCondensed) {
+      update('isCondensed', true)
+    }
+  }
+
   const handleResetSystemLifespan = () => {
     update('systemLifespan', getDefaultSystemLifespan())
+    update('showSystemLifespan', true)
   }
 
   // Auto-sync systemType, activeKwSetup, and fix any mismatched Subject/Salutation on all devices and users
@@ -3472,23 +3487,23 @@ export default function Home() {
 
     if (inverterKw === 20 && !isOld20Kw) {
       if (effSystemType === 'ongrid') {
-        const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(10) !== null)
-        inverterDesc = `Solis Inverter 10kW On-Grid`
-        inverterPrice = defaultBrand ? (defaultBrand.getPrice(10) || 37500) : 37500
+        const defaultBrand = ON_GRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(10) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(10) !== null)
+        inverterDesc = defaultBrand ? `${defaultBrand.name} Inverter 10kW On-Grid` : `GoodWe Inverter 10kW On-Grid`
+        inverterPrice = defaultBrand ? (defaultBrand.getPrice(10) || 37000) : 37000
       } else {
         const brandPrices = getInverterBrandPrices(10)
-        inverterDesc = `Solis Inverter 10kW Hybrid`
-        inverterPrice = brandPrices.solis
+        inverterDesc = `GoodWe Inverter 10kW Hybrid`
+        inverterPrice = brandPrices.goodwe
       }
     } else if (effSystemType === 'ongrid') {
-      const defaultBrand = ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
+      const defaultBrand = ON_GRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(inverterKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
       if (defaultBrand) {
         inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW On-Grid`
         inverterPrice = defaultBrand.getPrice(inverterKw)!
       } else {
         const brandPrices = getInverterBrandPrices(inverterKw)
-        inverterDesc = `Solis Inverter ${inverterKw}kW On-Grid`
-        inverterPrice = brandPrices.solis
+        inverterDesc = `GoodWe Inverter ${inverterKw}kW On-Grid`
+        inverterPrice = brandPrices.goodwe
       }
     } else {
       if (inverterKw === 20) {
@@ -3497,8 +3512,8 @@ export default function Home() {
         inverterPrice = brandPrices.goodwe || 160000
       } else {
         const brandPrices = getInverterBrandPrices(inverterKw)
-        inverterDesc = `Solis Inverter ${inverterKw}kW Hybrid`
-        inverterPrice = brandPrices.solis
+        inverterDesc = `GoodWe Inverter ${inverterKw}kW Hybrid`
+        inverterPrice = brandPrices.goodwe
       }
     }
 
@@ -4325,8 +4340,6 @@ export default function Home() {
           >
             {THEME_EMOJIS[invoice.theme || 'light']}
           </button>
-
-          <GoodweCountdownBadge compact onClick={() => setGoodweModalOpen(true)} />
         </div>
       </div>
 
@@ -4447,10 +4460,6 @@ export default function Home() {
                   </button>
                 </div>
               )}
-
-              {/* Countdown for Goodwe Pricelist update on the 25th */}
-              <GoodweCountdownBadge onClick={() => setGoodweModalOpen(true)} />
-
 
               <button
                 onClick={cycleTheme}
@@ -4708,6 +4717,46 @@ export default function Home() {
                             )}
                           />
                         </button>
+                      </div>
+                    </Field>
+                    <Field label="System Lifespan & Durability (25–30 Years)" onMouseEnter={() => setHoveredField('systemLifespan')} onMouseLeave={() => setHoveredField(null)}>
+                      <div className="flex items-center justify-between bg-secondary/60 hover:bg-secondary/90 transition-all p-2 rounded-[8px] border border-border">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-primary" />
+                          <span className="text-[11px] font-bold text-foreground">
+                            {((invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false))
+                              ? "With Lifespan (25–30 Yrs)"
+                              : "Without Lifespan"}
+                          </span>
+                        </div>
+                        <div className="flex items-center p-0.5 bg-background/90 rounded-md border border-border text-[10px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSystemLifespan(true)}
+                            className={cn(
+                              "px-2.5 py-1 rounded cursor-pointer transition-all font-bold",
+                              ((invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false))
+                                ? "bg-primary text-primary-foreground shadow-2xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                            title="Include 25–30 year system lifespan table in proposal"
+                          >
+                            With Lifespan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSystemLifespan(false)}
+                            className={cn(
+                              "px-2.5 py-1 rounded cursor-pointer transition-all font-bold",
+                              (!((invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false)))
+                                ? "bg-primary text-primary-foreground shadow-2xs"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                            title="Hide 25–30 year system lifespan table from proposal"
+                          >
+                            Without Lifespan
+                          </button>
+                        </div>
                       </div>
                     </Field>
                     <Field label="Subject" onMouseEnter={() => setHoveredField('subject')} onMouseLeave={() => setHoveredField(null)}>
@@ -5899,11 +5948,14 @@ export default function Home() {
 
                       let deyePrice = 125000
 
-                      let goodwePrice = 120000
+                      let goodwePrice = 115000
+                      if (descLower.includes('100ah')) {
+                        goodwePrice = 38000
+                      }
 
                       let ubetterPrice = 138000
 
-                      const isGoodweSelected = item.rate === goodwePrice || (descLower.includes('goodwe') && isBatteryItemRow)
+                      const isGoodweSelected = item.rate === goodwePrice || item.rate === 120000 || item.rate === 115000 || (descLower.includes('goodwe') && isBatteryItemRow)
                       const isDeyeSelected = item.rate === deyePrice || descLower.includes('deye')
                       const isGenixSelected = item.rate === genixPrice
                       const isDynessSelected = item.rate === dynessPrice
@@ -6056,7 +6108,60 @@ export default function Home() {
                                 {/* 1. Brand Selector Row */}
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-[10px] uppercase font-semibold text-[#888888] mr-1">Brand:</span>
-                                  {SOLAR_PANEL_BRANDS.map((b) => {
+                                  {/* Default Brand: Tongwei / TW Solar */}
+                                  {SOLAR_PANEL_BRANDS.filter(b => b.id === 'tongwei').map((b) => {
+                                    const isSelected = activeBrandId === b.id
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        onClick={() => {
+                                          const targetOpt = b.options.find(o => o.wattage === activeWattage) || b.options[0]
+                                          applyPanelSelection(b, targetOpt)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-1.5 rounded-lg border transition-all cursor-pointer select-none min-h-[34px]",
+                                          isSelected
+                                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title={`${b.name} Solar Panels`}
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[80px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1.5 py-0.5 text-foreground">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+
+                                  {/* Button for Others */}
+                                  {(() => {
+                                    const otherBrands = SOLAR_PANEL_BRANDS.filter(b => b.id !== 'tongwei')
+                                    const activeOther = otherBrands.find(b => b.id === activeBrandId)
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowOtherPanels(prev => !prev)}
+                                        className={cn(
+                                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all select-none min-h-[34px] cursor-pointer",
+                                          activeOther
+                                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 text-amber-700 dark:text-amber-400 shadow-xs"
+                                            : showOtherPanels
+                                              ? "bg-secondary border-border text-foreground shadow-2xs"
+                                              : "bg-secondary/70 text-muted-foreground border-border hover:bg-secondary hover:text-foreground opacity-80 hover:opacity-100"
+                                        )}
+                                        title={showOtherPanels ? "Hide other panel brands" : "Show other panel brands"}
+                                      >
+                                        <span>{activeOther && !showOtherPanels ? `Others (${activeOther.name})` : 'Others'}</span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showOtherPanels && "rotate-180")} />
+                                      </button>
+                                    )
+                                  })()}
+
+                                  {/* Other Brands (shown when showOtherPanels is true) */}
+                                  {showOtherPanels && SOLAR_PANEL_BRANDS.filter(b => b.id !== 'tongwei').map((b) => {
                                     const isSelected = activeBrandId === b.id
                                     return (
                                       <button
@@ -6167,7 +6272,74 @@ export default function Home() {
 
                               {isItemOnGrid ? (
                                 <div className="inline-flex gap-1.5 items-center flex-wrap">
-                                  {ON_GRID_BRANDS.map((b) => {
+                                  {ON_GRID_BRANDS.filter(b => b.id === 'goodwe' || b.id === 'sungrow').map((b) => {
+                                    const brandPrice = b.getPrice(itemKw)
+                                    const isApplicable = brandPrice !== null
+                                    const isSelected = isApplicable && item.rate === brandPrice
+
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        disabled={!isApplicable}
+                                        onClick={() => {
+                                          if (!isApplicable) return
+                                          const isCurrentlyOnGrid = systemType === 'ongrid' || isItemOnGrid
+                                          if (!isCurrentlyOnGrid) {
+                                            handleSystemTypeChange('ongrid', itemKw)
+                                          }
+                                          updateItem(item.id, 'rate', brandPrice)
+                                          updateItem(item.id, 'description', `${b.name} Inverter ${itemKw}kW On-Grid`)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
+                                          !isApplicable
+                                            ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
+                                            : isSelected
+                                              ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
+                                              : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100 cursor-pointer"
+                                        )}
+                                        title={
+                                          isApplicable
+                                            ? `${b.name} - ₱${brandPrice.toLocaleString()} each`
+                                            : `${b.name} - Not available for ${itemKw}kW setup`
+                                        }
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[90px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+
+                                  {/* Button for Others */}
+                                  {(() => {
+                                    const otherBrands = ON_GRID_BRANDS.filter(b => b.id !== 'goodwe' && b.id !== 'sungrow')
+                                    const activeOther = otherBrands.find(b => b.getPrice(itemKw) !== null && item.rate === b.getPrice(itemKw))
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowOtherInverters(prev => !prev)}
+                                        className={cn(
+                                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all select-none min-h-[36px] cursor-pointer",
+                                          activeOther
+                                            ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 text-primary shadow-xs"
+                                            : showOtherInverters
+                                              ? "bg-secondary border-border text-foreground shadow-2xs"
+                                              : "bg-secondary/70 text-muted-foreground border-border hover:bg-secondary hover:text-foreground opacity-80 hover:opacity-100"
+                                        )}
+                                        title={showOtherInverters ? "Hide other inverter brands" : "Show other inverter brands"}
+                                      >
+                                        <span>{activeOther && !showOtherInverters ? `Others (${activeOther.name})` : 'Others'}</span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showOtherInverters && "rotate-180")} />
+                                      </button>
+                                    )
+                                  })()}
+
+                                  {/* Other Brands (shown when showOtherInverters is true) */}
+                                  {showOtherInverters && ON_GRID_BRANDS.filter(b => b.id !== 'goodwe' && b.id !== 'sungrow').map((b) => {
                                     const brandPrice = b.getPrice(itemKw)
                                     const isApplicable = brandPrice !== null
                                     const isSelected = isApplicable && item.rate === brandPrice
@@ -6211,7 +6383,77 @@ export default function Home() {
                                 </div>
                               ) : (
                                 <div className="inline-flex gap-1.5 items-center flex-wrap">
-                                  {HYBRID_BRANDS.map((b) => {
+                                  {HYBRID_BRANDS.filter(b => b.id === 'goodwe' || b.id === 'sungrow').map((b) => {
+                                    const brandPrice = b.getPrice(itemKw)
+                                    const isApplicable = brandPrice !== null
+                                    const isSelected = isApplicable && (item.rate === brandPrice || descLower.includes(b.id))
+
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        disabled={!isApplicable}
+                                        onClick={() => {
+                                          if (!isApplicable) return
+                                          const isCurrentlyHybrid = systemType === 'hybrid' && !isItemOnGrid
+                                          if (!isCurrentlyHybrid) {
+                                            handleSystemTypeChange('hybrid', itemKw)
+                                          }
+                                          updateItem(item.id, 'rate', brandPrice)
+                                          updateItem(item.id, 'description', itemKw === 20 && b.id === 'goodwe' ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `${b.name} Inverter ${itemKw}kW Hybrid`)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all select-none min-h-[36px]",
+                                          !isApplicable
+                                            ? "opacity-30 bg-secondary/30 border-border cursor-not-allowed pointer-events-none grayscale"
+                                            : isSelected
+                                              ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 shadow-sm cursor-pointer"
+                                              : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100 cursor-pointer"
+                                        )}
+                                        title={
+                                          isApplicable
+                                            ? `${b.name} - ₱${brandPrice.toLocaleString()} each`
+                                            : `${b.name} - Not available for ${itemKw}kW hybrid setup`
+                                        }
+                                      >
+                                        {b.logo ? (
+                                          <img src={b.logo} alt={b.name} className="h-6 w-auto max-w-[90px] object-contain shrink-0" />
+                                        ) : (
+                                          <span className="text-[10px] font-bold px-1">{b.name}</span>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+
+                                  {/* Button for Others */}
+                                  {(() => {
+                                    const otherBrands = HYBRID_BRANDS.filter(b => b.id !== 'goodwe' && b.id !== 'sungrow')
+                                    const activeOther = otherBrands.find(b => {
+                                      const brandPrice = b.getPrice(itemKw)
+                                      return brandPrice !== null && (item.rate === brandPrice || descLower.includes(b.id))
+                                    })
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowOtherInverters(prev => !prev)}
+                                        className={cn(
+                                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all select-none min-h-[36px] cursor-pointer",
+                                          activeOther
+                                            ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 text-primary shadow-xs"
+                                            : showOtherInverters
+                                              ? "bg-secondary border-border text-foreground shadow-2xs"
+                                              : "bg-secondary/70 text-muted-foreground border-border hover:bg-secondary hover:text-foreground opacity-80 hover:opacity-100"
+                                        )}
+                                        title={showOtherInverters ? "Hide other inverter brands" : "Show other inverter brands"}
+                                      >
+                                        <span>{activeOther && !showOtherInverters ? `Others (${activeOther.name})` : 'Others'}</span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showOtherInverters && "rotate-180")} />
+                                      </button>
+                                    )
+                                  })()}
+
+                                  {/* Other Brands (shown when showOtherInverters is true) */}
+                                  {showOtherInverters && HYBRID_BRANDS.filter(b => b.id !== 'goodwe' && b.id !== 'sungrow').map((b) => {
                                     const brandPrice = b.getPrice(itemKw)
                                     const isApplicable = brandPrice !== null
                                     const isSelected = isApplicable && (item.rate === brandPrice || descLower.includes(b.id))
@@ -6269,7 +6511,7 @@ export default function Home() {
                             }
 
                             let activeBrand: 'goodwe' | 'deye' | 'genix' | 'dyness' | 'cesc' | 'oliter' | 'alpsolar' | 'ubetter' = 'cesc'
-                            if (descLower.includes('goodwe') || item.rate === 120000) {
+                            if (descLower.includes('goodwe') || item.rate === 115000 || item.rate === 120000) {
                               activeBrand = 'goodwe'
                             } else if (descLower.includes('deye') || item.rate === 125000) {
                               activeBrand = 'deye'
@@ -6308,7 +6550,8 @@ export default function Home() {
                             }
 
                             const getGoodweData = (cap: typeof capKey) => {
-                              return { desc: 'Goodwe Lithium Battery 16.1kWh 314Ah (51.2V)', rate: 120000 }
+                              if (cap === '100Ah') return { desc: 'Goodwe Battery 5.12kWh 100Ah (51.2V)', rate: 38000 }
+                              return { desc: 'Goodwe Battery 16.1kWh 314Ah (51.2V)', rate: 115000 }
                             }
 
                             const getOliterData = (cap: typeof capKey) => {
@@ -6333,6 +6576,7 @@ export default function Home() {
                               <div className="flex flex-col gap-2 pt-1.5 pb-1 px-0.5 border-t border-dashed border-[#E5E5E5] dark:border-[#333333] mt-1.5">
                                 {/* 1. Brand Selector Row (Primary Control) */}
                                 <div className="flex items-center gap-2.5 flex-wrap">
+                                  {/* Default Brands: Genix Green, CESC, GoodWe */}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -6349,24 +6593,6 @@ export default function Home() {
                                     title="Genix Green Battery"
                                   >
                                     <img src="/genixgreen.svg" alt="Genix Green" className="h-8 w-auto object-contain shrink-0" />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const cap = (capKey === '200Ah' || capKey === '261kW' || capKey === '410Ah') ? '314Ah' : capKey
-                                      const data = getDynessData(cap)
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'dyness'
-                                        ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/40 shadow-sm"
-                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
-                                    )}
-                                    title="Dyness Battery"
-                                  >
-                                    <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
                                   </button>
 
                                   <button
@@ -6390,41 +6616,8 @@ export default function Home() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const data = getOliterData('200Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'oliter'
-                                        ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
-                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
-                                    )}
-                                    title="Oliter Battery"
-                                  >
-                                    <img src="/Oliter.svg" alt="Oliter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const data = getDeyeData('314Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'deye'
-                                        ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
-                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
-                                    )}
-                                    title="DEYE Battery"
-                                  >
-                                    <img src="/deye.svg" alt="DEYE" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const data = getGoodweData('314Ah')
+                                      const cap = capKey === '100Ah' ? '100Ah' : '314Ah'
+                                      const data = getGoodweData(cap)
                                       applySelection(data.desc, data.rate)
                                     }}
                                     className={cn(
@@ -6438,40 +6631,127 @@ export default function Home() {
                                     <img src="/goodwe.svg" alt="GoodWe" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
                                   </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const cap = capKey === '314Ah' ? '314Ah' : '200Ah'
-                                      const data = getAlpsolarData(cap)
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'alpsolar'
-                                        ? "bg-cyan-500/15 border-cyan-500 ring-2 ring-cyan-500/40 shadow-sm"
-                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
-                                    )}
-                                    title="Alpsolar Battery"
-                                  >
-                                    <img src="/AlpSolarr.svg" alt="Alpsolar" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
-                                  </button>
+                                  {/* Button for Others */}
+                                  {(() => {
+                                    const otherBatteryNames: Record<string, string> = {
+                                      dyness: 'Dyness',
+                                      oliter: 'Oliter',
+                                      deye: 'DEYE',
+                                      alpsolar: 'Alpsolar',
+                                      ubetter: 'Ubetter',
+                                    }
+                                    const isOtherBattery = activeBrand in otherBatteryNames
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowOtherBatteries(prev => !prev)}
+                                        className={cn(
+                                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all select-none min-h-[36px] cursor-pointer",
+                                          isOtherBattery
+                                            ? "bg-primary/10 dark:bg-primary/20 border-primary ring-2 ring-primary/40 text-primary shadow-xs"
+                                            : showOtherBatteries
+                                              ? "bg-secondary border-border text-foreground shadow-2xs"
+                                              : "bg-secondary/70 text-muted-foreground border-border hover:bg-secondary hover:text-foreground opacity-80 hover:opacity-100"
+                                        )}
+                                        title={showOtherBatteries ? "Hide other battery brands" : "Show other battery brands"}
+                                      >
+                                        <span>{isOtherBattery && !showOtherBatteries ? `Others (${otherBatteryNames[activeBrand]})` : 'Others'}</span>
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showOtherBatteries && "rotate-180")} />
+                                      </button>
+                                    )
+                                  })()}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const data = getUbetterData('410Ah')
-                                      applySelection(data.desc, data.rate)
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
-                                      activeBrand === 'ubetter'
-                                        ? "bg-emerald-500/15 border-emerald-500 ring-2 ring-emerald-500/40 shadow-sm"
-                                        : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
-                                    )}
-                                    title="Ubetter Battery"
-                                  >
-                                    <img src="/Ubetter.svg" alt="Ubetter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
-                                  </button>
+                                  {/* Other Battery Brands (shown when showOtherBatteries is true) */}
+                                  {showOtherBatteries && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const cap = (capKey === '200Ah' || capKey === '261kW' || capKey === '410Ah') ? '314Ah' : capKey
+                                          const data = getDynessData(cap)
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                          activeBrand === 'dyness'
+                                            ? "bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title="Dyness Battery"
+                                      >
+                                        <img src="/dyness.svg" alt="Dyness" className="h-8 w-auto object-contain shrink-0" />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getOliterData('200Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                          activeBrand === 'oliter'
+                                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title="Oliter Battery"
+                                      >
+                                        <img src="/Oliter.svg" alt="Oliter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getDeyeData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                          activeBrand === 'deye'
+                                            ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title="DEYE Battery"
+                                      >
+                                        <img src="/deye.svg" alt="DEYE" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const cap = capKey === '314Ah' ? '314Ah' : '200Ah'
+                                          const data = getAlpsolarData(cap)
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                          activeBrand === 'alpsolar'
+                                            ? "bg-cyan-500/15 border-cyan-500 ring-2 ring-cyan-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title="Alpsolar Battery"
+                                      >
+                                        <img src="/AlpSolarr.svg" alt="Alpsolar" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getUbetterData('410Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-center p-2 rounded-lg border transition-all cursor-pointer select-none",
+                                          activeBrand === 'ubetter'
+                                            ? "bg-emerald-500/15 border-emerald-500 ring-2 ring-emerald-500/40 shadow-sm"
+                                            : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 opacity-75 hover:opacity-100"
+                                        )}
+                                        title="Ubetter Battery"
+                                      >
+                                        <img src="/Ubetter.svg" alt="Ubetter" className="h-8 w-auto max-w-[80px] object-contain shrink-0" />
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
 
                                 {/* 2. Available Capacity Buttons for Selected Brand */}
@@ -6497,19 +6777,41 @@ export default function Home() {
 
                                   {/* GoodWe Capacities */}
                                   {activeBrand === 'goodwe' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const data = getGoodweData('314Ah')
-                                        applySelection(data.desc, data.rate)
-                                      }}
-                                      className={cn(
-                                        "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                                      )}
-                                      title="314Ah - ₱120,000.00"
-                                    >
-                                      314Ah
-                                    </button>
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getGoodweData('100Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey === '100Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="100Ah - ₱38,000.00"
+                                      >
+                                        100Ah
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const data = getGoodweData('314Ah')
+                                          applySelection(data.desc, data.rate)
+                                        }}
+                                        className={cn(
+                                          "px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all cursor-pointer select-none",
+                                          capKey !== '100Ah'
+                                            ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                                            : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
+                                        )}
+                                        title="314Ah - ₱115,000.00"
+                                      >
+                                        314Ah
+                                      </button>
+                                    </>
                                   )}
 
                                   {/* Oliter Capacities */}
@@ -6945,15 +7247,18 @@ export default function Home() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => update('showSystemLifespan', !(invoice.showSystemLifespan ?? true))}
+                          onClick={() => {
+                            const isVisible = (invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false)
+                            handleToggleSystemLifespan(!isVisible)
+                          }}
                           className={cn(
                             "h-7 text-[10px] font-bold px-2 cursor-pointer transition-colors",
-                            (invoice.showSystemLifespan ?? true)
+                            ((invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false))
                               ? "bg-primary/10 border-primary text-primary hover:bg-primary/20"
                               : "text-muted-foreground border-border hover:text-foreground"
                           )}
                         >
-                          {(invoice.showSystemLifespan ?? true) ? 'Visible in Proposal: ON' : 'Visible in Proposal: OFF'}
+                          {((invoice.showSystemLifespan !== false) && (invoice.systemLifespan?.enabled !== false)) ? 'Visible in Proposal: ON' : 'Visible in Proposal: OFF'}
                         </Button>
                         <Button
                           type="button"
@@ -8231,7 +8536,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               onPagesChange={setTotalPages}
               onToggleCondensed={(val) => update('isCondensed', val)}
               onToggleWithBrandName={(val) => update('withBrandName', val)}
-              onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
+              onToggleSystemLifespan={handleToggleSystemLifespan}
               onLogoClick={isGovModeActive ? openLogoPicker : undefined}
               onToggleAcknowledgment={isGovModeActive ? ((val) => update('showAcknowledgment', val)) : undefined}
               onToggleAcknowledgmentTitle={isGovModeActive ? ((val) => update('showAcknowledgmentTitle', val)) : undefined}
@@ -8260,7 +8565,7 @@ Progress: ${checkedCount}/${totalCount} items checked (${percent}%)`
               onPagesChange={setTotalPages}
               onToggleCondensed={(val) => update('isCondensed', val)}
               onToggleWithBrandName={(val) => update('withBrandName', val)}
-              onToggleSystemLifespan={(val) => update('showSystemLifespan', val)}
+              onToggleSystemLifespan={handleToggleSystemLifespan}
               onLogoClick={isGovModeActive ? openLogoPicker : undefined}
               onToggleAcknowledgment={isGovModeActive ? ((val) => update('showAcknowledgment', val)) : undefined}
               onToggleAcknowledgmentTitle={isGovModeActive ? ((val) => update('showAcknowledgmentTitle', val)) : undefined}

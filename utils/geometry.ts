@@ -211,53 +211,149 @@ export function isPanelInsidePolygon(
 }
 
 /**
+ * Finds the closest point on a finite line segment (a -> b) to a given point p.
+ */
+export function getClosestPointOnSegment(
+  p: Point,
+  a: Point,
+  b: Point
+): { point: Point; distance: number } {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lenSq = dx * dx + dy * dy
+  if (lenSq < 1e-8) {
+    const d = Math.hypot(p.x - a.x, p.y - a.y)
+    return { point: { x: a.x, y: a.y }, distance: d }
+  }
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq))
+  const proj = { x: a.x + t * dx, y: a.y + t * dy }
+  const distance = Math.hypot(p.x - proj.x, p.y - proj.y)
+  return { point: proj, distance }
+}
+
+/**
+ * Resolves the 4 corner points of any panel:
+ * - If customQuad is provided (3D perspective / warped), returns the quad points [TL, TR, BR, BL]
+ * - Otherwise calculates the 4 corners using width, height, and planar rotation.
+ */
+export function resolveQuadCorners(p: {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation?: number
+  customQuad?: [Point, Point, Point, Point]
+}): [Point, Point, Point, Point] {
+  if (p.customQuad && p.customQuad.length === 4) {
+    return [
+      { x: p.customQuad[0].x, y: p.customQuad[0].y },
+      { x: p.customQuad[1].x, y: p.customQuad[1].y },
+      { x: p.customQuad[2].x, y: p.customQuad[2].y },
+      { x: p.customQuad[3].x, y: p.customQuad[3].y },
+    ]
+  }
+  const c = getPanelCorners(p)
+  return [c[0], c[1], c[2], c[3]]
+}
+
+/**
  * Calculates adjacent panel snap position when dragging a panel.
- * Supports arbitrary panel rotation angles (0° to 360°).
- * Projects positions into the reference panel's local rotated coordinate frame,
- * ensuring panels snap flush with collinear top/bottom edges without jagged staircases.
+ * Supports arbitrary panel rotation angles (0° to 360°) as well as
+ * 3D perspective / warped customQuad panels.
+ * Projects positions into the reference panel's local coordinate frame,
+ * ensuring panels snap flush with collinear edges without jagged staircases.
  */
 export function getAdjacentSnapPosition(
-  dragged: { id: string; x: number; y: number; width: number; height: number; rotation?: number },
+  dragged: {
+    id: string
+    x: number
+    y: number
+    width: number
+    height: number
+    rotation?: number
+    customQuad?: [Point, Point, Point, Point]
+  },
   otherPanels: PlacedPanel[],
-  snapThreshold: number = 12,
+  snapThreshold: number = 14,
   gapPx: number = 0
-): { x: number; y: number; snapped: boolean; snapType?: 'x' | 'y' | 'both'; matchedRotation?: number } {
+): {
+  x: number
+  y: number
+  snapped: boolean
+  snapType?: 'x' | 'y' | 'both'
+  matchedRotation?: number
+  snapLine?: { p1: Point; p2: Point }
+} {
   let targetX = dragged.x
   let targetY = dragged.y
   let snapped = false
   let snapType: 'x' | 'y' | 'both' | undefined = undefined
   let matchedRotation: number | undefined = undefined
+  let bestSnapLine: { p1: Point; p2: Point } | undefined = undefined
 
-  const cxDrag = dragged.x + dragged.width / 2
-  const cyDrag = dragged.y + dragged.height / 2
+  const dragCorners = resolveQuadCorners(dragged)
+  const cxDrag = (dragCorners[0].x + dragCorners[1].x + dragCorners[2].x + dragCorners[3].x) / 4
+  const cyDrag = (dragCorners[0].y + dragCorners[1].y + dragCorners[2].y + dragCorners[3].y) / 4
+
+  const uDrag = {
+    x: ((dragCorners[1].x - dragCorners[0].x) + (dragCorners[2].x - dragCorners[3].x)) / 2,
+    y: ((dragCorners[1].y - dragCorners[0].y) + (dragCorners[2].y - dragCorners[3].y)) / 2,
+  }
+  const wDrag = Math.hypot(uDrag.x, uDrag.y) || dragged.width
+
+  const vDrag = {
+    x: ((dragCorners[3].x - dragCorners[0].x) + (dragCorners[2].x - dragCorners[1].x)) / 2,
+    y: ((dragCorners[3].y - dragCorners[0].y) + (dragCorners[2].y - dragCorners[1].y)) / 2,
+  }
+  const hDrag = Math.hypot(vDrag.x, vDrag.y) || dragged.height
 
   let bestDist = snapThreshold + 1
 
   for (const other of otherPanels) {
     if (other.id === dragged.id) continue
 
-    const otherRot = other.rotation || 0
-    const cxOther = other.x + other.width / 2
-    const cyOther = other.y + other.height / 2
+    const otherCorners = resolveQuadCorners(other)
+    const cxOther = (otherCorners[0].x + otherCorners[1].x + otherCorners[2].x + otherCorners[3].x) / 4
+    const cyOther = (otherCorners[0].y + otherCorners[1].y + otherCorners[2].y + otherCorners[3].y) / 4
+
+    const uOther = {
+      x: ((otherCorners[1].x - otherCorners[0].x) + (otherCorners[2].x - otherCorners[3].x)) / 2,
+      y: ((otherCorners[1].y - otherCorners[0].y) + (otherCorners[2].y - otherCorners[3].y)) / 2,
+    }
+    const wOther = Math.hypot(uOther.x, uOther.y) || other.width
+    const uOtherNorm = wOther > 1e-4 ? { x: uOther.x / wOther, y: uOther.y / wOther } : { x: 1, y: 0 }
+
+    const vOther = {
+      x: ((otherCorners[3].x - otherCorners[0].x) + (otherCorners[2].x - otherCorners[1].x)) / 2,
+      y: ((otherCorners[3].y - otherCorners[0].y) + (otherCorners[2].y - otherCorners[1].y)) / 2,
+    }
+    const hOther = Math.hypot(vOther.x, vOther.y) || other.height
+    const vOtherNorm = hOther > 1e-4 ? { x: vOther.x / hOther, y: vOther.y / hOther } : { x: 0, y: 1 }
 
     // Vector from other panel center to dragged panel center
     const dx = cxDrag - cxOther
     const dy = cyDrag - cyOther
 
-    // Project into other panel's local rotated coordinate frame
-    const rad = (otherRot * Math.PI) / 180
-    const cosA = Math.cos(rad)
-    const sinA = Math.sin(rad)
+    // Decompose into other panel's local basis (uOther, vOther)
+    // Solves [uOther, vOther] * [cu, cv]^T = [dx, dy]^T
+    const det = uOther.x * vOther.y - uOther.y * vOther.x
+    let du: number
+    let dv: number
+    if (Math.abs(det) > 1e-6) {
+      const cu = (dx * vOther.y - dy * vOther.x) / det
+      const cv = (-dx * uOther.y + dy * uOther.x) / det
+      du = cu * wOther
+      dv = cv * hOther
+    } else {
+      du = dx * uOtherNorm.x + dy * uOtherNorm.y
+      dv = dx * vOtherNorm.x + dy * vOtherNorm.y
+    }
 
-    // du is along width (row vector), dv is along height (column vector)
-    const du = dx * cosA + dy * sinA
-    const dv = -dx * sinA + dy * cosA
+    const stepU = (wOther + wDrag) / 2 + gapPx
+    const stepV = (hOther + hDrag) / 2 + gapPx
 
-    const stepU = (other.width + dragged.width) / 2 + gapPx
-    const stepV = (other.height + dragged.height) / 2 + gapPx
-
-    const marginU = (other.width + dragged.width) / 2 + 16
-    const marginV = (other.height + dragged.height) / 2 + 16
+    const marginU = (wOther + wDrag) / 2 + Math.max(20, snapThreshold * 2)
+    const marginV = (hOther + hDrag) / 2 + Math.max(20, snapThreshold * 2)
 
     let candTargetU = du
     let candTargetV = dv
@@ -265,6 +361,7 @@ export function getAdjacentSnapPosition(
     let didSnapV = false
     let distU = snapThreshold + 1
     let distV = snapThreshold + 1
+    let snapSide: 'right' | 'left' | 'below' | 'above' | null = null
 
     // 1. Horizontal Adjacent Snap (Placing side-by-side along row vector u)
     if (Math.abs(dv) < marginV) {
@@ -274,6 +371,7 @@ export function getAdjacentSnapPosition(
         candTargetU = stepU
         distU = dRight
         didSnapU = true
+        snapSide = 'right'
       }
       // Flush Left of other panel
       const dLeft = Math.abs(du - (-stepU))
@@ -281,9 +379,10 @@ export function getAdjacentSnapPosition(
         candTargetU = -stepU
         distU = dLeft
         didSnapU = true
+        snapSide = 'left'
       }
       // Collinear row edge alignment (locks top/bottom edges into a straight continuous line)
-      const dAlignRow = Math.abs(dv - 0)
+      const dAlignRow = Math.abs(dv)
       if (dAlignRow <= snapThreshold) {
         candTargetV = 0
         distV = dAlignRow
@@ -299,6 +398,7 @@ export function getAdjacentSnapPosition(
         candTargetV = stepV
         distV = dBelow
         didSnapV = true
+        snapSide = 'below'
       }
       // Flush Above other panel
       const dAbove = Math.abs(dv - (-stepV))
@@ -306,9 +406,10 @@ export function getAdjacentSnapPosition(
         candTargetV = -stepV
         distV = dAbove
         didSnapV = true
+        snapSide = 'above'
       }
       // Collinear column edge alignment (locks left/right edges into a straight vertical column)
-      const dAlignCol = Math.abs(du - 0)
+      const dAlignCol = Math.abs(du)
       if (dAlignCol <= snapThreshold) {
         candTargetU = 0
         distU = dAlignCol
@@ -321,16 +422,69 @@ export function getAdjacentSnapPosition(
       if (combinedDist < bestDist) {
         bestDist = combinedDist
         snapped = true
-        matchedRotation = otherRot
+        matchedRotation = other.rotation
 
-        // Transform back from local (candTargetU, candTargetV) to world canvas coordinates
-        const snappedCx = cxOther + candTargetU * cosA - candTargetV * sinA
-        const snappedCy = cyOther + candTargetU * sinA + candTargetV * cosA
+        let shiftX = 0
+        let shiftY = 0
+        let currentSnapLine: { p1: Point; p2: Point } | undefined = undefined
 
-        targetX = snappedCx - dragged.width / 2
-        targetY = snappedCy - dragged.height / 2
+        // If both axes snapped, perform corner matching for sub-pixel flush alignment in perspective
+        if (didSnapU && didSnapV && snapSide) {
+          if (snapSide === 'right') {
+            const topLen = Math.hypot(otherCorners[1].x - otherCorners[0].x, otherCorners[1].y - otherCorners[0].y) || 1
+            const botLen = Math.hypot(otherCorners[2].x - otherCorners[3].x, otherCorners[2].y - otherCorners[3].y) || 1
+            const uTop = { x: (otherCorners[1].x - otherCorners[0].x) / topLen, y: (otherCorners[1].y - otherCorners[0].y) / topLen }
+            const uBot = { x: (otherCorners[2].x - otherCorners[3].x) / botLen, y: (otherCorners[2].y - otherCorners[3].y) / botLen }
+            const t0 = { x: otherCorners[1].x + gapPx * uTop.x, y: otherCorners[1].y + gapPx * uTop.y }
+            const t3 = { x: otherCorners[2].x + gapPx * uBot.x, y: otherCorners[2].y + gapPx * uBot.y }
+            shiftX = ((t0.x - dragCorners[0].x) + (t3.x - dragCorners[3].x)) / 2
+            shiftY = ((t0.y - dragCorners[0].y) + (t3.y - dragCorners[3].y)) / 2
+            currentSnapLine = { p1: otherCorners[1], p2: otherCorners[2] }
+          } else if (snapSide === 'left') {
+            const topLen = Math.hypot(otherCorners[1].x - otherCorners[0].x, otherCorners[1].y - otherCorners[0].y) || 1
+            const botLen = Math.hypot(otherCorners[2].x - otherCorners[3].x, otherCorners[2].y - otherCorners[3].y) || 1
+            const uTop = { x: (otherCorners[1].x - otherCorners[0].x) / topLen, y: (otherCorners[1].y - otherCorners[0].y) / topLen }
+            const uBot = { x: (otherCorners[2].x - otherCorners[3].x) / botLen, y: (otherCorners[2].y - otherCorners[3].y) / botLen }
+            const t1 = { x: otherCorners[0].x - gapPx * uTop.x, y: otherCorners[0].y - gapPx * uTop.y }
+            const t2 = { x: otherCorners[3].x - gapPx * uBot.x, y: otherCorners[3].y - gapPx * uBot.y }
+            shiftX = ((t1.x - dragCorners[1].x) + (t2.x - dragCorners[2].x)) / 2
+            shiftY = ((t1.y - dragCorners[1].y) + (t2.y - dragCorners[2].y)) / 2
+            currentSnapLine = { p1: otherCorners[0], p2: otherCorners[3] }
+          } else if (snapSide === 'below') {
+            const leftLen = Math.hypot(otherCorners[3].x - otherCorners[0].x, otherCorners[3].y - otherCorners[0].y) || 1
+            const rightLen = Math.hypot(otherCorners[2].x - otherCorners[1].x, otherCorners[2].y - otherCorners[1].y) || 1
+            const vLeft = { x: (otherCorners[3].x - otherCorners[0].x) / leftLen, y: (otherCorners[3].y - otherCorners[0].y) / leftLen }
+            const vRight = { x: (otherCorners[2].x - otherCorners[1].x) / rightLen, y: (otherCorners[2].y - otherCorners[1].y) / rightLen }
+            const t0 = { x: otherCorners[3].x + gapPx * vLeft.x, y: otherCorners[3].y + gapPx * vLeft.y }
+            const t1 = { x: otherCorners[2].x + gapPx * vRight.x, y: otherCorners[2].y + gapPx * vRight.y }
+            shiftX = ((t0.x - dragCorners[0].x) + (t1.x - dragCorners[1].x)) / 2
+            shiftY = ((t0.y - dragCorners[0].y) + (t1.y - dragCorners[1].y)) / 2
+            currentSnapLine = { p1: otherCorners[3], p2: otherCorners[2] }
+          } else if (snapSide === 'above') {
+            const leftLen = Math.hypot(otherCorners[3].x - otherCorners[0].x, otherCorners[3].y - otherCorners[0].y) || 1
+            const rightLen = Math.hypot(otherCorners[2].x - otherCorners[1].x, otherCorners[2].y - otherCorners[1].y) || 1
+            const vLeft = { x: (otherCorners[3].x - otherCorners[0].x) / leftLen, y: (otherCorners[3].y - otherCorners[0].y) / leftLen }
+            const vRight = { x: (otherCorners[2].x - otherCorners[1].x) / rightLen, y: (otherCorners[2].y - otherCorners[1].y) / rightLen }
+            const t3 = { x: otherCorners[0].x - gapPx * vLeft.x, y: otherCorners[0].y - gapPx * vLeft.y }
+            const t2 = { x: otherCorners[1].x - gapPx * vRight.x, y: otherCorners[1].y - gapPx * vRight.y }
+            shiftX = ((t3.x - dragCorners[3].x) + (t2.x - dragCorners[2].x)) / 2
+            shiftY = ((t3.y - dragCorners[3].y) + (t2.y - dragCorners[2].y)) / 2
+            currentSnapLine = { p1: otherCorners[0], p2: otherCorners[1] }
+          }
+        } else {
+          // 1D snap (projected center along other's axes)
+          const targetCu = candTargetU / (wOther || 1)
+          const targetCv = candTargetV / (hOther || 1)
+          const snappedCx = cxOther + targetCu * uOther.x + targetCv * vOther.x
+          const snappedCy = cyOther + targetCu * uOther.y + targetCv * vOther.y
+          shiftX = snappedCx - cxDrag
+          shiftY = snappedCy - cyDrag
+        }
 
+        targetX = dragged.x + shiftX
+        targetY = dragged.y + shiftY
         snapType = didSnapU && didSnapV ? 'both' : didSnapU ? 'x' : 'y'
+        bestSnapLine = currentSnapLine
       }
     }
   }
@@ -341,6 +495,149 @@ export function getAdjacentSnapPosition(
     snapped,
     snapType,
     matchedRotation,
+    snapLine: bestSnapLine,
+  }
+}
+
+export interface PerspectivePinSnapResult {
+  x: number
+  y: number
+  snapped: boolean
+  snapType?: 'vertex' | 'edge' | 'guide' | 'panel-corner'
+  snapLine?: { p1: Point; p2: Point }
+}
+
+/**
+ * Snaps a 3D perspective / POV corner pin during quad manipulation:
+ * 1. Snaps to roof polygon vertices
+ * 2. Snaps to other static panels' quad corners
+ * 3. Snaps to roof polygon boundary edges (perpendicular projection)
+ * 4. Snaps to orthogonal / parallel axes with neighboring quad pins
+ */
+export function getPerspectivePinSnapPosition(
+  pinIndex: number,
+  targetPoint: Point,
+  currentQuad: [Point, Point, Point, Point],
+  polygonPoints: Point[],
+  otherPanels: PlacedPanel[],
+  snapThreshold: number = 14
+): PerspectivePinSnapResult {
+  let bestDist = snapThreshold + 1
+  let snappedPt = { x: targetPoint.x, y: targetPoint.y }
+  let snapped = false
+  let snapType: 'vertex' | 'edge' | 'guide' | 'panel-corner' | undefined = undefined
+  let snapLine: { p1: Point; p2: Point } | undefined = undefined
+
+  // 1. Check Roof Polygon Vertices (highest priority)
+  if (polygonPoints && polygonPoints.length >= 3) {
+    for (const v of polygonPoints) {
+      const d = Math.hypot(targetPoint.x - v.x, targetPoint.y - v.y)
+      if (d <= snapThreshold && d < bestDist) {
+        bestDist = d
+        snappedPt = { x: v.x, y: v.y }
+        snapped = true
+        snapType = 'vertex'
+        snapLine = undefined
+      }
+    }
+  }
+
+  // 2. Check Other Static Panels' Quad Corners
+  if (otherPanels && otherPanels.length > 0) {
+    for (const p of otherPanels) {
+      const corners = resolveQuadCorners(p)
+      for (const c of corners) {
+        const d = Math.hypot(targetPoint.x - c.x, targetPoint.y - c.y)
+        if (d <= snapThreshold && d < bestDist) {
+          bestDist = d
+          snappedPt = { x: c.x, y: c.y }
+          snapped = true
+          snapType = 'panel-corner'
+          snapLine = undefined
+        }
+      }
+    }
+  }
+
+  // If already snapped to a vertex or corner, return immediately
+  if (snapped && (snapType === 'vertex' || snapType === 'panel-corner')) {
+    return {
+      x: snappedPt.x,
+      y: snappedPt.y,
+      snapped: true,
+      snapType,
+      snapLine,
+    }
+  }
+
+  // 3. Check Roof Polygon Boundary Edges
+  if (polygonPoints && polygonPoints.length >= 3) {
+    for (let i = 0; i < polygonPoints.length; i++) {
+      const pA = polygonPoints[i]
+      const pB = polygonPoints[(i + 1) % polygonPoints.length]
+      const { point: proj, distance } = getClosestPointOnSegment(targetPoint, pA, pB)
+      if (distance <= snapThreshold && distance < bestDist) {
+        bestDist = distance
+        snappedPt = proj
+        snapped = true
+        snapType = 'edge'
+        snapLine = { p1: pA, p2: pB }
+      }
+    }
+  }
+
+  // 4. Check Orthogonal / Parallel Axis Alignment with adjacent pins in currentQuad
+  if (currentQuad && currentQuad.length === 4) {
+    const prevPin = currentQuad[(pinIndex + 3) % 4]
+    const nextPin = currentQuad[(pinIndex + 1) % 4]
+
+    // Horizontal alignment with nextPin
+    const dHNext = Math.abs(targetPoint.y - nextPin.y)
+    if (dHNext <= snapThreshold && dHNext < bestDist) {
+      bestDist = dHNext
+      snappedPt.y = nextPin.y
+      snapped = true
+      snapType = 'guide'
+      snapLine = { p1: nextPin, p2: { x: targetPoint.x, y: nextPin.y } }
+    }
+
+    // Horizontal alignment with prevPin
+    const dHPrev = Math.abs(targetPoint.y - prevPin.y)
+    if (dHPrev <= snapThreshold && dHPrev < bestDist) {
+      bestDist = dHPrev
+      snappedPt.y = prevPin.y
+      snapped = true
+      snapType = 'guide'
+      snapLine = { p1: prevPin, p2: { x: targetPoint.x, y: prevPin.y } }
+    }
+
+    // Vertical alignment with prevPin
+    const dVPrev = Math.abs(targetPoint.x - prevPin.x)
+    if (dVPrev <= snapThreshold && dVPrev < bestDist) {
+      bestDist = dVPrev
+      snappedPt.x = prevPin.x
+      snapped = true
+      snapType = 'guide'
+      snapLine = { p1: prevPin, p2: { x: prevPin.x, y: targetPoint.y } }
+    }
+
+    // Vertical alignment with nextPin
+    const dVNext = Math.abs(targetPoint.x - nextPin.x)
+    if (dVNext <= snapThreshold && dVNext < bestDist) {
+      bestDist = dVNext
+      snappedPt.x = nextPin.x
+      snapped = true
+      snapType = 'guide'
+      snapLine = { p1: nextPin, p2: { x: nextPin.x, y: targetPoint.y } }
+    }
+  }
+
+  return {
+    x: snappedPt.x,
+    y: snappedPt.y,
+    snapped,
+    snapType,
+    snapLine,
   }
 }
 
@@ -851,4 +1148,121 @@ export function setPanelsArrayRotation(
   while (delta < -180) delta += 360
 
   return rotatePanelsAsArray(panels, delta, polygonPoints, customCentroid)
+}
+
+export interface PanelVisualElements {
+  /** The 4 interior cell row divider lines (dividing the long axis into 5 rows) */
+  rowLines: { pA: Point; pB: Point }[]
+  /** The 1 central busbar divider line (dividing the short axis in half) */
+  centerLine: { pA: Point; pB: Point }
+  /** The bottom-most eave edge of the panel for the 3D extrusion/bevel */
+  bevelEdge: { pA: Point; pB: Point }
+  /** Quad centroid */
+  center: Point
+}
+
+/**
+ * Computes unified, orientation-invariant solar panel visuals for any 3D perspective quad.
+ * Subdivides the physical LONG axis into 5 cell rows, places the central busbar along the long axis,
+ * and identifies the true bottom-facing eave edge for the 3D frame extrusion bevel.
+ */
+export function getPerspectivePanelVisuals(quad: [Point, Point, Point, Point]): PanelVisualElements {
+  const [p0, p1, p2, p3] = quad
+
+  // 1. Centroid
+  const center: Point = {
+    x: (p0.x + p1.x + p2.x + p3.x) / 4,
+    y: (p0.y + p1.y + p2.y + p3.y) / 4,
+  }
+
+  // 2. Measure average length of opposite edge pairs
+  // Pair 1: Edge (p0 -> p1) and Edge (p3 -> p2)
+  const len01 = Math.hypot(p1.x - p0.x, p1.y - p0.y)
+  const len32 = Math.hypot(p2.x - p3.x, p2.y - p3.y)
+  const lenPair1 = (len01 + len32) / 2
+
+  // Pair 2: Edge (p0 -> p3) and Edge (p1 -> p2)
+  const len03 = Math.hypot(p3.x - p0.x, p3.y - p0.y)
+  const len12 = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+  const lenPair2 = (len03 + len12) / 2
+
+  const rowLines: { pA: Point; pB: Point }[] = []
+  let centerLine: { pA: Point; pB: Point }
+
+  // 3. Subdivide along the LONG axis into 5 rows, and SHORT axis in half (2 columns)
+  if (lenPair2 >= lenPair1) {
+    // Pair 2 is the LONG axis: (p0 -> p3) and (p1 -> p2)
+    // Row lines divide Pair 2 (run across width from Edge(p0->p3) to Edge(p1->p2))
+    for (let r = 1; r < 5; r++) {
+      const t = r / 5
+      rowLines.push({
+        pA: {
+          x: p0.x + (p3.x - p0.x) * t,
+          y: p0.y + (p3.y - p0.y) * t,
+        },
+        pB: {
+          x: p1.x + (p2.x - p1.x) * t,
+          y: p1.y + (p2.y - p1.y) * t,
+        },
+      })
+    }
+
+    // Center divider connects midpoints of Pair 1 (Edge(p0->p1) to Edge(p3->p2))
+    centerLine = {
+      pA: { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 },
+      pB: { x: (p3.x + p2.x) / 2, y: (p3.y + p2.y) / 2 },
+    }
+  } else {
+    // Pair 1 is the LONG axis: (p0 -> p1) and (p3 -> p2)
+    // Row lines divide Pair 1 (run across width from Edge(p0->p1) to Edge(p3->p2))
+    for (let r = 1; r < 5; r++) {
+      const t = r / 5
+      rowLines.push({
+        pA: {
+          x: p0.x + (p1.x - p0.x) * t,
+          y: p0.y + (p1.y - p0.y) * t,
+        },
+        pB: {
+          x: p3.x + (p2.x - p3.x) * t,
+          y: p3.y + (p2.y - p3.y) * t,
+        },
+      })
+    }
+
+    // Center divider connects midpoints of Pair 2 (Edge(p0->p3) to Edge(p1->p2))
+    centerLine = {
+      pA: { x: (p0.x + p3.x) / 2, y: (p0.y + p3.y) / 2 },
+      pB: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+    }
+  }
+
+  // 4. Find the bottom-most eave edge for the 3D extruded frame bevel
+  const edges: [Point, Point][] = [
+    [p0, p1],
+    [p1, p2],
+    [p2, p3],
+    [p3, p0],
+  ]
+
+  let bestEdge = edges[2]
+  let maxAvgY = -Infinity
+
+  for (const edge of edges) {
+    const avgY = (edge[0].y + edge[1].y) / 2
+    if (avgY > maxAvgY) {
+      maxAvgY = avgY
+      bestEdge = edge
+    }
+  }
+
+  // Orient bevel edge from left to right (pA.x <= pB.x) for consistent extrusion
+  const [b0, b1] = bestEdge
+  const bevelEdge = b0.x <= b1.x ? { pA: b0, pB: b1 } : { pA: b1, pB: b0 }
+
+  return {
+    rowLines,
+    centerLine,
+    bevelEdge,
+    center,
+  }
 }

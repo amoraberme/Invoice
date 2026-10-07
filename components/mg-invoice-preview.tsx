@@ -844,9 +844,8 @@ export function MGInvoicePreview({
                     )}
 
                     {/* Section 3: Expected System Lifespan & Durability (25–30 Years) - Placed after Warranty Coverage on Page 1 */}
-                    {page.showCondensedLifespan && (invoice.showSystemLifespan !== false) && (() => {
+                    {page.showCondensedLifespan && (invoice.showSystemLifespan !== false && invoice.systemLifespan?.enabled !== false) && (() => {
                       const lifespanConfig = invoice.systemLifespan || getDefaultSystemLifespan()
-                      if (lifespanConfig.enabled === false) return null
 
                       const activeItems = (lifespanConfig.items || []).filter((item) => {
                         if (item.enabled === false) return false
@@ -893,7 +892,7 @@ export function MGInvoicePreview({
                         : rawDets
 
                       return (
-                        <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs">
+                        <div className="mb-3 border border-[#E5E5E5] rounded-[5px] overflow-hidden print:break-inside-avoid shadow-xs relative group/lifespan">
                           {/* Header Bar - Exactly matching Warranty Coverage */}
                           <div className="bg-[#111111] px-3 py-1.5 flex items-center justify-between" style={{ backgroundColor: '#111111' }}>
                             <span className="text-[9.5px] font-bold text-white uppercase tracking-[0.08em]" style={{ color: '#ffffff' }}>
@@ -1248,7 +1247,7 @@ export function MGInvoicePreview({
                 {/* Footer block: Note, Sales, Terms, Closing, Signatures */}
                 {page.showBottom && (() => {
                   const isGovMode = isGovProposalMode(invoice)
-                  let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed) || (page.showCondensedLifespan && invoice.showSystemLifespan !== false)
+                  let hasRenderedPriorBlock = page.items.length > 0 || (page.showTotals && !invoice.isCondensed) || (page.showCondensedLifespan && invoice.showSystemLifespan !== false && invoice.systemLifespan?.enabled !== false)
                   
                   const getSectionBorderClass = () => {
                     if (hasRenderedPriorBlock) {

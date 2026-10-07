@@ -1,5 +1,5 @@
 import { Point, RoofPolygon, PlacedPanel, ScaleCalibration, PanelDimensions, RoofMetrics } from '@/types/roof'
-import { getDistance, getPanelCorners } from './geometry'
+import { getDistance, getPanelCorners, getPerspectivePanelVisuals } from './geometry'
 
 interface ExportLayoutOptions {
   backgroundImageUrl: string | null
@@ -257,14 +257,16 @@ export async function downloadRoofLayoutPng({
       ctx.lineJoin = 'round'
       ctx.stroke()
 
-      // 3D Extruded frame bevel edge in perspective
+      const visuals = getPerspectivePanelVisuals(quad)
+
+      // 3D Extruded frame bevel edge in perspective on true bottom edge
       if (panel.isValid) {
         ctx.save()
         ctx.beginPath()
-        ctx.moveTo(quad[3].x, quad[3].y)
-        ctx.lineTo(quad[2].x, quad[2].y)
-        ctx.lineTo(quad[2].x, quad[2].y + 2.5)
-        ctx.lineTo(quad[3].x, quad[3].y + 2.5)
+        ctx.moveTo(visuals.bevelEdge.pA.x, visuals.bevelEdge.pA.y)
+        ctx.lineTo(visuals.bevelEdge.pB.x, visuals.bevelEdge.pB.y)
+        ctx.lineTo(visuals.bevelEdge.pB.x, visuals.bevelEdge.pB.y + 2.5 / scaleRatio)
+        ctx.lineTo(visuals.bevelEdge.pA.x, visuals.bevelEdge.pA.y + 2.5 / scaleRatio)
         ctx.closePath()
         ctx.fillStyle = '#0f172a'
         ctx.strokeStyle = '#334155'
@@ -279,35 +281,21 @@ export async function downloadRoofLayoutPng({
         ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)'
         ctx.lineWidth = 0.75 / scaleRatio
 
-        for (let r = 1; r < 6; r++) {
-          const t = r / 6
-          const pLeft = {
-            x: quad[0].x + (quad[3].x - quad[0].x) * t,
-            y: quad[0].y + (quad[3].y - quad[0].y) * t,
-          }
-          const pRight = {
-            x: quad[1].x + (quad[2].x - quad[1].x) * t,
-            y: quad[1].y + (quad[2].y - quad[1].y) * t,
-          }
+        for (const line of visuals.rowLines) {
           ctx.beginPath()
-          ctx.moveTo(pLeft.x, pLeft.y)
-          ctx.lineTo(pRight.x, pRight.y)
+          ctx.moveTo(line.pA.x, line.pA.y)
+          ctx.lineTo(line.pB.x, line.pB.y)
           ctx.stroke()
         }
 
-        const midTop = { x: (quad[0].x + quad[1].x) / 2, y: (quad[0].y + quad[1].y) / 2 }
-        const midBot = { x: (quad[3].x + quad[2].x) / 2, y: (quad[3].y + quad[2].y) / 2 }
         ctx.beginPath()
-        ctx.moveTo(midTop.x, midTop.y)
-        ctx.lineTo(midBot.x, midBot.y)
+        ctx.moveTo(visuals.centerLine.pA.x, visuals.centerLine.pA.y)
+        ctx.lineTo(visuals.centerLine.pB.x, visuals.centerLine.pB.y)
         ctx.stroke()
       }
 
       // Wattage label at centroid
-      const centerPt = {
-        x: (quad[0].x + quad[1].x + quad[2].x + quad[3].x) / 4,
-        y: (quad[0].y + quad[1].y + quad[2].y + quad[3].y) / 4,
-      }
+      const centerPt = visuals.center
       if (panel.isValid) {
         ctx.fillStyle = '#93c5fd'
         ctx.font = `600 ${Math.max(8, 9 / scaleRatio)}px monospace`
@@ -364,21 +352,32 @@ export async function downloadRoofLayoutPng({
     if (panel.isValid && panel.width > 20 && panel.height > 20) {
       ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)'
       ctx.lineWidth = 0.75 / scaleRatio
-      const rows = 6
-      const cols = 2
-      const cellW = panel.width / cols
-      const cellH = panel.height / rows
+      const rows = 5
+      const isPortrait = panel.width <= panel.height
 
-      for (let r = 1; r < rows; r++) {
+      if (isPortrait) {
+        const cellH = panel.height / rows
+        for (let r = 1; r < rows; r++) {
+          ctx.beginPath()
+          ctx.moveTo(0, r * cellH)
+          ctx.lineTo(panel.width, r * cellH)
+          ctx.stroke()
+        }
         ctx.beginPath()
-        ctx.moveTo(0, r * cellH)
-        ctx.lineTo(panel.width, r * cellH)
+        ctx.moveTo(panel.width / 2, 0)
+        ctx.lineTo(panel.width / 2, panel.height)
         ctx.stroke()
-      }
-      for (let c = 1; c < cols; c++) {
+      } else {
+        const cellW = panel.width / rows
+        for (let r = 1; r < rows; r++) {
+          ctx.beginPath()
+          ctx.moveTo(r * cellW, 0)
+          ctx.lineTo(r * cellW, panel.height)
+          ctx.stroke()
+        }
         ctx.beginPath()
-        ctx.moveTo(c * cellW, 0)
-        ctx.lineTo(c * cellW, panel.height)
+        ctx.moveTo(0, panel.height / 2)
+        ctx.lineTo(panel.width, panel.height / 2)
         ctx.stroke()
       }
     }
