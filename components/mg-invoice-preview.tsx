@@ -835,6 +835,9 @@ export function MGInvoicePreview({
 
                               return (Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
                                 .filter((w) => {
+                                  if (w.enabled === false) {
+                                    return false
+                                  }
                                   if (w.id === 'w-3' && !scopeData.hasBattery) {
                                     return false
                                   }

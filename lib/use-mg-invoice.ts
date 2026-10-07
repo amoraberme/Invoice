@@ -59,11 +59,13 @@ export function useMGInvoice() {
               const cov = w?.coverage !== undefined && w.coverage !== null && w.coverage !== 'undefined' ? String(w.coverage) : ''
               const comp = w?.component && w.component !== 'undefined' ? String(w.component) : ''
               const wType = w?.warrantyType && w.warrantyType !== 'undefined' ? String(w.warrantyType) : 'Manufacturer Warranty'
+              const enabled = typeof w?.enabled === 'boolean' ? w.enabled : true
               return {
                 id: typeof w?.id === 'string' ? w.id : `warr-${idx}-${Date.now()}`,
                 component: comp,
                 warrantyType: wType,
                 coverage: cov,
+                enabled,
               }
             })
             continue

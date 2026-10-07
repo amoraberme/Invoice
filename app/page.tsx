@@ -2372,6 +2372,8 @@ export default function Home() {
   const prevBatteryQtyRef = useRef<number | null>(null)
   const prevTotalWattsRef = useRef<number | null>(null)
   const prevPricePerWattRef = useRef<number | null>(null)
+  const prevInverterDescRef = useRef<string | null>(null)
+  const prevBatteryDescRef = useRef<string | null>(null)
   const savedLaborItemsRef = useRef<LineItem[]>([])
   const savedSubjectRef = useRef<string | null>(null)
   const savedRateMarkupRef = useRef<number | null>(null)
@@ -2880,8 +2882,14 @@ export default function Home() {
     update('scopes', generateDefaultScopesFromInvoice(invoice))
   }
 
-  const getSafeWarranties = () => {
-    const list = Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice)
+  const getSafeWarranties = (): WarrantyItem[] => {
+    let list: WarrantyItem[]
+    if (Array.isArray(invoice.warranties) && invoice.warranties.length > 0) {
+      list = invoice.warranties
+    } else {
+      list = generateDefaultWarrantiesFromInvoice(invoice)
+    }
+
     const hasLaborInItems = (invoice.lineItems || []).some((it) => isLaborItem(it.description))
     const isSupplyOnly = isSupplyMode || (invoice.subject || '').toLowerCase().includes('supply') || !hasLaborInItems
 
@@ -2895,21 +2903,63 @@ export default function Home() {
     return list
   }
 
-  const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
+  const updateWarranty = (id: string, field: keyof WarrantyItem, value: any) => {
     const list = getSafeWarranties()
     const updated = list.map((w) => (w.id === id ? { ...w, [field]: value } : w))
     update('warranties', updated)
   }
 
+  const handleToggleWarranty = (id: string, enabled: boolean) => {
+    const list = getSafeWarranties()
+    const updated = list.map((w) => (w.id === id ? { ...w, enabled } : w))
+    update('warranties', updated)
+  }
+
   const handleAddWarranty = () => {
-    const newItem = newWarrantyItem('', 'Manufacturer Warranty', '')
+    const newItem = newWarrantyItem('', 'Manufacturer Warranty', '', true)
     const list = getSafeWarranties()
     update('warranties', [...list, newItem])
   }
 
   const handleRemoveWarranty = (id: string) => {
     const list = getSafeWarranties()
-    update('warranties', list.filter((w) => w.id !== id))
+    const isDefaultItem = ['w-1', 'w-2', 'w-3', 'w-4'].includes(id)
+    if (isDefaultItem) {
+      // Mark disabled so the user can easily re-enable it without losing it
+      const updated = list.map((w) => (w.id === id ? { ...w, enabled: false } : w))
+      update('warranties', updated)
+    } else {
+      update('warranties', list.filter((w) => w.id !== id))
+    }
+  }
+
+  const handleSyncWarranties = () => {
+    const freshDefaults = generateDefaultWarrantiesFromInvoice(invoice)
+    const currentList = getSafeWarranties()
+    
+    // Update or add default warranties (w-1, w-2, w-3, w-4) to match current equipment
+    const updated = currentList.map((item) => {
+      const fresh = freshDefaults.find((f) => f.id === item.id)
+      if (fresh) {
+        return {
+          ...item,
+          component: fresh.component,
+          warrantyType: fresh.warrantyType,
+          coverage: fresh.coverage,
+          enabled: true,
+        }
+      }
+      return item
+    })
+
+    // If a default warranty like w-3 is missing in currentList but present in freshDefaults, add it
+    for (const fresh of freshDefaults) {
+      if (!updated.some((u) => u.id === fresh.id)) {
+        updated.push(fresh)
+      }
+    }
+
+    update('warranties', updated)
   }
 
   const handleResetWarranties = () => {
@@ -3070,6 +3120,46 @@ export default function Home() {
       }
     }
 
+    // Dynamic Warranty Synchronization:
+    // When inverter, battery, or equipment items change, ensure default warranties (w-1, w-2, w-3) stay synced
+    const currentInverterDesc = (currentItems.find(it => {
+      const d = (it.description || '').toLowerCase()
+      return !isBatteryUnit(d) && (d.includes('inverter') || d.includes('solis') || d.includes('goodwe') || d.includes('deye') || d.includes('growatt') || d.includes('sungrow'))
+    })?.description || '').trim()
+
+    const currentBatteryDesc = (currentItems.find(it => isBatteryUnit(it.description))?.description || '').trim()
+
+    const inverterChanged = prevInverterDescRef.current !== null && currentInverterDesc !== prevInverterDescRef.current
+    const batteryChanged = prevBatteryDescRef.current !== null && (currentBatteryDesc !== prevBatteryDescRef.current || totalBatteryQty !== prevBatteryQtyRef.current)
+
+    if (inverterChanged || batteryChanged) {
+      if (Array.isArray(invoice.warranties) && invoice.warranties.length > 0) {
+        const freshWarr = generateDefaultWarrantiesFromInvoice({ ...invoice, lineItems: currentItems })
+        const freshInverter = freshWarr.find(w => w.id === 'w-2')
+        const freshBattery = freshWarr.find(w => w.id === 'w-3')
+
+        let updatedWarranties = invoice.warranties.map(w => {
+          if (w.id === 'w-2' && freshInverter) {
+            return { ...w, coverage: freshInverter.coverage }
+          }
+          if (w.id === 'w-3' && freshBattery) {
+            return { ...w, coverage: freshBattery.coverage }
+          }
+          return w
+        })
+
+        if (freshBattery && !updatedWarranties.some(w => w.id === 'w-3')) {
+          // If battery was added, include the battery warranty row
+          updatedWarranties.splice(2, 0, freshBattery)
+        } else if (!freshBattery && updatedWarranties.some(w => w.id === 'w-3')) {
+          // If battery was removed from line items (e.g. On-Grid or 0 qty), remove w-3
+          updatedWarranties = updatedWarranties.filter(w => w.id !== 'w-3')
+        }
+
+        update('warranties', updatedWarranties)
+      }
+    }
+
     const pricePerWattChanged = prevPricePerWattRef.current !== null && pricePerWatt !== prevPricePerWattRef.current
     const panelQtyChanged = prevPanelQtyRef.current !== null && panelQty !== prevPanelQtyRef.current
     const totalWattsChanged = prevTotalWattsRef.current !== null && totalWatts !== prevTotalWattsRef.current
@@ -3101,6 +3191,8 @@ export default function Home() {
     prevBatteryQtyRef.current = totalBatteryQty
     prevTotalWattsRef.current = totalWatts
     prevPricePerWattRef.current = pricePerWatt
+    prevInverterDescRef.current = currentInverterDesc
+    prevBatteryDescRef.current = currentBatteryDesc
   }, [invoice.lineItems, invoice.laborPricePerWatt, loaded, setInvoice, update])
 
   const handleApplyPreset = (preset: 'min' | 'balance' | 'max') => {
@@ -3978,6 +4070,12 @@ export default function Home() {
     prevTotalWattsRef.current = totalPanelWatts
     prevPricePerWattRef.current = pricePerWatt
 
+    const freshGeneratedWarranties = generateDefaultWarrantiesFromInvoice({
+      ...invoice,
+      lineItems: items,
+      excludeBattery: effSystemType === 'ongrid'
+    })
+
     if (isSupplyMode) {
       const generatedLaborItems = items.filter((item) => isLaborItem(item.description))
       savedLaborItemsRef.current = generatedLaborItems
@@ -3989,6 +4087,7 @@ export default function Home() {
         rateMarkup: 10,
         excludeBattery: effSystemType === 'ongrid',
         lineItems: nonLaborItems,
+        warranties: freshGeneratedWarranties,
         subject: 'Supply of Solar System Materials',
         salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the Supply of Solar System Materials based on your requirement.',
         issueDate: currentDateStr,
@@ -4000,6 +4099,7 @@ export default function Home() {
         ...prev,
         excludeBattery: effSystemType === 'ongrid',
         lineItems: items,
+        warranties: freshGeneratedWarranties,
         subject: systemTypeSubject,
         salutation: newSalutation,
         issueDate: currentDateStr,
@@ -7206,16 +7306,28 @@ export default function Home() {
                         <ShieldCheck size={16} className="text-primary" />
                         <SectionHeader>Warranty Coverage</SectionHeader>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleResetWarranties}
-                        className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
-                        title="Reset to default warranty coverage"
-                      >
-                        Reset Defaults
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleSyncWarranties}
+                          className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                          title="Sync warranties to match current equipment brands & ratings"
+                        >
+                          Sync from Items
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResetWarranties}
+                          className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                          title="Reset to default warranty coverage"
+                        >
+                          Reset Defaults
+                        </Button>
+                      </div>
                     </div>
 
                     <p className="text-[11px] text-muted-foreground">
@@ -7223,7 +7335,8 @@ export default function Home() {
                     </p>
 
                     {/* Column Headers */}
-                    <div className="flex gap-2 px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex gap-2 px-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider items-center">
+                      <span className="w-5 text-center" title="Toggle warranty on/off">On</span>
                       <span className="flex-1">Component / Service</span>
                       <span className="w-44">Warranty Type</span>
                       <span className="w-28 text-right pr-2">Coverage Period</span>
@@ -7231,41 +7344,56 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-2">
-                      {getSafeWarranties().map((w, idx) => (
-                        <div
-                          key={w.id || idx}
-                          className="flex items-center gap-2 p-2 rounded-[10px] bg-secondary/30 border border-border hover:border-primary/40 transition-all"
-                        >
-                          <Input
-                            className="flex-1 text-xs h-8 font-medium bg-background"
-                            value={w.component}
-                            onChange={(e) => updateWarranty(w.id, 'component', e.target.value)}
-                            placeholder="e.g. Solar Panels, Inverter, Battery..."
-                          />
-                          <Input
-                            className="w-44 shrink-0 text-xs h-8 text-muted-foreground bg-background"
-                            value={w.warrantyType}
-                            onChange={(e) => updateWarranty(w.id, 'warrantyType', e.target.value)}
-                            placeholder="e.g. Manufacturer Warranty"
-                          />
-                          <Input
-                            className="w-28 shrink-0 text-xs h-8 font-bold text-right bg-background"
-                            value={w.coverage}
-                            onChange={(e) => updateWarranty(w.id, 'coverage', e.target.value)}
-                            placeholder="e.g. 15 Years, 5 Years..."
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => handleRemoveWarranty(w.id)}
-                            className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer h-7 w-7"
-                            title="Remove warranty row"
+                      {getSafeWarranties().map((w, idx) => {
+                        const isEnabled = w.enabled !== false
+                        return (
+                          <div
+                            key={w.id || idx}
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded-[10px] border transition-all",
+                              isEnabled
+                                ? "bg-secondary/30 border-border hover:border-primary/40"
+                                : "bg-secondary/10 border-border/50 opacity-60 hover:opacity-80"
+                            )}
                           >
-                            <Trash2 size={13} />
-                          </Button>
-                        </div>
-                      ))}
+                            <input
+                              type="checkbox"
+                              checked={isEnabled}
+                              onChange={(e) => handleToggleWarranty(w.id, e.target.checked)}
+                              className="h-3.5 w-3.5 rounded border-border text-primary cursor-pointer shrink-0 ml-1"
+                              title={isEnabled ? "Disable warranty row" : "Enable warranty row"}
+                            />
+                            <Input
+                              className={cn("flex-1 text-xs h-8 font-medium bg-background", !isEnabled && "line-through text-muted-foreground")}
+                              value={w.component}
+                              onChange={(e) => updateWarranty(w.id, 'component', e.target.value)}
+                              placeholder="e.g. Solar Panels, Inverter, Battery..."
+                            />
+                            <Input
+                              className="w-44 shrink-0 text-xs h-8 text-muted-foreground bg-background"
+                              value={w.warrantyType}
+                              onChange={(e) => updateWarranty(w.id, 'warrantyType', e.target.value)}
+                              placeholder="e.g. Manufacturer Warranty"
+                            />
+                            <Input
+                              className="w-28 shrink-0 text-xs h-8 font-bold text-right bg-background"
+                              value={w.coverage}
+                              onChange={(e) => updateWarranty(w.id, 'coverage', e.target.value)}
+                              placeholder="e.g. 15 Years, 5 Years..."
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => handleRemoveWarranty(w.id)}
+                              className="text-muted-foreground hover:text-destructive shrink-0 cursor-pointer h-7 w-7"
+                              title={isEnabled ? "Remove or disable warranty row" : "Remove warranty row"}
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </div>
+                        )
+                      })}
                     </div>
 
                     <Button

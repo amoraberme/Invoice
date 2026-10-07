@@ -931,13 +931,13 @@ export function generateDefaultWarrantiesFromInvoice(invoice: Partial<Invoice>):
   }
 
   const warranties: WarrantyItem[] = [
-    { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years' },
-    { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: inverterCoverage },
+    { id: 'w-1', component: 'Solar Panels', warrantyType: 'Manufacturer Warranty', coverage: '15 Years', enabled: true },
+    { id: 'w-2', component: 'Inverter', warrantyType: 'Manufacturer Warranty', coverage: inverterCoverage, enabled: true },
   ]
   if (hasBattery) {
-    warranties.push({ id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: batteryCoverage })
+    warranties.push({ id: 'w-3', component: 'Battery Storage', warrantyType: 'Manufacturer Warranty', coverage: batteryCoverage, enabled: true })
   }
-  warranties.push({ id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '2 Years' })
+  warranties.push({ id: 'w-4', component: 'Full System', warrantyType: 'Workmanship & Installation Services', coverage: '2 Years', enabled: true })
   return warranties
 }
 

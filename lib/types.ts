@@ -23,6 +23,7 @@ export interface WarrantyItem {
   component: string
   warrantyType: string
   coverage: string
+  enabled?: boolean
 }
 
 export interface ScopeOfWorkItem {
@@ -199,9 +200,9 @@ export function newExpenseItem(description = '', amount = 0, category: ExpenseIt
   return { id, description, amount, category }
 }
 
-export function newWarrantyItem(component = '', warrantyType = 'Manufacturer Warranty', coverage = ''): WarrantyItem {
+export function newWarrantyItem(component = '', warrantyType = 'Manufacturer Warranty', coverage = '', enabled = true): WarrantyItem {
   const id = `warr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-  return { id, component, warrantyType, coverage }
+  return { id, component, warrantyType, coverage, enabled }
 }
 
 export function newScopeItem(letter = 'A', title = '', subtitle = '', description = ''): ScopeOfWorkItem {
