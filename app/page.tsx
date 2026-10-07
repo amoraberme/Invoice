@@ -178,7 +178,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
 
   const dcSpd = systemKw <= 8 ? 'DC SPD 600V 40kA' : 'DC SPD 1000V 40kA'
   const acSpd = 'AC SPD 275V 40kA'
-  const dcMcb = 'DC MCB 63A'
+  const dcMcb = 'DC MCB 20A'
 
   return {
     acMcb,
@@ -192,7 +192,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     enclosureRate,
     enclosureQty,
     dcMcbQty,
-    dcMcbRate: 420.00,
+    dcMcbRate: 233.00,
     dcSpdQty,
     dcSpdRate: 790.00,
     acSpdQty,
@@ -363,7 +363,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
   const newGroundLugQty = isOld20Kw ? 5 : (inverterKw >= 20 ? 10 : ((inverterKw === 8 || inverterKw === 10) ? 5 : 2))
   const newGroundWireQty = wireInfo.groundWireMeters
   const newPvcMouldingQty = isOld20Kw ? 5 : (inverterKw >= 20 ? 10 : (inverterKw <= 5 ? 3 : 5))
-  const newCableTrayQty = isOld20Kw ? 1 : (inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1))
+  const newCableTrayQty = isOld20Kw ? 2 : (inverterKw >= 20 ? 8 : (inverterKw >= 8 ? 4 : 2))
   const newGroundRodQty = isOld20Kw ? 1 : (inverterKw >= 16 ? 2 : 1)
   let baseLugs50 = isOld20Kw ? 5 : (inverterKw >= 20 ? 32 : (inverterKw <= 6 ? 8 : (inverterKw <= 10 ? 16 : 20)))
   if (effectiveBatteryQty > 1 && inverterKw < 20) {
@@ -451,9 +451,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         return { ...item, description: 'Grounding Lugs', quantity: newGroundLugQty, rate: 35 }
       }
     } else if (descLower === 'cable tray' || descLower.includes('cable tray') || descLower === 'tray') {
-      if (item.description !== 'Cable Tray 2m' || item.quantity !== newCableTrayQty || item.rate !== 560) {
+      if (item.description !== 'Cable Tray 1m' || item.quantity !== newCableTrayQty || item.rate !== 560) {
         changed = true
-        return { ...item, description: 'Cable Tray 2m', quantity: newCableTrayQty, rate: 560 }
+        return { ...item, description: 'Cable Tray 1m', quantity: newCableTrayQty, rate: 560 }
       }
     } else if (
       descLower === 'grounding conductor' ||
@@ -502,17 +502,17 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         const isExplicit6 = descLower.includes('#6') || descLower.includes('awg 6') || descLower.includes('awg #6')
 
         let targetDesc = 'AC Wire #6'
-        let targetRate = 99.34
+        let targetRate = 129.00
         let targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
 
         if (isExplicit8 || (seenAcWire6 && !seenAcWire8)) {
           targetDesc = 'AC Wire #8'
-          targetRate = 60.04
+          targetRate = 70.00
           targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
           seenAcWire8 = true
         } else {
           targetDesc = 'AC Wire #6'
-          targetRate = 99.34
+          targetRate = 129.00
           targetQty = (inverterKw >= 20 && !isOld20Kw) ? 120 : (isOld20Kw ? 50 : (inverterKw >= 12 ? 100 : 60))
           seenAcWire6 = true
         }
@@ -528,9 +528,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         }
         seenAcWire8 = true
         const targetDesc = inverterKw === 8 ? 'AC Wire 6mm²' : 'AC Wire #8'
-        if (item.description !== targetDesc || item.rate !== 60.04 || item.quantity !== 60 || item.unit !== 'M') {
+        if (item.description !== targetDesc || item.rate !== 70.00 || item.quantity !== 60 || item.unit !== 'M') {
           changed = true
-          return { ...item, description: targetDesc, rate: 60.04, quantity: 60, unit: 'M' }
+          return { ...item, description: targetDesc, rate: 70.00, quantity: 60, unit: 'M' }
         }
       }
     } else if (
@@ -607,9 +607,9 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
     } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
       const targetDesc = breakers.dcMcb
       const targetQty = breakers.dcMcbQty
-      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== 420) {
+      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== 233) {
         changed = true
-        return { ...item, description: targetDesc, quantity: targetQty, rate: 420 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: 233 }
       }
     } else if (descLower.includes('dc mccb') || descLower.includes('mccb for battery')) {
       const targetDesc = breakers.dcMccb
@@ -695,7 +695,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         id: `boq-ac6-${Date.now()}`,
         description: 'AC Wire #6',
         quantity: acWireTargetQty,
-        rate: 99.34,
+        rate: 129.00,
         unit: 'M'
       })
     }
@@ -708,7 +708,7 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         id: `boq-ac8-${Date.now()}`,
         description: 'AC Wire #8',
         quantity: acWireTargetQty,
-        rate: 60.04,
+        rate: 70.00,
         unit: 'M'
       })
     }
@@ -1522,8 +1522,8 @@ const SOLAR_PRICES = {
   FlexconHDPE: 124.00,
   FlexconHDPE32: 124.00,
   FlexconHDPE40: 124.00,
-  ACwire: 60.04,
-  ACwire6: 99.34,
+  ACwire: 70.00,
+  ACwire6: 129.00,
   PVwire: 125.00,
   DCwire: 125.00,
   MC4: 60.00,
@@ -1542,7 +1542,7 @@ const SOLAR_PRICES = {
   ACMCB_125A_MCCB: 850.00,
   ACSPD: 570.00,
   DCSPD: 790.00,
-  DCMCB: 420.00,
+  DCMCB: 233.00,
   DCMCCB: 2500.00,
   Raceway: 360.00,
   CableTray: 560.00,
@@ -3780,14 +3780,14 @@ export default function Home() {
         id: `boq-8-ac6-${now}`,
         description: 'AC Wire #6',
         quantity: acWireMeters,
-        rate: 99.34,
+        rate: prices.ACwire6 || 129.00,
         unit: 'M'
       })
       items.push({
         id: `boq-8-ac8-${now}`,
         description: 'AC Wire #8',
         quantity: acWireMeters,
-        rate: 60.04,
+        rate: prices.ACwire || 70.00,
         unit: 'M'
       })
     } else {
@@ -3796,7 +3796,7 @@ export default function Home() {
         id: `boq-8-${now}`,
         description: acWireDesc,
         quantity: 60,
-        rate: 60.04,
+        rate: prices.ACwire || 70.00,
         unit: 'M'
       })
     }
@@ -3894,12 +3894,12 @@ export default function Home() {
       unit: 'PCS'
     })
 
-    // 15. DC MCB (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; 3k-10k: 2 PCS; 12k-16k: 3 PCS | Price = ₱420)
+    // 15. DC MCB (DC MCB 20A @ ₱233)
     items.push({
       id: `boq-15-${now}`,
       description: breakers.dcMcb,
       quantity: breakers.dcMcbQty,
-      rate: 420.00,
+      rate: breakers.dcMcbRate || 233.00,
       unit: 'PCS'
     })
 
@@ -3914,11 +3914,11 @@ export default function Home() {
       })
     }
 
-    // 17. Cable Tray 2m (Old 8197ea9: 1 PC; New 20kW: 4 PCS; 8k-16k: 2 PCS; other tiers: 1 PC | Price = ₱560)
-    const cableTrayQty = isOld20Kw ? 1 : (inverterKw >= 20 ? 4 : (inverterKw >= 8 ? 2 : 1))
+    // 17. Cable Tray 1m (Old 8197ea9: 2 PCS; New 20kW: 8 PCS; 8k-16k: 4 PCS; other tiers: 2 PCS | Price = ₱560)
+    const cableTrayQty = isOld20Kw ? 2 : (inverterKw >= 20 ? 8 : (inverterKw >= 8 ? 4 : 2))
     items.push({
       id: `boq-17-${now}`,
-      description: `Cable Tray 2m`,
+      description: `Cable Tray 1m`,
       quantity: cableTrayQty,
       rate: prices.CableTray || 560,
       unit: 'PCS'

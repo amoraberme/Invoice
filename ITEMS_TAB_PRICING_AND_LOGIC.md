@@ -18,10 +18,10 @@ This document details all hardcoded prices, component rates, brand-specific tier
 | **Automatic Transfer Switch** | 63A (₱1,500) | 63A (₱1,500) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱2,000) | 125A (₱4,000) | 125A (₱4,000) | 125A (₱4,000) | 2x 125A (₱4,000 ea) |
 | **AC Wire Gauge & Length** | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC #8 (60m) | AC 6mm² (60m) | #6 (60m) + #8 (60m) | #6 (100m) + #8 (100m) | #6 (100m) + #8 (100m) | #6 (120m) + #8 (120m) |
 | **DC Wire Gauge & Length** | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC Wire (60m) | DC 6mm² (60m) | DC Wire (80m) | DC Wire (80m) | DC Wire (80m) | DC Wire (160m) |
-| **DC MCB String Protection** | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) | 4 pcs (₱420) |
+| **DC MCB String Protection** | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) | 4 pcs (₱233) |
 | **DC SPD Surge Protection** | 2 pcs (₱790) | 2 pcs (₱790) | 2 pcs (₱790) | 2 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 3 pcs (₱790) | 6 pcs (₱790) |
 | **DC MCCB for Battery** | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (1 pc @ ₱2,500) | 125A (2 pcs @ ₱2,500 ea) |
-| **Cable Tray 2m (50mm W)** | 1 pc (₱560) | 1 pc (₱560) | 1 pc (₱560) | 1 pc (₱560) | 2 pcs (₱560) | 2 pcs (₱560) | 2 pcs (₱560) | 2 pcs (₱560) | 4 pcs (₱560) |
+| **Cable Tray 1m (50mm W)** | 2 pcs (₱560) | 2 pcs (₱560) | 2 pcs (₱560) | 2 pcs (₱560) | 4 pcs (₱560) | 4 pcs (₱560) | 4 pcs (₱560) | 4 pcs (₱560) | 8 pcs (₱560) |
 | **Terminal Lugs 25mm** | 0 pcs (Deleted) | 0 pcs (Deleted) | 0 pcs (Deleted) | 0 pcs (Deleted) | 36 pcs (₱40) | 36 pcs (₱40) | 36 pcs (₱40) | 36 pcs (₱40) | 72 pcs (₱40) |
 | **Terminal Lugs 50mm** | 8 pcs (₱50) | 8 pcs (₱50) | 8 pcs (₱50) | 8 pcs (₱50) | 16 pcs (₱50) | 16 pcs (₱50) | 20 pcs (₱50) | 20 pcs (₱50) | 32 pcs (₱50) |
 | **Battery Cable Standard** | 50mm² (6m total) | 50mm² (6m total) | 50mm² (6m total) | 50mm² (6m total) | 50mm² (10m) | 50mm² (10m) | 50mm² (10m) | 70mm² (10m @ ₱820) | 50mm² (20m @ ₱700) |
@@ -47,7 +47,7 @@ The system supports toggling between two distinct 20kW architectures via the 20k
 | **AC MCCB Breakers** | 8x AC MCCB @ ₱1,300 each | 4x AC MCCB @ ₱850 each |
 | **AC SPD Surge Protection** | 4 pcs @ ₱570 | 2 pcs @ ₱570 |
 | **DC SPD Surge Protection** | 6 pcs @ ₱790 | 2 pcs @ ₱790 |
-| **DC MCB Protection** | 4 pcs @ ₱420 | 4 pcs @ ₱420 |
+| **DC MCB Protection** | 4 pcs @ ₱233 | 4 pcs @ ₱233 |
 | **DC MCCB for Battery** | 2x DC MCCB @ ₱2,500 each | 1x DC MCCB @ ₱2,000 |
 | **Automatic Transfer Switch (ATS)**| 2x 125A @ ₱4,000 each | 1x 125A @ ₱4,000 |
 | **Battery Cable** | 20m 50mm² @ ₱700/m | 2m 50mm² @ ₱700/m |
@@ -59,7 +59,7 @@ The system supports toggling between two distinct 20kW architectures via the 20k
 | **DC Wire Length** | 160m @ ₱125/m | 100m @ ₱125/m |
 | **MC4 Connectors 1500V** | 30 pcs @ ₱60 | 15 pcs @ ₱60 |
 | **MC4 2-String Branch** | 4 pcs @ ₱550 | 2 pcs @ ₱550 |
-| **Cable Tray 2m** | 4 pcs @ ₱560 | 1 pc @ ₱560 |
+| **Cable Tray 1m** | 8 pcs @ ₱560 | 2 pcs @ ₱560 |
 | **Ground Lugs** | 10 pcs @ ₱35 | 5 pcs @ ₱35 |
 | **Ground Rod w/ Clamp** | 2 pcs @ ₱750 | 1 pc @ ₱750 |
 | **PVC Moulding** | 10 Meters @ ₱449 | 5 Meters @ ₱449 |
