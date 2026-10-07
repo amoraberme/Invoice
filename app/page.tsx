@@ -119,12 +119,12 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     acMcbRate = 500.00
     acMcbQty = 4
   } else if (systemKw >= 20) {
-    acMcb = 'AC MCCB'
-    acMcbRate = isOld20Kw ? 850.00 : 1300.00
+    acMcb = isOld20Kw ? 'AC MCCB 200A' : 'AC MCCB 125A'
+    acMcbRate = isOld20Kw ? 850.00 : 850.00
     acMcbQty = isOld20Kw ? 4 : 8
   } else if (systemKw <= 16) {
-    acMcb = 'AC MCCB'
-    acMcbRate = 1300.00
+    acMcb = 'AC MCCB 100A'
+    acMcbRate = 850.00
     acMcbQty = 4
   }
 
@@ -150,7 +150,7 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
   const enclosure = systemKw <= 4
     ? 'Breaker box / Metal Enclosure 50x40'
     : 'Breaker box / Metal Enclosure 50x60'
-  const enclosureRate = systemKw <= 4 ? 1500.00 : 3000.00
+  const enclosureRate = systemKw <= 4 ? 1500.00 : 3500.00
   const enclosureQty = (systemKw >= 20 && !isOld20Kw) ? 2 : 1
 
   let dcMcbQty = 4
@@ -169,8 +169,16 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     ? batteryCountOverride
     : ((systemKw >= 20 && !isOld20Kw) ? 2 : 1)
 
-  const dcMccb = isOld20Kw ? 'DC MCCB for battery' : 'DC MCCB 125A for battery'
+  const dcMccb = isOld20Kw
+    ? 'DC MCCB 125A for battery'
+    : (systemKw >= 20 || (batteryCountOverride !== undefined && batteryCountOverride >= 2) || (batteryAh !== undefined && batteryAh >= 314)
+        ? 'DC MCCB 200A for battery'
+        : 'DC MCCB 125A for battery')
   const dcMccbRate = isOld20Kw ? 2000.00 : 2500.00
+
+  const dcSpd = systemKw <= 8 ? 'DC SPD 600V 40kA' : 'DC SPD 1000V 40kA'
+  const acSpd = 'AC SPD 275V 40kA'
+  const dcMcb = 'DC MCB 63A'
 
   return {
     acMcb,
@@ -192,9 +200,9 @@ function getDynamicBreakerRatings(systemKw: number, batteryCountOverride?: numbe
     dcMccbQty,
     dcMccbRate,
     dcMccb,
-    dcMcb: 'DC MCB',
-    acSpd: 'AC SPD',
-    dcSpd: 'DC SPD'
+    dcMcb,
+    acSpd,
+    dcSpd
   }
 }
 
@@ -583,22 +591,25 @@ function recalculateBoqAccessories(lineItems: LineItem[], rowsCountOverride?: nu
         }
       }
     } else if (descLower === 'ac spd' || descLower.startsWith('ac spd')) {
+      const targetDesc = breakers.acSpd
       const targetQty = breakers.acSpdQty
-      if (item.description !== 'AC SPD' || item.quantity !== targetQty || item.rate !== 570) {
+      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== 570) {
         changed = true
-        return { ...item, description: 'AC SPD', quantity: targetQty, rate: 570 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: 570 }
       }
     } else if (descLower === 'dc spd' || descLower.startsWith('dc spd')) {
+      const targetDesc = breakers.dcSpd
       const targetQty = breakers.dcSpdQty
-      if (item.description !== 'DC SPD' || item.quantity !== targetQty || item.rate !== 790) {
+      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== 790) {
         changed = true
-        return { ...item, description: 'DC SPD', quantity: targetQty, rate: 790 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: 790 }
       }
     } else if (descLower === 'dc mcb' || descLower.startsWith('dc mcb')) {
+      const targetDesc = breakers.dcMcb
       const targetQty = breakers.dcMcbQty
-      if (item.description !== 'DC MCB' || item.quantity !== targetQty || item.rate !== 420) {
+      if (item.description !== targetDesc || item.quantity !== targetQty || item.rate !== 420) {
         changed = true
-        return { ...item, description: 'DC MCB', quantity: targetQty, rate: 420 }
+        return { ...item, description: targetDesc, quantity: targetQty, rate: 420 }
       }
     } else if (descLower.includes('dc mccb') || descLower.includes('mccb for battery')) {
       const targetDesc = breakers.dcMccb
@@ -1119,7 +1130,7 @@ function extractLineItemsFromText(text: string) {
     8: { desc: "AC Wire #6 AWG 14mm", qty: "5m", price: "₱190.00", total: "₱950.00" },
     9: { desc: "DC/PV Wire #6 AWG 14mm", qty: "5m", price: "₱200.00", total: "₱1,000.00" },
     10: { desc: "MC4 50A", qty: "12 pcs", price: "₱80.00", total: "₱960.00" },
-    11: { desc: "Breaker box / Metal Enclosure 1pc 3,000.00", qty: "1pc", price: "₱3,000.00", total: "₱3,000.00" },
+    11: { desc: "Breaker box / Metal Enclosure 1pc 3,500.00", qty: "1pc", price: "₱3,500.00", total: "₱3,500.00" },
     12: { desc: "AC MCB 63A", qty: "2 pcs", price: "₱350.00", total: "₱700.00" },
     13: { desc: "AC SPD 275V 40kA", qty: "2 pes", price: "₱400.00", total: "₱800.00" },
     14: { desc: "DC SPD 1000V 40kA", qty: "2 pcs", price: "₱400.00", total: "₱800.00" },
@@ -1520,10 +1531,10 @@ const SOLAR_PRICES = {
   MC4_1500V: 60.00,
   ClipLock34: 180.00,
   MC4_2String: 550.00,
-  BreakerBox: 3000.00,
+  BreakerBox: 3500.00,
   BreakerBox50x40: 1500.00,
-  BreakerBox50x60: 3000.00,
-  ACMCB: 1300.00,
+  BreakerBox50x60: 3500.00,
+  ACMCB: 850.00,
   ACMCB_80A: 450.00,
   ACMCB_100A: 500.00,
   ACMCB_125A: 500.00,
@@ -3314,9 +3325,9 @@ export default function Home() {
         },
         {
           id: `boq-30k-5-${now}`,
-          description: 'AC Breaker 125amp',
+          description: 'AC MCCB 125A',
           quantity: 8,
-          rate: 1300.00,
+          rate: 850.00,
           unit: 'PCS',
         },
         {
@@ -3393,7 +3404,7 @@ export default function Home() {
           id: `boq-30k-16-${now}`,
           description: 'Combiner Box 20×40×50cm',
           quantity: 2,
-          rate: prices.BreakerBox || 3000.00,
+          rate: prices.BreakerBox || 3500.00,
           unit: 'PCS',
         },
         {
@@ -3717,7 +3728,7 @@ export default function Home() {
       })
     }
 
-    // 11. Breaker Box / Metal Enclosure (Old 8197ea9: 1 PC 50x60 @ ₱3,000; New 20kW: 2x 50x60 @ ₱3,000)
+    // 11. Breaker Box / Metal Enclosure (Old 8197ea9: 1 PC 50x60 @ ₱3,500; New 20kW: 2x 50x60 @ ₱3,500)
     items.push({
       id: `boq-11-${now}`,
       description: isOld20Kw ? `Breaker box / Metal Enclosure 50x60` : breakers.enclosure,
@@ -3726,11 +3737,11 @@ export default function Home() {
       unit: 'PC'
     })
 
-    // 12. AC Breakers (Old 8197ea9: 4x AC MCCB @ ₱850; New 20kW: 8x AC MCCB @ ₱1,300)
+    // 12. AC Breakers (Old 8197ea9: 4x AC MCCB 200A @ ₱850; New 20kW: 8x AC MCCB 125A @ ₱850)
     if (isOld20Kw) {
       items.push({
         id: `boq-12-${now}`,
-        description: `AC MCCB`,
+        description: `AC MCCB 200A`,
         quantity: 4,
         rate: 850.00,
         unit: 'PCS'
@@ -3763,7 +3774,7 @@ export default function Home() {
     // 13. AC SPD (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; others: 2 PCS | Price = ₱570)
     items.push({
       id: `boq-13-${now}`,
-      description: `AC SPD`,
+      description: breakers.acSpd,
       quantity: breakers.acSpdQty,
       rate: 570.00,
       unit: 'PCS'
@@ -3772,7 +3783,7 @@ export default function Home() {
     // 14. DC SPD (Old 8197ea9: 2 PCS; New 20kW: 6 PCS; 3k-6k: 2 PCS; 8k-16k: 3 PCS | Price = ₱790)
     items.push({
       id: `boq-14-${now}`,
-      description: `DC SPD`,
+      description: breakers.dcSpd,
       quantity: breakers.dcSpdQty,
       rate: 790.00,
       unit: 'PCS'
@@ -3781,7 +3792,7 @@ export default function Home() {
     // 15. DC MCB (Old 8197ea9: 2 PCS; New 20kW: 4 PCS; 3k-10k: 2 PCS; 12k-16k: 3 PCS | Price = ₱420)
     items.push({
       id: `boq-15-${now}`,
-      description: `DC MCB`,
+      description: breakers.dcMcb,
       quantity: breakers.dcMcbQty,
       rate: 420.00,
       unit: 'PCS'
@@ -3791,7 +3802,7 @@ export default function Home() {
     if (effSystemType !== 'ongrid') {
       items.push({
         id: `boq-16-${now}`,
-        description: isOld20Kw ? `DC MCCB for battery` : breakers.dcMccb,
+        description: breakers.dcMccb,
         quantity: isOld20Kw ? 1 : breakers.dcMccbQty,
         rate: isOld20Kw ? 2000.00 : (breakers.dcMccbRate || 2500.00),
         unit: 'PC'
@@ -5757,14 +5768,14 @@ export default function Home() {
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">2. Breaker Box / Enclosure</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          Downsized from 50x60 (₱3,000) to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">50x40 @ ₱1,500.00</span> for 3kW & 4kW packages. 5kW+ uses standard 50x60 enclosure @ ₱3,000.00.
+                          Downsized from 50x60 (₱3,500) to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">50x40 @ ₱1,500.00</span> for 3kW & 4kW packages. 5kW+ uses standard 50x60 enclosure @ <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">₱3,500.00</span>.
                         </p>
                       </div>
 
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">3. AC Breakers (MCB vs MCCB)</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 4 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 4 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 4 pcs), <span className="font-mono font-bold text-foreground">AC MCCB @ ₱1,300</span> (10k–12k, 4 pcs), and for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850/pc</span> so they are never mixed up.
+                          Updated from generic 4x MCCB to proper tier ratings: <span className="font-mono font-bold text-foreground">80A MCB @ ₱450</span> (3k–4k, 4 pcs), <span className="font-mono font-bold text-foreground">100A MCB @ ₱500</span> (5k–6k, 4 pcs), <span className="font-mono font-bold text-foreground">125A MCB @ ₱500</span> (8k, 4 pcs), <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A @ ₱850</span> (10k–12k, 4 pcs), for 16kW distinct split <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850/pc</span>, and 20kW <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">AC MCCB 125A (8 pcs) @ ₱850/pc</span>.
                         </p>
                       </div>
 

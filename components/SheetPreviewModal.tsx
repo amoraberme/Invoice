@@ -190,7 +190,7 @@ const PRICELIST_DATA: PriceCategory[] = [
     title: 'Breakers, SPDs & ATS',
     icon: Wrench,
     items: [
-      { code: 'SOL-092-B', name: 'Breaker box / Metal Enclosure 50x60', srp: '₱3,000', installer: '₱3,000', wholesale: '₱3,000', subdealer: '₱3,000' },
+      { code: 'SOL-092-B', name: 'Breaker box / Metal Enclosure 50x60', srp: '₱3,500', installer: '₱3,500', wholesale: '₱3,500', subdealer: '₱3,500' },
       { code: 'SOL-110-25', name: 'Terminal lugs 25mm', srp: '₱40', installer: '₱40', wholesale: '₱40', subdealer: '₱40' },
       { code: 'SOL-110-50', name: 'Terminal lugs 50mm', srp: '₱50', installer: '₱50', wholesale: '₱50', subdealer: '₱50' },
       { code: 'SOL-092-AC', name: 'AC MCCB (Standard)', srp: '₱1,400', installer: '₱1,300', wholesale: '₱1,250', subdealer: '₱1,200' },
