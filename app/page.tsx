@@ -1542,7 +1542,7 @@ const SOLAR_PRICES = {
   TerminalLugs25: 40.00,
   TerminalLugs50: 50.00,
   Genix100Ah: 38000.00,
-  Genix200Ah: 65000.00,
+  Genix200Ah: 68000.00,
   Cesc314Ah: 88000.00,
   Ubetter410Ah: 138000.00,
   DynessBattery: 88000.00,
@@ -2735,7 +2735,7 @@ export default function Home() {
         const batteryQty = 1
         const isSmallSetup = currentKw <= 6
         const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
-        const batteryRate = isSmallSetup ? 65000.00 : 88000.00
+        const batteryRate = isSmallSetup ? 68000.00 : 88000.00
 
         updatedItems.push({
           id: `boq-20-${Date.now()}`,
@@ -2820,7 +2820,7 @@ export default function Home() {
           const insertIdx = panelIdx !== -1 ? panelIdx + 1 : 1
           const isSmallSetup = activeKwSetup <= 6
           const batteryDesc = isSmallSetup ? `Genix Battery 51.2V 200Ah` : `CESC Battery 51.2V 314Ah`
-          const batteryRate = isSmallSetup ? 65000.00 : 88000.00
+          const batteryRate = isSmallSetup ? 68000.00 : 88000.00
 
           updatedItems.splice(insertIdx, 0, {
             id: `boq-20-${Date.now()}`,
@@ -3548,7 +3548,7 @@ export default function Home() {
         batteryRate = prices.Genix100Ah || 38000.00
       } else if (systemKw <= 6) {
         batteryDesc = `Genix Battery 51.2V 200Ah`
-        batteryRate = prices.Genix200Ah || 65000.00
+        batteryRate = prices.Genix200Ah || 68000.00
       }
 
       items.push({
@@ -5778,7 +5778,7 @@ export default function Home() {
                       <div className="p-2 rounded-md bg-background/80 border border-border/60 space-y-1">
                         <span className="font-bold text-foreground block">5. Battery Unit Capacity</span>
                         <p className="text-muted-foreground leading-relaxed">
-                          Default hybrid storage downsized to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">51.2V 100Ah @ ₱38,000.00</span> for 3k–5k systems, 200Ah @ ₱65,000 for 6k, and 314Ah @ ₱88,000 for 8k–16k.
+                          Default hybrid storage downsized to <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">51.2V 100Ah @ ₱38,000.00</span> for 3k–5k systems, 200Ah @ ₱68,000 for 6k, and 314Ah @ ₱88,000 for 8k–16k.
                         </p>
                       </div>
 
@@ -5925,7 +5925,7 @@ export default function Home() {
 
                       let genixPrice = 88000
                       if (descLower.includes('200ah')) {
-                        genixPrice = 65000
+                        genixPrice = 68000
                       } else if (descLower.includes('102.4v') || descLower.includes('100ah')) {
                         genixPrice = 90000
                       }
@@ -6522,7 +6522,7 @@ export default function Home() {
                               activeBrand = 'alpsolar'
                             } else if (descLower.includes('ubetter') || item.rate === 138000) {
                               activeBrand = 'ubetter'
-                            } else if (descLower.includes('genix') || item.rate === 38000 || item.rate === 65000 || item.rate === 85000) {
+                            } else if (descLower.includes('genix') || item.rate === 38000 || item.rate === 68000 || item.rate === 65000 || item.rate === 85000) {
                               activeBrand = 'genix'
                             } else if (descLower.includes('dyness') || item.rate === 43000 || item.rate === 111000) {
                               activeBrand = 'dyness'
@@ -6531,7 +6531,7 @@ export default function Home() {
                             }
 
                             const getGenixData = (cap: typeof capKey) => {
-                              if (cap === '200Ah') return { desc: 'Genix Battery 51.2V 200Ah', rate: 65000 }
+                              if (cap === '200Ah') return { desc: 'Genix Battery 51.2V 200Ah', rate: 68000 }
                               if (cap === '100Ah') return { desc: 'Genix Battery 51.2V 100Ah', rate: 38000 }
                               return { desc: 'Genix Battery 51.2V 314Ah', rate: 88000 }
                             }
@@ -6903,7 +6903,7 @@ export default function Home() {
                                             ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
                                             : "bg-white dark:bg-[#222222] text-foreground border-[#E5E5E5] dark:border-[#333333] hover:bg-[#F5F5F5]"
                                         )}
-                                        title="200Ah - ₱65,000.00"
+                                        title="200Ah - ₱68,000.00"
                                       >
                                         200Ah
                                       </button>

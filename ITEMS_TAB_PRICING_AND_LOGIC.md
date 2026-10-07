@@ -11,7 +11,7 @@ This document details all hardcoded prices, component rates, brand-specific tier
 | **Solar Panels (620W N-Type)** | 5 pcs | 6 pcs | 8 pcs | 10 pcs | 13 pcs (2 Str) | 16 pcs (2 Str) | 20 pcs (2 Str) | 26 pcs (2 Str) | 32 pcs (4 Str / 2x 16) |
 | **Inverter (AC Capacity)** | 3.0 kW AC | 4.0 kW AC | 5.0 kW AC | 6.0 kW AC | 8.0 kW AC | 10.0 kW AC | 12.0 kW AC | 16.0 kW AC | 2x 10.0 kW AC (Parallel) |
 | **Grid Configuration** | 1-Phase 230V | 1-Phase 230V | 1-Phase 230V | 1-Phase 230V | 1-Phase 230V | 3-Phase 230/400V | 3-Phase 230/400V | 3-Phase 230/400V | 3-Phase 230/400V |
-| **Battery Storage Standard** | 100Ah (₱38,000) | 100Ah (₱38,000) | 100Ah (₱38,000) | 200Ah (₱65,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 2x 314Ah (₱88,000 ea) |
+| **Battery Storage Standard** | 100Ah (₱38,000) | 100Ah (₱38,000) | 100Ah (₱38,000) | 200Ah (₱68,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 314Ah (₱88,000) | 2x 314Ah (₱88,000 ea) |
 | **Flexible Hose / Conduit** | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (25m @ ₱95) | 32mm (50m @ ₱95) | 40mm (50m @ ₱124) | 40mm (50m @ ₱124) | 40mm (50m @ ₱124) | 40mm (100m @ ₱124) |
 | **Breaker Box / Enclosure** | 50x40 (₱1,500) | 50x40 (₱1,500) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 50x60 (₱3,000) | 2x 50x60 (₱3,000 ea) |
 | **AC Main Breakers** | 4x MCB 80A (₱450) | 4x MCB 80A (₱450) | 4x MCB 100A (₱500) | 4x MCB 100A (₱500) | 4x MCB 125A (₱500) | 4x MCCB (₱1,300) | 4x MCCB (₱1,300) | AC MCCB 100A (2 pcs) + AC MCCB 125A (2 pcs) @ ₱850 | 8x AC MCCB (₱1,300 ea) |

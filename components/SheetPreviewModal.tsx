@@ -136,7 +136,7 @@ const PRICELIST_DATA: PriceCategory[] = [
       { code: 'GE14.3-BAT-LV-G10', name: 'Goodwe Lithium Battery 14.3kWh 280Ah (Wall/Floor)', srp: '₱120,000', installer: '₱110,000', wholesale: '₱107,000', subdealer: '₱105,000' },
       { code: 'GW16.1 BAT-LV-G10', name: 'Goodwe Battery 16.1kWh 314Ah (51.2V)', srp: '₱125,000', installer: '₱120,000', wholesale: '₱118,000', subdealer: '₱115,000' },
       { code: 'CESC SATURN', name: 'CESC Saturn LV-16 Battery 16kWh 314Ah', srp: '₱95,000', installer: '₱92,000', wholesale: '₱90,000', subdealer: '₱88,000' },
-      { code: 'ESBOX34 PLUS', name: 'Genix Green Lithium Battery 51.2V 200Ah (10.24kWh)', srp: '₱72,000', installer: '₱70,000', wholesale: '₱68,000', subdealer: '₱65,000' },
+      { code: 'ESBOX34 PLUS', name: 'Genix Green Lithium Battery 51.2V 200Ah (10.24kWh)', srp: '₱72,000', installer: '₱70,000', wholesale: '₱68,000', subdealer: '₱68,000' },
       { code: 'ESBOX34MAX+', name: 'Genix Green Lithium Battery 51.2V 314Ah (16.07kWh)', srp: '₱92,000', installer: '₱90,000', wholesale: '₱88,000', subdealer: '₱88,000' },
       { code: 'HV-TOWER-325100', name: 'Genix Green Lithium Battery 102.4V 100Ah High Voltage', srp: '₱98,000', installer: '₱95,000', wholesale: '₱92,000', subdealer: '₱90,000' },
       { code: 'CESC MERCURY', name: 'CESC Mercury All-in-One BESS 261kWh', srp: '₱2,500,000', installer: '—', wholesale: '₱2,400,000', subdealer: '₱2,400,000' },
