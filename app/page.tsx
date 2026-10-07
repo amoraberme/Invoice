@@ -2880,7 +2880,20 @@ export default function Home() {
     update('scopes', generateDefaultScopesFromInvoice(invoice))
   }
 
-  const getSafeWarranties = () => (Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
+  const getSafeWarranties = () => {
+    const list = Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice)
+    const hasLaborInItems = (invoice.lineItems || []).some((it) => isLaborItem(it.description))
+    const isSupplyOnly = isSupplyMode || (invoice.subject || '').toLowerCase().includes('supply') || !hasLaborInItems
+
+    if (isSupplyOnly) {
+      return list.filter((w) => {
+        const comp = (w.component || '').toLowerCase()
+        const wType = (w.warrantyType || '').toLowerCase()
+        return !(w.id === 'w-4' || comp.includes('full system') || wType.includes('workmanship'))
+      })
+    }
+    return list
+  }
 
   const updateWarranty = (id: string, field: keyof WarrantyItem, value: string) => {
     const list = getSafeWarranties()

@@ -752,7 +752,10 @@ export function MGInvoicePreview({
 
                         {(() => {
                           const defaultScopes = generateDefaultScopesFromInvoice(invoice)
-                          const activeScopes = (invoice.scopes && invoice.scopes.length > 0)
+                          const hasLaborInItems = (invoice.lineItems || []).some(it => isLaborItem(it.description))
+                          const isSupplyOnly = (invoice.subject || '').toLowerCase().includes('supply') || !hasLaborInItems
+
+                          const baseScopes = (invoice.scopes && invoice.scopes.length > 0)
                             ? invoice.scopes.filter(s => s.enabled !== false).map(scope => {
                                 if (scope.id === 'scope-c') {
                                   const defBattery = defaultScopes.find(d => d.id === 'scope-c')
@@ -776,6 +779,10 @@ export function MGInvoicePreview({
                                 return scope
                               })
                             : defaultScopes
+
+                          const activeScopes = isSupplyOnly
+                            ? baseScopes.filter(s => s.id !== 'scope-f' && !s.title.toLowerCase().includes('installation'))
+                            : baseScopes
 
                           return (
                             <div className="space-y-1.5 text-[10px] text-[#222222]">
@@ -822,22 +829,34 @@ export function MGInvoicePreview({
                         </div>
                         <table className="w-full text-left text-[9.5px] border-collapse">
                           <tbody className="divide-y divide-[#E5E5E5] bg-white">
-                            {(Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
-                              .filter((w) => {
-                                if (w.id === 'w-3' && !scopeData.hasBattery) {
-                                  return false
-                                }
-                                return true
-                              })
-                              .map((w) => {
-                                return (
-                                  <tr key={w.id}>
-                                    <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
-                                    <td className="py-1 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
-                                    <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
-                                  </tr>
-                                )
-                              })}
+                            {(() => {
+                              const hasLaborInItems = (invoice.lineItems || []).some(it => isLaborItem(it.description))
+                              const isSupplyOnly = (invoice.subject || '').toLowerCase().includes('supply') || !hasLaborInItems
+
+                              return (Array.isArray(invoice.warranties) ? invoice.warranties : generateDefaultWarrantiesFromInvoice(invoice))
+                                .filter((w) => {
+                                  if (w.id === 'w-3' && !scopeData.hasBattery) {
+                                    return false
+                                  }
+                                  if (isSupplyOnly) {
+                                    const comp = (w.component || '').toLowerCase()
+                                    const wType = (w.warrantyType || '').toLowerCase()
+                                    if (w.id === 'w-4' || comp.includes('full system') || wType.includes('workmanship')) {
+                                      return false
+                                    }
+                                  }
+                                  return true
+                                })
+                                .map((w) => {
+                                  return (
+                                    <tr key={w.id}>
+                                      <td className="py-1 px-3 font-semibold text-[#111111] w-4/12">{w.component}</td>
+                                      <td className="py-1 px-3 text-[#555555] w-5/12">{w.warrantyType}</td>
+                                      <td className="py-1 px-3 font-bold text-[#111111] text-right whitespace-nowrap w-3/12">{w.coverage}</td>
+                                    </tr>
+                                  )
+                                })
+                            })()}
                           </tbody>
                         </table>
                       </div>
