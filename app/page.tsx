@@ -3965,16 +3965,35 @@ export default function Home() {
     prevTotalWattsRef.current = totalPanelWatts
     prevPricePerWattRef.current = pricePerWatt
 
-    setInvoice((prev) => ({
-      ...prev,
-      excludeBattery: effSystemType === 'ongrid',
-      lineItems: items,
-      subject: systemTypeSubject,
-      salutation: newSalutation,
-      issueDate: currentDateStr,
-      dueDate: dueStr,
-      invoiceNumber: generateDocumentId(prev.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'),
-    }))
+    if (isSupplyMode) {
+      const generatedLaborItems = items.filter((item) => isLaborItem(item.description))
+      savedLaborItemsRef.current = generatedLaborItems
+      savedSubjectRef.current = systemTypeSubject
+
+      const nonLaborItems = items.filter((item) => !isLaborItem(item.description))
+      setInvoice((prev) => ({
+        ...prev,
+        rateMarkup: 10,
+        excludeBattery: effSystemType === 'ongrid',
+        lineItems: nonLaborItems,
+        subject: 'Supply of Solar System Materials',
+        salutation: 'Dear Madam/Sir,\n\nWe are pleased to submit to you our offer on the Supply of Solar System Materials based on your requirement.',
+        issueDate: currentDateStr,
+        dueDate: dueStr,
+        invoiceNumber: generateDocumentId(prev.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'),
+      }))
+    } else {
+      setInvoice((prev) => ({
+        ...prev,
+        excludeBattery: effSystemType === 'ongrid',
+        lineItems: items,
+        subject: systemTypeSubject,
+        salutation: newSalutation,
+        issueDate: currentDateStr,
+        dueDate: dueStr,
+        invoiceNumber: generateDocumentId(prev.invoiceNumber?.startsWith('MG-INV') ? 'MG-INV' : 'MG-QT'),
+      }))
+    }
   }
 
   // Keep document title synced at all times with the client name and quotation number
