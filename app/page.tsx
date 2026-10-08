@@ -1276,14 +1276,14 @@ function extractLineItemsFromText(text: string) {
 
 const INVERTER_BRAND_PRICES_MAP: Record<number, { anern: number; solis: number; goodwe: number }> = {
   3: { anern: 14000, solis: 37000, goodwe: 35000 },
-  4: { anern: 14000, solis: 37000, goodwe: 35000 },
-  5: { anern: 16500, solis: 37000, goodwe: 45000 },
+  4: { anern: 14000, solis: 37000, goodwe: 0 },
+  5: { anern: 16500, solis: 37000, goodwe: 0 },
   6: { anern: 18000, solis: 44000, goodwe: 47000 },
   8: { anern: 25000, solis: 59000, goodwe: 62000 },
   9: { anern: 28000, solis: 97000, goodwe: 74000 },
   10: { anern: 28000, solis: 67000, goodwe: 74000 },
   12: { anern: 32500, solis: 79000, goodwe: 78000 },
-  16: { anern: 45000, solis: 92000, goodwe: 150000 },
+  16: { anern: 45000, solis: 92000, goodwe: 0 },
   18: { anern: 55000, solis: 97000, goodwe: 150000 },
   20: { anern: 65000, solis: 0, goodwe: 160000 },
   30: { anern: 95000, solis: 226000, goodwe: 140000 },
@@ -1420,6 +1420,7 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
     name: 'GoodWe',
     logo: '/goodwe.svg',
     getPrice: (kw: number) => {
+      if (kw === 4 || kw === 5 || kw === 16) return null
       const prices = getInverterBrandPrices(kw)
       return prices.goodwe
     }
@@ -1434,6 +1435,16 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
       if (kw === 10 || Math.abs(kw - 10.5) < 0.1) return 79000
       if (kw === 12) return 86000
       return null
+    }
+  },
+  {
+    id: 'solis',
+    name: 'Solis',
+    logo: '/solis.svg',
+    getPrice: (kw: number) => {
+      if (kw === 20) return null
+      const prices = getInverterBrandPrices(kw)
+      return prices.solis
     }
   },
   {
@@ -1459,16 +1470,6 @@ const HYBRID_BRANDS: HybridBrandInfo[] = [
     getPrice: (kw: number) => {
       const prices = getInverterBrandPrices(kw)
       return prices.anern
-    }
-  },
-  {
-    id: 'solis',
-    name: 'Solis',
-    logo: '/solis.svg',
-    getPrice: (kw: number) => {
-      if (kw === 20) return null
-      const prices = getInverterBrandPrices(kw)
-      return prices.solis
     }
   }
 ]
@@ -2712,7 +2713,7 @@ export default function Home() {
         const unitKw = kwMatch ? parseFloat(kwMatch[1]) : (item.quantity && item.quantity > 1 ? currentKw! / item.quantity : currentKw!)
 
         if (type === 'ongrid') {
-          const defaultBrand = ON_GRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(unitKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
+          const defaultBrand = ON_GRID_BRANDS.find(b => (unitKw === 4 ? b.id === 'solis' : b.id === 'goodwe') && b.getPrice(unitKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
           if (defaultBrand) {
             const price = defaultBrand.getPrice(unitKw)!
             return {
@@ -2722,12 +2723,23 @@ export default function Home() {
             }
           }
         } else {
-          const brandPrices = getInverterBrandPrices(unitKw)
-          const is20KwSingle = unitKw === 20
-          return {
-            ...item,
-            description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `GoodWe Inverter ${unitKw}kW Hybrid`,
-            rate: brandPrices.goodwe
+          const defaultBrand = HYBRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(unitKw) !== null) || HYBRID_BRANDS.find(b => b.getPrice(unitKw) !== null)
+          if (defaultBrand) {
+            const price = defaultBrand.getPrice(unitKw)!
+            const is20KwSingle = unitKw === 20 && defaultBrand.id === 'goodwe'
+            return {
+              ...item,
+              description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `${defaultBrand.name} Inverter ${unitKw}kW Hybrid`,
+              rate: price
+            }
+          } else {
+            const brandPrices = getInverterBrandPrices(unitKw)
+            const is20KwSingle = unitKw === 20
+            return {
+              ...item,
+              description: is20KwSingle ? 'GoodWe Inverter 20kW Hybrid (3-Phase LV)' : `GoodWe Inverter ${unitKw}kW Hybrid`,
+              rate: brandPrices.goodwe
+            }
           }
         }
       }
@@ -3613,7 +3625,7 @@ export default function Home() {
         inverterPrice = brandPrices.goodwe
       }
     } else if (effSystemType === 'ongrid') {
-      const defaultBrand = ON_GRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(inverterKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
+      const defaultBrand = ON_GRID_BRANDS.find(b => (inverterKw === 4 ? b.id === 'solis' : b.id === 'goodwe') && b.getPrice(inverterKw) !== null) || ON_GRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
       if (defaultBrand) {
         inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW On-Grid`
         inverterPrice = defaultBrand.getPrice(inverterKw)!
@@ -3628,9 +3640,15 @@ export default function Home() {
         inverterDesc = `GoodWe Inverter 20kW Hybrid (3-Phase LV)`
         inverterPrice = brandPrices.goodwe || 160000
       } else {
-        const brandPrices = getInverterBrandPrices(inverterKw)
-        inverterDesc = `GoodWe Inverter ${inverterKw}kW Hybrid`
-        inverterPrice = brandPrices.goodwe
+        const defaultBrand = HYBRID_BRANDS.find(b => b.id === 'goodwe' && b.getPrice(inverterKw) !== null) || HYBRID_BRANDS.find(b => b.getPrice(inverterKw) !== null)
+        if (defaultBrand) {
+          inverterDesc = `${defaultBrand.name} Inverter ${inverterKw}kW Hybrid`
+          inverterPrice = defaultBrand.getPrice(inverterKw)!
+        } else {
+          const brandPrices = getInverterBrandPrices(inverterKw)
+          inverterDesc = `GoodWe Inverter ${inverterKw}kW Hybrid`
+          inverterPrice = brandPrices.goodwe
+        }
       }
     }
 
